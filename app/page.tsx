@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import RatingCard from "./components/RatingCard";
 import Footer from "./components/Footer";
 import RatingModal from "./components/RatingModal";
@@ -27,15 +27,16 @@ const getOverallRating = (ratings: Rating[]) => {
   ratings.forEach((rating) => {
     rating.overall =
       (rating.parkAppearance +
-      rating.bestCoaster +
-      rating.waterRides +
-      rating.otherRides +
-      rating.food +
-      rating.snacksAndDrinks +
-      rating.parkPracticality +
-      rating.rideOperations +
-      rating.parkManagement +
-      rating.value) / 10;
+        rating.bestCoaster +
+        rating.waterRides +
+        rating.otherRides +
+        rating.food +
+        rating.snacksAndDrinks +
+        rating.parkPracticality +
+        rating.rideOperations +
+        rating.parkManagement +
+        rating.value) /
+      10;
   });
 };
 
@@ -105,8 +106,6 @@ const Home = () => {
     setRatings((prevRatings) => [...prevRatings, newRating]);
   };
 
-
-
   return (
     <main className="text-center">
       {/* Title at the top */}
@@ -118,8 +117,9 @@ const Home = () => {
       </div>
 
       <Footer />
-
-      <RatingModal closeModal={closeModal} addNewRating={addNewRating} />
+      <Suspense fallback={<div>Loading...</div>}>
+        <RatingModal closeModal={closeModal} addNewRating={addNewRating} />
+      </Suspense>
     </main>
   );
 };
