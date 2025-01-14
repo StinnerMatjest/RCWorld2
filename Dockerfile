@@ -13,6 +13,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Next.js app lives here
 WORKDIR /app
 
+# Create npm cache and log directories with appropriate permissions
+RUN mkdir -p /home/nextjs/.npm && chown -R nextjs:nodejs /home/nextjs/.npm
+ENV NPM_CONFIG_CACHE=/home/nextjs/.npm
+
 # Throw-away build stage to reduce size of final image
 FROM base AS builder
 
@@ -20,8 +24,11 @@ FROM base AS builder
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3
 
-# Install node modules
-COPY package-lock.json package.json ./
+# Install node modules, including TypeScript and types
+COPY package-lock.json package.json ./ 
+RUN npm install --save-exact --save-dev typescript @types/react @types/node
+
+# Install other node modules
 RUN npm ci --include=dev
 
 # Copy application code
@@ -43,6 +50,9 @@ ENV PORT=3000
 # Create user for running app
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
+
+# Ensure permissions for the app directory
+RUN chown -R nextjs:nodejs /app
 
 # Copy necessary build artifacts from the builder stage
 COPY --from=builder /app/public ./public
