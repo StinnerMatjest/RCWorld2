@@ -36,7 +36,6 @@ RUN npm prune --omit=dev
 # Final stage for app image
 FROM base AS runner
 
-# Set production environment
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
@@ -45,24 +44,25 @@ ENV PORT=3000
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy static files and app build from builder stage
+# Copy necessary build artifacts from the builder stage
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./standalone
 COPY --from=builder /app/.next/static ./.next/static
-
-# Copy the whole application to the runner stage
 COPY --from=builder /app /app
 
-# Copy the entrypoint script
-COPY docker-entrypoint.js /app/docker-entrypoint.js
+WORKDIR /app
 
-# Ensure execute permissions on the entrypoint
+# Ensure proper permissions for the .next directory
+RUN mkdir -p /app/.next && chown -R nextjs:nodejs /app/.next
+
+# Copy entrypoint script
+COPY docker-entrypoint.js /app/docker-entrypoint.js
 RUN chmod +x /app/docker-entrypoint.js
 
-# Entrypoint sets up the container.
+# Set entrypoint
 ENTRYPOINT ["/app/docker-entrypoint.js"]
 
-# Expose port and run app
+# Set non-root user for running the app
 USER nextjs
 EXPOSE 3000
 CMD ["npm", "run", "start"]
