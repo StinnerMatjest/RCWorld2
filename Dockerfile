@@ -13,12 +13,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Next.js app lives here
 WORKDIR /app
 
-# Create user and group before creating directories
-RUN groupadd --system nodejs && useradd --system --gid nodejs nextjs
-
 # Create npm cache and log directories with appropriate permissions
-RUN mkdir -p /home/nextjs/.npm && chown -R nextjs:nodejs /home/nextjs/.npm
-ENV NPM_CONFIG_CACHE=/home/nextjs/.npm
+RUN mkdir -p /home/node/.npm && chown -R node:node /home/node/.npm
+ENV NPM_CONFIG_CACHE=/home/node/.npm
 
 # Throw-away build stage to reduce size of final image
 FROM base AS builder
@@ -58,9 +55,6 @@ COPY --from=builder /app /app
 
 WORKDIR /app
 
-# Ensure proper permissions for the .next directory
-RUN mkdir -p /app/.next && chown -R nextjs:nodejs /app/.next
-
 # Copy entrypoint script
 COPY docker-entrypoint.js /app/docker-entrypoint.js
 RUN chmod +x /app/docker-entrypoint.js
@@ -69,6 +63,6 @@ RUN chmod +x /app/docker-entrypoint.js
 ENTRYPOINT ["/app/docker-entrypoint.js"]
 
 # Set non-root user for running the app
-USER nextjs
+USER node
 EXPOSE 3000
 CMD ["npm", "run", "start"]

@@ -12,13 +12,12 @@ const env = { ...process.env };
     const nextDir = path.join(process.cwd(), '.next');
     ensureWritableDir(nextDir);
 
-    // If running the web server, then prerender pages
-    if (process.argv.slice(2).join(' ') === 'npm run start') {
-      await exec('npx next build');  // Remove --experimental-build-mode generate
+    // If the start command is invoked, ensure the app is built first
+    if (process.argv.includes('start')) {
+      await exec('npx next build');
     }
-    
 
-    // Launch application
+    // Execute the requested command
     await exec(process.argv.slice(2).join(' '));
   } catch (err) {
     console.error('Error during entrypoint execution:', err);
@@ -32,13 +31,10 @@ function ensureWritableDir(dirPath) {
     fs.mkdirSync(dirPath, { recursive: true });
   }
 
-  fs.access(dirPath, fs.constants.W_OK, (err) => {
-    if (err) {
-      throw new Error(`Cannot write to ${dirPath}: ${err.message}`);
-    }
-  });
+  fs.accessSync(dirPath, fs.constants.W_OK);
 }
 
+// Execute the command in a child process
 function exec(command) {
   const child = spawn(command, { shell: true, stdio: 'inherit', env });
   return new Promise((resolve, reject) => {
@@ -46,7 +42,7 @@ function exec(command) {
       if (code === 0) {
         resolve();
       } else {
-        reject(new Error(`${command} failed rc=${code}`));
+        reject(new Error(`${command} failed with exit code ${code}`));
       }
     });
   });
