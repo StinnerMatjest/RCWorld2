@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-const { spawn } = require('node:child_process');
-const fs = require('fs');
-const path = require('path');
+import { spawn } from 'node:child_process';
+import fs from 'fs';
+import path from 'path';
 
 const env = { ...process.env };
 
