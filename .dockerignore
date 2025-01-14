@@ -53,9 +53,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-README.md
-.next
-!.next/static
-!.next/standalone
-.git
