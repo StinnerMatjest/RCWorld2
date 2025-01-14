@@ -13,6 +13,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Next.js app lives here
 WORKDIR /app
 
+# Create user and group before creating directories
+RUN groupadd --system nodejs && useradd --system --gid nodejs nextjs
+
 # Create npm cache and log directories with appropriate permissions
 RUN mkdir -p /home/nextjs/.npm && chown -R nextjs:nodejs /home/nextjs/.npm
 ENV NPM_CONFIG_CACHE=/home/nextjs/.npm
@@ -46,13 +49,6 @@ FROM base AS runner
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
-
-# Create user for running app
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-# Ensure permissions for the app directory
-RUN chown -R nextjs:nodejs /app
 
 # Copy necessary build artifacts from the builder stage
 COPY --from=builder /app/public ./public
