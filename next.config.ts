@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
     config.devtool = false;  // Disable source maps for production
     return config;
   },
+  // You can add other production-specific settings here if needed
 };
-
 
 export default nextConfig;
