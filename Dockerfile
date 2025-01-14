@@ -54,13 +54,13 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app /app
 
 # Copy the entrypoint script (ensure the correct path)
-COPY docker-entrypoint.js /app/docker-entrypoint.js
+COPY docker-entrypoint.js /docker-entrypoint.js
 
 # Set working directory
 WORKDIR /app
 
 # Entrypoint sets up the container.
-ENTRYPOINT ["/app/docker-entrypoint.js"]
+ENTRYPOINT ["/docker-entrypoint.js"]
 
 # Expose port and run app
 USER nextjs
