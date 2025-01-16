@@ -1,0 +1,9 @@
+{
+    "name": "nextjs-park-ratings",
+    "plugins": {
+      "node": {
+        "version": "18"
+      }
+    }
+  }
+  
