@@ -1,6 +1,7 @@
 "use client";
 import React, { createContext, useState, useContext } from "react";
-import { Park } from "../park/[id]/page";
+import { Park } from "../park/[id]/page";  // Correct path to import Park
+
 
 interface ParksContextType {
   parks: Park[];
@@ -13,30 +14,7 @@ const ParksContext = createContext<ParksContextType | undefined>(undefined);
 // Provider component
 export const ParksProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [parks, setParks] = useState<Park[]>([
-    {
-      id: 1,
-      name: 'Toverland',
-      continent: 'Europe',
-      country: 'Netherlands',
-      city: 'Sevenum',
-      imagePath: '/images/parks/Toverland.PNG',
-    },
-    {
-      id: 2,
-      name: 'Walibi Belgium',
-      continent: 'Europe',
-      country: 'Belgium',
-      city: 'Wavre',
-      imagePath: '/images/parks/Walibi Belgium.PNG',
-    },
-    {
-      id: 3,
-      name: 'Phantasialand',
-      continent: 'Europe',
-      country: 'Germany',
-      city: 'Brühl',
-      imagePath: '/images/parks/Phantasialand.PNG',
-    },
+
   ]);
 
   return (

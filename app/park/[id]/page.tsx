@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 
-interface Park {
+export interface Park {  // Export the interface so it can be used elsewhere
   id: number;
   name: string;
   continent: string;
