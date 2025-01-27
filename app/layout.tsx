@@ -1,21 +1,25 @@
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ParksProvider } from "./context/ParksContext";
+import { Inter, Roboto } from "next/font/google";
 
 export const metadata = {
   title: "Your Application Title",
   description: "Your app description",
 };
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  weight: "400", // or "300", "500", etc.
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const roboto = Roboto({
+  variable: "--font-roboto",
   subsets: ["latin"],
+  weight: "400", // or any of the valid font weights
 });
+
 
 export default function RootLayout({
   children,
@@ -25,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${inter.variable} ${roboto.variable} antialiased`}
       >
         <ParksProvider>{children}</ParksProvider>
       </body>
