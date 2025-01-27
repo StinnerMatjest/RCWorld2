@@ -32,7 +32,7 @@ export interface Park {
   imagePath: string;
 }
 
-export const Home = () => {
+const Home = () => {
   const router = useRouter();
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [parks, setParks] = useState<Park[]>([]);
