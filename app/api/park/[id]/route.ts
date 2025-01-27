@@ -8,8 +8,11 @@ const pool = new Pool({
   },
 });
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const parkId = params.id; // Extract the park ID from the URL parameters
+export async function GET(
+  req: NextRequest,
+  context: { params: { id: string } } // Use `context` for route parameters
+) {
+  const parkId = context.params.id; // Correctly access the park ID
 
   try {
     const query = `
@@ -29,7 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       return NextResponse.json({ error: "Park not found" }, { status: 404 });
     }
 
-    const park = result.rows[0]; // Get the first result (there should only be one)
+    const park = result.rows[0];
     return NextResponse.json(park, { status: 200 });
   } catch (error) {
     console.error("Database query error:", error);
