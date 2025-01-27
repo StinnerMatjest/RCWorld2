@@ -8,11 +8,8 @@ const pool = new Pool({
   },
 });
 
-export async function GET(
-  req: NextRequest,
-  context: { params: { id: string } } // Use `context` for route parameters
-) {
-  const parkId = context.params.id; // Correctly access the park ID
+export async function GET(req: NextRequest, context: { params: { id: string } }) {
+  const parkId = context.params.id;
 
   try {
     const query = `

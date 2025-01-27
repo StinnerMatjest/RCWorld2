@@ -1,4 +1,3 @@
-// app/api/parks/[id]/route.ts
 import { Pool } from "pg";
 import { NextResponse } from "next/server";
 import { Park } from "@/app/page";
