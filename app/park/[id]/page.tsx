@@ -1,39 +1,51 @@
-import Image from 'next/image';
-import MainPageButton from '@/app/components/MainPageButton';
+"use client";
+import { useEffect, useState } from "react";
+import Image from "next/image";
 
-export interface Park {
+interface Park {
   id: number;
   name: string;
   continent: string;
   country: string;
   city: string;
-  imagePath: string;
+  imagepath: string;
 }
 
-// Hardcode park data for now (no need to fetch dynamically)
-const park: Park = {
-  id: 1,
-  name: 'Toverland',
-  continent: 'Europe',
-  country: 'Netherlands',
-  city: 'Sevenum',
-  imagePath: '/images/parks/Toverland.PNG',
-};
+const ParkPage = ({ params }: { params: { id: string } }) => {
+  const [park, setPark] = useState<Park | null>(null);
 
-export default function ParkPage() {
+  useEffect(() => {
+    const fetchPark = async () => {
+      try {
+        const response = await fetch(`/api/park/${params.id}`);
+        if (!response.ok) {
+          throw new Error("Park not found");
+        }
+        const data = await response.json();
+        setPark(data);
+      } catch (error) {
+        console.error("Error fetching park:", error);
+      }
+    };
+
+    fetchPark();
+  }, [params.id]);
+
+
+  if (!park) {
+    return <div>Loading...</div>;
+  }
+
   return (
-    <div className="park-details">
-      <h1 className="text-3xl font-bold">{park.name}</h1>
-      <Image src={park.imagePath} alt={park.name} height={100} width={1500} />
-      <div>
-        <p>
-          <strong>Location:</strong> {park.city}, {park.country}, {park.continent}
-        </p>
-        <p>
-          <strong>Details:</strong> More info about the park here...
-        </p>
-        <MainPageButton />
-      </div>
+    <div>
+      <h1>{park.name}</h1>
+      <p>{park.continent}</p>
+      <p>{park.country}</p>
+      <p>{park.city}</p>
+      <Image src={park.imagepath} alt={park.name} width={600} height={400} />
     </div>
   );
-}
+};
+
+
+export default ParkPage;

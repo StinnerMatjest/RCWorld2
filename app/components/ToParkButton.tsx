@@ -1,16 +1,16 @@
-// components/ToParkButton.tsx
 import React from 'react'
 import Link from 'next/link'
 
-// Add a prop for the rating ID
+// parkId prop
 interface ToParkButtonProps {
-  ratingId: number;
+  parkId: number;
 }
 
-const ToParkButton: React.FC<ToParkButtonProps> = ({ ratingId }) => {
+const ToParkButton: React.FC<ToParkButtonProps> = ({ parkId }) => {
+  console.log("ToParkButton received parkId:", parkId);
   return (
     <div className="card-actions">
-      <Link href={`/park/${ratingId}`}>
+      <Link href={`/park/${parkId}`}>
         <button className="btn btn-primary">View Park</button>
       </Link>
     </div>

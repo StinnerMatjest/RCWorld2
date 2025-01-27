@@ -1,16 +1,17 @@
 "use client";
 import React, { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Rating } from "../page";
 import RatingSuccessMessage from "./RatingSuccessMessage";
-import { useParks } from "../context/ParksContext";
 
 interface ModalProps {
   closeModal: () => void;
-  addNewRating: (newRating: Rating) => void;
+  fetchRatingsAndParks: () => void;
 }
 
-const RatingModal: React.FC<ModalProps> = ({ closeModal, addNewRating }) => {
+const RatingModal: React.FC<ModalProps> = ({
+  closeModal,
+  fetchRatingsAndParks,
+}) => {
   const searchParams = useSearchParams();
   const isOpen = searchParams?.get("modal") === "true";
 
@@ -37,9 +38,6 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, addNewRating }) => {
     bestCoaster: false,
   });
 
-  // Access parks context to update the parks list
-  const { setParks } = useParks();
-
   type CheckboxState = {
     parkAppearance: boolean;
     bestCoaster: boolean;
@@ -58,7 +56,8 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, addNewRating }) => {
 
     setCheckboxState((prev: CheckboxState) => ({
       ...prev,
-      [name as keyof CheckboxState]: numericValue === 5.0 ? false : prev[name as keyof CheckboxState],
+      [name as keyof CheckboxState]:
+        numericValue === 5.0 ? false : prev[name as keyof CheckboxState],
     }));
   };
 
@@ -102,89 +101,110 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, addNewRating }) => {
     return areParkFieldsFilled && areRatingFieldsFilled;
   };
 
-  const handleSubmit = () => {
-    if (
-      !parkInfo.name ||
-      !parkInfo.continent ||
-      !parkInfo.country ||
-      !parkInfo.city
-    ) {
-      alert("Please fill in all park information");
+  const handleSubmit = async () => {
+    if (!isFormValid()) {
+      alert("Please fill out all required fields.");
       return;
     }
 
-    // Check if an image file is provided
-    if (!parkInfo.image) {
-      alert("Please upload a park image");
-      return;
+    try {
+      let imagePath = "/images/Error.PNG"; // Default path if no image is selected
+
+      // Check if image exists and upload it
+      if (parkInfo.image) {
+        const formData = new FormData();
+        formData.append("file", parkInfo.image);
+
+        const r2Response = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (r2Response.ok) {
+          const r2Result = await r2Response.json();
+          console.log("R2 Response:", r2Result); // Log full response from R2
+          imagePath = r2Result.imagePath; // Use the correct field from the response
+        } else {
+          console.error("Image upload failed");
+          alert("Failed to upload image. Please try again.");
+          return;
+        }
+      }
+
+      // Ensure the imagePath is assigned before the payload
+      const parkPayload = {
+        name: parkInfo.name,
+        continent: parkInfo.continent,
+        country: parkInfo.country,
+        city: parkInfo.city,
+        imagepath: imagePath,
+      };
+
+      console.log("Name: " + parkInfo.name);
+      console.log("Continent: " + parkInfo.continent);
+      console.log("Country: " + parkInfo.country);
+      console.log("City: " + parkInfo.city);
+      console.log("Image Path: " + parkPayload.imagepath); // Ensure this is logged
+
+      // Create the park record
+      const parkResponse = await fetch("/api/parks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parkPayload),
+      });
+
+      if (!parkResponse.ok) {
+        const error = await parkResponse.json();
+        console.error("Error creating park:", error); // Log the detailed error message
+        alert(`Error creating park: ${error.message || "Unknown error"}`);
+        return;
+      }
+
+      const savedPark = await parkResponse.json();
+      console.log("Park saved:", savedPark); // Log the response from park creation
+
+      // Create the rating record
+      const ratingPayload = {
+        ...ratings,
+        date: new Date().toISOString().split("T")[0],
+        parkId: savedPark.parkId,
+        overall:
+          ((ratings.parkAppearance ?? 0) +
+            (ratings.bestCoaster ?? 0) +
+            (ratings.waterRides ?? 0) +
+            (ratings.otherRides ?? 0) +
+            (ratings.food ?? 0) +
+            (ratings.snacksAndDrinks ?? 0) +
+            (ratings.parkPracticality ?? 0) +
+            (ratings.rideOperations ?? 0) +
+            (ratings.parkManagement ?? 0) +
+            (ratings.value ?? 0)) /
+          10,
+      };
+
+      // Create the rating record
+      const ratingResponse = await fetch("/api/ratings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(ratingPayload),
+      });
+
+      if (ratingResponse.ok) {
+        setMessage(`${savedPark.name} has been added with a rating.`);
+        setTimeout(() => closeModal(), 2000);
+      } else {
+        console.error("Failed to save rating");
+      }
+    } catch (error) {
+      console.error("Submission error:", error);
+      alert("Failed to submit. Please try again.");
     }
 
-    // Generate a local URL for the image (for preview purposes)
-    const imageURL = URL.createObjectURL(parkInfo.image);
-
-    const newPark = {
-      id: Math.random(),
-      name: parkInfo.name,
-      continent: parkInfo.continent,
-      country: parkInfo.country,
-      city: parkInfo.city,
-      imagePath: imageURL,
-    };
-
-    const newRating: Rating = {
-      id: Math.random(),
-      date: new Date(),
-      park: parkInfo.name,
-      parkAppearance: ratings["parkAppearance"] || 0,
-      bestCoaster: ratings["bestCoaster"] || 0,
-      waterRides: ratings["waterRides"] || 0,
-      otherRides: ratings["otherRides"] || 0,
-      food: ratings["food"] || 0,
-      snacksAndDrinks: ratings["snacksAndDrinks"] || 0,
-      parkPracticality: ratings["parkPracticality"] || 0,
-      rideOperations: ratings["rideOperations"] || 0,
-      parkManagement: ratings["parkManagement"] || 0,
-      value: ratings["value"] || 0,
-      overall: 0,
-      imagePath: imageURL,
-    };
-
-    // Adjust rating if checkbox is checked
-    if (checkboxState.parkAppearance) newRating.parkAppearance += 1;
-    if (checkboxState.bestCoaster) newRating.bestCoaster += 1;
-
-    newRating.overall =
-      (newRating.parkAppearance +
-        newRating.bestCoaster +
-        newRating.waterRides +
-        newRating.otherRides +
-        newRating.food +
-        newRating.snacksAndDrinks +
-        newRating.parkPracticality +
-        newRating.rideOperations +
-        newRating.parkManagement +
-        newRating.value) / 10;
-
-    addNewRating(newRating);
-
-    // Update parks list in context
-    setParks((prevParks) => [...prevParks, newPark]);
-
-    setMessage(
-      `${newPark.name} has been added with a rating of: ${newRating.overall}!`
-    );
-
-    // Close modal after delay
-    setTimeout(() => {
-      closeModal();
-      setMessage("");
-    }, 2000);
+    // Refresh ratings and parks
+    fetchRatingsAndParks();
   };
 
   if (!isOpen) return null;
-
-  // Generate rating options from 5.0 to 0.5, decrementing by 0.5
-  const ratingOptions = Array.from({ length: 10 }, (_, i) => (10 - i) * 0.5);
 
   return (
     <Suspense fallback={<div>Loading...</div>}>
@@ -309,7 +329,16 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, addNewRating }) => {
                     <input
                       type="file"
                       name="image"
-                      onChange={(e) => setParkInfo({ ...parkInfo, image: e.target.files?.[0] || null })}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          // Just save the file in parkInfo, no upload yet
+                          setParkInfo({
+                            ...parkInfo,
+                            image: file,
+                          });
+                        }
+                      }}
                       className="w-full p-2 border border-gray-300 rounded-md"
                     />
                   </div>
@@ -321,7 +350,9 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, addNewRating }) => {
             <div className="cursor-pointer">
               <div
                 className="flex justify-between items-center"
-                onClick={() => setRatingSectionExpanded(!isRatingSectionExpanded)}
+                onClick={() =>
+                  setRatingSectionExpanded(!isRatingSectionExpanded)
+                }
               >
                 <h3 className="text-lg font-semibold">Rating</h3>
                 <span>{isRatingSectionExpanded ? "▲" : "▼"}</span>
@@ -354,11 +385,19 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, addNewRating }) => {
                         className="w-full p-2 border border-gray-300 rounded-md"
                       >
                         <option value="">Select Rating</option>
-                        {ratingOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
+                        {[...Array(9)].map((_, i) => {
+                          const base = (i + 2) / 2; // Generates values from 1.0 to 5.0
+                          if (base > 5.0) return null; // Limit to 5.0
+                          const formattedValue = base.toFixed(1); // Ensures values are like "1.0", "2.0"
+                          return (
+                            <option
+                              key={`${field}-${formattedValue}`}
+                              value={formattedValue}
+                            >
+                              {formattedValue}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                   ))}
@@ -372,7 +411,9 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, addNewRating }) => {
                         checked={checkboxState.parkAppearance}
                         onChange={handleCheckboxChange}
                       />
-                      <span className="ml-2">Increase park appearance rating by 1</span>
+                      <span className="ml-2">
+                        Increase park appearance rating by 1
+                      </span>
                     </label>
                   </div>
                   <div>
@@ -383,7 +424,9 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, addNewRating }) => {
                         checked={checkboxState.bestCoaster}
                         onChange={handleCheckboxChange}
                       />
-                      <span className="ml-2">Increase best coaster rating by 1</span>
+                      <span className="ml-2">
+                        Increase best coaster rating by 1
+                      </span>
                     </label>
                   </div>
                 </div>

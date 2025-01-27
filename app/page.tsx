@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, Suspense } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import RatingCard from "./components/RatingCard";
 import Footer from "./components/Footer";
 import RatingModal from "./components/RatingModal";
@@ -7,8 +7,8 @@ import { useRouter } from "next/navigation";
 
 export interface Rating {
   id: number;
-  date: Date;
   park: string;
+  date: Date;
   parkAppearance: number;
   bestCoaster: number;
   waterRides: number;
@@ -20,90 +20,73 @@ export interface Rating {
   parkManagement: number;
   value: number;
   overall: number;
+  parkId: number;
+}
+
+export interface Park {
+  id: number;
+  name: string;
+  continent: string;
+  country: string;
+  city: string;
   imagePath: string;
 }
 
-const getOverallRating = (ratings: Rating[]) => {
-  ratings.forEach((rating) => {
-    rating.overall =
-      (rating.parkAppearance +
-        rating.bestCoaster +
-        rating.waterRides +
-        rating.otherRides +
-        rating.food +
-        rating.snacksAndDrinks +
-        rating.parkPracticality +
-        rating.rideOperations +
-        rating.parkManagement +
-        rating.value) /
-      10;
-  });
-};
-
-const Home = () => {
+export const Home = () => {
   const router = useRouter();
-  const [ratings, setRatings] = useState<Rating[]>([
-    {
-      id: 1,
-      date: new Date(),
-      park: "Toverland",
-      parkAppearance: 3.5,
-      bestCoaster: 4.5,
-      waterRides: 3.0,
-      otherRides: 3.0,
-      food: 3.5,
-      snacksAndDrinks: 4.0,
-      parkPracticality: 3.5,
-      rideOperations: 3.0,
-      parkManagement: 4.5,
-      value: 2.5,
-      overall: 0,
-      imagePath: "/images/parks/Toverland.PNG",
-    },
-    {
-      id: 2,
-      date: new Date(),
-      park: "Walibi Belgium",
-      parkAppearance: 4.0,
-      bestCoaster: 5.0,
-      waterRides: 5.0,
-      otherRides: 3.5,
-      food: 3.0,
-      snacksAndDrinks: 2.5,
-      parkPracticality: 4.0,
-      rideOperations: 4.0,
-      parkManagement: 2.0,
-      value: 3.0,
-      overall: 0,
-      imagePath: "/images/parks/Walibi Belgium.PNG",
-    },
-    {
-      id: 3,
-      date: new Date(),
-      park: "Phantasialand",
-      parkAppearance: 5.0,
-      bestCoaster: 4.0,
-      waterRides: 5.0,
-      otherRides: 4.0,
-      food: 4.5,
-      snacksAndDrinks: 3.5,
-      parkPracticality: 2.5,
-      rideOperations: 4.5,
-      parkManagement: 3.0,
-      value: 3.0,
-      overall: 0,
-      imagePath: "/images/parks/Phantasialand.PNG",
-    },
-  ]);
+  const [ratings, setRatings] = useState<Rating[]>([]);
+  const [parks, setParks] = useState<Park[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  getOverallRating(ratings);
+  const fetchRatingsAndParks = async () => {
+    try {
+      const ratingsResponse = await fetch("/api/ratings");
+      if (!ratingsResponse.ok) {
+        throw new Error("Failed to fetch ratings");
+      }
+      const ratingsData = await ratingsResponse.json();
+      console.log("Ratings data:", ratingsData);
+  
+      const parksResponse = await fetch("/api/parks");
+      if (!parksResponse.ok) {
+        throw new Error("Failed to fetch parks");
+      }
+      const parksData = await parksResponse.json();
+      console.log("Parks data:", parksData);
+  
+      // Ensure parksData is an array (access the parks property)
+      setParks(Array.isArray(parksData.parks) ? parksData.parks : []);
+      setRatings(Array.isArray(ratingsData.ratings) ? ratingsData.ratings : []);
+      setError(null);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error("Error fetching ratings or parks:", err.message);
+        setError(err.message);
+      } else {
+        console.error("Unexpected error:", err);
+        setError("An unexpected error occurred");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+
+  useEffect(() => {
+    fetchRatingsAndParks();
+  }, []);
+
+  if (isLoading) {
+    return <div>Loading ratings and parks...</div>;
+  }
+
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
 
   const closeModal = () => {
     router.push("/", undefined);
-  };
-
-  const addNewRating = (newRating: Rating) => {
-    setRatings((prevRatings) => [...prevRatings, newRating]);
   };
 
   return (
@@ -112,13 +95,30 @@ const Home = () => {
       <h1 className="text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-500 via-blue-500 to-purple-500 shadow-lg my-12">
         RCWorld
       </h1>
-      <div>
-        <RatingCard ratings={ratings} />
+
+      {/* Grid container for RatingCards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
+        {ratings.map((rating) => {
+          const park = parks.find((p) => p.id === Number(rating.parkId)); // Ensure both are numbers
+
+          console.log("Rating parkId:", rating.parkId);
+          console.log("Found park:", park); // Log the entire park object or `undefined`
+
+          if (!park) {
+            return <div key={rating.id}>Park not found for {rating.park}</div>;
+          }
+
+          console.log("Park id:", park.id); // Log park.id only if park is found
+
+          return (
+            <RatingCard key={rating.id} ratings={[rating]} parks={[park]} />
+          );
+        })}
       </div>
 
       <Footer />
       <Suspense fallback={<div>Loading...</div>}>
-        <RatingModal closeModal={closeModal} addNewRating={addNewRating} />
+        <RatingModal closeModal={closeModal} fetchRatingsAndParks={fetchRatingsAndParks} />
       </Suspense>
     </main>
   );
