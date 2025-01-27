@@ -1,6 +1,8 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useParams } from "next/navigation";
 
 interface Park {
   id: number;
@@ -11,13 +13,16 @@ interface Park {
   imagepath: string;
 }
 
-const ParkPage = ({ params }: { params: { id: string } }) => {
+const ParkPage = () => {
+  const params = useParams(); // Correctly access params with useParams
+  const parkId = params?.id; // Extract id safely
   const [park, setPark] = useState<Park | null>(null);
 
   useEffect(() => {
+    if (!parkId) return; // Ensure parkId is defined
     const fetchPark = async () => {
       try {
-        const response = await fetch(`/api/park/${params.id}`);
+        const response = await fetch(`/api/park/${parkId}`);
         if (!response.ok) {
           throw new Error("Park not found");
         }
@@ -29,8 +34,7 @@ const ParkPage = ({ params }: { params: { id: string } }) => {
     };
 
     fetchPark();
-  }, [params.id]);
-
+  }, [parkId]);
 
   if (!park) {
     return <div>Loading...</div>;
@@ -46,6 +50,5 @@ const ParkPage = ({ params }: { params: { id: string } }) => {
     </div>
   );
 };
-
 
 export default ParkPage;

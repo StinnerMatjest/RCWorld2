@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { Pool } from 'pg';
+import { NextRequest, NextResponse } from "next/server";
+import { Pool } from "pg";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -8,8 +8,8 @@ const pool = new Pool({
   },
 });
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
-  const parkId = params.id; // ID from URL
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  const parkId = params.id; // Extract the park ID from the URL parameters
 
   try {
     const query = `
