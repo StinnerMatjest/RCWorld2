@@ -45,7 +45,7 @@ const ParkPage = () => {
       <p>{park.continent}</p>
       <p>{park.country}</p>
       <p>{park.city}</p>
-      <img src={park.imagepath} alt={park.name} width={700} height={700} />
+      <img src={park.imagepath} alt={park.name} width={800} height={500} />
     </div>
   );
 };

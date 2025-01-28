@@ -67,7 +67,6 @@ export async function POST(request: Request) {
 
     console.log("Incoming park data:", body);
 
-    // Check if the park already exists
     const checkQuery = "SELECT id FROM parks WHERE name = $1";
     const checkResult = await pool.query(checkQuery, [name]);
 

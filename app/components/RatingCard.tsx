@@ -37,16 +37,16 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
                 <img
                   src={park.imagePath}
                   alt={park.name}
-                  width={600}
-                  height={600}
+                  width={700}
+                  height={500}
                   style={{ objectFit: "cover" }}
                 />
               ) : (
                 <img
                   src="/images/error.PNG"
                   alt="Placeholder"
-                  width={600}
-                  height={600}
+                  width={700}
+                  height={500}
                   style={{ objectFit: "cover" }}
                 />
               )}
