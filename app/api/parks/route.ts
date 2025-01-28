@@ -25,14 +25,23 @@ export async function GET() {
     const result = await pool.query(query);
     console.log("Database result:", result.rows);
 
-    const parks: Park[] = result.rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      continent: row.continent,
-      country: row.country,
-      city: row.city,
-      imagePath: row.imagepath,
-    }));
+    const parks: Park[] = result.rows.map((row) => {
+      // Ensure the extension is uppercase for both png and jpg
+      const normalizedImagePath = row.imagepath.replace(/\.png$/, '.PNG').replace(/\.jpg$/, '.JPG');
+
+    console.log("Converted Image Path: ", normalizedImagePath);
+    
+      return {
+        id: row.id,
+        name: row.name,
+        continent: row.continent,
+        country: row.country,
+        city: row.city,
+        imagePath: normalizedImagePath,
+      };
+    });
+    
+    
 
     return NextResponse.json({ parks }, { status: 200 });
   } catch (error) {
