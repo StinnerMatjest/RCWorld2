@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       // Create the S3 client
       const s3Client = new S3Client({
         region: "auto",
-        endpoint: `https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev`,
+        endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
         credentials: {
           accessKeyId: process.env.R2_ACCESS_KEY_ID!,
           secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
