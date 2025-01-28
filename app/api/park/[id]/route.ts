@@ -8,10 +8,10 @@ const pool = new Pool({
   },
 });
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const { id: parkId } = params; // destructure the parkId from params
-
+export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    const { id: parkId } = await context.params;  // Wait for the params promise to resolve
+
     const query = `
       SELECT
         id,
