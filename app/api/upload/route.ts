@@ -21,6 +21,9 @@ export async function POST(request: Request) {
   
       // Generate a unique file name
       const fileName = `${uuidv4()}-${file.name}`;
+      const bucketName = process.env.R2_BUCKET_NAME || "themeparks";
+      console.log("Bucket Name Used:", bucketName);
+      
   
       // Create the S3 client
       const s3Client = new S3Client({
@@ -36,7 +39,7 @@ export async function POST(request: Request) {
       const parallelUploads = new Upload({
         client: s3Client,
         params: {
-          Bucket: process.env.R2_BUCKET_NAME!,
+          Bucket: bucketName,
           Key: fileName,
           Body: file.stream(),
           ACL: "public-read",
