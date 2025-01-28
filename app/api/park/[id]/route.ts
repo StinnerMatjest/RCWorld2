@@ -8,8 +8,8 @@ const pool = new Pool({
   },
 });
 
-export async function GET(req: NextRequest, context: { params: { id: string } }) {
-  const parkId = context.params.id;
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  const { id: parkId } = params; // destructure the parkId from params
 
   try {
     const query = `
