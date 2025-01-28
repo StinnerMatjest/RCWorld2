@@ -43,22 +43,25 @@ const RatingModal: React.FC<ModalProps> = ({
     bestCoaster: boolean;
   };
 
-  // Handle rating changes and update checkbox state accordingly
   const handleInputChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
+
+    // Ensure the value is parsed to a number properly
     const numericValue = parseFloat(value);
 
-    // Update the ratings state
-    setRatings((prev) => ({
-      ...prev,
-      [name]: numericValue,
-    }));
+    // Only update if the numeric value is valid (i.e., not NaN)
+    if (!isNaN(numericValue)) {
+      setRatings((prev) => ({
+        ...prev,
+        [name]: numericValue,
+      }));
 
-    setCheckboxState((prev: CheckboxState) => ({
-      ...prev,
-      [name as keyof CheckboxState]:
-        numericValue === 5.0 ? false : prev[name as keyof CheckboxState],
-    }));
+      setCheckboxState((prev: CheckboxState) => ({
+        ...prev,
+        [name as keyof CheckboxState]:
+          numericValue === 5.0 ? false : prev[name as keyof CheckboxState],
+      }));
+    }
   };
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -200,7 +203,6 @@ const RatingModal: React.FC<ModalProps> = ({
       alert("Failed to submit. Please try again.");
     }
 
-    // Refresh ratings and parks
     fetchRatingsAndParks();
   };
 
@@ -380,13 +382,13 @@ const RatingModal: React.FC<ModalProps> = ({
                       </label>
                       <select
                         name={field}
-                        value={ratings[field] || ""}
+                        value={ratings[field]?.toFixed(1) || ""} // Ensure formatting here for value
                         onChange={handleInputChange}
                         className="w-full p-2 border border-gray-300 rounded-md"
                       >
                         <option value="">Select Rating</option>
                         {[...Array(9)].map((_, i) => {
-                          const base = (i + 2) / 2; // Generates values from 1.0 to 5.0
+                          const base = 5 - i * 0.5;
                           if (base > 5.0) return null; // Limit to 5.0
                           const formattedValue = base.toFixed(1); // Ensures values are like "1.0", "2.0"
                           return (

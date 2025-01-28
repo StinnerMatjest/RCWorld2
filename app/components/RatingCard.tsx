@@ -26,12 +26,11 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
         }
 
         return (
-          <div
-            key={rating.id}
-            className="flex flex-col justify-between h-full"
-          >
+          <div key={rating.id} className="flex flex-col justify-between h-full">
             <div className="pt-6 flex flex-col items-center justify-center">
-              <h1 className="text-3xl font-bold text-center mb-6">{park.name}</h1>
+              <h1 className="text-3xl font-bold text-center mb-6">
+                {park.name}
+              </h1>
             </div>
 
             <figure className="relative w-full h-[300px]">
@@ -39,65 +38,125 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
                 <Image
                   src={park.imagePath}
                   alt={park.name}
-                  layout="fill"
-                  style={{ objectFit: 'cover' }}
+                  width={500} // Static width (adjust as needed)
+                  height={300} // Static height (adjust as needed)
+                  style={{ objectFit: "cover" }}
                 />
               ) : (
                 <Image
                   src="/images/error.PNG"
                   alt="Placeholder"
-                  layout="fill"
-                  style={{ objectFit: 'cover' }}
+                  width={500} // Static width (adjust as needed)
+                  height={300} // Static height (adjust as needed)
+                  style={{ objectFit: "cover" }}
                 />
               )}
             </figure>
 
-            <div className="card-body items-center text-center flex flex-col justify-between flex-grow px-6 py-4"> {/* Added padding */}
+            <div className="card-body items-center text-center flex flex-col justify-between flex-grow px-6 py-4">
+              {" "}
+              {/* Added padding */}
               <p
-                className={`text-5xl font-semibold ${getRatingColor(rating.overall)} mb-4`}
+                className={`text-5xl font-semibold ${getRatingColor(
+                  rating.overall
+                )} mb-4`}
               >
                 {rating.overall.toFixed(1)}
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-center"> {/* Adjusted grid spacing */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-center">
+                {" "}
+                {/* Adjusted grid spacing */}
                 <div>
                   <p>Park Appearance:</p>
-                  <p className={`text-center ${getRatingColor(rating.parkAppearance)}`}>{rating.parkAppearance}</p>
+                  <p
+                    className={`text-center ${getRatingColor(
+                      rating.parkAppearance
+                    )}`}
+                  >
+                    {rating.parkAppearance}
+                  </p>
                 </div>
                 <div>
                   <p>Best Coaster:</p>
-                  <p className={`text-center ${getRatingColor(rating.bestCoaster)}`}>{rating.bestCoaster}</p>
+                  <p
+                    className={`text-center ${getRatingColor(
+                      rating.bestCoaster
+                    )}`}
+                  >
+                    {rating.bestCoaster}
+                  </p>
                 </div>
                 <div>
                   <p>Water Rides:</p>
-                  <p className={`text-center ${getRatingColor(rating.waterRides)}`}>{rating.waterRides}</p>
+                  <p
+                    className={`text-center ${getRatingColor(
+                      rating.waterRides
+                    )}`}
+                  >
+                    {rating.waterRides}
+                  </p>
                 </div>
                 <div>
                   <p>Other Rides:</p>
-                  <p className={`text-center ${getRatingColor(rating.otherRides)}`}>{rating.otherRides}</p>
+                  <p
+                    className={`text-center ${getRatingColor(
+                      rating.otherRides
+                    )}`}
+                  >
+                    {rating.otherRides}
+                  </p>
                 </div>
                 <div>
                   <p>Food:</p>
-                  <p className={`text-center ${getRatingColor(rating.food)}`}>{rating.food}</p>
+                  <p className={`text-center ${getRatingColor(rating.food)}`}>
+                    {rating.food}
+                  </p>
                 </div>
                 <div>
                   <p>SnacksAndDrinks:</p>
-                  <p className={`text-center ${getRatingColor(rating.snacksAndDrinks)}`}>{rating.snacksAndDrinks}</p>
+                  <p
+                    className={`text-center ${getRatingColor(
+                      rating.snacksAndDrinks
+                    )}`}
+                  >
+                    {rating.snacksAndDrinks}
+                  </p>
                 </div>
                 <div>
                   <p>Park Practicality:</p>
-                  <p className={`text-center ${getRatingColor(rating.parkPracticality)}`}>{rating.parkPracticality}</p>
+                  <p
+                    className={`text-center ${getRatingColor(
+                      rating.parkPracticality
+                    )}`}
+                  >
+                    {rating.parkPracticality}
+                  </p>
                 </div>
                 <div>
                   <p>Ride Operations:</p>
-                  <p className={`text-center ${getRatingColor(rating.rideOperations)}`}>{rating.rideOperations}</p>
+                  <p
+                    className={`text-center ${getRatingColor(
+                      rating.rideOperations
+                    )}`}
+                  >
+                    {rating.rideOperations}
+                  </p>
                 </div>
                 <div>
                   <p>Park Management:</p>
-                  <p className={`text-center ${getRatingColor(rating.parkManagement)}`}>{rating.parkManagement}</p>
+                  <p
+                    className={`text-center ${getRatingColor(
+                      rating.parkManagement
+                    )}`}
+                  >
+                    {rating.parkManagement}
+                  </p>
                 </div>
                 <div>
                   <p>Value:</p>
-                  <p className={`text-center ${getRatingColor(rating.value)}`}>{rating.value}</p>
+                  <p className={`text-center ${getRatingColor(rating.value)}`}>
+                    {rating.value}
+                  </p>
                 </div>
                 <ToParkButton parkId={rating.parkId} />
               </div>
