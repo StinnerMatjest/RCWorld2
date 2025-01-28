@@ -1,5 +1,5 @@
 import React from "react";
-import Image from "next/image";
+//import Image from "next/image";
 import { Rating } from "../page";
 import { Park } from "../page";
 import ToParkButton from "./ToParkButton";
@@ -35,19 +35,19 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
 
             <figure className="relative w-full h-[300px]">
               {park.imagePath ? (
-                <Image
+                <img
                   src={park.imagePath}
                   alt={park.name}
-                  width={500} // Static width (adjust as needed)
-                  height={300} // Static height (adjust as needed)
+                  width={500}
+                  height={300}
                   style={{ objectFit: "cover" }}
                 />
               ) : (
-                <Image
+                <img
                   src="/images/error.PNG"
                   alt="Placeholder"
-                  width={500} // Static width (adjust as needed)
-                  height={300} // Static height (adjust as needed)
+                  width={500}
+                  height={300}
                   style={{ objectFit: "cover" }}
                 />
               )}
