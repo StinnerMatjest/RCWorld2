@@ -45,6 +45,8 @@ export async function POST(request: Request) {
         queueSize: 4,
         leavePartsOnError: false, 
       });
+
+      console.log("Information to send: ", parallelUploads);
   
       const res = await parallelUploads.done();
   
