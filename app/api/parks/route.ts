@@ -27,7 +27,7 @@ export async function GET() {
 
     const parks: Park[] = result.rows.map((row) => {
       // Ensure the extension is uppercase for both png and jpg
-      const normalizedImagePath = row.imagepath.replace(/\.png$/, '.PNG').replace(/\.jpg$/, '.JPG').replace(/'$/, '');
+      const normalizedImagePath = row.imagepath.replace(/\.png$/, '.PNG').replace(/\.jpg$/, '.JPG').replace(/'$/, '')
 
     console.log("Converted Image Path: ", normalizedImagePath);
 
