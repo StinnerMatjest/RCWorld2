@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       // Create the S3 client
       const s3Client = new S3Client({
         region: "auto",
-        endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+        endpoint: `https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev`,
         credentials: {
           accessKeyId: process.env.R2_ACCESS_KEY_ID!,
           secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
@@ -39,17 +39,16 @@ export async function POST(request: Request) {
           Bucket: process.env.R2_BUCKET_NAME!,
           Key: fileName,
           Body: file.stream(),
-          ACL: "public-read", // Optional: make the file publicly accessible
+          ACL: "public-read",
           ContentType: file.type,
         },
-        queueSize: 4,  // Number of parallel upload threads
-        leavePartsOnError: false, // Cleanup parts on error
+        queueSize: 4,
+        leavePartsOnError: false, 
       });
   
-      // Upload the file and wait for the upload to finish
       const res = await parallelUploads.done();
   
-      // Log success and return the public URL
+
       console.log("Upload successful:", res);
       const publicUrl = `https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/${fileName}`;
   

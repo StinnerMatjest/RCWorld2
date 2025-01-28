@@ -10,7 +10,7 @@ const pool = new Pool({
 
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const { id: parkId } = await context.params;  // Wait for the params promise to resolve
+    const { id: parkId } = await context.params;  // Wait for the params promise to resolve - NEEDED FOR NEXT 15
 
     const query = `
       SELECT
