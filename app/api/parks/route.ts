@@ -2,7 +2,7 @@ import { Pool } from "pg";
 import { NextResponse } from "next/server";
 import { Park } from "@/app/page";
 
-// Create a new pool instance for PostgreSQL connection
+// Creates new pool instance for PostgreSQL connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
@@ -26,10 +26,11 @@ export async function GET() {
     console.log("Database result:", result.rows);
 
     const parks: Park[] = result.rows.map((row) => {
-      // Ensure the extension is uppercase for both png and jpg
-      const normalizedImagePath = row.imagepath.replace(/\.png$/, '.PNG').replace(/\.jpg$/, '.JPG').replace(/'$/, '')
+      const normalizedImagePath = row.imagepath
+        .replace(/\.png$/, ".PNG")
+        .replace(/'$/, "");
 
-    console.log("Converted Image Path: ", normalizedImagePath);
+      console.log("Converted Image Path: ", normalizedImagePath);
 
       return {
         id: row.id,
@@ -40,8 +41,6 @@ export async function GET() {
         imagePath: normalizedImagePath,
       };
     });
-    
-    
 
     return NextResponse.json({ parks }, { status: 200 });
   } catch (error) {
@@ -79,8 +78,6 @@ export async function POST(request: Request) {
         { status: 200 }
       );
     }
-
-    // Insert new park only if it doesn't exist already
     const query = `
       INSERT INTO parks (
         name,
@@ -109,4 +106,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
