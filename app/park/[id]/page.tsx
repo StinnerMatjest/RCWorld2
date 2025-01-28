@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { useParams } from "next/navigation";
 
-export interface Park {  // Export the interface so it can be used elsewhere
+export interface Park {
   id: number;
   name: string;
   continent: string;
@@ -14,12 +13,12 @@ export interface Park {  // Export the interface so it can be used elsewhere
 }
 
 const ParkPage = () => {
-  const params = useParams(); // Correctly access params with useParams
-  const parkId = params?.id; // Extract id safely
+  const params = useParams();
+  const parkId = params?.id;
   const [park, setPark] = useState<Park | null>(null);
 
   useEffect(() => {
-    if (!parkId) return; // Ensure parkId is defined
+    if (!parkId) return;
     const fetchPark = async () => {
       try {
         const response = await fetch(`/api/park/${parkId}`);
@@ -46,7 +45,7 @@ const ParkPage = () => {
       <p>{park.continent}</p>
       <p>{park.country}</p>
       <p>{park.city}</p>
-      <Image src={park.imagepath} alt={park.name} width={600} height={400} />
+      <img src={park.imagepath} alt={park.name} width={700} height={700} />
     </div>
   );
 };
