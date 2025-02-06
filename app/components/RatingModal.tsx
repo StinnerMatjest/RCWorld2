@@ -1,7 +1,9 @@
 "use client";
+
 import React, { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import RatingSuccessMessage from "./RatingSuccessMessage";
+import Loading from "./Loading";
 
 interface ModalProps {
   closeModal: () => void;
@@ -26,7 +28,6 @@ const RatingModal: React.FC<ModalProps> = ({
 
   const [message, setMessage] = useState<string>("");
 
-  // State to manage collapsed/expanded sections
   const [isParkSectionExpanded, setParkSectionExpanded] = useState(false);
   const [isRatingSectionExpanded, setRatingSectionExpanded] = useState(false);
 
@@ -38,28 +39,24 @@ const RatingModal: React.FC<ModalProps> = ({
     bestCoaster: false,
   });
 
-  type CheckboxState = {
-    parkAppearance: boolean;
-    bestCoaster: boolean;
-  };
+  const [loading, setLoading] = useState(false); // Add loading state
 
   const handleInputChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
-
-    // Ensure the value is parsed to a number properly
     const numericValue = parseFloat(value);
 
-    // Only update if the numeric value is valid (i.e., not NaN)
     if (!isNaN(numericValue)) {
       setRatings((prev) => ({
         ...prev,
         [name]: numericValue,
       }));
 
-      setCheckboxState((prev: CheckboxState) => ({
+      setCheckboxState((prev) => ({
         ...prev,
-        [name as keyof CheckboxState]:
-          numericValue === 5.0 ? false : prev[name as keyof CheckboxState],
+        [name as keyof typeof checkboxState]:
+          numericValue === 5.0
+            ? false
+            : prev[name as keyof typeof checkboxState],
       }));
     }
   };
@@ -68,7 +65,7 @@ const RatingModal: React.FC<ModalProps> = ({
     const { name, checked } = e.target;
     setCheckboxState((prev) => ({
       ...prev,
-      [name as keyof CheckboxState]: checked,
+      [name as keyof typeof checkboxState]: checked,
     }));
   };
 
@@ -83,9 +80,13 @@ const RatingModal: React.FC<ModalProps> = ({
   };
 
   const isFormValid = () => {
-    // Check if all park fields have values
     const areParkFieldsFilled =
-      parkInfo.name && parkInfo.continent && parkInfo.country && parkInfo.city;
+      parkInfo.name &&
+      parkInfo.continent &&
+      parkInfo.country &&
+      parkInfo.city &&
+      parkInfo.image;
+
     const areRatingFieldsFilled = [
       "parkAppearance",
       "bestCoaster",
@@ -108,6 +109,8 @@ const RatingModal: React.FC<ModalProps> = ({
       return;
     }
 
+    setLoading(true);
+
     try {
       let imagePath = "/images/Error.PNG";
 
@@ -122,7 +125,6 @@ const RatingModal: React.FC<ModalProps> = ({
 
         if (r2Response.ok) {
           const r2Result = await r2Response.json();
-          console.log("R2 Response:", r2Result);
           imagePath = r2Result.imagePath;
         } else {
           console.error("Image upload failed");
@@ -131,7 +133,6 @@ const RatingModal: React.FC<ModalProps> = ({
         }
       }
 
-      // Ensure the imagePath is assigned before the payload
       const parkPayload = {
         name: parkInfo.name,
         continent: parkInfo.continent,
@@ -139,12 +140,6 @@ const RatingModal: React.FC<ModalProps> = ({
         city: parkInfo.city,
         imagepath: imagePath,
       };
-
-      console.log("Name: " + parkInfo.name);
-      console.log("Continent: " + parkInfo.continent);
-      console.log("Country: " + parkInfo.country);
-      console.log("City: " + parkInfo.city);
-      console.log("Image Path: " + parkPayload.imagepath);
 
       const parkResponse = await fetch("/api/parks", {
         method: "POST",
@@ -160,15 +155,16 @@ const RatingModal: React.FC<ModalProps> = ({
       }
 
       const savedPark = await parkResponse.json();
-      console.log("Park saved:", savedPark);
 
       const ratingPayload = {
         ...ratings,
         date: new Date().toISOString().split("T")[0],
         parkId: savedPark.parkId,
         overall:
-          ((ratings.parkAppearance ?? 0) + (checkboxState.parkAppearance ? 1 : 0) +
-            (ratings.bestCoaster ?? 0) + (checkboxState.bestCoaster ? 1 : 0) +
+          ((ratings.parkAppearance ?? 0) +
+            (checkboxState.parkAppearance ? 1 : 0) +
+            (ratings.bestCoaster ?? 0) +
+            (checkboxState.bestCoaster ? 1 : 0) +
             (ratings.waterRides ?? 0) +
             (ratings.otherRides ?? 0) +
             (ratings.food ?? 0) +
@@ -179,12 +175,11 @@ const RatingModal: React.FC<ModalProps> = ({
             (ratings.value ?? 0)) /
           10,
         parkAppearance:
-          (ratings.parkAppearance ?? 0) + (checkboxState.parkAppearance ? 1 : 0),
+          (ratings.parkAppearance ?? 0) +
+          (checkboxState.parkAppearance ? 1 : 0),
         bestCoaster:
           (ratings.bestCoaster ?? 0) + (checkboxState.bestCoaster ? 1 : 0),
       };
-      
-      
 
       const ratingResponse = await fetch("/api/ratings", {
         method: "POST",
@@ -201,6 +196,8 @@ const RatingModal: React.FC<ModalProps> = ({
     } catch (error) {
       console.error("Submission error:", error);
       alert("Failed to submit. Please try again.");
+    } finally {
+      setLoading(false);
     }
 
     fetchRatingsAndParks();
@@ -261,6 +258,7 @@ const RatingModal: React.FC<ModalProps> = ({
                       onChange={handleParkChange}
                       className="w-full p-2 border border-gray-300 rounded-md"
                       placeholder="Enter park name"
+                      disabled={loading}
                     />
                   </div>
 
@@ -276,12 +274,13 @@ const RatingModal: React.FC<ModalProps> = ({
                       value={parkInfo.continent}
                       onChange={handleParkChange}
                       className="w-full p-2 border border-gray-300 rounded-md"
+                      disabled={loading}
                     >
                       <option value="">Select Continent</option>
                       <option value="Europe">Europe</option>
                       <option value="North America">North America</option>
                       <option value="Asia">Asia</option>
-                      <option value="Australia">Australia</option>
+                      <option value="Oceania">Oceania</option>
                       <option value="Africa">Africa</option>
                       <option value="South America">South America</option>
                     </select>
@@ -417,9 +416,7 @@ const RatingModal: React.FC<ModalProps> = ({
                             checked={checkboxState[field]}
                             onChange={handleCheckboxChange}
                           />
-                          <span className="text-sm">
-                            GOLDEN RATING
-                          </span>
+                          <span className="text-sm">GOLDEN RATING</span>
                         </div>
                       )}
                     </div>
@@ -431,10 +428,15 @@ const RatingModal: React.FC<ModalProps> = ({
             <button
               type="button"
               onClick={handleSubmit}
-              className="w-full p-3 bg-blue-500 text-white font-semibold rounded-md"
-              disabled={!isFormValid()}
+              className={`w-full p-3 text-white font-semibold rounded-md transition duration-300 cursor-pointer
+    ${
+      isFormValid()
+        ? "bg-blue-500 hover:bg-blue-700"
+        : "bg-gray-400 cursor-not-allowed"
+    }`}
+              disabled={!isFormValid() || loading}
             >
-              Submit Rating
+              {loading ? <Loading /> : "Submit Rating"}
             </button>
           </form>
         </div>

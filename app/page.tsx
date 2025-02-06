@@ -1,5 +1,7 @@
 "use client";
+
 import React, { useEffect, useState, Suspense } from "react";
+import Header from "./components/Header";
 import RatingCard from "./components/RatingCard";
 import Footer from "./components/Footer";
 import RatingModal from "./components/RatingModal";
@@ -55,7 +57,6 @@ const Home = () => {
       const parksData = await parksResponse.json();
       console.log("Parks data:", parksData);
 
-      // Ensure parksData is an array (access the parks property)
       setParks(Array.isArray(parksData.parks) ? parksData.parks : []);
       setRatings(Array.isArray(ratingsData.ratings) ? ratingsData.ratings : []);
       setError(null);
@@ -89,14 +90,9 @@ const Home = () => {
   };
 
   return (
-    <main className="text-center min-h-screen flex flex-col">
-      {/* Title at the top */}
-      <h1 className="text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-500 via-blue-500 to-purple-500 shadow-lg my-10">
-        RCWorld
-      </h1>
-
-      {/* Grid container for RatingCards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-5 px-10 flex-grow">
+    <main>
+      <Header />
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-5 px-10 flex-grow bg-gray-700">
         {ratings.map((rating) => {
           const park = parks.find((p) => p.id === Number(rating.parkId));
 
@@ -115,7 +111,6 @@ const Home = () => {
         })}
       </div>
 
-      {/* Footer */}
       <Footer />
       <Suspense fallback={<div>Loading...</div>}>
         <RatingModal

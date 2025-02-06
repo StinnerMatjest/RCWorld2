@@ -25,11 +25,6 @@ export async function GET() {
     console.log("Database result:", result.rows);
 
     const parks: Park[] = result.rows.map((row) => {
-      const normalizedImagePath = row.imagepath
-        .replace(/\.png$/, ".PNG")
-        .replace(/'$/, "");
-
-      console.log("Converted Image Path: ", normalizedImagePath);
 
       return {
         id: row.id,
@@ -37,7 +32,7 @@ export async function GET() {
         continent: row.continent,
         country: row.country,
         city: row.city,
-        imagePath: normalizedImagePath,
+        imagePath: row.imagepath,
       };
     });
 

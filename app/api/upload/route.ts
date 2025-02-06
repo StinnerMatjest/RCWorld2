@@ -19,13 +19,11 @@ export async function POST(request: Request) {
         type: file.type,
       });
   
-      // Generate a unique file name
-      const fileName = `${uuidv4()}-${file.name}`;
+      const fileName = `${uuidv4()}-${file.name}`.replace(/\.png$/, ".PNG");
       const bucketName = process.env.R2_BUCKET_NAME || "themeparks";
       console.log("Bucket Name Used:", bucketName);
       
   
-      // Create the S3 client
       const s3Client = new S3Client({
         region: "auto",
         endpoint: `https://5fd21b97e81f02fc66c7903d4720b3cd.r2.cloudflarestorage.com`,
@@ -35,7 +33,6 @@ export async function POST(request: Request) {
         },
       });
   
-      // Create the upload command
       const parallelUploads = new Upload({
         client: s3Client,
         params: {

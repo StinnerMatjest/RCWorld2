@@ -19,7 +19,7 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
   
 
   return (
-    <div className="card bg-base-100 shadow-x1 mx-auto flex flex-col justify-between w-full">
+    <div className="mx-auto flex flex-col justify-between w-full">
       {ratings.map((rating) => {
         const park = parks.find((p) => p.id === Number(rating.parkId));
         if (!park) {
@@ -61,7 +61,7 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
                   rating.overall
                 )} mb-8`}
               >
-                {rating.overall.toFixed(1)}
+                {rating.overall.toFixed(2)}
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 text-center w-full">
                 <div>
