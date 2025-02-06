@@ -86,8 +86,6 @@ const RatingModal: React.FC<ModalProps> = ({
     // Check if all park fields have values
     const areParkFieldsFilled =
       parkInfo.name && parkInfo.continent && parkInfo.country && parkInfo.city;
-
-    // Check if all rating fields have values
     const areRatingFieldsFilled = [
       "parkAppearance",
       "bestCoaster",
@@ -111,9 +109,8 @@ const RatingModal: React.FC<ModalProps> = ({
     }
 
     try {
-      let imagePath = "/images/Error.PNG"; // Default path if no image is selected
+      let imagePath = "/images/Error.PNG";
 
-      // Check if image exists and upload it
       if (parkInfo.image) {
         const formData = new FormData();
         formData.append("file", parkInfo.image);
@@ -125,8 +122,8 @@ const RatingModal: React.FC<ModalProps> = ({
 
         if (r2Response.ok) {
           const r2Result = await r2Response.json();
-          console.log("R2 Response:", r2Result); // Log full response from R2
-          imagePath = r2Result.imagePath; // Use the correct field from the response
+          console.log("R2 Response:", r2Result);
+          imagePath = r2Result.imagePath;
         } else {
           console.error("Image upload failed");
           alert("Failed to upload image. Please try again.");
@@ -147,9 +144,8 @@ const RatingModal: React.FC<ModalProps> = ({
       console.log("Continent: " + parkInfo.continent);
       console.log("Country: " + parkInfo.country);
       console.log("City: " + parkInfo.city);
-      console.log("Image Path: " + parkPayload.imagepath); // Ensure this is logged
+      console.log("Image Path: " + parkPayload.imagepath);
 
-      // Create the park record
       const parkResponse = await fetch("/api/parks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -158,22 +154,21 @@ const RatingModal: React.FC<ModalProps> = ({
 
       if (!parkResponse.ok) {
         const error = await parkResponse.json();
-        console.error("Error creating park:", error); // Log the detailed error message
+        console.error("Error creating park:", error);
         alert(`Error creating park: ${error.message || "Unknown error"}`);
         return;
       }
 
       const savedPark = await parkResponse.json();
-      console.log("Park saved:", savedPark); // Log the response from park creation
+      console.log("Park saved:", savedPark);
 
-      // Create the rating record
       const ratingPayload = {
         ...ratings,
         date: new Date().toISOString().split("T")[0],
         parkId: savedPark.parkId,
         overall:
-          ((ratings.parkAppearance ?? 0) +
-            (ratings.bestCoaster ?? 0) +
+          ((ratings.parkAppearance ?? 0) + (checkboxState.parkAppearance ? 1 : 0) +
+            (ratings.bestCoaster ?? 0) + (checkboxState.bestCoaster ? 1 : 0) +
             (ratings.waterRides ?? 0) +
             (ratings.otherRides ?? 0) +
             (ratings.food ?? 0) +
@@ -183,9 +178,14 @@ const RatingModal: React.FC<ModalProps> = ({
             (ratings.parkManagement ?? 0) +
             (ratings.value ?? 0)) /
           10,
+        parkAppearance:
+          (ratings.parkAppearance ?? 0) + (checkboxState.parkAppearance ? 1 : 0),
+        bestCoaster:
+          (ratings.bestCoaster ?? 0) + (checkboxState.bestCoaster ? 1 : 0),
       };
+      
+      
 
-      // Create the rating record
       const ratingResponse = await fetch("/api/ratings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -359,6 +359,7 @@ const RatingModal: React.FC<ModalProps> = ({
                 <h3 className="text-lg font-semibold">Rating</h3>
                 <span>{isRatingSectionExpanded ? "▲" : "▼"}</span>
               </div>
+
               {isRatingSectionExpanded && (
                 <div className="space-y-4 mt-2">
                   {[
@@ -373,64 +374,56 @@ const RatingModal: React.FC<ModalProps> = ({
                     "parkManagement",
                     "value",
                   ].map((field) => (
-                    <div key={field}>
-                      <label
-                        htmlFor={field}
-                        className="block text-lg font-semibold"
-                      >
-                        {field.replace(/([A-Z])/g, " $1").toUpperCase()}
-                      </label>
-                      <select
-                        name={field}
-                        value={ratings[field]?.toFixed(1) || ""} // Ensure formatting here for value
-                        onChange={handleInputChange}
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                      >
-                        <option value="">Select Rating</option>
-                        {[...Array(9)].map((_, i) => {
-                          const base = 5 - i * 0.5;
-                          if (base > 5.0) return null; // Limit to 5.0
-                          const formattedValue = base.toFixed(1); // Ensures values are like "1.0", "2.0"
-                          return (
-                            <option
-                              key={`${field}-${formattedValue}`}
-                              value={formattedValue}
-                            >
-                              {formattedValue}
-                            </option>
-                          );
-                        })}
-                      </select>
+                    <div key={field} className="flex items-center space-x-4">
+                      {/* Rating Section */}
+                      <div className="flex-1">
+                        <label
+                          htmlFor={field}
+                          className="block text-lg font-semibold"
+                        >
+                          {field.replace(/([A-Z])/g, " $1").toUpperCase()}
+                        </label>
+                        <select
+                          name={field}
+                          value={ratings[field]?.toFixed(1) || ""} // Ensure formatting here for value
+                          onChange={handleInputChange}
+                          className="w-full p-2 border border-gray-300 rounded-md"
+                        >
+                          <option value="">Select Rating</option>
+                          {[...Array(9)].map((_, i) => {
+                            const base = 5 - i * 0.5;
+                            if (base > 5.0) return null; // Limit to 5.0
+                            const formattedValue = base.toFixed(1); // Ensures values are like "1.0", "2.0"
+                            return (
+                              <option
+                                key={`${field}-${formattedValue}`}
+                                value={formattedValue}
+                              >
+                                {formattedValue}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+
+                      {/* Checkbox for specific fields */}
+                      {(field === "parkAppearance" ||
+                        field === "bestCoaster") && (
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            name={field}
+                            disabled={ratings[field] !== 5.0}
+                            checked={checkboxState[field]}
+                            onChange={handleCheckboxChange}
+                          />
+                          <span className="text-sm">
+                            GOLDEN RATING
+                          </span>
+                        </div>
+                      )}
                     </div>
                   ))}
-
-                  {/* Rating checkboxes */}
-                  <div>
-                    <label>
-                      <input
-                        type="checkbox"
-                        name="parkAppearance"
-                        checked={checkboxState.parkAppearance}
-                        onChange={handleCheckboxChange}
-                      />
-                      <span className="ml-2">
-                        Increase park appearance rating by 1
-                      </span>
-                    </label>
-                  </div>
-                  <div>
-                    <label>
-                      <input
-                        type="checkbox"
-                        name="bestCoaster"
-                        checked={checkboxState.bestCoaster}
-                        onChange={handleCheckboxChange}
-                      />
-                      <span className="ml-2">
-                        Increase best coaster rating by 1
-                      </span>
-                    </label>
-                  </div>
                 </div>
               )}
             </div>

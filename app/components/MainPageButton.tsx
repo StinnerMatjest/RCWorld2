@@ -5,7 +5,9 @@ const MainPageButton = () => {
   return (
     <div className="card-actions">
       <Link href={`/`}>
-        <button className="btn btn-primary">Home</button>
+        <button className="h-12 w-15 py-2 px-4 text-xl font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition duration-300 cursor-pointer">
+          Back
+        </button>
       </Link>
     </div>
   )

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import MainPageButton from "@/app/components/MainPageButton";
 
 export interface Park {
   id: number;
@@ -42,10 +43,12 @@ const ParkPage = () => {
   return (
     <div>
       <h1>{park.name}</h1>
+      <img src={park.imagepath} alt={park.name} width={1000} height={600} />
       <p>{park.continent}</p>
       <p>{park.country}</p>
       <p>{park.city}</p>
-      <img src={park.imagepath} alt={park.name} width={800} height={500} />
+      <p>Roller Coasters: </p>
+      <MainPageButton/>
     </div>
   );
 };

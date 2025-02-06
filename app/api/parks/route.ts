@@ -2,7 +2,6 @@ import { Pool } from "pg";
 import { NextResponse } from "next/server";
 import { Park } from "@/app/page";
 
-// Creates new pool instance for PostgreSQL connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {

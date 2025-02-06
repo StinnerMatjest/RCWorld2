@@ -17,3 +17,28 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Rainbow Animation */
+@keyframes rainbow {
+  0% { color: red; }
+  14% { color: orange; }
+  28% { color: yellow; }
+  42% { color: green; }
+  57% { color: blue; }
+  71% { color: indigo; }
+  85% { color: violet; }
+  100% { color: red; }
+}
+
+.rainbow-animation {
+  animation: rainbow 4s infinite linear;
+}
+
+.text-blue-700,
+.text-green-500,
+.text-yellow-400,
+.text-red-500 {
+  transition: color 0.5s ease; /* Smooth color transition */
+}
+
+

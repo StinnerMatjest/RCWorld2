@@ -10,14 +10,16 @@ interface RatingCardProps {
 
 const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
   const getRatingColor = (rating: number) => {
+    if (rating >= 5.01) return "rainbow-animation"; // GOAT
     if (rating >= 3.95) return "text-blue-700"; // Excellent
     if (rating >= 3.45) return "text-green-500"; // Good
     if (rating >= 2.95) return "text-yellow-400"; // Average
     return "text-red-500"; // Poor
   };
+  
 
   return (
-    <div className="card bg-base-100 shadow-xl mx-auto flex flex-col justify-between w-full max-w-[500px]">
+    <div className="card bg-base-100 shadow-x1 mx-auto flex flex-col justify-between w-full">
       {ratings.map((rating) => {
         const park = parks.find((p) => p.id === Number(rating.parkId));
         if (!park) {
@@ -25,46 +27,43 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
         }
 
         return (
-          <div key={rating.id} className="flex flex-col justify-between h-full">
-            <div className="pt-6 flex flex-col items-center justify-center">
-              <h1 className="text-3xl font-bold text-center mb-6">
+          <div
+            key={rating.id}
+            className="flex flex-col items-center justify-between bg-white shadow-lg rounded-lg p-3"
+          >
+            <div className="pt-6 flex flex-col items-center justify-center w-full">
+              <h1 className="text-4xl font-bold text-center mb-6">
                 {park.name}
               </h1>
             </div>
 
-            <figure className="relative w-full h-[300px]">
+            <figure className="relative w-full overflow-hidden">
               {park.imagePath ? (
                 <img
                   src={park.imagePath}
                   alt={park.name}
-                  width={700}
-                  height={500}
-                  style={{ objectFit: "cover" }}
+                  height="450px"
+                  width="750px"
                 />
               ) : (
                 <img
                   src="/images/error.PNG"
                   alt="Placeholder"
-                  width={700}
-                  height={500}
-                  style={{ objectFit: "cover" }}
+                  height="450px"
+                  width="750px"
                 />
               )}
             </figure>
 
-            <div className="card-body items-center text-center flex flex-col justify-between flex-grow px-6 py-4">
-              {" "}
-              {/* Added padding */}
+            <div className="card-body items-center text-center flex flex-col justify-between w-full">
               <p
-                className={`text-5xl font-semibold ${getRatingColor(
+                className={`text-6xl font-semibold ${getRatingColor(
                   rating.overall
-                )} mb-4`}
+                )} mb-8`}
               >
                 {rating.overall.toFixed(1)}
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-center">
-                {" "}
-                {/* Adjusted grid spacing */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 text-center w-full">
                 <div>
                   <p>Park Appearance:</p>
                   <p
@@ -141,7 +140,7 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
                     {rating.rideOperations}
                   </p>
                 </div>
-                <div>
+                <div className="col-span-2 sm:col-span-3 md:col-span-2 justify-self-center">
                   <p>Park Management:</p>
                   <p
                     className={`text-center ${getRatingColor(
@@ -151,14 +150,14 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
                     {rating.parkManagement}
                   </p>
                 </div>
-                <div>
+                <div className="col-span-2 sm:col-span-3 md:col-span-2 justify-self-center">
                   <p>Value:</p>
                   <p className={`text-center ${getRatingColor(rating.value)}`}>
                     {rating.value}
                   </p>
                 </div>
-                <ToParkButton parkId={rating.parkId} />
               </div>
+              <ToParkButton parkId={rating.parkId} />
             </div>
           </div>
         );
