@@ -36,7 +36,6 @@ const Footer = () => {
           : "opacity-100 translate-y-0"
       }`}
     >
-      {/* Container for the centered "Submit Park" button */}
       <div className="flex justify-center flex-grow pl-10">
         <a
           href="#"
@@ -46,8 +45,6 @@ const Footer = () => {
           RATE A PARK!
         </a>
       </div>
-
-      {/* RCDB link on the right */}
       <div className="ml-auto pr-6">
         <Link
           href="https://rcdb.com/"

@@ -39,7 +39,7 @@ const RatingModal: React.FC<ModalProps> = ({
     bestCoaster: false,
   });
 
-  const [loading, setLoading] = useState(false); // Add loading state
+  const [loading, setLoading] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -391,7 +391,7 @@ const RatingModal: React.FC<ModalProps> = ({
                           <option value="">Select Rating</option>
                           {[...Array(9)].map((_, i) => {
                             const base = 5 - i * 0.5;
-                            if (base > 5.0) return null; // Limit to 5.0
+                            if (base > 5.0) return null;
                             const formattedValue = base.toFixed(1); // Ensures values are like "1.0", "2.0"
                             return (
                               <option
@@ -424,7 +424,6 @@ const RatingModal: React.FC<ModalProps> = ({
                 </div>
               )}
             </div>
-
             <button
               type="button"
               onClick={handleSubmit}
