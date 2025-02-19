@@ -21,9 +21,9 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
   return (
     <div className="mx-auto flex flex-col justify-between w-full">
       {ratings.map((rating) => {
-        const park = parks.find((p) => p.id === Number(rating.parkId));
+        const park = parks.find((p) => p.id === rating.parkId);
         if (!park) {
-          return <div key={rating.id}>Park not found</div>;
+          return <div key={rating.id}></div>; //PARK NOT FOUND ERROR - Currently suppressed
         }
 
         return (
@@ -111,7 +111,7 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
                   </p>
                 </div>
                 <div>
-                  <p>SnacksAndDrinks:</p>
+                  <p>Snacks & Drinks:</p>
                   <p
                     className={`text-center ${getRatingColor(
                       rating.snacksAndDrinks

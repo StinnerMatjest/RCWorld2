@@ -40,6 +40,10 @@ const Home = () => {
   const [parks, setParks] = useState<Park[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const sortedRatings = [...ratings].sort((a, b) => b.overall - a.overall);
+
+  console.log("Sorted ratings:", sortedRatings);
+  
 
   const fetchRatingsAndParks = async () => {
     try {
@@ -93,20 +97,20 @@ const Home = () => {
     <main>
       <Header />
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-5 px-10 flex-grow bg-gray-200">
-        {ratings.map((rating) => {
-          const park = parks.find((p) => p.id === Number(rating.parkId));
+        {sortedRatings.map((rating) => {
+          const park = parks.find((p) => p.id === rating.parkId);
 
-          console.log("Rating parkId:", rating.parkId);
-          console.log("Found park:", park);
-
+          // If no park is found, skip rendering the RatingCard
           if (!park) {
-            return <div key={rating.id}>Park not found for {rating.park}</div>;
+            return null;
           }
 
-          console.log("Park id:", park.id);
-
           return (
-            <RatingCard key={rating.id} ratings={[rating]} parks={[park]} />
+            <RatingCard
+              key={rating.id}
+              ratings={sortedRatings}
+              parks={[park]}
+            />
           );
         })}
       </div>

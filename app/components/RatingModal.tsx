@@ -10,6 +10,62 @@ interface ModalProps {
   fetchRatingsAndParks: () => void;
 }
 
+const continentCountries: Record<string, string[]> = {
+  Europe: [
+    "Austria",
+    "Belgium",
+    "Bulgaria",
+    "Croatia",
+    "Czech Republic",
+    "Denmark",
+    "Finland",
+    "France",
+    "Germany",
+    "Greece",
+    "Hunagry",
+    "Italy",
+    "Malta",
+    "Netherlands",
+    "Norway",
+    "Poland",
+    "Portugal",
+    "Republic of Ireland",
+    "Romania",
+    "Russia",
+    "Spain",
+    "Sweden",
+    "Switzerland",
+    "Turkey",
+    "United Kingdom",
+  ],
+  NorthAmerica: ["Canada", "Mexico", "Puerto Rico", "United States"],
+  CentralAmerica: [
+    "Costa Rica",
+    "Cuba",
+    "Dominican Republic",
+    "El Salvador",
+    "Guatemala",
+    "Honduras",
+    "Nicaragua",
+    "Panama",
+  ],
+  SouthAmerica: [
+    "Argentina",
+    "Bolivia",
+    "Brazil",
+    "Chile",
+    "Columbia",
+    "Ecuador",
+    "Paraguay",
+    "Uruguay",
+    "Venezuela",
+  ],
+  Asia: ["Japan", "China", "India", "South Korea", "Thailand"],
+  Oceania: ["Australia", "New Zealand", "Fiji"],
+  Africa: ["South Africa", "Egypt", "Kenya", "Nigeria", "Morocco"],
+  "South America": ["Brazil", "Argentina", "Chile", "Colombia", "Peru"],
+};
+
 const RatingModal: React.FC<ModalProps> = ({
   closeModal,
   fetchRatingsAndParks,
@@ -27,9 +83,9 @@ const RatingModal: React.FC<ModalProps> = ({
   });
 
   const [message, setMessage] = useState<string>("");
-
   const [isParkSectionExpanded, setParkSectionExpanded] = useState(false);
   const [isRatingSectionExpanded, setRatingSectionExpanded] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [checkboxState, setCheckboxState] = useState<{
     parkAppearance: boolean;
@@ -38,8 +94,6 @@ const RatingModal: React.FC<ModalProps> = ({
     parkAppearance: false,
     bestCoaster: false,
   });
-
-  const [loading, setLoading] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -70,13 +124,23 @@ const RatingModal: React.FC<ModalProps> = ({
   };
 
   const handleParkChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>
   ) => {
     const { name, value } = e.target;
-    setParkInfo((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+
+    // If the continent changes, reset the country selection
+    if (name === "continent") {
+      setParkInfo((prev) => ({
+        ...prev,
+        continent: value,
+        country: "",
+      }));
+    } else {
+      setParkInfo((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   const isFormValid = () => {
@@ -155,6 +219,7 @@ const RatingModal: React.FC<ModalProps> = ({
       }
 
       const savedPark = await parkResponse.json();
+      console.log(savedPark);
 
       const ratingPayload = {
         ...ratings,
@@ -188,7 +253,7 @@ const RatingModal: React.FC<ModalProps> = ({
       });
 
       if (ratingResponse.ok) {
-        setMessage(`${savedPark.name} has been added with a rating.`);
+        setMessage(`${savedPark.message}`);
         setTimeout(() => closeModal(), 2000);
       } else {
         console.error("Failed to save rating");
@@ -274,15 +339,13 @@ const RatingModal: React.FC<ModalProps> = ({
                       value={parkInfo.continent}
                       onChange={handleParkChange}
                       className="w-full p-2 border border-gray-300 rounded-md"
-                      disabled={loading}
                     >
                       <option value="">Select Continent</option>
-                      <option value="Europe">Europe</option>
-                      <option value="North America">North America</option>
-                      <option value="Asia">Asia</option>
-                      <option value="Oceania">Oceania</option>
-                      <option value="Africa">Africa</option>
-                      <option value="South America">South America</option>
+                      {Object.keys(continentCountries).map((continent) => (
+                        <option key={continent} value={continent}>
+                          {continent.replace(/([a-z])([A-Z])/g, "$1 $2")}{" "}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -293,14 +356,23 @@ const RatingModal: React.FC<ModalProps> = ({
                     >
                       Country
                     </label>
-                    <input
-                      type="text"
+                    <select
                       name="country"
                       value={parkInfo.country}
                       onChange={handleParkChange}
                       className="w-full p-2 border border-gray-300 rounded-md"
-                      placeholder="Enter country"
-                    />
+                      disabled={!parkInfo.continent}
+                    >
+                      <option value="">Select Country</option>
+                      {parkInfo.continent &&
+                        continentCountries[parkInfo.continent].map(
+                          (country) => (
+                            <option key={country} value={country}>
+                              {country}
+                            </option>
+                          )
+                        )}
+                    </select>
                   </div>
 
                   <div>

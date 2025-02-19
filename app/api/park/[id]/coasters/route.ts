@@ -36,3 +36,39 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     return NextResponse.json({ error: "Failed to fetch roller coasters" }, { status: 500 });
   }
 }
+
+export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { id: parkId } = await context.params; // Resolve params in Next.js 15
+    const body = await req.json();
+    const { name, year, manufacturer, model, scale, haveridden, rcdbpath } = body;
+
+    console.log("Adding coaster to park ID:", parkId, name, year, manufacturer, model);
+
+    if (!name || !year || !manufacturer || !model || !scale || haveridden === undefined || !rcdbpath) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    const query = `
+      INSERT INTO rollercoasters (park_id, name, year, manufacturer, model, scale, haveridden, rcdbpath)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *;
+    `;
+
+    const result = await pool.query(query, [
+      parkId,
+      name,
+      year,
+      manufacturer,
+      model,
+      scale,
+      haveridden,
+      rcdbpath,
+    ]);
+
+    return NextResponse.json(result.rows[0], { status: 201 });
+  } catch (error) {
+    console.error("Database insert error:", error);
+    return NextResponse.json({ error: "Failed to add roller coaster" }, { status: 500 });
+  }
+}

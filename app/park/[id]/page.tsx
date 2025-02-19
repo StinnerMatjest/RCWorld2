@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import MainPageButton from "@/app/components/MainPageButton";
+import CoasterCreatorModal from "@/app/components/CoasterCreatorModal";
 
 export interface Park {
   id: number;
@@ -24,12 +25,22 @@ export interface RollerCoaster {
   rcdbpath: string;
 }
 
+const scaleOrder = [
+  "Thrill",
+  "Family-Thrill",
+  "Family",
+  "Family-Chill",
+  "Junior",
+  "Kiddie",
+];
+
 const ParkPage = () => {
   const params = useParams();
   const parkId = params?.id;
   const [park, setPark] = useState<Park | null>(null);
   const [coasters, setCoasters] = useState<RollerCoaster[]>([]);
   const [loadingCoasters, setLoadingCoasters] = useState(true);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     if (!parkId) return;
@@ -54,7 +65,13 @@ const ParkPage = () => {
           throw new Error("Coasters not found");
         }
         const data = await response.json();
-        setCoasters(data);
+
+        const sortedCoasters = data.sort(
+          (a: RollerCoaster, b: RollerCoaster) =>
+            scaleOrder.indexOf(a.scale) - scaleOrder.indexOf(b.scale)
+        );
+
+        setCoasters(sortedCoasters);
       } catch (error) {
         console.error("Error fetching coasters:", error);
       } finally {
@@ -70,9 +87,30 @@ const ParkPage = () => {
     return <div>Loading park...</div>;
   }
 
+  const refreshCoasters = async () => {
+    try {
+      const response = await fetch(`/api/park/${parkId}/coasters`);
+      if (!response.ok) {
+        throw new Error("Coasters not found");
+      }
+      const data = await response.json();
+
+      // Sort based on scale order
+      const sortedCoasters = data.sort(
+        (a: RollerCoaster, b: RollerCoaster) =>
+          scaleOrder.indexOf(a.scale) - scaleOrder.indexOf(b.scale)
+      );
+
+      setCoasters(sortedCoasters);
+    } catch (error) {
+      console.error("Error fetching coasters:", error);
+    } finally {
+      setLoadingCoasters(false);
+    }
+  };
+
   return (
     <div className="w-full">
-      {/* Header Section */}
       <div className="relative w-full h-[400px]">
         <img
           src={park.imagepath}
@@ -103,6 +141,12 @@ const ParkPage = () => {
       {/* Roller Coasters Section */}
       <div className="w-full py-10 px-6 md:px-20">
         <h2 className="text-3xl font-semibold mb-4">Roller Coasters</h2>
+        <button
+          onClick={() => setShowModal(true)}
+          className="text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition duration-300 cursor-pointer"
+        >
+          + Add Coaster
+        </button>
         {loadingCoasters ? (
           <p>Loading coasters...</p>
         ) : coasters.length > 0 ? (
@@ -137,6 +181,14 @@ const ParkPage = () => {
         ) : (
           <p>No roller coasters found.</p>
         )}
+
+        {showModal && (
+          <CoasterCreatorModal
+            parkId={park.id}
+            onClose={() => setShowModal(false)}
+            onCoasterAdded={refreshCoasters}
+          />
+        )}
       </div>
 
       {/* Comment Section */}
@@ -145,7 +197,6 @@ const ParkPage = () => {
         <p className="text-lg">Park notes.</p>
       </div>
 
-      {/* Back Button */}
       <div className="flex justify-center py-10">
         <MainPageButton />
       </div>
