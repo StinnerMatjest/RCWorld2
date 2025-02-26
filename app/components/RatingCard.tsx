@@ -16,7 +16,6 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
     if (rating >= 2.95) return "text-yellow-400"; // Average
     return "text-red-500"; // Poor
   };
-  
 
   return (
     <div className="mx-auto flex flex-col justify-between w-full">
@@ -54,6 +53,9 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
                 />
               )}
             </figure>
+            <div className="rating-date text-sm italic">
+              {new Date(rating.date).toLocaleDateString()}
+            </div>
 
             <div className="card-body items-center text-center flex flex-col justify-between w-full">
               <p

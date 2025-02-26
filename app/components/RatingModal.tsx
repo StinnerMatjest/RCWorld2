@@ -4,6 +4,8 @@ import React, { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import RatingSuccessMessage from "./RatingSuccessMessage";
 import Loading from "./Loading";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 interface ModalProps {
   closeModal: () => void;
@@ -86,6 +88,7 @@ const RatingModal: React.FC<ModalProps> = ({
   const [isParkSectionExpanded, setParkSectionExpanded] = useState(false);
   const [isRatingSectionExpanded, setRatingSectionExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const [checkboxState, setCheckboxState] = useState<{
     parkAppearance: boolean;
@@ -149,7 +152,8 @@ const RatingModal: React.FC<ModalProps> = ({
       parkInfo.continent &&
       parkInfo.country &&
       parkInfo.city &&
-      parkInfo.image;
+      parkInfo.image &&
+      selectedDate !== null;
 
     const areRatingFieldsFilled = [
       "parkAppearance",
@@ -223,7 +227,7 @@ const RatingModal: React.FC<ModalProps> = ({
 
       const ratingPayload = {
         ...ratings,
-        date: new Date().toISOString().split("T")[0],
+        date: selectedDate ? selectedDate.toISOString().split("T")[0] : "",
         parkId: savedPark.parkId,
         overall:
           ((ratings.parkAppearance ?? 0) +
@@ -277,9 +281,10 @@ const RatingModal: React.FC<ModalProps> = ({
         onClick={closeModal}
       >
         <div
-          className="bg-white p-8 rounded-lg shadow-lg max-w-lg w-full h-auto relative"
+          className="bg-white p-8 rounded-lg shadow-lg max-w-lg w-full max-h-[80vh] overflow-y-auto relative flex flex-col"
           onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
         >
+          {/* Close button */}
           <button
             className="absolute top-4 left-4 text-gray-500 hover:text-gray-700 transition duration-300"
             onClick={closeModal}
@@ -296,220 +301,240 @@ const RatingModal: React.FC<ModalProps> = ({
               onClose={() => setMessage("")}
             />
           )}
-
-          <form className="space-y-4">
-            {/* Park Section */}
-            <div className="cursor-pointer">
-              <div
-                className="flex justify-between items-center"
-                onClick={() => setParkSectionExpanded(!isParkSectionExpanded)}
-              >
-                <h3 className="text-lg font-semibold">Park</h3>
-                <span>{isParkSectionExpanded ? "▲" : "▼"}</span>
-              </div>
-              {isParkSectionExpanded && (
-                <div className="space-y-4 mt-2">
-                  <div>
-                    <label
-                      htmlFor="name"
-                      className="block text-lg font-semibold"
-                    >
-                      Park Name
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={parkInfo.name}
-                      onChange={handleParkChange}
-                      className="w-full p-2 border border-gray-300 rounded-md"
-                      placeholder="Enter park name"
-                      disabled={loading}
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="continent"
-                      className="block text-lg font-semibold"
-                    >
-                      Continent
-                    </label>
-                    <select
-                      name="continent"
-                      value={parkInfo.continent}
-                      onChange={handleParkChange}
-                      className="w-full p-2 border border-gray-300 rounded-md"
-                    >
-                      <option value="">Select Continent</option>
-                      {Object.keys(continentCountries).map((continent) => (
-                        <option key={continent} value={continent}>
-                          {continent.replace(/([a-z])([A-Z])/g, "$1 $2")}{" "}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="country"
-                      className="block text-lg font-semibold"
-                    >
-                      Country
-                    </label>
-                    <select
-                      name="country"
-                      value={parkInfo.country}
-                      onChange={handleParkChange}
-                      className="w-full p-2 border border-gray-300 rounded-md"
-                      disabled={!parkInfo.continent}
-                    >
-                      <option value="">Select Country</option>
-                      {parkInfo.continent &&
-                        continentCountries[parkInfo.continent].map(
-                          (country) => (
-                            <option key={country} value={country}>
-                              {country}
-                            </option>
-                          )
-                        )}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="city"
-                      className="block text-lg font-semibold"
-                    >
-                      City
-                    </label>
-                    <input
-                      type="text"
-                      name="city"
-                      value={parkInfo.city}
-                      onChange={handleParkChange}
-                      className="w-full p-2 border border-gray-300 rounded-md"
-                      placeholder="Enter city"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="image"
-                      className="block text-lg font-semibold"
-                    >
-                      Park Image
-                    </label>
-                    <input
-                      type="file"
-                      name="image"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          // Just save the file in parkInfo, no upload yet
-                          setParkInfo({
-                            ...parkInfo,
-                            image: file,
-                          });
-                        }
-                      }}
-                      className="w-full p-2 border border-gray-300 rounded-md"
-                    />
-                  </div>
+          <div
+            className="flex-1 overflow-y-auto px-4"
+            style={{ maxHeight: "60vh" }}
+          >
+            <form className="space-y-4">
+              {/* Park Section */}
+              <div className="cursor-pointer">
+                <div
+                  className="flex justify-between items-center"
+                  onClick={() => setParkSectionExpanded(!isParkSectionExpanded)}
+                >
+                  <h3 className="text-lg font-semibold">Park</h3>
+                  <span>{isParkSectionExpanded ? "▲" : "▼"}</span>
                 </div>
-              )}
-            </div>
-
-            {/* Rating Section */}
-            <div className="cursor-pointer">
-              <div
-                className="flex justify-between items-center"
-                onClick={() =>
-                  setRatingSectionExpanded(!isRatingSectionExpanded)
-                }
-              >
-                <h3 className="text-lg font-semibold">Rating</h3>
-                <span>{isRatingSectionExpanded ? "▲" : "▼"}</span>
-              </div>
-
-              {isRatingSectionExpanded && (
-                <div className="space-y-4 mt-2">
-                  {[
-                    "parkAppearance",
-                    "bestCoaster",
-                    "waterRides",
-                    "otherRides",
-                    "food",
-                    "snacksAndDrinks",
-                    "parkPracticality",
-                    "rideOperations",
-                    "parkManagement",
-                    "value",
-                  ].map((field) => (
-                    <div key={field} className="flex items-center space-x-4">
-                      {/* Rating Section */}
-                      <div className="flex-1">
-                        <label
-                          htmlFor={field}
-                          className="block text-lg font-semibold"
-                        >
-                          {field.replace(/([A-Z])/g, " $1").toUpperCase()}
-                        </label>
-                        <select
-                          name={field}
-                          value={ratings[field]?.toFixed(1) || ""} // Ensure formatting here for value
-                          onChange={handleInputChange}
-                          className="w-full p-2 border border-gray-300 rounded-md"
-                        >
-                          <option value="">Select Rating</option>
-                          {[...Array(9)].map((_, i) => {
-                            const base = 5 - i * 0.5;
-                            if (base > 5.0) return null;
-                            const formattedValue = base.toFixed(1); // Ensures values are like "1.0", "2.0"
-                            return (
-                              <option
-                                key={`${field}-${formattedValue}`}
-                                value={formattedValue}
-                              >
-                                {formattedValue}
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </div>
-
-                      {/* Checkbox for specific fields */}
-                      {(field === "parkAppearance" ||
-                        field === "bestCoaster") && (
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            name={field}
-                            disabled={ratings[field] !== 5.0}
-                            checked={checkboxState[field]}
-                            onChange={handleCheckboxChange}
-                          />
-                          <span className="text-sm">GOLDEN RATING</span>
-                        </div>
-                      )}
+                {isParkSectionExpanded && (
+                  <div className="space-y-2 mt-2">
+                    <div>
+                      <label
+                        htmlFor="visitDate"
+                        className="block text-lg font-semibold"
+                      >
+                        Visit Date
+                      </label>
+                      <DatePicker
+                        selected={selectedDate}
+                        onChange={(date: Date | null) => setSelectedDate(date)}
+                        className="w-96 p-2 border border-gray-300 rounded-md"
+                        dateFormat="yyyy-MM-dd"
+                        placeholderText="Select visit date"
+                      />
                     </div>
-                  ))}
+
+                    <div>
+                      <label
+                        htmlFor="name"
+                        className="block text-lg font-semibold"
+                      >
+                        Park Name
+                      </label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={parkInfo.name}
+                        onChange={handleParkChange}
+                        className="w-96 p-2 border border-gray-300 rounded-md"
+                        placeholder="Enter park name"
+                        disabled={loading}
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="continent"
+                        className="block text-lg font-semibold"
+                      >
+                        Continent
+                      </label>
+                      <select
+                        name="continent"
+                        value={parkInfo.continent}
+                        onChange={handleParkChange}
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                      >
+                        <option value="">Select Continent</option>
+                        {Object.keys(continentCountries).map((continent) => (
+                          <option key={continent} value={continent}>
+                            {continent.replace(/([a-z])([A-Z])/g, "$1 $2")}{" "}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="country"
+                        className="block text-lg font-semibold"
+                      >
+                        Country
+                      </label>
+                      <select
+                        name="country"
+                        value={parkInfo.country}
+                        onChange={handleParkChange}
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                        disabled={!parkInfo.continent}
+                      >
+                        <option value="">Select Country</option>
+                        {parkInfo.continent &&
+                          continentCountries[parkInfo.continent].map(
+                            (country) => (
+                              <option key={country} value={country}>
+                                {country}
+                              </option>
+                            )
+                          )}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="city"
+                        className="block text-lg font-semibold"
+                      >
+                        City
+                      </label>
+                      <input
+                        type="text"
+                        name="city"
+                        value={parkInfo.city}
+                        onChange={handleParkChange}
+                        className="w-96 p-2 border border-gray-300 rounded-md"
+                        placeholder="Enter city"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="image"
+                        className="block text-lg font-semibold"
+                      >
+                        Park Image
+                      </label>
+                      <input
+                        type="file"
+                        name="image"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            // Just save the file in parkInfo, no upload yet
+                            setParkInfo({
+                              ...parkInfo,
+                              image: file,
+                            });
+                          }
+                        }}
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Rating Section */}
+              <div className="cursor-pointer">
+                <div
+                  className="flex justify-between items-center"
+                  onClick={() =>
+                    setRatingSectionExpanded(!isRatingSectionExpanded)
+                  }
+                >
+                  <h3 className="text-lg font-semibold">Rating</h3>
+                  <span>{isRatingSectionExpanded ? "▲" : "▼"}</span>
                 </div>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              className={`w-full p-3 text-white font-semibold rounded-md transition duration-300 cursor-pointer
+
+                {isRatingSectionExpanded && (
+                  <div className="space-y-4 mt-2">
+                    {[
+                      "parkAppearance",
+                      "bestCoaster",
+                      "waterRides",
+                      "otherRides",
+                      "food",
+                      "snacksAndDrinks",
+                      "parkPracticality",
+                      "rideOperations",
+                      "parkManagement",
+                      "value",
+                    ].map((field) => (
+                      <div key={field} className="flex items-center space-x-4">
+                        {/* Rating Section */}
+                        <div className="flex-1">
+                          <label
+                            htmlFor={field}
+                            className="block text-lg font-semibold"
+                          >
+                            {field.replace(/([A-Z])/g, " $1").toUpperCase()}
+                          </label>
+                          <select
+                            name={field}
+                            value={ratings[field]?.toFixed(1) || ""} // Ensure formatting here for value
+                            onChange={handleInputChange}
+                            className="w-full p-2 border border-gray-300 rounded-md"
+                          >
+                            <option value="">Select Rating</option>
+                            {[...Array(9)].map((_, i) => {
+                              const base = 5 - i * 0.5;
+                              if (base > 5.0) return null;
+                              const formattedValue = base.toFixed(1); // Ensures values are like "1.0", "2.0"
+                              return (
+                                <option
+                                  key={`${field}-${formattedValue}`}
+                                  value={formattedValue}
+                                >
+                                  {formattedValue}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+
+                        {/* Checkbox for specific fields */}
+                        {(field === "parkAppearance" ||
+                          field === "bestCoaster") && (
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              name={field}
+                              disabled={ratings[field] !== 5.0}
+                              checked={checkboxState[field]}
+                              onChange={handleCheckboxChange}
+                            />
+                            <span className="text-sm">GOLDEN RATING</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className={`w-full p-3 text-white font-semibold rounded-md transition duration-300 cursor-pointer
     ${
       isFormValid()
         ? "bg-blue-500 hover:bg-blue-700"
         : "bg-gray-400 cursor-not-allowed"
     }`}
-              disabled={!isFormValid() || loading}
-            >
-              {loading ? <Loading /> : "Submit Rating"}
-            </button>
-          </form>
+                disabled={!isFormValid() || loading}
+              >
+                {loading ? <Loading /> : "Submit Rating"}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </Suspense>

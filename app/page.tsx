@@ -40,10 +40,26 @@ const Home = () => {
   const [parks, setParks] = useState<Park[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState(""); // Search query state
+
+  // Define the onSearch function that will be passed to Footer
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    console.log("Search query:", query); // Replace with actual search logic
+  };
+
+  // Sort ratings by overall rating
   const sortedRatings = [...ratings].sort((a, b) => b.overall - a.overall);
 
-  console.log("Sorted ratings:", sortedRatings);
-  
+  // Filter ratings based on the search query
+  const filteredRatings = sortedRatings.filter((rating) => {
+    const park = parks.find((p) => p.id === rating.parkId);
+    return (
+      park && park.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
+
+  console.log("Filtered ratings:", filteredRatings);
 
   const fetchRatingsAndParks = async () => {
     try {
@@ -97,10 +113,9 @@ const Home = () => {
     <main>
       <Header />
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-5 px-10 flex-grow bg-gray-200">
-        {sortedRatings.map((rating) => {
+        {filteredRatings.map((rating) => {
           const park = parks.find((p) => p.id === rating.parkId);
-
-          // If no park is found, skip rendering the RatingCard
+          
           if (!park) {
             return null;
           }
@@ -108,14 +123,13 @@ const Home = () => {
           return (
             <RatingCard
               key={rating.id}
-              ratings={sortedRatings}
+              ratings={filteredRatings}
               parks={[park]}
             />
           );
         })}
       </div>
-
-      <Footer />
+      <Footer onSearch={handleSearch} />
       <Suspense fallback={<div>Loading...</div>}>
         <RatingModal
           closeModal={closeModal}

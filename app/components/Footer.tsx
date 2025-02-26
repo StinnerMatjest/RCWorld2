@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import SearchBar from "./SearchBar";
 
-const Footer = () => {
+const Footer = ({ onSearch }: { onSearch: (query: string) => void }) => {
   const router = useRouter();
   const [isAtBottom, setIsAtBottom] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const openModal = () => {
     router.push("?modal=true");
@@ -28,30 +29,36 @@ const Footer = () => {
     };
   }, []);
 
+  // Determine footer visibility based on scroll and search query
+  const shouldFooterBeVisible = searchQuery.trim() !== "" || !isAtBottom;
+
   return (
     <footer
-      className={`footer bg-gray-700 text-neutral-content p-2 flex justify-between items-center fixed bottom-0 w-full transition-all duration-300 ${
-        isAtBottom
-          ? "opacity-0 translate-y-20 pointer-events-none"
-          : "opacity-100 translate-y-0"
+      className={`footer bg-gray-700 text-neutral-content p-2 flex items-center fixed bottom-0 w-full transition-all duration-300 ${
+        shouldFooterBeVisible
+          ? "opacity-100 translate-y-0"
+          : "opacity-0 translate-y-20 pointer-events-none"
       }`}
     >
-      <div className="flex justify-center flex-grow pl-10">
+      {/* Balances the layout */}
+      <div className="flex-1"></div>
+
+      <div className="flex items-center justify-center flex-shrink-0 pl-4">
         <a
           href="#"
-          className="w-60 py-6 px-5 text-3xl font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition duration-300 flex justify-center items-center no-underline"
+          className="w-60 py-6 px-5 text-3xl font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition duration-300 flex justify-center items-center no-underline mx-auto"
           onClick={openModal}
         >
           RATE A PARK!
         </a>
       </div>
-      <div className="ml-auto pr-6">
-        <Link
-          href="https://rcdb.com/"
-          className="text-blue-600 hover:text-blue-800"
-        >
-          Visit RCDB
-        </Link>
+      <div className="flex-1 flex justify-end items-center pr-6">
+        <SearchBar
+          onSearch={(query: string) => {
+            setSearchQuery(query);
+            onSearch(query);
+          }}
+        />
       </div>
     </footer>
   );
