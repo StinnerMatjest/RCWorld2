@@ -15,21 +15,20 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-gray-800 shadow-md">
+    <nav>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-16 text-lg font-medium">
 
-          {/* Main Navbar Links */}
           <div className="hidden md:flex space-x-6">
-            <Link href="/" className="text-white hover:text-blue-400">
+            <Link href="/" className="text-black hover:text-blue-400">
               About
             </Link>
-            <Link href="/info" className="text-white hover:text-blue-400">
+            <Link href="/info" className="text-black hover:text-blue-400">
               Rating Evaluation
             </Link>
             <Link
               href="https://rcdb.com/"
-              className="text-white hover:text-blue-400"
+              className="text-black hover:text-blue-400"
             >
               Visit RCDB
             </Link>

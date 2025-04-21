@@ -21,7 +21,7 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
   };
 
   return (
-    <div className="mx-auto flex flex-col justify-between w-full">
+    <div className="mx-auto flex flex-col justify-between w-full py-2">
       {ratings.map((rating) => {
         const park = parks.find((p) => p.id === rating.parkId);
         if (!park) {
@@ -31,10 +31,10 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
         return (
           <div
             key={rating.id}
-            className="flex flex-col items-center justify-between bg-white shadow-lg rounded-lg p-3"
+            className="flex flex-col items-center justify-between bg-white shadow-lg rounded-2g p-0"
           >
-            <div className="pt-6 flex flex-col items-center justify-center w-full">
-              <h1 className="text-4xl font-bold text-center mb-6">
+            <div className="flex flex-col items-center justify-center w-full">
+              <h1 className="text-5xl font-bold text-center mb-3">
                 {park.name}
               </h1>
             </div>
@@ -56,19 +56,19 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
                 />
               )}
             </figure>
-            <div className="rating-date text-sm italic">
-              {new Date(rating.date).toLocaleDateString()}
+            <div className="rating-date text-m italic">
+              {new Date(rating.date).toLocaleDateString() }
             </div>
 
-            <div className="card-body items-center text-center flex flex-col justify-between w-full">
+            <div className="card-body items-center text-center flex flex-col justify-between w-full text-lg font-medium">
               <p
-                className={`text-6xl font-semibold ${getRatingColor(
+                className={`text-7xl font-semibold ${getRatingColor(
                   rating.overall
-                )} mb-8`}
+                )} mb-3`}
               >
                 {rating.overall.toFixed(2)}
               </p>
-              <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-3 gap-4 text-center w-full">
+              <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-3 text-center w-full">
                 <div>
                   <p>Park Appearance:</p>
                   <p
@@ -156,7 +156,9 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
                   </p>
                 </div>
               </div>
-              <ToParkButton parkId={rating.parkId} />
+              <div className="flex justify-center w-full mt-6 mb-4">
+                <ToParkButton parkId={rating.parkId} />
+              </div>
             </div>
           </div>
         );

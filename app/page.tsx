@@ -110,8 +110,8 @@ const Home = () => {
 
   return (
     <main>
-      <Header />
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-5 px-10 flex-grow bg-gray-200">
+      <Header/>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3 px-3 flex-grow custom-bg" >
         {filteredRatings.map((rating) => {
           const park = parks.find((p) => p.id === rating.parkId);
           

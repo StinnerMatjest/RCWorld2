@@ -34,7 +34,7 @@ const Footer = ({ onSearch }: { onSearch: (query: string) => void }) => {
 
   return (
     <footer
-      className={`footer custom-bg text-neutral-content p-2 flex items-center fixed bottom-0 w-full transition-all duration-300 ${
+      className={`footer text-neutral-content p-2 flex items-center fixed bottom-0 w-full transition-all duration-300 custom-bg ${
         shouldFooterBeVisible
           ? "opacity-100 translate-y-0"
           : "opacity-0 translate-y-20 pointer-events-none"
