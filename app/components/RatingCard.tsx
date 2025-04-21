@@ -31,33 +31,35 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
         return (
           <div
             key={rating.id}
-            className="flex flex-col items-center justify-between bg-white shadow-lg rounded-2g p-0"
+            className="flex flex-col items-center justify-between bg-white shadow-lg rounded-2xl p-0"
           >
             <div className="flex flex-col items-center justify-center w-full">
-              <h1 className="text-5xl font-bold text-center mb-3">
+              <h1 className="text-5xl font-bold text-center mb-2">
                 {park.name}
               </h1>
             </div>
 
-            <figure className="relative w-full overflow-hidden">
+            <figure className="w-full flex justify-center">
               {park.imagePath ? (
                 <img
+                  className="mx-auto object-cover max-w-full"
                   src={park.imagePath}
                   alt={park.name}
                   height="450px"
-                  width="750px"
+                  width="1000px"
                 />
               ) : (
                 <img
+                  className="mx-auto object-cover max-w-full"
                   src="/images/error.PNG"
                   alt="Placeholder"
                   height="450px"
-                  width="750px"
+                  width="1000px"
                 />
               )}
             </figure>
             <div className="rating-date text-m italic">
-              {new Date(rating.date).toLocaleDateString() }
+              {new Date(rating.date).toLocaleDateString()}
             </div>
 
             <div className="card-body items-center text-center flex flex-col justify-between w-full text-lg font-medium">
