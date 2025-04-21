@@ -64,6 +64,7 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
 }) => {
   const [name, setName] = useState(coaster?.name ?? "");
   const [year, setYear] = useState(coaster?.year.toString() ?? "");
+  const isValidYear = /^\d{4}$/.test(year); // Check if the input only contains digits and has exactly 4 digits
   const [manufacturer, setManufacturer] = useState(coaster?.manufacturer ?? "");
   const [model, setModel] = useState(coaster?.model ?? "");
   const [scale, setScale] = useState(coaster?.scale ?? "");
@@ -73,6 +74,14 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
   );
   const [rcdbpath, setRcdbPath] = useState(coaster?.rcdbpath ?? "");
   const [loading, setLoading] = useState(false);
+
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value;
+    // Only set the value if it's a number and has less than or equal to 4 digits
+    if (/^\d*$/.test(input) && input.length <= 4) {
+      setYear(input);
+    }
+  };
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -122,14 +131,15 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
             onChange={(e) => setName(e.target.value)}
           />
           <input
-            type="number"
+            type="text"
             name="year"
             id="year"
-            min="1900"
-            max="2099"
-            step="1"
-            onChange={(e) => setYear(e.target.value)}
+            placeholder="Year"
+            value={year}
+            onChange={handleInput}
+            maxLength={4}
           />
+
           <select
             className="select select-bordered w-full "
             value={manufacturer}
@@ -196,7 +206,7 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
           <button
             onClick={handleSubmit}
             className={`btn btn-primary ${loading ? "loading" : ""}`}
-            disabled={loading}
+            disabled={loading || !isValidYear}
           >
             {loading ? "Adding..." : "Add"}
           </button>
