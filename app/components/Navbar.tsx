@@ -22,9 +22,7 @@ const Navbar = () => {
         onMouseEnter={handleMouseEnter} // Show dropdown on hover
         onMouseLeave={handleMouseLeave} // Hide dropdown when mouse leaves
       >
-        <button
-          className="w-full py-1 px-6 text-l font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700"
-        >
+        <button className="w-full py-1 px-6 text-l font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700">
           Menu
         </button>
 
@@ -40,9 +38,10 @@ const Navbar = () => {
                   Visit RCDB
                 </Link>
               </li>
-              {/* Add other options here */}
               <li>
-
+                <Link href="/info" className="text-blue-500 hover:underline">
+                  Rating Evaluation
+                </Link>
               </li>
             </ul>
           </div>

@@ -20,13 +20,12 @@ export async function GET() {
         ratings.parkAppearance AS "parkappearance",
         ratings.bestCoaster AS "bestcoaster",
         ratings.waterRides AS "waterrides",
-        ratings.otherRides AS "otherrides",
+        ratings.rideLineup AS "rideLineup",
         ratings.food,
         ratings.snacksAndDrinks AS "snacksanddrinks",
         ratings.parkPracticality AS "parkpracticality",
         ratings.rideOperations AS "rideoperations",
         ratings.parkManagement AS "parkmanagement",
-        ratings.value,
         ratings.overall,
         ratings.park_id,
         parks.id AS park_id,
@@ -45,13 +44,12 @@ export async function GET() {
       parkAppearance: row.parkappearance,
       bestCoaster: row.bestcoaster,
       waterRides: row.waterrides,
-      otherRides: row.otherrides,
+      rideLineup: row.rideLineup,
       food: row.food,
       snacksAndDrinks: row.snacksanddrinks,
       parkPracticality: row.parkpracticality,
       rideOperations: row.rideoperations,
       parkManagement: row.parkmanagement,
-      value: row.value,
       overall: row.overall,
       imagePath: row.park_image,
       parkId: row.park_id,
@@ -76,10 +74,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log('Received body:', body);
 
-    const {date, parkAppearance, bestCoaster, waterRides, otherRides, food, snacksAndDrinks, parkPracticality, rideOperations, parkManagement, value, overall, parkId} = body;
+    const {date, parkAppearance, bestCoaster, waterRides, rideLineup, food, snacksAndDrinks, parkPracticality, rideOperations, parkManagement, overall, parkId} = body;
 
-    if (!date || !parkAppearance || !bestCoaster || !waterRides || !otherRides || !food || !snacksAndDrinks || !parkPracticality || !rideOperations || ! parkManagement || !value
-      || !overall || !parkId) 
+    if (date === undefined || parkAppearance === undefined || bestCoaster === undefined || waterRides === undefined || rideLineup === undefined || food === undefined ||
+        snacksAndDrinks === undefined || parkPracticality === undefined || rideOperations === undefined || parkManagement === undefined || overall === undefined || parkId === undefined
+    )
       {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -93,20 +92,19 @@ export async function POST(request: Request) {
         parkappearance,
         bestcoaster,
         waterrides,
-        otherrides,
+        rideLineup,
         food,
         snacksanddrinks,
         parkpracticality,
         rideoperations,
         parkmanagement,
-        value,
         overall,
         park_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING id
     `;
 
-    const values = [date, parkAppearance, bestCoaster, waterRides, otherRides, food, snacksAndDrinks, parkPracticality, rideOperations, parkManagement, value, overall, parkId];
+    const values = [date, parkAppearance, bestCoaster, waterRides, rideLineup, food, snacksAndDrinks, parkPracticality, rideOperations, parkManagement, overall, parkId];
 
     const result = await pool.query(query, values);
 

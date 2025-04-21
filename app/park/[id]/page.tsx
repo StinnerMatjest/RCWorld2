@@ -22,6 +22,7 @@ export interface RollerCoaster {
   model: string;
   scale: string;
   haveridden: boolean;
+  isbestcoaster: boolean;
   rcdbpath: string;
 }
 
@@ -41,6 +42,19 @@ const ParkPage = () => {
   const [coasters, setCoasters] = useState<RollerCoaster[]>([]);
   const [loadingCoasters, setLoadingCoasters] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const sortedCoasters = [...coasters].sort((a, b) =>
+    b.isbestcoaster === a.isbestcoaster ? 0 : b.isbestcoaster ? 1 : -1
+  );
+  const mainCoasters = sortedCoasters.filter(
+    (coaster) => coaster.scale !== "Junior" && coaster.scale !== "Kiddie"
+  );
+
+  const optionalCoasters = sortedCoasters.filter(
+    (coaster) => coaster.scale === "Junior" || coaster.scale === "Kiddie"
+  );
+  const [editingCoaster, setEditingCoaster] = useState<
+    RollerCoaster | undefined
+  >(undefined);
 
   useEffect(() => {
     if (!parkId) return;
@@ -150,42 +164,110 @@ const ParkPage = () => {
         {loadingCoasters ? (
           <p>Loading coasters...</p>
         ) : coasters.length > 0 ? (
-          <ul className="space-y-2">
-            {coasters.map((coaster) => (
-              <li
-                key={coaster.id}
-                className="text-lg flex items-center space-x-2"
-              >
-                <a
-                  href={coaster.rcdbpath}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-500 hover:underline"
+          <>
+            <ul className="space-y-2 mb-8">
+              {mainCoasters.map((coaster) => (
+                <li
+                  key={coaster.id}
+                  className="text-lg flex items-center space-x-2"
                 >
-                  {coaster.name}
-                </a>{" "}
-                - {coaster.year} {coaster.manufacturer} ({coaster.model} -{" "}
-                {coaster.scale})
-                <span
-                  className={`ml-3 px-2 py-1 text-sm font-semibold rounded-md ${
-                    coaster.haveridden
-                      ? "bg-green-200 text-green-700"
-                      : "bg-red-200 text-red-700"
-                  }`}
-                >
-                  {coaster.haveridden ? "Have ridden" : "Have not ridden"}
-                </span>
-              </li>
-            ))}
-          </ul>
+                  <a
+                    href={coaster.rcdbpath}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline"
+                  >
+                    {coaster.name}
+                  </a>{" "}
+                  - {coaster.year} {coaster.manufacturer} ({coaster.model} -{" "}
+                  {coaster.scale})
+                  <span
+                    className={`ml-3 px-2 py-1 text-sm font-semibold rounded-md ${
+                      coaster.haveridden
+                        ? "bg-green-200 text-green-700"
+                        : "bg-red-200 text-red-700"
+                    }`}
+                  >
+                    {coaster.haveridden ? "Have ridden" : "Have not ridden"}
+                  </span>
+                  {coaster.isbestcoaster && (
+                    <span className="ml-3 px-2 py-1 text-sm font-bold text-yellow-800 bg-yellow-200 rounded-md">
+                      ⭐ Best Coaster
+                    </span>
+                  )}
+                  <button
+                    onClick={() => {
+                      setEditingCoaster(coaster); // Set the coaster you're editing
+                      setShowModal(true); // Open the modal
+                    }}
+                    className="btn btn-sm btn-outline ml-2"
+                  >
+                    Edit
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            {optionalCoasters.length > 0 && (
+              <>
+                <h3 className="text-2xl font-semibold mt-8 mb-2">
+                  Optional Coasters
+                </h3>
+                <ul className="space-y-2">
+                  {optionalCoasters.map((coaster) => (
+                    <li
+                      key={coaster.id}
+                      className="text-lg flex items-center space-x-2"
+                    >
+                      <a
+                        href={coaster.rcdbpath}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline"
+                      >
+                        {coaster.name}
+                      </a>{" "}
+                      - {coaster.year} {coaster.manufacturer} ({coaster.model} -{" "}
+                      {coaster.scale})
+                      {coaster.haveridden && (
+                        <span className="ml-3 px-2 py-1 text-sm font-semibold rounded-md bg-green-200 text-green-700">
+                          Have ridden
+                        </span>
+                      )}
+                      {!coaster.haveridden &&
+                        coaster.scale !== "Junior" &&
+                        coaster.scale !== "Kiddie" && (
+                          <span className="ml-3 px-2 py-1 text-sm font-semibold rounded-md bg-red-200 text-red-700">
+                            Have not ridden
+                          </span>
+                        )}
+                      <button
+                        onClick={() => {
+                          setEditingCoaster(coaster); // Set the coaster you're editing
+                          setShowModal(true); // Open the modal
+                        }}
+                        className="btn btn-sm btn-outline ml-2"
+                      >
+                        Edit
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </>
         ) : (
           <p>No roller coasters found.</p>
         )}
 
         {showModal && (
           <CoasterCreatorModal
-            parkId={park.id}
-            onClose={() => setShowModal(false)}
+            parkId={Number(parkId)}
+            coaster={editingCoaster} // ✅ This enables edit mode
+            onClose={() => {
+              setShowModal(false);
+              setEditingCoaster(undefined); // Reset editing state when modal closes
+            }}
             onCoasterAdded={refreshCoasters}
           />
         )}

@@ -14,13 +14,12 @@ export interface Rating {
   parkAppearance: number;
   bestCoaster: number;
   waterRides: number;
-  otherRides: number;
+  rideLineup: number;
   food: number;
   snacksAndDrinks: number;
   parkPracticality: number;
   rideOperations: number;
   parkManagement: number;
-  value: number;
   overall: number;
   parkId: number;
 }

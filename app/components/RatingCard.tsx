@@ -10,11 +10,14 @@ interface RatingCardProps {
 
 const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
   const getRatingColor = (rating: number) => {
-    if (rating >= 5.01) return "rainbow-animation"; // GOAT
-    if (rating >= 3.95) return "text-blue-700"; // Excellent
-    if (rating >= 3.45) return "text-green-500"; // Good
-    if (rating >= 2.95) return "text-yellow-400"; // Average
-    return "text-red-500"; // Poor
+    if (rating >= 10.0) return "rainbow-animation"; // GOAT
+    if (rating >= 9.0) return "text-blue-700"; // Excellent
+    if (rating >= 7.5) return "text-green-600"; // Great
+    if (rating >= 6.5) return "text-green-400"; // Good
+    if (rating >= 5.5) return "text-yellow-400"; // Average
+    if (rating >= 4.5) return "text-yellow-600"; // Mediocre
+    if (rating >= 3.0) return "text-red-400"; // Poor
+    return "text-red-600"; // Bad
   };
 
   return (
@@ -65,7 +68,7 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
               >
                 {rating.overall.toFixed(2)}
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 text-center w-full">
+              <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-3 gap-4 text-center w-full">
                 <div>
                   <p>Park Appearance:</p>
                   <p
@@ -100,10 +103,10 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
                   <p>Other Rides:</p>
                   <p
                     className={`text-center ${getRatingColor(
-                      rating.otherRides
+                      rating.rideLineup
                     )}`}
                   >
-                    {rating.otherRides}
+                    {rating.rideLineup}
                   </p>
                 </div>
                 <div>
@@ -142,7 +145,7 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
                     {rating.rideOperations}
                   </p>
                 </div>
-                <div className="col-span-2 sm:col-span-3 md:col-span-2 justify-self-center">
+                <div>
                   <p>Park Management:</p>
                   <p
                     className={`text-center ${getRatingColor(
@@ -150,12 +153,6 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
                     )}`}
                   >
                     {rating.parkManagement}
-                  </p>
-                </div>
-                <div className="col-span-2 sm:col-span-3 md:col-span-2 justify-self-center">
-                  <p>Value:</p>
-                  <p className={`text-center ${getRatingColor(rating.value)}`}>
-                    {rating.value}
                   </p>
                 </div>
               </div>

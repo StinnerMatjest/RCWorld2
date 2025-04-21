@@ -159,13 +159,12 @@ const RatingModal: React.FC<ModalProps> = ({
       "parkAppearance",
       "bestCoaster",
       "waterRides",
-      "otherRides",
+      "rideLineup",
       "food",
       "snacksAndDrinks",
       "parkPracticality",
       "rideOperations",
       "parkManagement",
-      "value",
     ].every((key) => ratings[key] !== null && ratings[key] !== undefined);
 
     return areParkFieldsFilled && areRatingFieldsFilled;
@@ -235,14 +234,13 @@ const RatingModal: React.FC<ModalProps> = ({
             (ratings.bestCoaster ?? 0) +
             (checkboxState.bestCoaster ? 1 : 0) +
             (ratings.waterRides ?? 0) +
-            (ratings.otherRides ?? 0) +
+            (ratings.rideLineup ?? 0) +
             (ratings.food ?? 0) +
             (ratings.snacksAndDrinks ?? 0) +
             (ratings.parkPracticality ?? 0) +
             (ratings.rideOperations ?? 0) +
-            (ratings.parkManagement ?? 0) +
-            (ratings.value ?? 0)) /
-          10,
+            (ratings.parkManagement ?? 0)) /
+          9,
         parkAppearance:
           (ratings.parkAppearance ?? 0) +
           (checkboxState.parkAppearance ? 1 : 0),
@@ -461,13 +459,12 @@ const RatingModal: React.FC<ModalProps> = ({
                       "parkAppearance",
                       "bestCoaster",
                       "waterRides",
-                      "otherRides",
+                      "rideLineup",
                       "food",
                       "snacksAndDrinks",
                       "parkPracticality",
                       "rideOperations",
                       "parkManagement",
-                      "value",
                     ].map((field) => (
                       <div key={field} className="flex items-center space-x-4">
                         {/* Rating Section */}
@@ -485,9 +482,9 @@ const RatingModal: React.FC<ModalProps> = ({
                             className="w-full p-2 border border-gray-300 rounded-md"
                           >
                             <option value="">Select Rating</option>
-                            {[...Array(9)].map((_, i) => {
-                              const base = 5 - i * 0.5;
-                              if (base > 5.0) return null;
+                            {[...Array(21)].map((_, i) => {
+                              const base = 10 - i * 0.5;
+                              if (base > 10) return null;
                               const formattedValue = base.toFixed(1); // Ensures values are like "1.0", "2.0"
                               return (
                                 <option

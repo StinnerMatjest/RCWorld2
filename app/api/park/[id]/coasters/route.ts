@@ -23,6 +23,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         model,
         scale,
         haveridden,
+        isbestcoaster,
         rcdbpath
       FROM rollercoasters
       WHERE park_id = $1
@@ -41,17 +42,17 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   try {
     const { id: parkId } = await context.params; // Resolve params in Next.js 15
     const body = await req.json();
-    const { name, year, manufacturer, model, scale, haveridden, rcdbpath } = body;
+    const { name, year, manufacturer, model, scale, haveridden, isbestcoaster, rcdbpath } = body;
 
     console.log("Adding coaster to park ID:", parkId, name, year, manufacturer, model);
 
-    if (!name || !year || !manufacturer || !model || !scale || haveridden === undefined || !rcdbpath) {
+    if (!name || !year || !manufacturer || !model || !scale || haveridden === undefined || isbestcoaster === undefined || !rcdbpath) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     const query = `
-      INSERT INTO rollercoasters (park_id, name, year, manufacturer, model, scale, haveridden, rcdbpath)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO rollercoasters (park_id, name, year, manufacturer, model, scale, haveridden, isbestcoaster, rcdbpath)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *;
     `;
 
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       model,
       scale,
       haveridden,
+      isbestcoaster,
       rcdbpath,
     ]);
 
