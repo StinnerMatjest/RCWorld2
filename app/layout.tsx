@@ -3,21 +3,21 @@ import { ParksProvider } from "./context/ParksContext";
 import { Inter, Roboto } from "next/font/google";
 
 export const metadata = {
-  title: "Your Application Title",
-  description: "Your app description",
+  title: "Parkrating",
+  description: "We rate themeparks all around the world!",
 };
 
 
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
-  weight: "400", // or "300", "500", etc.
+  weight: "400",
 });
 
 const roboto = Roboto({
   variable: "--font-roboto",
   subsets: ["latin"],
-  weight: "400", // or any of the valid font weights
+  weight: "400",
 });
 
 

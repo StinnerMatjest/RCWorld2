@@ -102,7 +102,7 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
                   </p>
                 </div>
                 <div>
-                  <p>Other Rides:</p>
+                  <p>Ride Lineup:</p>
                   <p
                     className={`text-center ${getRatingColor(
                       rating.rideLineup
