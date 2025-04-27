@@ -109,7 +109,7 @@ const Home = () => {
   return (
     <main>
       <Header />
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 px-2 flex-grow bg-white-50 rounded-xl py-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 px-2 flex-grow bg-white rounded-xl py-6">
         {filteredRatings.map((rating, index) => {
           const park = parks.find((p) => p.id === rating.parkId);
 

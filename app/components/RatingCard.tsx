@@ -1,5 +1,5 @@
 import React from "react";
-import Link from "next/link"; // new import
+import Link from "next/link"; // for clickable card
 import { Rating } from "../page";
 import { Park } from "../page";
 
@@ -11,25 +11,25 @@ interface RatingCardProps {
 
 const RatingCard: React.FC<RatingCardProps> = ({ rating, park, delayIndex }) => {
   const getRatingColor = (rating: number) => {
-    if (rating >= 10.0) return "text-blue-700"; // GOAT
-    if (rating >= 9.0) return "text-blue-700"; // Excellent
-    if (rating >= 7.5) return "text-green-600"; // Great
-    if (rating >= 6.5) return "text-green-400"; // Good
-    if (rating >= 5.5) return "text-yellow-400"; // Average
-    if (rating >= 4.5) return "text-yellow-600"; // Mediocre
-    if (rating >= 3.0) return "text-red-400"; // Poor
-    return "text-red-600"; // Bad
+    if (rating >= 10.0) return "text-blue-700 dark:text-blue-400"; // GOAT
+    if (rating >= 9.0) return "text-blue-700 dark:text-blue-400"; // Excellent
+    if (rating >= 7.5) return "text-green-600 dark:text-green-400"; // Great
+    if (rating >= 6.5) return "text-green-400 dark:text-green-300"; // Good
+    if (rating >= 5.5) return "text-yellow-400 dark:text-yellow-300"; // Average
+    if (rating >= 4.5) return "text-yellow-600 dark:text-yellow-500"; // Mediocre
+    if (rating >= 3.0) return "text-red-400 dark:text-red-300"; // Poor
+    return "text-red-600 dark:text-red-500"; // Bad
   };
 
   return (
     <Link href={`/parks/${rating.parkId}`} className="group">
       <div className={`mx-auto flex flex-col justify-between w-full max-w-[400px] py-2 animate-fade-in-up ${delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""}`}>
-        <div className="flex flex-col items-center justify-between bg-blue-50 rounded-2xl overflow-hidden shadow-md transition-transform duration-300 ease-in-out group-hover:scale-105 group-hover:shadow-xl">
+        <div className="flex flex-col items-center justify-between bg-gray-50 dark:bg-gray-800 rounded-2xl overflow-hidden shadow-md dark:shadow-lg transition-transform duration-300 ease-in-out group-hover:scale-105 group-hover:shadow-xl">
 
           {/* Park Name */}
           <div className="flex flex-col items-center justify-center w-full min-h-[90px]">
             <div className="min-h-[50px] flex items-center justify-center text-center px-2">
-              <h1 className="text-3xl font-bold text-center">
+              <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white">
                 {park.name}
               </h1>
             </div>
@@ -46,7 +46,7 @@ const RatingCard: React.FC<RatingCardProps> = ({ rating, park, delayIndex }) => 
           </figure>
 
           {/* Rating Date */}
-          <div className="text-sm italic py-1">
+          <div className="text-sm italic py-1 text-gray-600 dark:text-gray-400">
             {new Date(rating.date).toLocaleDateString()}
           </div>
 
@@ -72,7 +72,7 @@ const RatingCard: React.FC<RatingCardProps> = ({ rating, park, delayIndex }) => 
               ].map((item, idx) => (
                 <div key={idx} className="flex flex-col items-center gap-1 min-h-[90px]">
                   <div className="min-h-[40px] flex items-center justify-center text-center">
-                    <span className="text-sm font-medium">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       {item.label}
                     </span>
                   </div>
