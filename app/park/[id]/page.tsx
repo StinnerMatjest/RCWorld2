@@ -198,8 +198,8 @@ const ParkPage = () => {
                   <div className="flex items-center">
                     <span
                       onClick={() => {
-                        setEditingCoaster(coaster); // Set the coaster you're editing
-                        setShowModal(true); // Open the modal
+                        setEditingCoaster(coaster);
+                        setShowModal(true);
                       }}
                       className="text-gray-600 hover:text-gray-800 cursor-pointer text-xl"
                     >

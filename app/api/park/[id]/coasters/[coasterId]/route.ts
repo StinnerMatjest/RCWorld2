@@ -8,6 +8,41 @@ const pool = new Pool({
   },
 });
 
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ id: string; coasterId: string }> }
+) {
+  const { id: parkId, coasterId } = await context.params;
+  console.log("Fetching coaster ID:", coasterId, "from park ID:", parkId);
+
+  const result = await pool.query(
+    `
+    SELECT
+      id,
+      name,
+      year,
+      manufacturer,
+      model,
+      scale,
+      haveridden,
+      isbestcoaster,
+      rcdbpath
+    FROM rollercoasters
+    WHERE id = $1 AND park_id = $2;
+    `,
+    [coasterId, parkId]
+  );
+
+  if (result.rowCount === 0) {
+    return NextResponse.json(
+      { error: `Park: ${parkId} does not contain a coaster with ID: ${coasterId}` },
+      { status: 404 }
+    );
+  }
+
+  return NextResponse.json(result.rows[0], { status: 200 });
+}
+
 export async function PUT(
   req: NextRequest,
   context: { params: Promise<{ id: string; coasterId: string }> }
@@ -86,4 +121,33 @@ export async function PUT(
       { status: 500 }
     );
   }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  context: { params: Promise<{ id: string; coasterId: string }> }
+) {
+  const { id: parkId, coasterId } = await context.params;
+  console.log("Deleting coaster ID:", coasterId, "from park ID:", parkId);
+
+  const result = await pool.query(
+    `
+    DELETE FROM rollercoasters
+    WHERE id = $1 AND park_id = $2
+    RETURNING *;
+    `,
+    [coasterId, parkId]
+  );
+
+  if (result.rowCount === 0) {
+    return NextResponse.json(
+      { error: `Coaster ${coasterId} not found or already deleted` },
+      { status: 404 }
+    );
+  }
+
+  return NextResponse.json(
+    { message: `Coaster ${coasterId} deleted successfully`, coaster: result.rows[0] },
+    { status: 200 }
+  );
 }

@@ -121,6 +121,33 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
     }
   };
 
+  const handleDelete = async () => {
+    if (!coaster) return;
+    const confirmDelete = confirm(
+      `Are you sure you want to delete"${coaster.name}" ?`
+    );
+    if (!confirmDelete) return;
+
+    console.log(`${parkId} ${coaster.id}`)
+
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/park/${parkId}/coasters/${coaster.id}`, {
+        method: "DELETE",
+      }
+      );
+
+      if (!response.ok) throw new Error("Failed to delete coaster");
+
+      onCoasterAdded(); // refreshes the coasterlist
+      onClose();
+    } catch (error) {
+      console.error("Error deleting coaster:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 backdrop-blur-lg flex justify-center items-center">
       <div className="bg-white p-6 rounded-lg shadow-lg w-[400px]">
@@ -230,7 +257,7 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
             <span className="text-mg">Best Coaster</span>
           </div>
 
-          {/* Action buttons */}
+          {/* Cancel button */}
           <div className="flex justify-between mt-4">
             <button
               onClick={onClose}
@@ -238,9 +265,23 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
             >
               Cancel
             </button>
+
+            {/* Delete button */}
+            {coaster && (
+              <div className="flex justify-center mt-4">
+                <button
+                  onClick={() => handleDelete()}
+                  className="h-8 w-24 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-800 transition duration-300 cursor-pointer"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
+
+            {/* Submit button */}
             <button
               onClick={handleSubmit}
-              className={`h-9 w-20 text-lg font-semibold rounded-lg transition duration-300 ${
+              className={`h-9 w-20 text-lg font-semibold text-white rounded-lg transition duration-300 ${
                 loading
                   ? "bg-blue-600 cursor-pointer"
                   : `bg-blue-600 ${
