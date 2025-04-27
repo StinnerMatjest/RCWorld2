@@ -6,9 +6,10 @@ import ToParkButton from "./ToParkButton";
 interface RatingCardProps {
   rating: Rating;
   park: Park;
+  delayIndex?: number; // NEW: Accepts a delay index
 }
 
-const RatingCard: React.FC<RatingCardProps> = ({ rating, park }) => {
+const RatingCard: React.FC<RatingCardProps> = ({ rating, park, delayIndex }) => {
   const getRatingColor = (rating: number) => {
     if (rating >= 10.0) return "rainbow-animation"; // GOAT
     if (rating >= 9.0) return "text-blue-700"; // Excellent
@@ -21,8 +22,9 @@ const RatingCard: React.FC<RatingCardProps> = ({ rating, park }) => {
   };
 
   return (
-    <div className="mx-auto flex flex-col justify-between w-full max-w-[400px] py-2">
+    <div className={`mx-auto flex flex-col justify-between w-full max-w-[400px] py-2 animate-fade-in-up ${delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""}`}>
       <div className="flex flex-col items-center justify-between bg-gray-50 rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:scale-105 transition-transform duration-300 ease-in-out">
+        
         {/* Park Name */}
         <div className="flex flex-col items-center justify-center w-full min-h-[70px]">
           <h1 className="text-3xl font-bold text-center py-2 mb-1">
@@ -53,60 +55,60 @@ const RatingCard: React.FC<RatingCardProps> = ({ rating, park }) => {
           </p>
 
           {/* Individual Scores */}
-          <div className="grid grid-cols-3 gap-2 max-w-[280px] mx-auto text-center text-sm">
-            <div>
-              <p>Park Appearance:</p>
-              <p className={getRatingColor(rating.parkAppearance)}>
+          <div className="grid grid-cols-3 gap-x-2 gap-y-1 max-w-[300px] mx-auto text-center text-sm">
+            <div className="flex flex-col items-center">
+              <span className="text-xs">Park Appearance</span>
+              <span className={getRatingColor(rating.parkAppearance)}>
                 {rating.parkAppearance}
-              </p>
+              </span>
             </div>
-            <div>
-              <p>Best Coaster:</p>
-              <p className={getRatingColor(rating.bestCoaster)}>
+            <div className="flex flex-col items-center">
+              <span className="text-xs">Best Coaster</span>
+              <span className={getRatingColor(rating.bestCoaster)}>
                 {rating.bestCoaster}
-              </p>
+              </span>
             </div>
-            <div>
-              <p>Water Rides:</p>
-              <p className={getRatingColor(rating.waterRides)}>
+            <div className="flex flex-col items-center">
+              <span className="text-xs">Water Rides</span>
+              <span className={getRatingColor(rating.waterRides)}>
                 {rating.waterRides}
-              </p>
+              </span>
             </div>
-            <div>
-              <p>Ride Lineup:</p>
-              <p className={getRatingColor(rating.rideLineup)}>
+            <div className="flex flex-col items-center">
+              <span className="text-xs">Ride Lineup</span>
+              <span className={getRatingColor(rating.rideLineup)}>
                 {rating.rideLineup}
-              </p>
+              </span>
             </div>
-            <div>
-              <p>Food:</p>
-              <p className={getRatingColor(rating.food)}>
+            <div className="flex flex-col items-center">
+              <span className="text-xs">Food</span>
+              <span className={getRatingColor(rating.food)}>
                 {rating.food}
-              </p>
+              </span>
             </div>
-            <div>
-              <p>Snacks & Drinks:</p>
-              <p className={getRatingColor(rating.snacksAndDrinks)}>
+            <div className="flex flex-col items-center">
+              <span className="text-xs">Snacks & Drinks</span>
+              <span className={getRatingColor(rating.snacksAndDrinks)}>
                 {rating.snacksAndDrinks}
-              </p>
+              </span>
             </div>
-            <div>
-              <p>Park Practicality:</p>
-              <p className={getRatingColor(rating.parkPracticality)}>
+            <div className="flex flex-col items-center">
+              <span className="text-xs">Park Practicality</span>
+              <span className={getRatingColor(rating.parkPracticality)}>
                 {rating.parkPracticality}
-              </p>
+              </span>
             </div>
-            <div>
-              <p>Ride Operations:</p>
-              <p className={getRatingColor(rating.rideOperations)}>
+            <div className="flex flex-col items-center">
+              <span className="text-xs">Ride Operations</span>
+              <span className={getRatingColor(rating.rideOperations)}>
                 {rating.rideOperations}
-              </p>
+              </span>
             </div>
-            <div>
-              <p>Park Management:</p>
-              <p className={getRatingColor(rating.parkManagement)}>
+            <div className="flex flex-col items-center">
+              <span className="text-xs">Park Management</span>
+              <span className={getRatingColor(rating.parkManagement)}>
                 {rating.parkManagement}
-              </p>
+              </span>
             </div>
           </div>
 

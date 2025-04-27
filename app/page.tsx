@@ -110,7 +110,7 @@ const Home = () => {
     <main>
       <Header />
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 px-2 flex-grow bg-gray-100 rounded-xl py-6">
-        {filteredRatings.map((rating) => {
+        {filteredRatings.map((rating, index) => {
           const park = parks.find((p) => p.id === rating.parkId);
 
           if (!park) {
@@ -122,6 +122,7 @@ const Home = () => {
               key={rating.id}
               rating={rating}
               park={park}
+              delayIndex={index} // 👈 NEW: passing delayIndex!
             />
           );
         })}
