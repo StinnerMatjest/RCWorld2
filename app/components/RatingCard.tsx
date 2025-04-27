@@ -22,7 +22,7 @@ const RatingCard: React.FC<RatingCardProps> = ({ rating, park, delayIndex }) => 
   };
 
   return (
-    <Link href={`/parks/${rating.parkId}`} className="group">
+    <Link href={`/park/${rating.parkId}`} className="group">
       <div className={`mx-auto flex flex-col justify-between w-full max-w-[400px] py-2 animate-fade-in-up ${delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""}`}>
         <div className="flex flex-col items-center justify-between bg-blue-50 dark:bg-gray-800 rounded-2xl overflow-hidden shadow-md dark:shadow-lg transition-transform duration-300 ease-in-out group-hover:scale-105 group-hover:shadow-xl">
 
