@@ -22,9 +22,9 @@ const RatingCard: React.FC<RatingCardProps> = ({ rating, park }) => {
 
   return (
     <div className="mx-auto flex flex-col justify-between w-full max-w-[400px] py-2">
-      <div className="flex flex-col items-center justify-between bg-white shadow-lg rounded-2xl overflow-hidden">
+      <div className="flex flex-col items-center justify-between bg-gray-50 rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:scale-105 transition-transform duration-300 ease-in-out">
         {/* Park Name */}
-        <div className="flex flex-col items-center justify-center w-full">
+        <div className="flex flex-col items-center justify-center w-full min-h-[70px]">
           <h1 className="text-3xl font-bold text-center py-2 mb-1">
             {park.name}
           </h1>
