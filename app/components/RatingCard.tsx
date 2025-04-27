@@ -6,12 +6,12 @@ import ToParkButton from "./ToParkButton";
 interface RatingCardProps {
   rating: Rating;
   park: Park;
-  delayIndex?: number; // NEW: Accepts a delay index
+  delayIndex?: number;
 }
 
 const RatingCard: React.FC<RatingCardProps> = ({ rating, park, delayIndex }) => {
   const getRatingColor = (rating: number) => {
-    if (rating >= 10.0) return "rainbow-animation"; // GOAT
+    if (rating >= 10.0) return "text-blue-700"; // GOAT
     if (rating >= 9.0) return "text-blue-700"; // Excellent
     if (rating >= 7.5) return "text-green-600"; // Great
     if (rating >= 6.5) return "text-green-400"; // Good
@@ -22,14 +22,16 @@ const RatingCard: React.FC<RatingCardProps> = ({ rating, park, delayIndex }) => 
   };
 
   return (
-    <div className={`mx-auto flex flex-col justify-between w-full max-w-[400px] py-2 animate-fade-in-up ${delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""}`}>
-      <div className="flex flex-col items-center justify-between bg-gray-50 rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:scale-105 transition-transform duration-300 ease-in-out">
-        
+    <div className={`mx-auto flex flex-col justify-between w-full max-w-[400px] py-2 animate-fade-in-up ${delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""} hover:shadow-xl hover:scale-105 transition-transform duration-300 ease-in-out`}>
+      <div className="flex flex-col items-center justify-between bg-gray-50 rounded-2xl overflow-hidden shadow-md">
+
         {/* Park Name */}
-        <div className="flex flex-col items-center justify-center w-full min-h-[70px]">
-          <h1 className="text-3xl font-bold text-center py-2 mb-1">
-            {park.name}
-          </h1>
+        <div className="flex flex-col items-center justify-center w-full min-h-[90px]">
+          <div className="min-h-[50px] flex items-center justify-center text-center px-2">
+            <h1 className="text-3xl font-bold text-center">
+              {park.name}
+            </h1>
+          </div>
         </div>
 
         {/* Park Image */}
@@ -50,66 +52,32 @@ const RatingCard: React.FC<RatingCardProps> = ({ rating, park, delayIndex }) => 
         {/* Rating Details */}
         <div className="flex flex-col items-center text-center justify-between w-full text-base font-medium p-2">
           {/* Overall Rating */}
-          <p className={`text-4xl font-semibold py-2 ${getRatingColor(rating.overall)}`}>
+          <p className={`text-5xl font-semibold py-4 ${getRatingColor(rating.overall)}`}>
             {rating.overall.toFixed(2)}
           </p>
 
           {/* Individual Scores */}
-          <div className="grid grid-cols-3 gap-x-2 gap-y-1 max-w-[300px] mx-auto text-center text-sm">
-            <div className="flex flex-col items-center">
-              <span className="text-xs">Park Appearance</span>
-              <span className={getRatingColor(rating.parkAppearance)}>
-                {rating.parkAppearance}
-              </span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-xs">Best Coaster</span>
-              <span className={getRatingColor(rating.bestCoaster)}>
-                {rating.bestCoaster}
-              </span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-xs">Water Rides</span>
-              <span className={getRatingColor(rating.waterRides)}>
-                {rating.waterRides}
-              </span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-xs">Ride Lineup</span>
-              <span className={getRatingColor(rating.rideLineup)}>
-                {rating.rideLineup}
-              </span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-xs">Food</span>
-              <span className={getRatingColor(rating.food)}>
-                {rating.food}
-              </span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-xs">Snacks & Drinks</span>
-              <span className={getRatingColor(rating.snacksAndDrinks)}>
-                {rating.snacksAndDrinks}
-              </span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-xs">Park Practicality</span>
-              <span className={getRatingColor(rating.parkPracticality)}>
-                {rating.parkPracticality}
-              </span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-xs">Ride Operations</span>
-              <span className={getRatingColor(rating.rideOperations)}>
-                {rating.rideOperations}
-              </span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-xs">Park Management</span>
-              <span className={getRatingColor(rating.parkManagement)}>
-                {rating.parkManagement}
-              </span>
-            </div>
+          <div className="grid grid-cols-3 gap-x-4 gap-y-1 max-w-[320px] mx-auto text-center text-base">
+            {[
+              { label: "Park Appearance", value: rating.parkAppearance },
+              { label: "Best Coaster", value: rating.bestCoaster },
+              { label: "Water Rides", value: rating.waterRides },
+              { label: "Ride Lineup", value: rating.rideLineup },
+              { label: "Food", value: rating.food },
+              { label: "Snacks & Drinks", value: rating.snacksAndDrinks },
+              { label: "Park Practicality", value: rating.parkPracticality },
+              { label: "Ride Operations", value: rating.rideOperations },
+              { label: "Park Management", value: rating.parkManagement },
+            ].map((item, idx) => (
+              <div key={idx} className="flex flex-col items-center gap-1 min-h-[90px]">
+                <div className="min-h-[40px] flex items-center justify-center text-center">
+                  <span className="text-sm font-medium">{item.label}</span>
+                </div>
+                <span className={`text-lg font-semibold w-10 text-center ${getRatingColor(item.value)}`}>
+                  {item.value}
+                </span>
+              </div>
+            ))}
           </div>
 
           {/* Button */}
