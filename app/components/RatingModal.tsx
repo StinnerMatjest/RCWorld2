@@ -275,7 +275,7 @@ const RatingModal: React.FC<ModalProps> = ({
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+        className="fixed inset-0 backdrop-blur-lg flex justify-center items-center"
         onClick={closeModal}
       >
         <div
@@ -300,7 +300,7 @@ const RatingModal: React.FC<ModalProps> = ({
             />
           )}
           <div
-            className="flex-1 overflow-y-auto px-4"
+            className="flex-1 overflow-y-auto px-3"
             style={{ maxHeight: "60vh" }}
           >
             <form className="space-y-4">
@@ -310,9 +310,22 @@ const RatingModal: React.FC<ModalProps> = ({
                   className="flex justify-between items-center"
                   onClick={() => setParkSectionExpanded(!isParkSectionExpanded)}
                 >
-                  <h3 className="text-lg font-semibold">Park</h3>
-                  <span>{isParkSectionExpanded ? "▲" : "▼"}</span>
+                  {/* Left arrow */}
+                  <span className="mr-2">
+                    {isParkSectionExpanded ? "▲" : "▼"}
+                  </span>
+
+                  {/* Text in the middle */}
+                  <div className="flex-1 flex justify-center">
+                    <h3 className="text-lg font-semibold">Park</h3>
+                  </div>
+
+                  {/* Right arrow */}
+                  <span className="ml-2">
+                    {isParkSectionExpanded ? "▲" : "▼"}
+                  </span>
                 </div>
+
                 {isParkSectionExpanded && (
                   <div className="space-y-2 mt-2">
                     <div>
@@ -449,10 +462,21 @@ const RatingModal: React.FC<ModalProps> = ({
                     setRatingSectionExpanded(!isRatingSectionExpanded)
                   }
                 >
-                  <h3 className="text-lg font-semibold">Rating</h3>
-                  <span>{isRatingSectionExpanded ? "▲" : "▼"}</span>
-                </div>
+                  {/* Left arrow */}
+                  <span className="mr-2">
+                    {isParkSectionExpanded ? "▲" : "▼"}
+                  </span>
 
+                  {/* Text in the middle */}
+                  <div className="flex-1 flex justify-center">
+                    <h3 className="text-lg font-semibold">Rating</h3>
+                  </div>
+
+                  {/* Right arrow */}
+                  <span className="ml-2">
+                    {isParkSectionExpanded ? "▲" : "▼"}
+                  </span>
+                </div>
                 {isRatingSectionExpanded && (
                   <div className="space-y-4 mt-2">
                     {[
@@ -517,15 +541,16 @@ const RatingModal: React.FC<ModalProps> = ({
                   </div>
                 )}
               </div>
+              {/* Submit Button */}
               <button
                 type="button"
                 onClick={handleSubmit}
                 className={`w-full p-3 text-white font-semibold rounded-md transition duration-300 cursor-pointer
-    ${
-      isFormValid()
-        ? "bg-blue-500 hover:bg-blue-700"
-        : "bg-gray-400 cursor-not-allowed"
-    }`}
+        ${
+          isFormValid()
+            ? "bg-blue-500 hover:bg-blue-700"
+            : "bg-gray-400 cursor-not-allowed"
+        }`}
                 disabled={!isFormValid() || loading}
               >
                 {loading ? <Loading /> : "Submit Rating"}

@@ -4,11 +4,11 @@ import { Park } from "../page";
 import ToParkButton from "./ToParkButton";
 
 interface RatingCardProps {
-  ratings: Rating[];
-  parks: Park[];
+  rating: Rating;
+  park: Park;
 }
 
-const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
+const RatingCard: React.FC<RatingCardProps> = ({ rating, park }) => {
   const getRatingColor = (rating: number) => {
     if (rating >= 10.0) return "rainbow-animation"; // GOAT
     if (rating >= 9.0) return "text-blue-700"; // Excellent
@@ -22,149 +22,100 @@ const RatingCard: React.FC<RatingCardProps> = ({ ratings = [], parks }) => {
 
   return (
     <div className="mx-auto flex flex-col justify-between w-full py-2">
-      {ratings.map((rating) => {
-        const park = parks.find((p) => p.id === rating.parkId);
-        if (!park) {
-          return <div key={rating.id}></div>; //PARK NOT FOUND ERROR - Currently suppressed
-        }
+      <div className="flex flex-col items-center justify-between bg-white shadow-lg rounded-2xl">
+        <div className="flex flex-col items-center justify-center w-full">
+          <h1 className="text-5xl font-bold text-center py-2 mb-1">{park.name}</h1>
+        </div>
 
-        return (
-          <div
-            key={rating.id}
-            className="flex flex-col items-center justify-between bg-white shadow-lg rounded-2xl p-0"
+        <figure className="w-full flex justify-center">
+          {park.imagePath ? (
+            <img
+              className="w-full h-110 object-cover rounded-t-lg"
+              src={park.imagePath}
+              alt={park.name}
+            />
+          ) : (
+            <img
+              className="w-full h-110 object-cover rounded-t-lg"
+              src="/images/error.PNG"
+              alt="Placeholder"
+            />
+          )}
+        </figure>
+
+        <div className="rating-date text-m italic py-1">
+          {new Date(rating.date).toLocaleDateString()}
+        </div>
+
+        <div className="card-body items-center text-center flex flex-col justify-between w-full h-125 text-lg font-medium">
+          <p
+            className={`text-7xl font-semibold py-6 ${getRatingColor(
+              rating.overall
+            )}`}
           >
-            <div className="flex flex-col items-center justify-center w-full">
-              <h1 className="text-5xl font-bold text-center mb-2">
-                {park.name}
-              </h1>
-            </div>
+            {rating.overall.toFixed(2)}
+          </p>
 
-            <figure className="w-full flex justify-center">
-              {park.imagePath ? (
-                <img
-                  className="mx-auto object-cover max-w-full"
-                  src={park.imagePath}
-                  alt={park.name}
-                  height="450px"
-                  width="1000px"
-                />
-              ) : (
-                <img
-                  className="mx-auto object-cover max-w-full"
-                  src="/images/error.PNG"
-                  alt="Placeholder"
-                  height="450px"
-                  width="1000px"
-                />
-              )}
-            </figure>
-            <div className="rating-date text-m italic">
-              {new Date(rating.date).toLocaleDateString()}
-            </div>
-
-            <div className="card-body items-center text-center flex flex-col justify-between w-full text-lg font-medium">
-              <p
-                className={`text-7xl font-semibold ${getRatingColor(
-                  rating.overall
-                )} mb-3`}
-              >
-                {rating.overall.toFixed(2)}
+          <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-3 text-center w-full gap-10">
+            <div>
+              <p>Park Appearance:</p>
+              <p className={`${getRatingColor(rating.parkAppearance)}`}>
+                {rating.parkAppearance}
               </p>
-              <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-3 text-center w-full">
-                <div>
-                  <p>Park Appearance:</p>
-                  <p
-                    className={`text-center ${getRatingColor(
-                      rating.parkAppearance
-                    )}`}
-                  >
-                    {rating.parkAppearance}
-                  </p>
-                </div>
-                <div>
-                  <p>Best Coaster:</p>
-                  <p
-                    className={`text-center ${getRatingColor(
-                      rating.bestCoaster
-                    )}`}
-                  >
-                    {rating.bestCoaster}
-                  </p>
-                </div>
-                <div>
-                  <p>Water Rides:</p>
-                  <p
-                    className={`text-center ${getRatingColor(
-                      rating.waterRides
-                    )}`}
-                  >
-                    {rating.waterRides}
-                  </p>
-                </div>
-                <div>
-                  <p>Ride Lineup:</p>
-                  <p
-                    className={`text-center ${getRatingColor(
-                      rating.rideLineup
-                    )}`}
-                  >
-                    {rating.rideLineup}
-                  </p>
-                </div>
-                <div>
-                  <p>Food:</p>
-                  <p className={`text-center ${getRatingColor(rating.food)}`}>
-                    {rating.food}
-                  </p>
-                </div>
-                <div>
-                  <p>Snacks & Drinks:</p>
-                  <p
-                    className={`text-center ${getRatingColor(
-                      rating.snacksAndDrinks
-                    )}`}
-                  >
-                    {rating.snacksAndDrinks}
-                  </p>
-                </div>
-                <div>
-                  <p>Park Practicality:</p>
-                  <p
-                    className={`text-center ${getRatingColor(
-                      rating.parkPracticality
-                    )}`}
-                  >
-                    {rating.parkPracticality}
-                  </p>
-                </div>
-                <div>
-                  <p>Ride Operations:</p>
-                  <p
-                    className={`text-center ${getRatingColor(
-                      rating.rideOperations
-                    )}`}
-                  >
-                    {rating.rideOperations}
-                  </p>
-                </div>
-                <div>
-                  <p>Park Management:</p>
-                  <p
-                    className={`text-center ${getRatingColor(
-                      rating.parkManagement
-                    )}`}
-                  >
-                    {rating.parkManagement}
-                  </p>
-                </div>
-              </div>
-              <div className="flex justify-center w-full mt-6 mb-4">
-                <ToParkButton parkId={rating.parkId} />
-              </div>
+            </div>
+            <div>
+              <p>Best Coaster:</p>
+              <p className={`${getRatingColor(rating.bestCoaster)}`}>
+                {rating.bestCoaster}
+              </p>
+            </div>
+            <div>
+              <p>Water Rides:</p>
+              <p className={`${getRatingColor(rating.waterRides)}`}>
+                {rating.waterRides}
+              </p>
+            </div>
+            <div>
+              <p>Ride Lineup:</p>
+              <p className={`${getRatingColor(rating.rideLineup)}`}>
+                {rating.rideLineup}
+              </p>
+            </div>
+            <div>
+              <p>Food:</p>
+              <p className={`${getRatingColor(rating.food)}`}>{rating.food}</p>
+            </div>
+            <div>
+              <p>Snacks & Drinks:</p>
+              <p className={`${getRatingColor(rating.snacksAndDrinks)}`}>
+                {rating.snacksAndDrinks}
+              </p>
+            </div>
+            <div>
+              <p>Park Practicality:</p>
+              <p className={`${getRatingColor(rating.parkPracticality)}`}>
+                {rating.parkPracticality}
+              </p>
+            </div>
+            <div>
+              <p>Ride Operations:</p>
+              <p className={`${getRatingColor(rating.rideOperations)}`}>
+                {rating.rideOperations}
+              </p>
+            </div>
+            <div>
+              <p>Park Management:</p>
+              <p className={`${getRatingColor(rating.parkManagement)}`}>
+                {rating.parkManagement}
+              </p>
             </div>
           </div>
-        );
-      })}
+
+          <div className="flex justify-center w-full mb-3">
+            <ToParkButton parkId={rating.parkId} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

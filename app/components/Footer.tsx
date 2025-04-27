@@ -29,7 +29,6 @@ const Footer = ({ onSearch }: { onSearch: (query: string) => void }) => {
     };
   }, []);
 
-  // Determine footer visibility based on scroll and search query
   const shouldFooterBeVisible = searchQuery.trim() !== "" || !isAtBottom;
 
   return (
@@ -46,7 +45,7 @@ const Footer = ({ onSearch }: { onSearch: (query: string) => void }) => {
       <div className="flex items-center justify-center flex-shrink-0 pl-4">
         <a
           href="#"
-          className="w-60 py-6 px-5 text-3xl font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition duration-300 flex justify-center items-center no-underline mx-auto"
+          className="h-20 w-65 text-3xl font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition duration-300 flex justify-center items-center no-underline mx-auto"
           onClick={openModal}
         >
           RATE A PARK!
