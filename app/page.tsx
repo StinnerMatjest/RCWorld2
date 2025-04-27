@@ -122,7 +122,7 @@ const Home = () => {
               key={rating.id}
               rating={rating}
               park={park}
-              delayIndex={index} // 👈 NEW: passing delayIndex!
+              delayIndex={index}
             />
           );
         })}
@@ -139,5 +139,3 @@ const Home = () => {
 };
 
 export default Home;
-
-//HELLO FROM THE OTHER SIDE

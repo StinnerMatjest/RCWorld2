@@ -11,7 +11,7 @@ interface RatingCardProps {
 
 const RatingCard: React.FC<RatingCardProps> = ({ rating, park, delayIndex }) => {
   const getRatingColor = (rating: number) => {
-    if (rating >= 10.0) return "text-blue-700 dark:text-blue-400"; // GOAT
+    if (rating >= 10.0) return "rainbow-animation"; // GOAT
     if (rating >= 9.0) return "text-blue-700 dark:text-blue-400"; // Excellent
     if (rating >= 7.5) return "text-green-600 dark:text-green-400"; // Great
     if (rating >= 6.5) return "text-green-400 dark:text-green-300"; // Good
