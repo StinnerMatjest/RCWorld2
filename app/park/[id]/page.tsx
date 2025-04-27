@@ -125,13 +125,13 @@ const ParkPage = () => {
 
   return (
     <div className="w-full">
-      <div className="relative w-full h-[400px]">
+      <div className="relative w-full h-200">
         <img
           src={park.imagepath}
           alt={park.name}
           className="w-full h-full object-cover"
         />
-        <h1 className="absolute bottom-4 left-6 text-6xl font-bold text-white bg-black bg-opacity-60 p-4 rounded-md">
+        <h1 className="absolute bottom-4 left-6 text-7xl font-bold text-white p-4 rounded-md">
           {park.name}
         </h1>
       </div>
@@ -153,11 +153,11 @@ const ParkPage = () => {
       </div>
 
       {/* Roller Coasters Section */}
-      <div className="w-full py-10 px-6 md:px-20">
+      <div className="w-full py-10 px-6 md:px-20 border border-gray-300 rounded-lg">
         <h2 className="text-3xl font-semibold mb-4">Roller Coasters</h2>
         <button
           onClick={() => setShowModal(true)}
-          className="text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition duration-300 cursor-pointer"
+          className="h-7 w-28 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition duration-300 cursor-pointer mb-2"
         >
           + Add Coaster
         </button>
@@ -195,15 +195,17 @@ const ParkPage = () => {
                       ⭐ Best Coaster
                     </span>
                   )}
-                  <button
-                    onClick={() => {
-                      setEditingCoaster(coaster); // Set the coaster you're editing
-                      setShowModal(true); // Open the modal
-                    }}
-                    className="btn btn-sm btn-outline ml-2"
-                  >
-                    Edit
-                  </button>
+                  <div className="flex items-center">
+                    <span
+                      onClick={() => {
+                        setEditingCoaster(coaster); // Set the coaster you're editing
+                        setShowModal(true); // Open the modal
+                      }}
+                      className="text-gray-600 hover:text-gray-800 cursor-pointer text-xl"
+                    >
+                      🔧
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -241,15 +243,17 @@ const ParkPage = () => {
                             Have not ridden
                           </span>
                         )}
-                      <button
-                        onClick={() => {
-                          setEditingCoaster(coaster); // Set the coaster you're editing
-                          setShowModal(true); // Open the modal
-                        }}
-                        className="btn btn-sm btn-outline ml-2"
-                      >
-                        Edit
-                      </button>
+                      <div className="flex items-center px-2">
+                        <span
+                          onClick={() => {
+                            setEditingCoaster(coaster); // Set the coaster you're editing
+                            setShowModal(true); // Open the modal
+                          }}
+                          className="text-gray-600 hover:text-gray-800 cursor-pointer text-xl"
+                        >
+                          🔧
+                        </span>
+                      </div>
                     </li>
                   ))}
                 </ul>

@@ -53,9 +53,7 @@ const Home = () => {
   // Filter ratings based on the search query
   const filteredRatings = sortedRatings.filter((rating) => {
     const park = parks.find((p) => p.id === rating.parkId);
-    return (
-      park && park.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    return park && park.name.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   console.log("Filtered ratings:", filteredRatings);
@@ -110,11 +108,11 @@ const Home = () => {
 
   return (
     <main>
-      <Header/>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3 px-3 flex-grow custom-bg" >
+      <Header />
+      <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 px-2 flex-grow custom-bg">
         {filteredRatings.map((rating) => {
           const park = parks.find((p) => p.id === rating.parkId);
-          
+
           if (!park) {
             return null;
           }
@@ -122,8 +120,8 @@ const Home = () => {
           return (
             <RatingCard
               key={rating.id}
-              ratings={filteredRatings}
-              parks={[park]}
+              rating={rating}
+              park={park}
             />
           );
         })}
