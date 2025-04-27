@@ -1,7 +1,7 @@
 import React from "react";
+import Link from "next/link"; // new import
 import { Rating } from "../page";
 import { Park } from "../page";
-import ToParkButton from "./ToParkButton";
 
 interface RatingCardProps {
   rating: Rating;
@@ -22,71 +22,71 @@ const RatingCard: React.FC<RatingCardProps> = ({ rating, park, delayIndex }) => 
   };
 
   return (
-    <div className={`mx-auto flex flex-col justify-between w-full max-w-[400px] py-2 animate-fade-in-up ${delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""} hover:shadow-xl hover:scale-105 transition-transform duration-300 ease-in-out`}>
-      <div className="flex flex-col items-center justify-between bg-gray-50 rounded-2xl overflow-hidden shadow-md">
+    <Link href={`/parks/${rating.parkId}`} className="group">
+      <div className={`mx-auto flex flex-col justify-between w-full max-w-[400px] py-2 animate-fade-in-up ${delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""}`}>
+        <div className="flex flex-col items-center justify-between bg-gray-50 rounded-2xl overflow-hidden shadow-md transition-transform duration-300 ease-in-out group-hover:scale-105 group-hover:shadow-xl">
 
-        {/* Park Name */}
-        <div className="flex flex-col items-center justify-center w-full min-h-[90px]">
-          <div className="min-h-[50px] flex items-center justify-center text-center px-2">
-            <h1 className="text-3xl font-bold text-center">
-              {park.name}
-            </h1>
+          {/* Park Name */}
+          <div className="flex flex-col items-center justify-center w-full min-h-[90px]">
+            <div className="min-h-[50px] flex items-center justify-center text-center px-2">
+              <h1 className="text-3xl font-bold text-center">
+                {park.name}
+              </h1>
+            </div>
           </div>
-        </div>
 
-        {/* Park Image */}
-        <figure className="w-full flex justify-center">
-          <img
-            className="w-full h-60 object-cover rounded-t-lg"
-            src={park.imagePath || "/images/error.PNG"}
-            alt={park.name}
-            loading="lazy"
-          />
-        </figure>
+          {/* Park Image */}
+          <figure className="w-full flex justify-center">
+            <img
+              className="w-full h-60 object-cover rounded-t-lg"
+              src={park.imagePath || "/images/error.PNG"}
+              alt={park.name}
+              loading="lazy"
+            />
+          </figure>
 
-        {/* Rating Date */}
-        <div className="text-sm italic py-1">
-          {new Date(rating.date).toLocaleDateString()}
-        </div>
+          {/* Rating Date */}
+          <div className="text-sm italic py-1">
+            {new Date(rating.date).toLocaleDateString()}
+          </div>
 
-        {/* Rating Details */}
-        <div className="flex flex-col items-center text-center justify-between w-full text-base font-medium p-2">
-          {/* Overall Rating */}
-          <p className={`text-5xl font-semibold py-4 ${getRatingColor(rating.overall)}`}>
-            {rating.overall.toFixed(2)}
-          </p>
+          {/* Rating Details */}
+          <div className="flex flex-col items-center text-center justify-between w-full text-base font-medium p-2">
+            {/* Overall Rating */}
+            <p className={`text-5xl font-semibold py-4 ${getRatingColor(rating.overall)}`}>
+              {rating.overall.toFixed(2)}
+            </p>
 
-          {/* Individual Scores */}
-          <div className="grid grid-cols-3 gap-x-4 gap-y-1 max-w-[320px] mx-auto text-center text-base">
-            {[
-              { label: "Park Appearance", value: rating.parkAppearance },
-              { label: "Best Coaster", value: rating.bestCoaster },
-              { label: "Water Rides", value: rating.waterRides },
-              { label: "Ride Lineup", value: rating.rideLineup },
-              { label: "Food", value: rating.food },
-              { label: "Snacks & Drinks", value: rating.snacksAndDrinks },
-              { label: "Park Practicality", value: rating.parkPracticality },
-              { label: "Ride Operations", value: rating.rideOperations },
-              { label: "Park Management", value: rating.parkManagement },
-            ].map((item, idx) => (
-              <div key={idx} className="flex flex-col items-center gap-1 min-h-[90px]">
-                <div className="min-h-[40px] flex items-center justify-center text-center">
-                  <span className="text-sm font-medium">{item.label}</span>
+            {/* Individual Scores */}
+            <div className="grid grid-cols-3 gap-x-4 gap-y-1 max-w-[320px] mx-auto text-center text-base">
+              {[
+                { label: "Park Appearance", value: rating.parkAppearance },
+                { label: "Best Coaster", value: rating.bestCoaster },
+                { label: "Water Rides", value: rating.waterRides },
+                { label: "Ride Lineup", value: rating.rideLineup },
+                { label: "Food", value: rating.food },
+                { label: "Snacks & Drinks", value: rating.snacksAndDrinks },
+                { label: "Park Practicality", value: rating.parkPracticality },
+                { label: "Ride Operations", value: rating.rideOperations },
+                { label: "Park Management", value: rating.parkManagement },
+              ].map((item, idx) => (
+                <div key={idx} className="flex flex-col items-center gap-1 min-h-[90px]">
+                  <div className="min-h-[40px] flex items-center justify-center text-center">
+                    <span className="text-sm font-medium">
+                      {item.label}
+                    </span>
+                  </div>
+                  <span className={`text-lg font-semibold w-10 text-center ${getRatingColor(item.value)}`}>
+                    {item.value}
+                  </span>
                 </div>
-                <span className={`text-lg font-semibold w-10 text-center ${getRatingColor(item.value)}`}>
-                  {item.value}
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          {/* Button */}
-          <div className="flex justify-center w-full mt-4">
-            <ToParkButton parkId={rating.parkId} />
           </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 };
 
