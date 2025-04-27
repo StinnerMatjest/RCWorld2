@@ -3,20 +3,17 @@ import Navbar from "./Navbar";
 
 const Header = () => {
   return (
-    <div className="relative w-full bg-white">
-      <div className="absolute top-4 right-6">
-        <Navbar />
-      </div>
+    <header className="w-full bg-white py-4 px-6 flex items-center justify-between animate-fade-in">
+      {/* Logo */}
+      <img
+        src="https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/Parkrating.png"
+        alt="Logo"
+        className="h-20 sm:h-24 md:h-32 lg:h-36 max-w-full object-contain"
+      />
 
-      <div className="flex justify-center items-center py-10">
-        <img
-          src="https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/Parkrating.png"
-          alt="Logo"
-          className="max-w-full h-auto"
-          style={{ height: "400px"}}
-        />
-      </div>
-    </div>
+      {/* Navbar */}
+      <Navbar />
+    </header>
   );
 };
 

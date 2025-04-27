@@ -109,8 +109,8 @@ const Home = () => {
   return (
     <main>
       <Header />
-      <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 px-2 flex-grow custom-bg">
-        {filteredRatings.map((rating) => {
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 px-2 flex-grow bg-white rounded-xl py-6">
+        {filteredRatings.map((rating, index) => {
           const park = parks.find((p) => p.id === rating.parkId);
 
           if (!park) {
@@ -122,6 +122,7 @@ const Home = () => {
               key={rating.id}
               rating={rating}
               park={park}
+              delayIndex={index}
             />
           );
         })}
