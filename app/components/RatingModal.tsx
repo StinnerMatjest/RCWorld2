@@ -98,6 +98,26 @@ const RatingModal: React.FC<ModalProps> = ({
     bestCoaster: false,
   });
 
+  const getRatingColor = (rating: number | string) => {
+    if (
+      rating === "" ||
+      rating === "Select Rating" ||
+      typeof rating !== "number"
+    ) {
+      return "text-black";
+    }
+
+    if (rating >= 10.0) return "rainbow-animation"; // GOAT
+    if (rating >= 9.0) return "text-blue-700 dark:text-blue-400"; // Excellent
+    if (rating >= 7.5) return "text-green-600 dark:text-green-400"; // Great
+    if (rating >= 6.5) return "text-green-400 dark:text-green-300"; // Good
+    if (rating >= 5.5) return "text-yellow-400 dark:text-yellow-300"; // Average
+    if (rating >= 4.5) return "text-yellow-600 dark:text-yellow-500"; // Mediocre
+    if (rating >= 3.0) return "text-red-400 dark:text-red-300"; // Poor
+    if (rating <= 2.9) return "text-red-600 dark:text-red-500"; // Bad
+    return "text-black"; // Fallback
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
     const numericValue = parseFloat(value);
@@ -111,7 +131,7 @@ const RatingModal: React.FC<ModalProps> = ({
       setCheckboxState((prev) => ({
         ...prev,
         [name as keyof typeof checkboxState]:
-          numericValue === 5.0
+          numericValue === 10.0
             ? false
             : prev[name as keyof typeof checkboxState],
       }));
@@ -491,6 +511,7 @@ const RatingModal: React.FC<ModalProps> = ({
                       "parkManagement",
                     ].map((field) => (
                       <div key={field} className="flex items-center space-x-4">
+
                         {/* Rating Section */}
                         <div className="flex-1">
                           <label
@@ -501,46 +522,55 @@ const RatingModal: React.FC<ModalProps> = ({
                           </label>
                           <select
                             name={field}
-                            value={ratings[field]?.toFixed(1) || ""} // Ensure formatting here for value
+                            value={ratings[field]?.toFixed(1) || ""}
                             onChange={handleInputChange}
-                            className="w-full p-2 border border-gray-300 rounded-md"
+                            className={`w-full p-2 border border-gray-300 rounded-md ${getRatingColor(ratings[field] ?? "")}`}
                           >
                             <option value="">Select Rating</option>
                             {[...Array(21)].map((_, i) => {
                               const base = 10 - i * 0.5;
                               if (base > 10) return null;
-                              const formattedValue = base.toFixed(1); // Ensures values are like "1.0", "2.0"
+                              const formattedValue = base.toFixed(1);
+                              const colorClass = getRatingColor(base);
+
                               return (
                                 <option
                                   key={`${field}-${formattedValue}`}
                                   value={formattedValue}
+                                  className={colorClass}
                                 >
                                   {formattedValue}
                                 </option>
                               );
                             })}
                           </select>
-                        </div>
 
-                        {/* Checkbox for specific fields */}
-                        {(field === "parkAppearance" ||
-                          field === "bestCoaster") && (
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              name={field}
-                              disabled={ratings[field] !== 5.0}
-                              checked={checkboxState[field]}
-                              onChange={handleCheckboxChange}
-                            />
-                            <span className="text-sm">GOLDEN RATING</span>
-                          </div>
-                        )}
+                          {/* GOLDEN RATINGS */}
+                          {(field === "parkAppearance" ||
+                            field === "bestCoaster") &&
+                            ratings[field] === 10.0 && (
+                              <div className="flex flex-col justify-center items-start h-full mt-2">
+                                <label className="flex items-center space-x-2 select-none">
+                                  <input
+                                    type="checkbox"
+                                    name={field}
+                                    checked={checkboxState[field]}
+                                    onChange={handleCheckboxChange}
+                                    className="h-5 w-5 rounded border-gray-300 text-yellow-400 focus:ring-yellow-400 cursor-pointer"
+                                  />
+                                  <span className="text-sm font-medium text-gray-700">
+                                    GOLDEN RATING
+                                  </span>
+                                </label>
+                              </div>
+                            )}
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
+
               {/* Submit Button */}
               <button
                 type="button"
