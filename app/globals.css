@@ -83,3 +83,19 @@ select {
 .delay-5 {
   animation-delay: 0.5s;
 }
+
+/* Grid layout for desktop - three sections side by side */
+@media (min-width: 768px) {
+  .park-info-ratings-coasters {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 2rem;
+  }
+}
+
+/* Stacked layout for mobile */
+@media (max-width: 767px) {
+  .park-info-ratings-coasters {
+    display: block;
+  }
+}
