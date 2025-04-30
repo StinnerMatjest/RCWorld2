@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState, Suspense } from "react";
-import Header from "./components/Header";
 import RatingCard from "./components/RatingCard";
 import Footer from "./components/Footer";
 import RatingModal from "./components/RatingModal";
@@ -41,16 +40,13 @@ const Home = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState(""); // Search query state
 
-  // Define the onSearch function that will be passed to Footer
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    console.log("Search query:", query); // Replace with actual search logic
+    console.log("Search query:", query);
   };
 
-  // Sort ratings by overall rating
   const sortedRatings = [...ratings].sort((a, b) => b.overall - a.overall);
 
-  // Filter ratings based on the search query
   const filteredRatings = sortedRatings.filter((rating) => {
     const park = parks.find((p) => p.id === rating.parkId);
     return park && park.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -108,7 +104,6 @@ const Home = () => {
 
   return (
     <main>
-      <Header />
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 px-2 flex-grow bg-white rounded-xl py-6">
         {filteredRatings.map((rating, index) => {
           const park = parks.find((p) => p.id === rating.parkId);
