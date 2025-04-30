@@ -1,7 +1,7 @@
 import "./globals.css";
 import { ParksProvider } from "./context/ParksContext";
 import { Inter, Roboto } from "next/font/google";
-import Header from "./components/Header"; // ✅ Add this import
+import Header from "./components/Header";
 
 export const metadata = {
   title: "Parkrating",
@@ -29,8 +29,8 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} ${roboto.variable} antialiased`}>
         <ParksProvider>
-          <Header /> {/* ✅ Header added here globally */}
-          {children} {/* ✅ Then your page content */}
+          <Header />
+          {children}
         </ParksProvider>
       </body>
     </html>

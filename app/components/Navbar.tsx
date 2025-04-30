@@ -5,7 +5,7 @@ import Link from "next/link";
 
 const Navbar = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null); //FOR MOBILE
 
   const toggleDropdown = () => {
     setIsDropdownOpen((prev) => !prev);
@@ -15,7 +15,6 @@ const Navbar = () => {
     setIsDropdownOpen(false);
   };
 
-  // Close dropdown if clicked outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -50,7 +49,6 @@ const Navbar = () => {
             <Link href="https://rcdb.com/" className="text-black hover:text-blue-400">
               Visit RCDB
             </Link>
-            {/* Update "Rate a Park" link */}
             <Link href="/?modal=true" className="text-black hover:text-blue-400">
               Rate a Park
             </Link>
@@ -87,7 +85,6 @@ const Navbar = () => {
                     Visit RCDB
                   </Link>
                 </li>
-                {/* Update "Rate a Park" link */}
                 <li>
                   <Link href="/?modal=true" className="block px-4 py-2 text-gray-800 hover:bg-blue-100" onClick={closeDropdown}>
                     Rate a Park

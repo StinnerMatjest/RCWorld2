@@ -42,15 +42,6 @@ export interface RollerCoaster {
   rcdbpath: string;
 }
 
-const scaleOrder = [
-  "Thrill",
-  "Family-Thrill",
-  "Family",
-  "Family-Chill",
-  "Junior",
-  "Kiddie",
-];
-
 // Color coding function for ratings
 const getRatingColor = (rating: number) => {
   if (rating >= 10.0) return "rainbow-animation"; // GOAT
