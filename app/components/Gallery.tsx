@@ -22,7 +22,7 @@ const Gallery: React.FC<GalleryProps> = ({ images }) => {
             onClick={() => setSelected(src)}
             className="cursor-pointer overflow-hidden rounded-lg hover:scale-105 transition-transform duration-300"
           >
-            <Image
+            <img
               src={src}
               alt={`Gallery image ${index + 1}`}
               width={400}
