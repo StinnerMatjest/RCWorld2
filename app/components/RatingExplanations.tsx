@@ -35,7 +35,7 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
               key === "snacksAndDrinks"
                 ? "snacksAndDrinks"
                 : key.charAt(0).toLowerCase() + key.slice(1);
-            const value = (r as any)[fieldKey] as number;
+                const value = r[fieldKey as keyof Rating] as number;
 
             return (
               <div key={key} className="space-y-2">
