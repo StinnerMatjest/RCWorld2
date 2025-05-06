@@ -14,7 +14,7 @@ const Header = () => {
           className="h-20 sm:h-24 md:h-32 lg:h-36 max-w-full object-contain cursor-pointer"
         />
       </Link>
-      <Navbar />
+      <Navbar/>
     </header>
   );
 };

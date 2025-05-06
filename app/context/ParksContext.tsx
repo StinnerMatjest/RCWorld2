@@ -1,6 +1,7 @@
 "use client";
 import React, { createContext, useState, useContext } from "react";
-import { Park } from "../park/[id]/page";  // Correct path to import Park
+import type { Park } from "../types";
+
 
 
 interface ParksContextType {
