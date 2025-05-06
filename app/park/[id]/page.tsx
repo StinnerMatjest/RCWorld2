@@ -10,7 +10,7 @@ import Coasterlist from "@/app/components/Coasterlist";
 import ParkHeader from "@/app/components/ParkHeader";
 import ParkInfo from "@/app/components/ParkInfo";
 import Gallery from "@/app/components/Gallery";
-import GoogleMapView from "@/app/components/GoogleMapView"; // ✅ updated path
+import GoogleMapView from "@/app/components/GoogleMapView";
 import type { Park, Rating, RollerCoaster } from "@/app/types";
 
 // Sample gallery images (replace with real data)
@@ -26,21 +26,23 @@ const galleryImages = [
 // Rating explanation text
 const explanations: Record<string, string> = {
   parkAppearance:
-    "The park's appearance is well-maintained, but a few areas could use some improvement.",
+    "Extremely unique and immersive, Phantasialand delivers an otherworldly level of quality and consistency — not unlike what you'd experience at DisneySea in Japan. The park draws you in and refuses to let go, until ten hours later you realize you can't find the exit. A truly worthy 10, and the first of its kind on Parkrating as of 2025.",
   bestCoaster:
-    "The best coaster is thrilling but could benefit from smoother transitions.",
-  waterRides: "Water rides are fun but can get overcrowded during peak hours.",
+    "F.L.Y takes the crown as the park’s standout coaster, closely followed by Taron. While it may lack raw intensity and features a slightly awkward riding position, its stunning theming and clever layout — filled with near-misses and flybys — more than make up for it.",
+  waterRides:
+    "It didn’t take long for our second-ever perfect 10 to appear. Chiapas easily claims the title of the world’s best log flume, while River Quest is an unforgettable adventure in its own right. The only thing missing? A third water ride — otherwise, we might’ve broken the scale.",
   rideLineup:
-    "The ride lineup is diverse, but some older rides need maintenance.",
-  food: "Food options are delicious and diverse, though a bit on the expensive side.",
+    "Phantasialand chooses quality and uniqueness over filler, with headline experiences like Winjas, F.L.Y, Crazy Bats, and Mystery Castle. A 9.5 is more than deserved — and if a few more high-caliber rides are added, the park is headed straight for its third 10.",
+  food:
+    "From the moment we bit into our burger at Uhrwerk, with F.L.Y soaring past the window, it was clear: Phantasialand doesn’t compromise on food. With beautifully themed venues and high-quality meals, it's safe to assume the rest of the park’s dining follows suit.",
   snacksAndDrinks:
-    "Good variety of snacks and drinks, though lines can be long during peak times.",
+    "We're getting spoiled by Phantasialand’s attention to detail — so much so that we're knocking off points for the absence of soft ice with churros. Still, the creative mocktails and wide snack variety across the park kept us happily nibbling throughout the day.",
   parkPracticality:
-    "The park layout is easy to navigate with plenty of signage.",
+    "The price of immersion is navigation. While beautifully themed, the park layout is tricky, ride entrances can be elusive, and rest areas are scarce. Thankfully, a solid app and good signage help keep frustration in check.",
   rideOperations:
-    "Ride operations are generally efficient, though some lines can be long.",
+    "Phantasialand operates like a well-oiled machine, with efficient dispatches and proactive queue management throughout. The only hiccup? Taron being down for a few hours early in the day — otherwise, it would’ve been near-perfect.",
   parkManagement:
-    "The park management is responsive, but improvements can be made in queue management.",
+    "Phantasialand runs a tight ship with no facility closures and a polished overall experience. But it’s baffling that a park this rich in detail offers little in the way of merchandise — unless you’re in the market for a waving plastic cat.",
 };
 
 const ParkPage: React.FC = () => {
@@ -92,19 +94,33 @@ const ParkPage: React.FC = () => {
           </div>
 
           <div>
-          <div className="border-t border-gray-300 my-3" />
+            <div className="border-t border-gray-300 my-3" />
             <h2 className="text-xl font-semibold mb-1 py-1">Location Map</h2>
             <GoogleMapView />
           </div>
 
           <div>
-          <div className="border-t border-gray-300 my-3" />
+            <div className="border-t border-gray-300 my-3" />
             <RatingPanel ratings={ratings} />
           </div>
         </div>
 
-        {/* Rating Explanations */}
+        {/* Introduction and Rating Explanations */}
         <div className="space-y-6">
+          <div>
+            <h2 className="text-3xl font-semibold">Introduction</h2>
+            <div className="border-t border-gray-300 my-3" />
+            <p className="text-gray-700 text-base leading-relaxed">
+              Step into another world — quite literally. Phantasialand is where immersive theming,
+              world-class attractions, and atmosphere collide to create an unforgettable theme park
+              experience. It’s the kind of place where 10 hours slip by unnoticed as you wander
+              through intricately detailed lands, ride some of Europe’s most inventive attractions,
+              and chase churros with mocktails. Whether you're a thrill-seeker, a theming enthusiast,
+              or a foodie on a rollercoaster diet, this park has something magical in store. Read on
+              to find out why it’s making history on Parkrating.
+            </p>
+          </div>
+
           <RatingExplanations ratings={ratings} explanations={explanations} />
         </div>
 
