@@ -25,15 +25,22 @@ const galleryImages = [
 
 // Rating explanation text
 const explanations: Record<string, string> = {
-  parkAppearance: "The park's appearance is well-maintained, but a few areas could use some improvement.",
-  bestCoaster: "The best coaster is thrilling but could benefit from smoother transitions.",
+  parkAppearance:
+    "The park's appearance is well-maintained, but a few areas could use some improvement.",
+  bestCoaster:
+    "The best coaster is thrilling but could benefit from smoother transitions.",
   waterRides: "Water rides are fun but can get overcrowded during peak hours.",
-  rideLineup: "The ride lineup is diverse, but some older rides need maintenance.",
+  rideLineup:
+    "The ride lineup is diverse, but some older rides need maintenance.",
   food: "Food options are delicious and diverse, though a bit on the expensive side.",
-  snacksAndDrinks: "Good variety of snacks and drinks, though lines can be long during peak times.",
-  parkPracticality: "The park layout is easy to navigate with plenty of signage.",
-  rideOperations: "Ride operations are generally efficient, though some lines can be long.",
-  parkManagement: "The park management is responsive, but improvements can be made in queue management.",
+  snacksAndDrinks:
+    "Good variety of snacks and drinks, though lines can be long during peak times.",
+  parkPracticality:
+    "The park layout is easy to navigate with plenty of signage.",
+  rideOperations:
+    "Ride operations are generally efficient, though some lines can be long.",
+  parkManagement:
+    "The park management is responsive, but improvements can be made in queue management.",
 };
 
 const ParkPage: React.FC = () => {
@@ -57,7 +64,9 @@ const ParkPage: React.FC = () => {
       setCoasters(await coastersRes.json());
       setLoadingCoasters(false);
       const data = await ratingsRes.json();
-      setRatings(data.ratings.filter((r: Rating) => r.parkId === Number(parkId)));
+      setRatings(
+        data.ratings.filter((r: Rating) => r.parkId === Number(parkId))
+      );
     })();
   }, [parkId]);
 
@@ -83,24 +92,23 @@ const ParkPage: React.FC = () => {
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold mb-1">Location Map</h2>
-            <div className="border-t border-gray-300 my-3" />
+          <div className="border-t border-gray-300 my-3" />
+            <h2 className="text-xl font-semibold mb-1 py-1">Location Map</h2>
             <GoogleMapView />
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold mb-1">Quick Ratings</h2>
-            <div className="border-t border-gray-300 my-3" />
+          <div className="border-t border-gray-300 my-3" />
             <RatingPanel ratings={ratings} />
           </div>
         </div>
 
-        {/* Explanations */}
+        {/* Rating Explanations */}
         <div className="space-y-6">
           <RatingExplanations ratings={ratings} explanations={explanations} />
         </div>
 
-        {/* Coasters + Gallery */}
+        {/* Coasters */}
         <div className="space-y-6">
           <Coasterlist
             coasters={coasters}
@@ -114,24 +122,23 @@ const ParkPage: React.FC = () => {
               setShowModal(true);
             }}
           />
+          {/* Modal */}
+          {showModal && (
+            <CoasterCreatorModal
+              parkId={Number(parkId)}
+              coaster={editingCoaster}
+              onClose={() => {
+                setShowModal(false);
+                setEditingCoaster(undefined);
+                refreshCoasters();
+              }}
+              onCoasterAdded={refreshCoasters}
+            />
+          )}
+          {/* Gallery */}
           <Gallery images={galleryImages} />
         </div>
       </div>
-
-      {/* Modal */}
-      {showModal && (
-        <CoasterCreatorModal
-          parkId={Number(parkId)}
-          coaster={editingCoaster}
-          onClose={() => {
-            setShowModal(false);
-            setEditingCoaster(undefined);
-            refreshCoasters();
-          }}
-          onCoasterAdded={refreshCoasters}
-        />
-      )}
-
       <div className="flex justify-center py-10">
         <MainPageButton />
       </div>

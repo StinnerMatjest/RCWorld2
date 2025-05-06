@@ -29,9 +29,8 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
     <div className="space-y-8">
       <h2 className="text-3xl font-semibold">Rating Explanations</h2>
       {ratings.map((r) => (
-        <div key={r.id} className="space-y-6">
+        <div key={r.id} className="space-y-7">
           {Object.entries(explanations).map(([key, text]) => {
-            // derive the matching numeric field from the rating object
             const fieldKey =
               key === "snacksAndDrinks"
                 ? "snacksAndDrinks"
@@ -40,7 +39,7 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
 
             return (
               <div key={key} className="space-y-2">
-                <div className="flex items-baseline gap-4">
+                <div className="flex items-baseline gap-3">
                   <h3 className="text-xl font-semibold">
                     {humanizeLabel(key)}
                   </h3>

@@ -37,11 +37,11 @@ const CoasterList: React.FC<CoasterListProps> = ({
         <p>Loading coasters…</p>
       ) : main.length > 0 ? (
         <>
-          <ul className="space-y-1">
+          <ul className="space-y-1 md:space-y-0">
             {main.map(c => (
               <li
                 key={c.id}
-                className="flex items-center justify-between gap-2 text-sm md:text-base border-b border-gray-100 py-1"
+                className="flex items-center justify-between text-m md:text-lg border-b border-gray-100 py-1"
               >
                 {/* Left: name + info */}
                 <div className="flex flex-col md:flex-row md:items-center md:gap-2 min-w-0">
@@ -61,7 +61,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
                 {/* Right: badges + edit */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span
-                    className={`px-2 py-0.5 text-xs rounded-md font-medium ${
+                    className={`px-2 py-0.5 text-xs rounded-md font-bold md:text-base ${
                       c.haveridden
                         ? "bg-green-100 text-green-700"
                         : "bg-red-100 text-red-700"
@@ -93,14 +93,14 @@ const CoasterList: React.FC<CoasterListProps> = ({
                 {optional.map(c => (
                   <li
                     key={c.id}
-                    className="flex items-center justify-between gap-2 text-sm md:text-base border-b border-gray-100 py-1"
+                    className="flex items-center justify-between gap-2 text-sm md:text-lg border-b border-gray-100 py-1"
                   >
                     <div className="flex flex-col md:flex-row md:items-center md:gap-2 min-w-0">
                       <a
                         href={c.rcdbpath}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-blue-600 hover:underline font-medium truncate max-w-[200px]"
+                        className="text-blue-600 hover:underline font-medium truncate max-w-[200px] md:text-lg"
                       >
                         {c.name}
                       </a>
@@ -111,7 +111,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
 
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <span
-                        className={`px-2 py-0.5 text-xs rounded-md font-medium ${
+                        className={`px-2 py-0.5 text-xs rounded-md font-bold md:text-base ${
                           c.haveridden
                             ? "bg-green-100 text-green-700"
                             : "bg-red-100 text-red-700"

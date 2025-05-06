@@ -1,4 +1,3 @@
-// app/components/ParkInfo.tsx
 import React from "react";
 import type { Park } from "@/app/types";
 
