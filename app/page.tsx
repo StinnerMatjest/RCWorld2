@@ -45,6 +45,9 @@ const Home = () => {
     console.log("Search query:", query);
   };
 
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  console.log('Password:', process.env.NEXT_PUBLIC_FUNCTION_LOCK_PASSWORD);
+
   const sortedRatings = [...ratings].sort((a, b) => b.overall - a.overall);
 
   const filteredRatings = sortedRatings.filter((rating) => {
