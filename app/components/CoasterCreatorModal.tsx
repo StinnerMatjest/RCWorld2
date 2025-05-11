@@ -21,6 +21,7 @@ interface AddCoasterModalProps {
 }
 
 const manufacturers = [
+  "abc rides",
   "Arrow Dynamics",
   "ART Engineering",
   "Bolliger & Mabillard",
