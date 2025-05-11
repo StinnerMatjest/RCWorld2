@@ -15,7 +15,7 @@ const AuthenticationModal: React.FC<AuthenticationModalProps> = ({
   const [error, setError] = useState("");
 
   const handleSubmit = () => {
-    if (input === process.env.NEXT_PUBLIC_FUNCTION_LOCK_PASSWORD) {
+    if (input === "gerstlaurisking42069") {
       onAuthenticated();
     } else {
       setError("Incorrect password");
