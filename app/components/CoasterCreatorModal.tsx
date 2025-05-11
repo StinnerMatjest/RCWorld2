@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import AuthenticationModal from "./AuthenticationModal";
 
 interface Coaster {
   id: number;
@@ -76,6 +77,22 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
   );
   const [rcdbpath, setRcdbPath] = useState(coaster?.rcdbpath ?? "");
   const [loading, setLoading] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [postAuthAction, setPostAuthAction] = useState<
+    "submit" | "delete" | null
+  >(null);
+
+  useEffect(() => {
+    if (isAuthenticated && postAuthAction) {
+      if (postAuthAction === "submit") {
+        handleSubmit();
+      } else if (postAuthAction === "delete") {
+        handleDelete();
+      }
+      setPostAuthAction(null);
+    }
+  }, [isAuthenticated, postAuthAction]);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value;
@@ -86,6 +103,10 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
   };
 
   const handleSubmit = async () => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
     setLoading(true);
     try {
       const method = coaster ? "PUT" : "POST";
@@ -122,19 +143,25 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
   };
 
   const handleDelete = async () => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
     if (!coaster) return;
     const confirmDelete = confirm(
       `Are you sure you want to delete"${coaster.name}" ?`
     );
     if (!confirmDelete) return;
 
-    console.log(`${parkId} ${coaster.id}`)
+    console.log(`${parkId} ${coaster.id}`);
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/park/${parkId}/coasters/${coaster.id}`, {
-        method: "DELETE",
-      }
+      const response = await fetch(
+        `/api/park/${parkId}/coasters/${coaster.id}`,
+        {
+          method: "DELETE",
+        }
       );
 
       if (!response.ok) throw new Error("Failed to delete coaster");
@@ -152,7 +179,7 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
     <div className="fixed inset-0 backdrop-blur-lg flex justify-center items-center">
       <div className="bg-white p-6 rounded-lg shadow-lg w-[400px]">
         <h2 className="text-2xl font-semibold mb-6 text-center">
-          Add New Roller Coaster
+          {coaster ? "Edit Roller Coaster" : "Add New Roller Coaster"}
         </h2>
         <div className="space-y-4">
           {/* Name input */}
@@ -310,6 +337,21 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
             </button>
           </div>
         </div>
+        {showAuthModal && (
+          <AuthenticationModal
+            onClose={() => setShowAuthModal(false)}
+            onAuthenticated={() => {
+              setIsAuthenticated(true);
+              setShowAuthModal(false);
+
+              if (coaster) {
+                setPostAuthAction("delete");
+              } else {
+                setPostAuthAction("submit");
+              }
+            }}
+          />
+        )}
       </div>
     </div>
   );

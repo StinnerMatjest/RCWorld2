@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import RatingSuccessMessage from "./RatingSuccessMessage";
 import Loading from "./Loading";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import AuthenticationModal from "./AuthenticationModal";
 
 interface ModalProps {
   closeModal: () => void;
@@ -89,6 +90,9 @@ const RatingModal: React.FC<ModalProps> = ({
   const [isRatingSectionExpanded, setRatingSectionExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [shouldSubmitAfterAuth, setShouldSubmitAfterAuth] = useState(false);
 
   const [checkboxState, setCheckboxState] = useState<{
     parkAppearance: boolean;
@@ -97,6 +101,14 @@ const RatingModal: React.FC<ModalProps> = ({
     parkAppearance: false,
     bestCoaster: false,
   });
+
+  useEffect(() => {
+  if (isAuthenticated && shouldSubmitAfterAuth) {
+    handleSubmit();
+    setShouldSubmitAfterAuth(false);
+  }
+}, [isAuthenticated, shouldSubmitAfterAuth]);
+
 
   const getRatingColor = (rating: number | string) => {
     if (
@@ -190,14 +202,22 @@ const RatingModal: React.FC<ModalProps> = ({
     return areParkFieldsFilled && areRatingFieldsFilled;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!isFormValid()) {
       alert("Please fill out all required fields.");
       return;
     }
 
-    setLoading(true);
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
 
+    submitData();
+  };
+
+  const submitData = async () => {
+    setLoading(true);
     try {
       let imagePath = "/images/Error.PNG";
 
@@ -511,7 +531,6 @@ const RatingModal: React.FC<ModalProps> = ({
                       "parkManagement",
                     ].map((field) => (
                       <div key={field} className="flex items-center space-x-4">
-
                         {/* Rating Section */}
                         <div className="flex-1">
                           <label
@@ -524,7 +543,9 @@ const RatingModal: React.FC<ModalProps> = ({
                             name={field}
                             value={ratings[field]?.toFixed(1) || ""}
                             onChange={handleInputChange}
-                            className={`w-full p-2 border border-gray-300 rounded-md ${getRatingColor(ratings[field] ?? "")}`}
+                            className={`w-full p-2 border border-gray-300 rounded-md ${getRatingColor(
+                              ratings[field] ?? ""
+                            )}`}
                           >
                             <option value="">Select Rating</option>
                             {[...Array(21)].map((_, i) => {
@@ -587,6 +608,16 @@ const RatingModal: React.FC<ModalProps> = ({
               </button>
             </form>
           </div>
+          {showAuthModal && (
+            <AuthenticationModal
+              onClose={() => setShowAuthModal(false)}
+              onAuthenticated={() => {
+                setIsAuthenticated(true);
+                setShowAuthModal(false);
+                setShouldSubmitAfterAuth(true);
+              }}
+            />
+          )}
         </div>
       </div>
     </Suspense>
