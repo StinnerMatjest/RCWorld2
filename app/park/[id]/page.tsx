@@ -113,11 +113,11 @@ const ParkPage: React.FC = () => {
             <p className="text-gray-700 text-base leading-relaxed">
               Step into another world — quite literally. Phantasialand is where immersive theming,
               world-class attractions, and atmosphere collide to create an unforgettable theme park
-              experience. It’s the kind of place where 10 hours slip by unnoticed as you wander
-              through intricately detailed lands, ride some of Europe’s most inventive attractions,
+              experience. It&apos;s the kind of place where 10 hours slip by unnoticed as you wander
+              through intricately detailed lands, ride some of Europe&apos;s most inventive attractions,
               and chase churros with mocktails. Whether you&apos;re a thrill-seeker, a theming enthusiast, 
               or a foodie on a rollercoaster diet, this park has something magical in store. Read on
-              to find out why it’s making history on Parkrating.
+              to find out why it&apos;s making history on Parkrating.
             </p>
           </div>
 
