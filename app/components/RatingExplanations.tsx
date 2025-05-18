@@ -27,7 +27,8 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
 
   return (
     <div className="space-y-8">
-      <h2 className="text-3xl font-semibold">Rating Explanations</h2>
+      <h2 className="text-3xl font-semibold mb-2">Rating Explanations</h2>
+          <div className="border-t border-gray-300 mt-3 mb-5" />
       {ratings.map((r) => (
         <div key={r.id} className="space-y-7">
           {Object.entries(explanations).map(([key, text]) => {
