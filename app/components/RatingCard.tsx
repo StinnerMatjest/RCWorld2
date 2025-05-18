@@ -1,5 +1,6 @@
 import React from "react";
-import Link from "next/link"; // for clickable card
+import Link from "next/link";
+import Image from "next/image";
 import { Rating } from "../page";
 import { Park } from "../page";
 
@@ -37,7 +38,7 @@ const RatingCard: React.FC<RatingCardProps> = ({ rating, park, delayIndex }) => 
 
           {/* Park Image */}
           <figure className="w-full flex justify-center">
-            <img
+            <Image
               className="w-full h-60 object-cover rounded-t-lg"
               src={park.imagePath || "/images/error.PNG"}
               alt={park.name}
