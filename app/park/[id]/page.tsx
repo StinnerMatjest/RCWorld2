@@ -15,12 +15,12 @@ import type { Park, Rating, RollerCoaster } from "@/app/types";
 
 // Sample gallery images (replace with real data)
 const galleryImages = [
-  "https://cdn.pixabay.com/photo/2014/11/11/09/32/roller-coaster-526534_1280.jpg",
-  "https://cdn.pixabay.com/photo/2016/09/25/20/35/carowinds-1694539_1280.jpg",
-  "https://cdn.pixabay.com/photo/2023/04/22/02/19/roller-coaster-7942853_1280.jpg",
-  "https://cdn.pixabay.com/photo/2015/09/12/21/21/abendstimmung-937403_1280.jpg",
-  "https://cdn.pixabay.com/photo/2015/09/03/00/45/disney-919926_1280.jpg",
-  "https://cdn.pixabay.com/photo/2018/11/17/11/15/rollercoaster-3820916_1280.jpg",
+  "https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/Phantasialand%20(1).jpeg",
+  "https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/Phantasialand%20(2).jpeg",
+  "https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/Phantasialand%20(3).jpeg",
+  "https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/Phantasialand%20(4).jpeg",
+  "https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/Phantasialand%20(5).jpeg",
+  "https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/Phantasialand%20(6).jpeg",
 ];
 
 const description = `Step into another world — quite literally. Phantasialand is where immersive theming,
@@ -30,7 +30,6 @@ and chase churros with mocktails. Whether you're a thrill-seeker, a theming enth
 or a foodie on a rollercoaster diet, this park has something magical in store. Read on
 to find out why it's making history on Parkrating.`;
 
-// Rating explanation text
 const explanations: Record<string, string> = {
   parkAppearance:
     "Extremely unique and immersive, Phantasialand delivers an otherworldly level of quality and consistency — not unlike what you'd experience at DisneySea in Japan. The park draws you in and refuses to let go, until ten hours later you realize you can't find the exit. A truly worthy 10, and the first of its kind on Parkrating as of 2025.",
@@ -89,10 +88,9 @@ const ParkPage: React.FC = () => {
     <div className="w-full">
       <ParkHeader park={park} />
 
-      {/* Layout: Info | Ratings | Coasters */}
       <div className="grid grid-cols-1 md:grid-cols-[20%_1fr_1fr] gap-6 w-full py-10 px-6 md:px-20 bg-base-200">
         {/* Info Panel */}
-        <div className="bg-blue-50 rounded-2xl p-6 shadow-sm text-center space-y-6">
+        <div className="bg-blue-50 rounded-2xl p-6 shadow-sm text-center space-y-6 self-start">
           <div>
             <h2 className="text-xl font-semibold mb-1">Park Info</h2>
             <div className="border-t border-gray-300 my-3" />
@@ -114,14 +112,21 @@ const ParkPage: React.FC = () => {
         {/* Introduction and Rating Explanations */}
         <div className="space-y-6">
           <div>
-            <h2 className="text-3xl font-semibold">Introduction</h2>
-            <div className="border-t border-gray-300 my-3" />
-            <p className="text-gray-700 text-base leading-relaxed">
-              {description}
-            </p>
+            <h2 className="text-3xl font-semibold mb-2">Introduction</h2>
+            <div className="border-t border-gray-300 mt-3 mb-10" />
+            <div className="max-w-2xl mx-auto space-y-4 text-center mb-10">
+              <p className="text-2xl font-extrabold text-gray-900">
+                Step into another world — quite literally.
+              </p>
+              <p className="text-gray-700 text-base leading-relaxed">
+                Phantasialand is where immersive theming, world-class attractions, and atmosphere collide to create an unforgettable theme park experience. It's the kind of place where 10 hours slip by unnoticed as you wander through intricately detailed lands, ride some of Europe's most inventive attractions, and chase churros with mocktails. Whether you're a thrill-seeker, a theming enthusiast, or a foodie on a rollercoaster diet, this park has something magical in store. Read on to find out why it's making history on Parkrating.
+              </p>
+            </div>
           </div>
 
-          <RatingExplanations ratings={ratings} explanations={explanations} />
+          <div className="mt-12">
+            <RatingExplanations ratings={ratings} explanations={explanations} />
+          </div>
         </div>
 
         {/* Coasters */}
@@ -138,7 +143,6 @@ const ParkPage: React.FC = () => {
               setShowModal(true);
             }}
           />
-          {/* Modal */}
           {showModal && (
             <CoasterCreatorModal
               parkId={Number(parkId)}
@@ -151,10 +155,10 @@ const ParkPage: React.FC = () => {
               onCoasterAdded={refreshCoasters}
             />
           )}
-          {/* Gallery */}
           <Gallery images={galleryImages} />
         </div>
       </div>
+
       <div className="flex justify-center py-10">
         <MainPageButton />
       </div>
