@@ -13,6 +13,7 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park }) => (
       alt={park.name}
       fill
       className="object-contain cursor-pointer"
+      unoptimized
     />
     {/* Gradient Overlay */}
     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent" />

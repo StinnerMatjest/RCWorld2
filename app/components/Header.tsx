@@ -15,6 +15,7 @@ const Header = () => {
       alt="Parkrating Logo"
       fill
       className="object-contain cursor-pointer"
+      unoptimized
     />
   </Link>
 </div>

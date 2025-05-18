@@ -10,7 +10,11 @@ interface RatingCardProps {
   delayIndex?: number;
 }
 
-const RatingCard: React.FC<RatingCardProps> = ({ rating, park, delayIndex }) => {
+const RatingCard: React.FC<RatingCardProps> = ({
+  rating,
+  park,
+  delayIndex,
+}) => {
   const getRatingColor = (rating: number) => {
     if (rating >= 10.0) return "rainbow-animation"; // GOAT
     if (rating >= 9.0) return "text-blue-700 dark:text-blue-400"; // Excellent
@@ -24,9 +28,12 @@ const RatingCard: React.FC<RatingCardProps> = ({ rating, park, delayIndex }) => 
 
   return (
     <Link href={`/park/${rating.parkId}`} className="group">
-      <div className={`mx-auto flex flex-col justify-between w-full max-w-[400px] py-2 animate-fade-in-up ${delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""}`}>
+      <div
+        className={`mx-auto flex flex-col justify-between w-full max-w-[400px] py-2 animate-fade-in-up ${
+          delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""
+        }`}
+      >
         <div className="flex flex-col items-center justify-between bg-blue-50 dark:bg-gray-800 rounded-2xl overflow-hidden shadow-md dark:shadow-lg transition-transform duration-300 ease-in-out group-hover:scale-105 group-hover:shadow-xl">
-
           {/* Park Name */}
           <div className="flex flex-col items-center justify-center w-full min-h-[90px]">
             <div className="min-h-[50px] flex items-center justify-center text-center px-2">
@@ -37,12 +44,15 @@ const RatingCard: React.FC<RatingCardProps> = ({ rating, park, delayIndex }) => 
           </div>
 
           {/* Park Image */}
-          <figure className="w-full flex justify-center">
+          <figure className="w-full aspect-video overflow-hidden flex justify-center items-center bg-gray-100">
             <Image
-              className="w-full h-60 object-cover rounded-t-lg"
               src={park.imagePath || "/images/error.PNG"}
               alt={park.name}
+              height={500}
+              width={500}
               loading="lazy"
+              unoptimized
+              className="w-full h-full object-cover"
             />
           </figure>
 
@@ -54,7 +64,11 @@ const RatingCard: React.FC<RatingCardProps> = ({ rating, park, delayIndex }) => 
           {/* Rating Details */}
           <div className="flex flex-col items-center text-center justify-between w-full text-base font-medium p-2">
             {/* Overall Rating */}
-            <p className={`text-5xl font-semibold py-4 ${getRatingColor(rating.overall)}`}>
+            <p
+              className={`text-5xl font-semibold py-4 ${getRatingColor(
+                rating.overall
+              )}`}
+            >
               {rating.overall.toFixed(2)}
             </p>
 
@@ -71,19 +85,25 @@ const RatingCard: React.FC<RatingCardProps> = ({ rating, park, delayIndex }) => 
                 { label: "Ride Operations", value: rating.rideOperations },
                 { label: "Park Management", value: rating.parkManagement },
               ].map((item, idx) => (
-                <div key={idx} className="flex flex-col items-center gap-1 min-h-[90px]">
+                <div
+                  key={idx}
+                  className="flex flex-col items-center gap-1 min-h-[90px]"
+                >
                   <div className="min-h-[40px] flex items-center justify-center text-center">
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       {item.label}
                     </span>
                   </div>
-                  <span className={`text-lg font-semibold w-10 text-center ${getRatingColor(item.value)}`}>
+                  <span
+                    className={`text-lg font-semibold w-10 text-center ${getRatingColor(
+                      item.value
+                    )}`}
+                  >
                     {item.value}
                   </span>
                 </div>
               ))}
             </div>
-
           </div>
         </div>
       </div>
