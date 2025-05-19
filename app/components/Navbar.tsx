@@ -40,7 +40,7 @@ const Navbar = () => {
 
           {/* Desktop Navigation Links */}
           <div className="hidden md:flex space-x-6">
-            <Link href="/" className="text-black hover:text-blue-400">
+            <Link href="/about" className="text-black hover:text-blue-400">
               About
             </Link>
             <Link href="/info" className="text-black hover:text-blue-400">
@@ -71,7 +71,7 @@ const Navbar = () => {
             >
               <ul className="py-2">
                 <li>
-                  <Link href="/" className="block px-4 py-2 text-gray-800 hover:bg-blue-100" onClick={closeDropdown}>
+                  <Link href="/about" className="block px-4 py-2 text-gray-800 hover:bg-blue-100" onClick={closeDropdown}>
                     About
                   </Link>
                 </li>
