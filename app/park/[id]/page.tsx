@@ -116,10 +116,7 @@ const ParkPage: React.FC = () => {
             <div className="border-t border-gray-300 mt-3 mb-10" />
             <div className="max-w-2xl mx-auto space-y-4 text-center mb-10">
               <p className="text-2xl font-extrabold text-gray-900">
-                Step into another world — quite literally.
-              </p>
-              <p className="text-gray-700 text-base leading-relaxed">
-                Phantasialand is where immersive theming, world-class attractions, and atmosphere collide to create an unforgettable theme park experience. It's the kind of place where 10 hours slip by unnoticed as you wander through intricately detailed lands, ride some of Europe's most inventive attractions, and chase churros with mocktails. Whether you're a thrill-seeker, a theming enthusiast, or a foodie on a rollercoaster diet, this park has something magical in store. Read on to find out why it's making history on Parkrating.
+                {description}
               </p>
             </div>
           </div>
