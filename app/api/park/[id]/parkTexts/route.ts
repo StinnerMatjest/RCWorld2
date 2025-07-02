@@ -8,9 +8,9 @@ const pool = new Pool({
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
-  const parkId = params.id;
+  const parkId = context.params.id;
 
   try {
     const result = await pool.query(

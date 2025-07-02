@@ -1,0 +1,23 @@
+<<<<<<< main
+            <h2 className="text-3xl font-semibold mb-2">Introduction</h2>
+            <div className="border-t border-gray-300 mt-3 mb-10" />
+            <div className="max-w-2xl mx-auto space-y-4 text-center mb-10">
+              <p className="text-2xl font-extrabold text-gray-900">
+                {description}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-12">
+            <RatingExplanations ratings={ratings} explanations={explanations} />
+          </div>
+=======
+            <h2 className="text-3xl font-semibold">Introduction</h2>
+            <div className="border-t border-gray-300 my-3" />
+            <p className="text-gray-700 text-base leading-relaxed">
+              {explanations.description ?? "No description available."}
+            </p>
+          </div>
+
+          <RatingExplanations ratings={ratings} explanations={explanations} parkId={Number(parkId)} />
+>>>>>>> individualparkratingtext
