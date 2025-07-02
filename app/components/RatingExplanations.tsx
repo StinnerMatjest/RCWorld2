@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import type { Rating } from "@/app/types";
-import { getRatingColor } from "@/app/utils";
 import ParkRatingsModal from "./ParkTextsModal";
+import { getRatingColor } from "@/app/utils/design";
 import { ratingCategories } from "@/app/utils/ratings";
 
 interface RatingExplanationsProps {

@@ -6,6 +6,10 @@ import Header from "./components/Header";
 export const metadata = {
   title: "Parkrating",
   description: "We rate themeparks all around the world!",
+    icons: {
+    icon: "/images/Parkrating.png",
+    shortcut: "/images/Parkrating.png",
+  },
 };
 
 const inter = Inter({
@@ -27,6 +31,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+      </head>
       <body className={`${inter.variable} ${roboto.variable} antialiased`}>
         <ParksProvider>
           <Header />
