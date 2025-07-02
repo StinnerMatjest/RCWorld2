@@ -8,11 +8,11 @@ const pool = new Pool({
 
 export async function GET(
   req: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  const parkId = context.params.id;
-
   try {
+    const { id: parkId } = await context.params; // Await the params promise
+
     const result = await pool.query(
       `
       SELECT category, text
@@ -26,7 +26,7 @@ export async function GET(
   } catch (error) {
     console.error("DB error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch park ratings" },
+      { error: "Failed to fetch park texts" },
       { status: 500 }
     );
   }
