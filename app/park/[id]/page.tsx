@@ -23,34 +23,6 @@ const galleryImages = [
   "https://cdn.pixabay.com/photo/2018/11/17/11/15/rollercoaster-3820916_1280.jpg",
 ];
 
-const description = `Step into another world — quite literally. Phantasialand is where immersive theming,
-world-class attractions, and atmosphere collide to create an unforgettable theme park experience. It's the kind of place where 10 hours slip by unnoticed as you wander
-through intricately detailed lands, ride some of Europe's most inventive attractions,
-and chase churros with mocktails. Whether you're a thrill-seeker, a theming enthusiast, 
-or a foodie on a rollercoaster diet, this park has something magical in store. Read on
-to find out why it's making history on Parkrating.`;
-
-// Rating explanation text
-const explanations: Record<string, string> = {
-  parkAppearance:
-    "Extremely unique and immersive, Phantasialand delivers an otherworldly level of quality and consistency — not unlike what you'd experience at DisneySea in Japan. The park draws you in and refuses to let go, until ten hours later you realize you can't find the exit. A truly worthy 10, and the first of its kind on Parkrating as of 2025.",
-  bestCoaster:
-    "F.L.Y takes the crown as the park's standout coaster, closely followed by Taron. While it may lack raw intensity and features a slightly awkward riding position, its stunning theming and clever layout — filled with near-misses and flybys — more than make up for it.",
-  waterRides:
-    "It didn't take long for our second-ever perfect 10 to appear. Chiapas easily claims the title of the world's best log flume, while River Quest is an unforgettable adventure in its own right. The only thing missing? A third water ride — otherwise, we might've broken the scale.",
-  rideLineup:
-    "Phantasialand chooses quality and uniqueness over filler, with headline experiences like Winjas, F.L.Y, Crazy Bats, and Mystery Castle. A 9.5 is more than deserved — and if a few more high-caliber rides are added, the park is headed straight for its third 10.",
-  food: "From the moment we bit into our burger at Uhrwerk, with F.L.Y soaring past the window, it was clear: Phantasialand doesn't compromise on food. With beautifully themed venues and high-quality meals, it's safe to assume the rest of the park's dining follows suit.",
-  snacksAndDrinks:
-    "We're getting spoiled by Phantasialand's attention to detail — so much so that we're knocking off points for the absence of soft ice with churros. Still, the creative mocktails and wide snack variety across the park kept us happily nibbling throughout the day.",
-  parkPracticality:
-    "The price of immersion is navigation. While beautifully themed, the park layout is tricky, ride entrances can be elusive, and rest areas are scarce. Thankfully, a solid app and good signage help keep frustration in check.",
-  rideOperations:
-    "Phantasialand operates like a well-oiled machine, with efficient dispatches and proactive queue management throughout. The only hiccup? Taron being down for a few hours early in the day — otherwise, it would've been near-perfect.",
-  parkManagement:
-    "Phantasialand runs a tight ship with no facility closures and a polished overall experience. But it's baffling that a park this rich in detail offers little in the way of merchandise — unless you're in the market for a waving plastic cat.",
-};
-
 const ParkPage: React.FC = () => {
   const { id: parkId } = useParams();
   const [park, setPark] = useState<Park | null>(null);
@@ -59,24 +31,37 @@ const ParkPage: React.FC = () => {
   const [loadingCoasters, setLoadingCoasters] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingCoaster, setEditingCoaster] = useState<RollerCoaster>();
+  const [explanations, setExplanations] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    if (!parkId) return;
-    (async () => {
-      const [parkRes, coastersRes, ratingsRes] = await Promise.all([
-        fetch(`/api/park/${parkId}`),
-        fetch(`/api/park/${parkId}/coasters`),
-        fetch(`/api/ratings?parkId=${parkId}`),
-      ]);
-      setPark(await parkRes.json());
-      setCoasters(await coastersRes.json());
-      setLoadingCoasters(false);
-      const data = await ratingsRes.json();
-      setRatings(
-        data.ratings.filter((r: Rating) => r.parkId === Number(parkId))
-      );
-    })();
-  }, [parkId]);
+useEffect(() => {
+  if (!parkId) return;
+  (async () => {
+    const [parkRes, coastersRes, ratingsRes, explanationsRes] = await Promise.all([
+      fetch(`/api/park/${parkId}`),
+      fetch(`/api/park/${parkId}/coasters`),
+      fetch(`/api/ratings?parkId=${parkId}`),
+      fetch(`/api/park/${parkId}/parkTexts`),
+    ]);
+
+    setPark(await parkRes.json());
+    setCoasters(await coastersRes.json());
+    setLoadingCoasters(false);
+
+    const ratingsData = await ratingsRes.json();
+    setRatings(
+      ratingsData.ratings.filter((r: Rating) => r.parkId === Number(parkId))
+    );
+
+    const explanationsData: { category: string; text: string }[] =
+      await explanationsRes.json();
+    const explanationMap: Record<string, string> = {};
+    for (const item of explanationsData) {
+      explanationMap[item.category] = item.text;
+    }
+    setExplanations(explanationMap);
+  })();
+}, [parkId]);
+
 
   const refreshCoasters = async () => {
     const res = await fetch(`/api/park/${parkId}/coasters`);
@@ -117,11 +102,11 @@ const ParkPage: React.FC = () => {
             <h2 className="text-3xl font-semibold">Introduction</h2>
             <div className="border-t border-gray-300 my-3" />
             <p className="text-gray-700 text-base leading-relaxed">
-              {description}
+              {explanations.description ?? "No description available."}
             </p>
           </div>
 
-          <RatingExplanations ratings={ratings} explanations={explanations} />
+          <RatingExplanations ratings={ratings} explanations={explanations} parkId={Number(parkId)} />
         </div>
 
         {/* Coasters */}
