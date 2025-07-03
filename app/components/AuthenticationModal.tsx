@@ -14,11 +14,22 @@ const AuthenticationModal: React.FC<AuthenticationModalProps> = ({
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = () => {
-    if (input === "gerstlauerisking42069") {
-      onAuthenticated();
-    } else {
-      setError("Incorrect password");
+  const handleSubmit = async () => {
+    try {
+      const res = await fetch("/api/authenticate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: input }),
+      });
+
+      if (res.ok) {
+        onAuthenticated();
+      } else {
+        const data = await res.json();
+        setError(data.error || "Authentication failed");
+      }
+    } catch {
+      setError("Server error. Please try again.");
     }
   };
 
