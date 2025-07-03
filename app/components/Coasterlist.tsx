@@ -25,6 +25,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Roller Coasters</h2>
+      
         <button
           onClick={onAdd}
           className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm cursor-pointer"

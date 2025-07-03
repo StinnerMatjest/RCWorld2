@@ -19,7 +19,6 @@ const Header = () => {
     />
   </Link>
 </div>
-
       <Navbar/>
     </header>
   );

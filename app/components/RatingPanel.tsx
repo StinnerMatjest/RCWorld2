@@ -1,5 +1,5 @@
 import React from "react";
-import { getRatingColor } from "@/app/utils";
+import { getRatingColor } from "@/app/utils/design";
 import type { Rating } from "@/app/types";
 
 interface RatingsPanelProps {

@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Rating } from "../page";
 import { Park } from "../page";
+import { getParkFlag } from "@/app/utils/design";
 
 interface RatingCardProps {
   rating: Rating;
@@ -37,7 +38,16 @@ const RatingCard: React.FC<RatingCardProps> = ({
           {/* Park Name */}
           <div className="flex flex-col items-center justify-center w-full min-h-[90px]">
             <div className="min-h-[50px] flex items-center justify-center text-center px-2">
-              <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white">
+              <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white flex items-center justify-center gap-2">
+                <Image
+                  src={getParkFlag(park.country)}
+                  alt={`${park.country} flag`}
+                  width={24}
+                  height={16}
+                  loading="lazy"
+                  unoptimized
+                  className="rounded-sm"
+                />
                 {park.name}
               </h1>
             </div>
