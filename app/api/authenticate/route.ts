@@ -4,6 +4,7 @@ export async function POST(req: Request) {
   const { password } = await req.json();
 
   const correctPassword = process.env.ACCESS_PASSWORD;
+  console.log("Server password:", JSON.stringify(process.env.ACCESS_PASSWORD));
 
   if (password === correctPassword) {
     // Optionally: Set a secure cookie here
