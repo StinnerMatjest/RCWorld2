@@ -83,5 +83,4 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
   );
 };
 
-
 export default RatingExplanations;
