@@ -12,8 +12,9 @@ export interface Rating {
   date: Date;
   parkAppearance: number;
   bestCoaster: number;
+  coasterDepth: number;
   waterRides: number;
-  rideLineup: number;
+  flatridesAndDarkRides: number;
   food: number;
   snacksAndDrinks: number;
   parkPracticality: number;

@@ -78,7 +78,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
                   <button
                     onClick={() => onEdit(c)}
                     title="Edit"
-                    className="text-gray-500 hover:text-gray-700 text-sm"
+                    className="text-gray-500 hover:text-gray-700 text-sm cursor-pointer"
                   >
                     🔧
                   </button>
@@ -123,7 +123,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
                       <button
                         onClick={() => onEdit(c)}
                         title="Edit"
-                        className="text-gray-500 hover:text-gray-700 text-sm"
+                        className="text-gray-500 hover:text-gray-700 text-sm cursor-pointer"
                       >
                         🔧
                       </button>

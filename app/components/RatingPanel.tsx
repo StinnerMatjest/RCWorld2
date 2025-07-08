@@ -29,7 +29,7 @@ const RatingsPanel: React.FC<RatingsPanelProps> = ({ ratings }) => {
               "Appearance": r.parkAppearance,
               "Best Coaster": r.bestCoaster,
               "Water Rides": r.waterRides,
-              "Ride Lineup": r.rideLineup,
+              "Ride Lineup": r.flatridesAndDarkRides,
               Food: r.food,
               "Snacks/Drinks": r.snacksAndDrinks,
               "Park Practicality": r.parkPracticality,
