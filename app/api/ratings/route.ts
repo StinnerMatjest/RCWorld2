@@ -19,8 +19,9 @@ export async function GET() {
         ratings.date,
         ratings.parkAppearance AS "parkappearance",
         ratings.bestCoaster AS "bestcoaster",
+        ratings.coasterDepth AS "coasterdepth",
         ratings.waterRides AS "waterrides",
-        ratings.rideLineup AS "rideLineup",
+        ratings.flatridesAndDarkRides AS "flatridesanddarkrides",
         ratings.food,
         ratings.snacksAndDrinks AS "snacksanddrinks",
         ratings.parkPracticality AS "parkpracticality",
@@ -43,8 +44,9 @@ export async function GET() {
       park: row.park_name,
       parkAppearance: row.parkappearance,
       bestCoaster: row.bestcoaster,
+      coasterDepth: row.coasterdepth,
       waterRides: row.waterrides,
-      rideLineup: row.rideLineup,
+      flatridesAndDarkRides: row.flatridesanddarkrides,
       food: row.food,
       snacksAndDrinks: row.snacksanddrinks,
       parkPracticality: row.parkpracticality,
@@ -74,9 +76,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log('Received body:', body);
 
-    const {date, parkAppearance, bestCoaster, waterRides, rideLineup, food, snacksAndDrinks, parkPracticality, rideOperations, parkManagement, overall, parkId} = body;
+    const {date, parkAppearance, bestCoaster, coasterDepth, waterRides, flatridesAndDarkRides, food, snacksAndDrinks, parkPracticality, rideOperations, parkManagement, overall, parkId} = body;
 
-    if (date === undefined || parkAppearance === undefined || bestCoaster === undefined || waterRides === undefined || rideLineup === undefined || food === undefined ||
+    if (date === undefined || parkAppearance === undefined || bestCoaster === undefined || coasterDepth === undefined || waterRides === undefined || flatridesAndDarkRides === undefined || food === undefined ||
         snacksAndDrinks === undefined || parkPracticality === undefined || rideOperations === undefined || parkManagement === undefined || overall === undefined || parkId === undefined
     )
       {
@@ -91,8 +93,9 @@ export async function POST(request: Request) {
         date,
         parkappearance,
         bestcoaster,
+        coasterdepth,
         waterrides,
-        rideLineup,
+        flatridesanddarkrides,
         food,
         snacksanddrinks,
         parkpracticality,
@@ -104,7 +107,7 @@ export async function POST(request: Request) {
       RETURNING id
     `;
 
-    const values = [date, parkAppearance, bestCoaster, waterRides, rideLineup, food, snacksAndDrinks, parkPracticality, rideOperations, parkManagement, overall, parkId];
+    const values = [date, parkAppearance, bestCoaster, coasterDepth, waterRides, flatridesAndDarkRides, food, snacksAndDrinks, parkPracticality, rideOperations, parkManagement, overall, parkId];
 
     const result = await pool.query(query, values);
 

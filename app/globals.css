@@ -83,3 +83,20 @@ select {
 .delay-5 {
   animation-delay: 0.5s;
 }
+
+/*Modal fadein*/
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 200ms ease-out forwards;
+}

@@ -13,7 +13,7 @@ export interface Park {
     parkAppearance: number;
     bestCoaster: number;
     waterRides: number;
-    rideLineup: number;
+    flatridesAndDarkRides: number;
     food: number;
     snacksAndDrinks: number;
     parkPracticality: number;
