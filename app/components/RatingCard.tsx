@@ -31,7 +31,8 @@ const RatingCard: React.FC<RatingCardProps> = ({
 
   const groupedRow1 = [
     {
-      label: "🎢 Coasters",
+      emoji: "🎢",
+      label: "Coasters",
       average: avg([rating.bestCoaster, rating.coasterDepth]),
       details: [
         { label: "Best Coaster", value: rating.bestCoaster },
@@ -39,7 +40,8 @@ const RatingCard: React.FC<RatingCardProps> = ({
       ],
     },
     {
-      label: "🎡 Rides",
+      emoji: "🎡",
+      label: "Rides",
       average: avg([rating.waterRides, rating.flatridesAndDarkRides]),
       details: [
         { label: "Water Rides", value: rating.waterRides },
@@ -50,7 +52,8 @@ const RatingCard: React.FC<RatingCardProps> = ({
 
   const groupedRow2 = [
     {
-      label: "🏞️ Park",
+      emoji: "🏞️",
+      label: "Park",
       average: avg([rating.parkAppearance, rating.parkPracticality]),
       details: [
         { label: "Appearance", value: rating.parkAppearance },
@@ -58,7 +61,8 @@ const RatingCard: React.FC<RatingCardProps> = ({
       ],
     },
     {
-      label: "🍔 Food",
+      emoji: "🍔",
+      label: "Food",
       average: avg([rating.food, rating.snacksAndDrinks]),
       details: [
         { label: "Food", value: rating.food },
@@ -66,7 +70,8 @@ const RatingCard: React.FC<RatingCardProps> = ({
       ],
     },
     {
-      label: "📋 Management",
+      emoji: "📋",
+      label: "Management",
       average: avg([rating.rideOperations, rating.parkManagement]),
       details: [
         { label: "Operations", value: rating.rideOperations },
@@ -116,8 +121,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
 
           {/* Rating Date */}
           <div className="text-sm italic py-1 text-gray-600 dark:text-gray-400">
-            Date:
-            {new Date(rating.date).toLocaleDateString()}
+            Date: {new Date(rating.date).toLocaleDateString()}
           </div>
 
           {/* Overall Score */}
@@ -132,105 +136,58 @@ const RatingCard: React.FC<RatingCardProps> = ({
           {/* Separator */}
           <div className="w-3/4 border-t border-gray-300 dark:border-gray-600 my-2"></div>
 
-          {/* Grouped Ratings Grid */}
-          <div className="w-full max-w-[360px] px-0">
-            {/* Row 1 - 2 Columns */}
-            <div className="grid grid-cols-2 text-center text-base font-medium w-full">
-              {groupedRow1.map((group, idx) => (
-                <div
-                  key={idx}
-                  className={`relative group grid grid-rows-2 place-items-center text-center px-2 ${
-                    idx > 0
-                      ? "border-l border-gray-300 dark:border-gray-600"
-                      : ""
-                  }`}
-                >
-                  {/* Hover Tooltip */}
-                  <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 text-sm shadow-xl rounded-lg p-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto whitespace-nowrap border border-gray-300 dark:border-gray-700 min-w-[180px]">
-                    <div className="font-semibold mb-2 text-gray-800 dark:text-gray-200">
-                      {group.label} Breakdown
-                    </div>
-                    <div className="space-y-1 text-gray-700 dark:text-gray-300">
-                      {group.details.map((item, i) => (
-                        <div key={i} className="flex justify-between">
-                          <span>{item.label}</span>
-                          <span
-                            className={`font-semibold ${getRatingColor(
-                              item.value
-                            )}`}
-                          >
-                            {item.value.toFixed(1)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+          {/* Grouped Ratings (Now Stacked for Better Spacing) */}
+          <div className="w-full max-w-[360px] flex flex-col gap-6 px-4 pb-4">
+            {[...groupedRow1, ...groupedRow2].map((group, idx) => (
+              <div
+                key={idx}
+                className="relative group cursor-pointer rounded-md p-2 transition duration-200 ease-in-out hover:bg-blue-100 hover:shadow-md"
+              >
+                {/* Tooltip */}
+                <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 text-sm shadow-xl rounded-lg p-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto whitespace-nowrap border border-gray-300 dark:border-gray-700 min-w-[180px]">
+                  <div className="font-semibold mb-2 text-gray-800 dark:text-gray-200">
+                    {group.label} Breakdown
                   </div>
-
-                  {/* Label */}
-                  <span className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
-                    {group.label}
-                  </span>
-
-                  {/* Score */}
-                  <span
-                    className={`text-2xl sm:text-3xl font-bold ${getRatingColor(
-                      group.average
-                    )}`}
-                  >
-                    {group.average.toFixed(2)}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Row 2 - 3 Columns */}
-            <div className="grid grid-cols-3 text-center text-base font-medium w-full border-t border-gray-300 dark:border-gray-600">
-              {groupedRow2.map((group, idx) => (
-                <div
-                  key={idx}
-                  className={`relative group grid grid-rows-2 place-items-center text-center px-2 ${
-                    idx > 0
-                      ? "border-l border-gray-300 dark:border-gray-600"
-                      : ""
-                  }`}
-                >
-                  {/* Hover Tooltip */}
-                  <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 text-sm shadow-xl rounded-lg p-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto whitespace-nowrap border border-gray-300 dark:border-gray-700 min-w-[180px]">
-                    <div className="font-semibold mb-2 text-gray-800 dark:text-gray-200">
-                      {group.label} Breakdown
-                    </div>
-                    <div className="space-y-1 text-gray-700 dark:text-gray-300">
-                      {group.details.map((item, i) => (
-                        <div key={i} className="flex justify-between">
-                          <span>{item.label}</span>
-                          <span
-                            className={`font-semibold ${getRatingColor(
-                              item.value
-                            )}`}
-                          >
-                            {item.value.toFixed(1)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="space-y-1 text-gray-700 dark:text-gray-300">
+                    {group.details.map((item, i) => (
+                      <div key={i} className="flex justify-between">
+                        <span>{item.label}</span>
+                        <span
+                          className={`font-semibold ${getRatingColor(
+                            item.value
+                          )}`}
+                        >
+                          {item.value.toFixed(1)}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-
-                  {/* Label */}
-                  <span className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
-                    {group.label}
-                  </span>
-
-                  {/* Score */}
-                  <span
-                    className={`text-2xl sm:text-3xl font-bold ${getRatingColor(
-                      group.average
-                    )}`}
-                  >
-                    {group.average.toFixed(2)}
-                  </span>
                 </div>
-              ))}
-            </div>
+
+                {/* Horizontal Separator except first */}
+                {idx !== 0 && (
+                  <hr className="border-t border-gray-300 dark:border-gray-600 mb-4" />
+                )}
+
+                {/* Label with emoji and score side by side */}
+                <div className="flex items-center gap-4 text-gray-800 dark:text-gray-200">
+                  {/* Emoji */}
+                  <span className="text-3xl">{group.emoji}</span>
+
+                  {/* Label and score */}
+                  <div className="flex items-center gap-6 w-full justify-between">
+                    <span className="text-lg font-semibold">{group.label}</span>
+                    <span
+                      className={`text-2xl font-bold ${getRatingColor(
+                        group.average
+                      )}`}
+                    >
+                      {group.average.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
