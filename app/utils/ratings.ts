@@ -4,7 +4,7 @@ export const ratingCategories = [
   "bestCoaster",
   "coasterDepth",
   "waterRides",
-  "flatridesAndDarkRides",
+  "flatridesAndDarkrides",
   "food",
   "snacksAndDrinks",
   "parkPracticality",

@@ -26,6 +26,7 @@ const continentCountries: Record<string, string[]> = {
     "Germany",
     "Greece",
     "Hunagry",
+    "Ireland",
     "Italy",
     "Malta",
     "Netherlands",
@@ -63,9 +64,18 @@ const continentCountries: Record<string, string[]> = {
     "Uruguay",
     "Venezuela",
   ],
-  Asia: ["Japan", "China", "India", "South Korea", "Thailand"],
+  Asia: [
+    "Japan",
+    "China",
+    "India",
+    "Indonesia",
+    "Malaysia",
+    "South Korea",
+    "Thailand",
+    "Vietnam",
+  ],
   Oceania: ["Australia", "New Zealand", "Fiji"],
-  Africa: ["South Africa", "Egypt", "Kenya", "Nigeria", "Morocco"],
+  Africa: ["South Africa", "Egypt", "Kenya", "Nigeria", "Morocco", "Tunesia"],
   "South America": ["Brazil", "Argentina", "Chile", "Colombia", "Peru"],
 };
 
@@ -97,18 +107,23 @@ const RatingModal: React.FC<ModalProps> = ({
   const [checkboxState, setCheckboxState] = useState<{
     parkAppearance: boolean;
     bestCoaster: boolean;
+    coasterDepth: boolean;
+    food: boolean;
+    snacksAndDrinks: boolean;
   }>({
     parkAppearance: false,
     bestCoaster: false,
+    coasterDepth: false,
+    food: false,
+    snacksAndDrinks: false,
   });
 
   useEffect(() => {
-  if (isAuthenticated && shouldSubmitAfterAuth) {
-    handleSubmit();
-    setShouldSubmitAfterAuth(false);
-  }
-}, [isAuthenticated, shouldSubmitAfterAuth]);
-
+    if (isAuthenticated && shouldSubmitAfterAuth) {
+      handleSubmit();
+      setShouldSubmitAfterAuth(false);
+    }
+  }, [isAuthenticated, shouldSubmitAfterAuth]);
 
   const getRatingColor = (rating: number | string) => {
     if (
@@ -189,12 +204,13 @@ const RatingModal: React.FC<ModalProps> = ({
 
     const areRatingFieldsFilled = [
       "parkAppearance",
+      "parkPracticality",
       "bestCoaster",
+      "coasterDepth",
       "waterRides",
-      "rideLineup",
+      "flatridesAndDarkrides",
       "food",
       "snacksAndDrinks",
-      "parkPracticality",
       "rideOperations",
       "parkManagement",
     ].every((key) => ratings[key] !== null && ratings[key] !== undefined);
@@ -268,24 +284,22 @@ const RatingModal: React.FC<ModalProps> = ({
         ...ratings,
         date: selectedDate ? selectedDate.toISOString().split("T")[0] : "",
         parkId: savedPark.parkId,
-        overall:
-          ((ratings.parkAppearance ?? 0) +
-            (checkboxState.parkAppearance ? 1 : 0) +
-            (ratings.bestCoaster ?? 0) +
-            (checkboxState.bestCoaster ? 1 : 0) +
-            (ratings.waterRides ?? 0) +
-            (ratings.rideLineup ?? 0) +
-            (ratings.food ?? 0) +
-            (ratings.snacksAndDrinks ?? 0) +
-            (ratings.parkPracticality ?? 0) +
-            (ratings.rideOperations ?? 0) +
-            (ratings.parkManagement ?? 0)) /
-          9,
         parkAppearance:
           (ratings.parkAppearance ?? 0) +
           (checkboxState.parkAppearance ? 1 : 0),
+        parkPracticality: ratings.parkPracticality ?? 0,
         bestCoaster:
           (ratings.bestCoaster ?? 0) + (checkboxState.bestCoaster ? 1 : 0),
+        coasterDepth:
+          (ratings.coasterDepth ?? 0) + (checkboxState.coasterDepth ? 1 : 0),
+        waterRides: ratings.waterRides ?? 0,
+        flatridesAndDarkrides: ratings.flatridesAndDarkrides ?? 0,
+        food: (ratings.food ?? 0) + (checkboxState.food ? 1 : 0),
+        snacksAndDrinks:
+          (ratings.snacksAndDrinks ?? 0) +
+          (checkboxState.snacksAndDrinks ? 1 : 0),
+        rideOperations: ratings.rideOperations ?? 0,
+        parkManagement: ratings.parkManagement ?? 0,
       };
 
       const ratingResponse = await fetch("/api/ratings", {
@@ -521,12 +535,13 @@ const RatingModal: React.FC<ModalProps> = ({
                   <div className="space-y-4 mt-2">
                     {[
                       "parkAppearance",
+                      "parkPracticality",
                       "bestCoaster",
+                      "coasterDepth",
                       "waterRides",
-                      "rideLineup",
+                      "flatridesAndDarkrides",
                       "food",
                       "snacksAndDrinks",
-                      "parkPracticality",
                       "rideOperations",
                       "parkManagement",
                     ].map((field) => (
@@ -568,7 +583,10 @@ const RatingModal: React.FC<ModalProps> = ({
 
                           {/* GOLDEN RATINGS */}
                           {(field === "parkAppearance" ||
-                            field === "bestCoaster") &&
+                            field === "bestCoaster" ||
+                            field === "coasterDepth" ||
+                            field === "food" ||
+                            field === "snacksAndDrinks") &&
                             ratings[field] === 10.0 && (
                               <div className="flex flex-col justify-center items-start h-full mt-2">
                                 <label className="flex items-center space-x-2 select-none">

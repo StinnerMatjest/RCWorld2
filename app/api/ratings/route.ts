@@ -76,10 +76,10 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log('Received body:', body);
 
-    const {date, parkAppearance, bestCoaster, coasterDepth, waterRides, flatridesAndDarkRides, food, snacksAndDrinks, parkPracticality, rideOperations, parkManagement, overall, parkId} = body;
+    const {date, parkAppearance, parkPracticality, bestCoaster, coasterDepth, waterRides, flatridesAndDarkrides, food, snacksAndDrinks,  rideOperations, parkManagement, parkId} = body;
 
-    if (date === undefined || parkAppearance === undefined || bestCoaster === undefined || coasterDepth === undefined || waterRides === undefined || flatridesAndDarkRides === undefined || food === undefined ||
-        snacksAndDrinks === undefined || parkPracticality === undefined || rideOperations === undefined || parkManagement === undefined || overall === undefined || parkId === undefined
+    if (date === undefined || parkAppearance === undefined || parkPracticality === undefined || bestCoaster === undefined || coasterDepth === undefined || waterRides === undefined || 
+        flatridesAndDarkrides === undefined || food === undefined || snacksAndDrinks === undefined || rideOperations === undefined || parkManagement === undefined ||  parkId === undefined
     )
       {
       return NextResponse.json(
@@ -92,22 +92,21 @@ export async function POST(request: Request) {
       INSERT INTO ratings (
         date,
         parkappearance,
+        parkpracticality,
         bestcoaster,
         coasterdepth,
         waterrides,
         flatridesanddarkrides,
         food,
         snacksanddrinks,
-        parkpracticality,
         rideoperations,
         parkmanagement,
-        overall,
         park_id
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING id
     `;
 
-    const values = [date, parkAppearance, bestCoaster, coasterDepth, waterRides, flatridesAndDarkRides, food, snacksAndDrinks, parkPracticality, rideOperations, parkManagement, overall, parkId];
+    const values = [date, parkAppearance, parkPracticality, bestCoaster, coasterDepth, waterRides, flatridesAndDarkrides, food, snacksAndDrinks, rideOperations, parkManagement, parkId];
 
     const result = await pool.query(query, values);
 
