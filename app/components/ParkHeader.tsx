@@ -7,17 +7,21 @@ interface ParkHeaderProps {
 }
 
 const ParkHeader: React.FC<ParkHeaderProps> = ({ park }) => (
-  <div className="relative w-full h-150">
+<div className="relative w-full aspect-[16/8] md:aspect-[16/4] max-h-screen overflow-hidden">
     <Image
       src={park.imagepath}
       alt={park.name}
       fill
-      className="object-contain cursor-pointer"
+      className="object-cover"
+      priority
       unoptimized
     />
-    {/* Gradient Overlay */}
-    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent" />
-    <h1 className="absolute bottom-6 left-6 text-6xl font-bold text-white">
+
+    {/* Overlay */}
+    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent z-10" />
+
+    {/* Title */}
+    <h1 className="absolute bottom-6 left-6 text-3xl md:text-5xl font-bold text-white z-20 drop-shadow-lg">
       {park.name}
     </h1>
   </div>

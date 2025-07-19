@@ -12,8 +12,9 @@ export interface Rating {
   date: Date;
   parkAppearance: number;
   bestCoaster: number;
+  coasterDepth: number;
   waterRides: number;
-  rideLineup: number;
+  flatridesAndDarkrides: number;
   food: number;
   snacksAndDrinks: number;
   parkPracticality: number;
@@ -45,8 +46,8 @@ const Home = () => {
     console.log("Search query:", query);
   };
 
-  console.log('NODE_ENV:', process.env.NODE_ENV);
-  console.log('Password:', process.env.NEXT_PUBLIC_FUNCTION_LOCK_PASSWORD);
+  console.log("NODE_ENV:", process.env.NODE_ENV);
+  console.log("Password:", process.env.NEXT_PUBLIC_FUNCTION_LOCK_PASSWORD);
 
   const sortedRatings = [...ratings].sort((a, b) => b.overall - a.overall);
 
@@ -107,7 +108,7 @@ const Home = () => {
 
   return (
     <main>
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 px-2 flex-grow bg-white rounded-xl py-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 px-2 flex-grow bg-white rounded-xl py-6">
         {filteredRatings.map((rating, index) => {
           const park = parks.find((p) => p.id === rating.parkId);
 

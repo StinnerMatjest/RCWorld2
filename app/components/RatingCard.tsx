@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Rating } from "../page";
 import { Park } from "../page";
+import { getParkFlag } from "@/app/utils/design";
 
 interface RatingCardProps {
   rating: Rating;
@@ -16,28 +17,90 @@ const RatingCard: React.FC<RatingCardProps> = ({
   delayIndex,
 }) => {
   const getRatingColor = (rating: number) => {
-    if (rating >= 10.0) return "rainbow-animation"; // GOAT
-    if (rating >= 9.0) return "text-blue-700 dark:text-blue-400"; // Excellent
-    if (rating >= 7.5) return "text-green-600 dark:text-green-400"; // Great
-    if (rating >= 6.5) return "text-green-400 dark:text-green-300"; // Good
-    if (rating >= 5.5) return "text-yellow-400 dark:text-yellow-300"; // Average
-    if (rating >= 4.5) return "text-yellow-600 dark:text-yellow-500"; // Mediocre
-    if (rating >= 3.0) return "text-red-400 dark:text-red-300"; // Poor
-    return "text-red-600 dark:text-red-500"; // Bad
+    if (rating >= 10.0) return "rainbow-animation";
+    if (rating >= 9.0) return "text-blue-700 dark:text-blue-400";
+    if (rating >= 7.5) return "text-green-600 dark:text-green-400";
+    if (rating >= 6.5) return "text-green-400 dark:text-green-300";
+    if (rating >= 5.5) return "text-yellow-400 dark:text-yellow-300";
+    if (rating >= 4.5) return "text-yellow-600 dark:text-yellow-500";
+    if (rating >= 3.0) return "text-red-400 dark:text-red-300";
+    return "text-red-600 dark:text-red-500";
   };
 
+  const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
+
+  const groupedRow1 = [
+    {
+      emoji: "🎢",
+      label: "Coasters",
+      average: avg([rating.bestCoaster, rating.coasterDepth]),
+      details: [
+        { label: "Best Coaster", value: rating.bestCoaster },
+        { label: "Coaster Depth", value: rating.coasterDepth },
+      ],
+    },
+    {
+      emoji: "🎡",
+      label: "Rides",
+      average: avg([rating.waterRides, rating.flatridesAndDarkrides]),
+      details: [
+        { label: "Water Rides", value: rating.waterRides },
+        { label: "Flatrides/Darkrides", value: rating.flatridesAndDarkrides },
+      ],
+    },
+  ];
+
+  const groupedRow2 = [
+    {
+      emoji: "🏞️",
+      label: "Park",
+      average: avg([rating.parkAppearance, rating.parkPracticality]),
+      details: [
+        { label: "Appearance", value: rating.parkAppearance },
+        { label: "Practicality", value: rating.parkPracticality },
+      ],
+    },
+    {
+      emoji: "🍔",
+      label: "Food",
+      average: avg([rating.food, rating.snacksAndDrinks]),
+      details: [
+        { label: "Food", value: rating.food },
+        { label: "Snacks & Drinks", value: rating.snacksAndDrinks },
+      ],
+    },
+    {
+      emoji: "📋",
+      label: "Management",
+      average: avg([rating.rideOperations, rating.parkManagement]),
+      details: [
+        { label: "Operations", value: rating.rideOperations },
+        { label: "Management", value: rating.parkManagement },
+      ],
+    },
+  ];
+
   return (
-    <Link href={`/park/${rating.parkId}`} className="group">
+    <Link href={`/park/${rating.parkId}`}>
       <div
         className={`mx-auto flex flex-col justify-between w-full max-w-[400px] py-2 animate-fade-in-up ${
           delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""
         }`}
       >
-        <div className="flex flex-col items-center justify-between bg-blue-50 dark:bg-gray-800 rounded-2xl overflow-hidden shadow-md dark:shadow-lg transition-transform duration-300 ease-in-out group-hover:scale-105 group-hover:shadow-xl">
+        <div className="flex flex-col items-center justify-between bg-blue-50 dark:bg-gray-800 rounded-2xl overflow-visible shadow-md dark:shadow-lg transition-transform duration-300 ease-in-out hover:scale-105 hover:shadow-xl">
           {/* Park Name */}
           <div className="flex flex-col items-center justify-center w-full min-h-[90px]">
             <div className="min-h-[50px] flex items-center justify-center text-center px-2">
-              <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white">
+              <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white flex items-center justify-center gap-2">
+                <Image
+                  src={getParkFlag(park.country)}
+                  alt={`${park.country} flag`}
+                  width={24}
+                  height={16}
+                  loading="lazy"
+                  unoptimized
+                  className="rounded-sm"
+                />
                 {park.name}
               </h1>
             </div>
@@ -58,52 +121,73 @@ const RatingCard: React.FC<RatingCardProps> = ({
 
           {/* Rating Date */}
           <div className="text-sm italic py-1 text-gray-600 dark:text-gray-400">
-            {new Date(rating.date).toLocaleDateString()}
+            Date: {new Date(rating.date).toLocaleDateString()}
           </div>
 
-          {/* Rating Details */}
-          <div className="flex flex-col items-center text-center justify-between w-full text-base font-medium p-2">
-            {/* Overall Rating */}
-            <p
-              className={`text-5xl font-semibold py-4 ${getRatingColor(
-                rating.overall
-              )}`}
-            >
-              {rating.overall.toFixed(2)}
-            </p>
+          {/* Overall Score */}
+          <p
+            className={`text-6xl font-bold py-4 ${getRatingColor(
+              rating.overall
+            )}`}
+          >
+            {rating.overall.toFixed(2)}
+          </p>
 
-            {/* Individual Scores */}
-            <div className="grid grid-cols-3 gap-x-4 gap-y-1 max-w-[320px] mx-auto text-center text-base">
-              {[
-                { label: "Park Appearance", value: rating.parkAppearance },
-                { label: "Best Coaster", value: rating.bestCoaster },
-                { label: "Water Rides", value: rating.waterRides },
-                { label: "Ride Lineup", value: rating.rideLineup },
-                { label: "Food", value: rating.food },
-                { label: "Snacks & Drinks", value: rating.snacksAndDrinks },
-                { label: "Park Practicality", value: rating.parkPracticality },
-                { label: "Ride Operations", value: rating.rideOperations },
-                { label: "Park Management", value: rating.parkManagement },
-              ].map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex flex-col items-center gap-1 min-h-[90px]"
-                >
-                  <div className="min-h-[40px] flex items-center justify-center text-center">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {item.label}
+          {/* Separator */}
+          <div className="w-3/4 border-t border-gray-300 dark:border-gray-600 my-2"></div>
+
+          {/* Grouped Ratings (Now Stacked for Better Spacing) */}
+          <div className="w-full max-w-[360px] flex flex-col gap-6 px-4 pb-4">
+            {[...groupedRow1, ...groupedRow2].map((group, idx) => (
+              <div
+                key={idx}
+                className="relative group cursor-pointer rounded-md p-2 transition duration-200 ease-in-out hover:bg-blue-100 hover:shadow-md"
+              >
+                {/* Tooltip */}
+                <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 text-sm shadow-xl rounded-lg p-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto whitespace-nowrap border border-gray-300 dark:border-gray-700 min-w-[180px]">
+                  <div className="font-semibold mb-2 text-gray-800 dark:text-gray-200">
+                    {group.label} Breakdown
+                  </div>
+                  <div className="space-y-1 text-gray-700 dark:text-gray-300">
+                    {group.details.map((item, i) => (
+                      <div key={i} className="flex justify-between">
+                        <span>{item.label}</span>
+                        <span
+                          className={`font-semibold ${getRatingColor(
+                            item.value
+                          )}`}
+                        >
+                          {item.value.toFixed(1)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Horizontal Separator except first */}
+                {idx !== 0 && (
+                  <hr className="border-t border-gray-300 dark:border-gray-600 mb-4" />
+                )}
+
+                {/* Label with emoji and score side by side */}
+                <div className="flex items-center gap-4 text-gray-800 dark:text-gray-200">
+                  {/* Emoji */}
+                  <span className="text-3xl">{group.emoji}</span>
+
+                  {/* Label and score */}
+                  <div className="flex items-center gap-6 w-full justify-between">
+                    <span className="text-lg font-semibold">{group.label}</span>
+                    <span
+                      className={`text-2xl font-bold ${getRatingColor(
+                        group.average
+                      )}`}
+                    >
+                      {group.average.toFixed(2)}
                     </span>
                   </div>
-                  <span
-                    className={`text-lg font-semibold w-10 text-center ${getRatingColor(
-                      item.value
-                    )}`}
-                  >
-                    {item.value}
-                  </span>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
