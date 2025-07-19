@@ -13,13 +13,13 @@ interface ParkTextsModalProps {
 const categories = [
   "description",
   "parkAppearance",
+  "parkPracticality",
   "bestCoaster",
   "coasterDepth",
   "waterRides",
-  "flatridesAndDarkRides",
+  "flatridesAndDarkrides",
   "food",
   "snacksAndDrinks",
-  "parkPracticality",
   "rideOperations",
   "parkManagement",
 ];

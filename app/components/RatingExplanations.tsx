@@ -52,6 +52,7 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
         .map((key) => {
           const text = localExplanations[key] ?? "";
           const value = rating[key as keyof Rating] as number;
+          console.log("Category key:", key, "Value:", value);
 
           return (
             <div key={key} className="space-y-2">

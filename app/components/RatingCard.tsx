@@ -42,10 +42,10 @@ const RatingCard: React.FC<RatingCardProps> = ({
     {
       emoji: "🎡",
       label: "Rides",
-      average: avg([rating.waterRides, rating.flatridesAndDarkRides]),
+      average: avg([rating.waterRides, rating.flatridesAndDarkrides]),
       details: [
         { label: "Water Rides", value: rating.waterRides },
-        { label: "Flatrides/Darkrides", value: rating.flatridesAndDarkRides },
+        { label: "Flatrides/Darkrides", value: rating.flatridesAndDarkrides },
       ],
     },
   ];

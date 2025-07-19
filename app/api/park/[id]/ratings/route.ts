@@ -19,7 +19,6 @@ export async function GET(
     let values: string[];
 
     if (dateParam) {
-      // Filter by park ID AND date
       query = `
         SELECT 
           ratings.id AS rating_id,
@@ -28,7 +27,7 @@ export async function GET(
           ratings.bestCoaster AS "bestcoaster",
           ratings.coasterDepth AS "coasterdepth",
           ratings.waterRides AS "waterrides",
-          ratings.flatridesAndDarkRides AS "flatridesanddarkrides",
+          ratings.flatridesAndDarkrides AS "flatridesanddarkrides",
           ratings.food,
           ratings.snacksAndDrinks AS "snacksanddrinks",
           ratings.parkPracticality AS "parkpracticality",
@@ -42,7 +41,6 @@ export async function GET(
       `;
       values = [parkId, dateParam];
     } else {
-      // Return all ratings for this park
       query = `
         SELECT 
           ratings.id AS rating_id,
@@ -51,7 +49,7 @@ export async function GET(
           ratings.bestCoaster AS "bestcoaster",
           ratings.coasterDepth AS "coasterdepth",
           ratings.waterRides AS "waterrides",
-          ratings.flatridesAndDarkRides AS "flatridesanddarkrides",
+          ratings.flatridesAndDarkrides AS "flatridesanddarkrides",
           ratings.food,
           ratings.snacksAndDrinks AS "snacksanddrinks",
           ratings.parkPracticality AS "parkpracticality",
@@ -75,7 +73,7 @@ export async function GET(
       bestCoaster: row.bestcoaster,
       coasterDepth: row.coasterdepth,
       waterRides: row.waterrides,
-      flatridesAndDarkRides: row.flatridesanddarkrides,
+      flatridesAndDarkrides: row.flatridesanddarkrides,
       food: row.food,
       snacksAndDrinks: row.snacksanddrinks,
       parkPracticality: row.parkpracticality,

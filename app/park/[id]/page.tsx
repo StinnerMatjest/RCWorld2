@@ -27,6 +27,7 @@ const ParkPage: React.FC = () => {
   const { id: parkId } = useParams();
   const searchParams = useSearchParams();
   const visitId = searchParams.get("visit");
+  const selectedRatingId = visitId ? Number(visitId) : undefined;
   const [park, setPark] = useState<Park | null>(null);
   const [coasters, setCoasters] = useState<RollerCoaster[]>([]);
   const [ratings, setRatings] = useState<Rating[]>([]);
@@ -100,7 +101,11 @@ const ParkPage: React.FC = () => {
 
           <div>
             <div className="border-t border-gray-300 my-3" />
-            <ArchivePanel ratings={ratings} parkId={Number(parkId)} />
+            <ArchivePanel
+              ratings={ratings}
+              parkId={Number(parkId)}
+              currentRatingId={selectedRatingId}
+            />
           </div>
         </div>
 
