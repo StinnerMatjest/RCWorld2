@@ -1,16 +1,16 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import MainPageButton from "@/app/components/MainPageButton";
 import CoasterCreatorModal from "@/app/components/CoasterCreatorModal";
-import RatingPanel from "@/app/components/RatingPanel";
 import RatingExplanations from "@/app/components/RatingExplanations";
 import Coasterlist from "@/app/components/Coasterlist";
 import ParkHeader from "@/app/components/ParkHeader";
 import ParkInfo from "@/app/components/ParkInfo";
 import Gallery from "@/app/components/Gallery";
 import GoogleMapView from "@/app/components/GoogleMapView";
+import ArchivePanel from "@/app/components/ArchivePanel";
 import type { Park, Rating, RollerCoaster } from "@/app/types";
 
 // Sample gallery images (replace with real data)
@@ -25,6 +25,9 @@ const galleryImages = [
 
 const ParkPage: React.FC = () => {
   const { id: parkId } = useParams();
+  const searchParams = useSearchParams();
+  const visitId = searchParams.get("visit");
+  const selectedRatingId = visitId ? Number(visitId) : undefined;
   const [park, setPark] = useState<Park | null>(null);
   const [coasters, setCoasters] = useState<RollerCoaster[]>([]);
   const [ratings, setRatings] = useState<Rating[]>([]);
@@ -33,35 +36,42 @@ const ParkPage: React.FC = () => {
   const [editingCoaster, setEditingCoaster] = useState<RollerCoaster>();
   const [explanations, setExplanations] = useState<Record<string, string>>({});
 
-useEffect(() => {
-  if (!parkId) return;
-  (async () => {
-    const [parkRes, coastersRes, ratingsRes, explanationsRes] = await Promise.all([
-      fetch(`/api/park/${parkId}`),
-      fetch(`/api/park/${parkId}/coasters`),
-      fetch(`/api/ratings?parkId=${parkId}`),
-      fetch(`/api/park/${parkId}/parkTexts`),
-    ]);
+  useEffect(() => {
+    if (!parkId) return;
+    (async () => {
+      const [parkRes, coastersRes, ratingsRes, explanationsRes] =
+        await Promise.all([
+          fetch(`/api/park/${parkId}`),
+          fetch(`/api/park/${parkId}/coasters`),
+          fetch(`/api/park/${parkId}/ratings`),
+          fetch(`/api/park/${parkId}/parkTexts`),
+        ]);
 
-    setPark(await parkRes.json());
-    setCoasters(await coastersRes.json());
-    setLoadingCoasters(false);
+      setPark(await parkRes.json());
+      setCoasters(await coastersRes.json());
+      setLoadingCoasters(false);
 
-    const ratingsData = await ratingsRes.json();
-    setRatings(
-      ratingsData.ratings.filter((r: Rating) => r.parkId === Number(parkId))
-    );
+      const ratingsData = await ratingsRes.json();
+      setRatings(
+        ratingsData.ratings
+          .filter((r: Rating) => r.parkId === Number(parkId))
+          .sort(
+            (a: Rating, b: Rating) =>
+              new Date(b.date).getTime() - new Date(a.date).getTime()
+          )
+      );
 
-    const explanationsData: { category: string; text: string }[] =
-      await explanationsRes.json();
-    const explanationMap: Record<string, string> = {};
-    for (const item of explanationsData) {
-      explanationMap[item.category] = item.text;
-    }
-    setExplanations(explanationMap);
-  })();
-}, [parkId]);
+      const explanationsData: { category: string; text: string }[] =
+        await explanationsRes.json();
+      const explanationMap: Record<string, string> = {};
+      for (const item of explanationsData) {
+        explanationMap[item.category] = item.text;
+      }
+      setExplanations(explanationMap);
+    })();
+  }, [parkId]);
 
+  const selectedRating = ratings.find((r) => r.id.toString() === visitId);
 
   const refreshCoasters = async () => {
     const res = await fetch(`/api/park/${parkId}/coasters`);
@@ -91,7 +101,11 @@ useEffect(() => {
 
           <div>
             <div className="border-t border-gray-300 my-3" />
-            <RatingPanel ratings={ratings} />
+            <ArchivePanel
+              ratings={ratings}
+              parkId={Number(parkId)}
+              currentRatingId={selectedRatingId}
+            />
           </div>
         </div>
 
@@ -105,7 +119,11 @@ useEffect(() => {
             </p>
           </div>
 
-          <RatingExplanations ratings={ratings} explanations={explanations} parkId={Number(parkId)} />
+          <RatingExplanations
+            rating={selectedRating ?? ratings[0]}
+            explanations={explanations}
+            parkId={Number(parkId)}
+          />
         </div>
 
         {/* Coasters */}
