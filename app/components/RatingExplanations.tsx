@@ -7,7 +7,7 @@ import { getRatingColor } from "@/app/utils/design";
 import { ratingCategories } from "@/app/utils/ratings";
 
 interface RatingExplanationsProps {
-  ratings: Rating[];
+  rating: Rating;
   explanations: Record<string, string>;
   parkId: number;
 }
@@ -21,20 +21,18 @@ function humanizeLabel(key: string) {
 }
 
 const RatingExplanations: React.FC<RatingExplanationsProps> = ({
-  ratings,
+  rating,
   explanations,
   parkId,
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [localExplanations, setLocalExplanations] = useState(explanations);
 
-  // This updates when prop `explanations` changes (e.g. after first load)
   useEffect(() => {
     setLocalExplanations(explanations);
   }, [explanations]);
 
-
-  if (ratings.length === 0) return <p>No ratings available yet.</p>;
+  if (!rating) return <p>No rating available yet.</p>;
 
   return (
     <div className="space-y-8">
@@ -49,28 +47,24 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
         </button>
       </div>
 
-{ratings.map((r) => (
-  <div key={r.id} className="space-y-7">
-    {ratingCategories
-      .filter((key) => key !== "description" && key !== "overall")
-      .map((key) => {
-        const text = localExplanations[key] ?? "";
-        const value = r[key as keyof Rating] as number;
+      {ratingCategories
+        .filter((key) => key !== "description" && key !== "overall")
+        .map((key) => {
+          const text = localExplanations[key] ?? "";
+          const value = rating[key as keyof Rating] as number;
 
-        return (
-          <div key={key} className="space-y-2">
-            <div className="flex items-baseline gap-3">
-              <h3 className="text-xl font-semibold">{humanizeLabel(key)}</h3>
-              <span className={`text-2xl font-bold ${getRatingColor(value)}`}>
-                {value}
-              </span>
+          return (
+            <div key={key} className="space-y-2">
+              <div className="flex items-baseline gap-3">
+                <h3 className="text-xl font-semibold">{humanizeLabel(key)}</h3>
+                <span className={`text-2xl font-bold ${getRatingColor(value)}`}>
+                  {value}
+                </span>
+              </div>
+              <p className="text-gray-700">{text}</p>
             </div>
-            <p className="text-gray-700">{text}</p>
-          </div>
-        );
-      })}
-  </div>
-))}
+          );
+        })}
 
       {showModal && (
         <ParkRatingsModal

@@ -2,7 +2,6 @@ import { Pool } from "pg";
 import { NextResponse } from "next/server";
 import { Rating } from "@/app/page";
 
-
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
@@ -10,31 +9,31 @@ const pool = new Pool({
   },
 });
 
-
 export async function GET() {
   try {
     const query = `
-      SELECT 
-        ratings.id AS rating_id,
-        ratings.date,
-        ratings.parkAppearance AS "parkappearance",
-        ratings.bestCoaster AS "bestcoaster",
-        ratings.coasterDepth AS "coasterdepth",
-        ratings.waterRides AS "waterrides",
-        ratings.flatridesAndDarkRides AS "flatridesanddarkrides",
-        ratings.food,
-        ratings.snacksAndDrinks AS "snacksanddrinks",
-        ratings.parkPracticality AS "parkpracticality",
-        ratings.rideOperations AS "rideoperations",
-        ratings.parkManagement AS "parkmanagement",
-        ratings.overall,
-        ratings.park_id,
-        parks.id AS park_id,
-        parks.name AS park_name,
-        parks.imagepath AS park_image
-      FROM ratings
-      JOIN parks ON ratings.park_id = parks.id
-    `;
+  SELECT DISTINCT ON (parks.id)
+    ratings.id AS rating_id,
+    ratings.date,
+    ratings.parkAppearance AS "parkappearance",
+    ratings.bestCoaster AS "bestcoaster",
+    ratings.coasterDepth AS "coasterdepth",
+    ratings.waterRides AS "waterrides",
+    ratings.flatridesAndDarkRides AS "flatridesanddarkrides",
+    ratings.food,
+    ratings.snacksAndDrinks AS "snacksanddrinks",
+    ratings.parkPracticality AS "parkpracticality",
+    ratings.rideOperations AS "rideoperations",
+    ratings.parkManagement AS "parkmanagement",
+    ratings.overall,
+    ratings.park_id,
+    parks.id AS park_id,
+    parks.name AS park_name,
+    parks.imagepath AS park_image
+  FROM ratings
+  JOIN parks ON ratings.park_id = parks.id
+  ORDER BY parks.id, ratings.date DESC
+`;
 
     const result = await pool.query(query);
 
@@ -70,18 +69,40 @@ export async function GET() {
   }
 }
 
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log('Received body:', body);
+    console.log("Received body:", body);
 
-    const {date, parkAppearance, parkPracticality, bestCoaster, coasterDepth, waterRides, flatridesAndDarkrides, food, snacksAndDrinks,  rideOperations, parkManagement, parkId} = body;
+    const {
+      date,
+      parkAppearance,
+      parkPracticality,
+      bestCoaster,
+      coasterDepth,
+      waterRides,
+      flatridesAndDarkrides,
+      food,
+      snacksAndDrinks,
+      rideOperations,
+      parkManagement,
+      parkId,
+    } = body;
 
-    if (date === undefined || parkAppearance === undefined || parkPracticality === undefined || bestCoaster === undefined || coasterDepth === undefined || waterRides === undefined || 
-        flatridesAndDarkrides === undefined || food === undefined || snacksAndDrinks === undefined || rideOperations === undefined || parkManagement === undefined ||  parkId === undefined
-    )
-      {
+    if (
+      date === undefined ||
+      parkAppearance === undefined ||
+      parkPracticality === undefined ||
+      bestCoaster === undefined ||
+      coasterDepth === undefined ||
+      waterRides === undefined ||
+      flatridesAndDarkrides === undefined ||
+      food === undefined ||
+      snacksAndDrinks === undefined ||
+      rideOperations === undefined ||
+      parkManagement === undefined ||
+      parkId === undefined
+    ) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -106,7 +127,20 @@ export async function POST(request: Request) {
       RETURNING id
     `;
 
-    const values = [date, parkAppearance, parkPracticality, bestCoaster, coasterDepth, waterRides, flatridesAndDarkrides, food, snacksAndDrinks, rideOperations, parkManagement, parkId];
+    const values = [
+      date,
+      parkAppearance,
+      parkPracticality,
+      bestCoaster,
+      coasterDepth,
+      waterRides,
+      flatridesAndDarkrides,
+      food,
+      snacksAndDrinks,
+      rideOperations,
+      parkManagement,
+      parkId,
+    ];
 
     const result = await pool.query(query, values);
 
