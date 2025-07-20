@@ -81,7 +81,6 @@ export default function ImageUploaderModal({
     }
   };
 
-  // Wrap submit to check auth
   const handleUploadClick = (e: React.FormEvent) => {
     e.preventDefault();
 

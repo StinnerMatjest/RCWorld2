@@ -20,12 +20,12 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
   const [images, setImages] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [loading, setLoading] = useState(true); // <-- Add loading state here
+  const [loading, setLoading] = useState(true);
 
   const selected = selectedIndex !== null ? images[selectedIndex] : null;
 
   const fetchGalleryImages = async () => {
-    setLoading(true); // start loading
+    setLoading(true);
     try {
       const res = await fetch(`/api/park/${parkId}/gallery`);
       const data = await res.json();
@@ -34,7 +34,7 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
     } catch (err) {
       console.error("Failed to fetch gallery images", err);
     } finally {
-      setLoading(false); // done loading regardless of success/failure
+      setLoading(false);
     }
   };
 
@@ -80,7 +80,7 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
       {loading ? (
         <p className="text-center py-4 italic text-gray-600">
           Loading images...
-        </p> // <-- show loading text
+        </p>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {images.map((src, index) => (
@@ -95,6 +95,7 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
                 width={400}
                 height={300}
                 className="rounded-lg object-cover h-40 w-full"
+                unoptimized
               />
             </div>
           ))}
