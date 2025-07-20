@@ -5,11 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import Navbar from "./Navbar";
 
-interface HeaderProps {
-  onSearch?: (query: string) => void;
-}
-
-const Header = ({ onSearch }: HeaderProps) => {
+const Header = () => {
   return (
     <header className="w-full bg-white py-2 px-6 flex items-center justify-between animate-fade-in z-[20] relative">
       <div className="relative h-20 w-48 sm:h-24 md:h-32 lg:h-36">

@@ -1,4 +1,4 @@
-export default {
+const config = {
   content: [
     "./app/**/*.{js,ts,jsx,tsx}",
     "./pages/**/*.{js,ts,jsx,tsx}",
@@ -14,3 +14,5 @@ export default {
   },
   plugins: ['daisyui'],
 };
+
+export default config;

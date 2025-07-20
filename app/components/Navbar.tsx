@@ -4,12 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import SearchBar from "./SearchBar";
 
-// ✅ Define expected props
-interface NavbarProps {
-  onSearch?: (query: string) => void;
-}
-
-const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
+const Navbar: React.FC = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -46,7 +41,6 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
     <nav>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-[50]">
         <div className="flex justify-between items-center h-16 text-lg font-medium">
-
           {/* Desktop: Search left, links right */}
           <div className="hidden md:flex justify-between items-center w-full space-x-6">
             <div className="w-auto max-w-xs">

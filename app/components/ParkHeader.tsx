@@ -16,6 +16,7 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park }) => (
       priority
       unoptimized
     />
+    
   {/* Title */}
 <h1 className="absolute bottom-6 left-6 text-4xl md:text-5xl font-bold text-white z-20 drop-shadow-lg">
       {park.name}

@@ -5,7 +5,7 @@ import RatingCard from "./components/RatingCard";
 import Footer from "./components/Footer";
 import RatingModal from "./components/RatingModal";
 import { useRouter } from "next/navigation";
-import { useSearch } from "./context/SearchContext"; // ✅ use context instead of local state
+import { useSearch } from "./context/SearchContext";
 
 export interface Rating {
   id: number;
@@ -36,7 +36,7 @@ export interface Park {
 
 const Home = () => {
   const router = useRouter();
-  const { query } = useSearch(); // ✅ shared query state
+  const { query } = useSearch();
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [parks, setParks] = useState<Park[]>([]);
   const [isLoading, setIsLoading] = useState(true);
