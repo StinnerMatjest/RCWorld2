@@ -13,16 +13,6 @@ import GoogleMapView from "@/app/components/GoogleMapView";
 import ArchivePanel from "@/app/components/ArchivePanel";
 import type { Park, Rating, RollerCoaster } from "@/app/types";
 
-// Sample gallery images (replace with real data)
-const galleryImages = [
-  "https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/Phantasialand%20(1).jpeg",
-  "https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/Phantasialand%20(2).jpeg",
-  "https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/Phantasialand%20(3).jpeg",
-  "https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/Phantasialand%20(4).jpeg",
-  "https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/Phantasialand%20(5).jpeg",
-  "https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/Phantasialand%20(6).jpeg",
-];
-
 const ParkPage: React.FC = () => {
   const { id: parkId } = useParams();
   const searchParams = useSearchParams();
@@ -152,7 +142,7 @@ const ParkPage: React.FC = () => {
               onCoasterAdded={refreshCoasters}
             />
           )}
-          <Gallery images={galleryImages} />
+          <Gallery parkId={park.id}  />
         </div>
       </div>
 
