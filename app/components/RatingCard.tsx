@@ -16,6 +16,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
   park,
   delayIndex,
 }) => {
+  console.log("Park Image URL:", park.imagePath);
   const getRatingColor = (rating: number) => {
     if (rating >= 10.0) return "rainbow-animation";
     if (rating >= 9.0) return "text-blue-700 dark:text-blue-400";
@@ -114,6 +115,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
               height={500}
               width={500}
               loading="lazy"
+              unoptimized
               className="w-full h-full object-cover"
             />
           </figure>

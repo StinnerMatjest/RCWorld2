@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
-import { useSearch } from "../context/SearchContext"; // ✅ context
+import { useSearch } from "../context/SearchContext";
 
 const SearchBar = () => {
   const { query, setQuery } = useSearch();

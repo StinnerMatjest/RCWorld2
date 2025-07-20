@@ -40,7 +40,6 @@ export default function ImageUploaderModal({
         method: "POST",
         body: formData,
       });
-
       if (!r2Response.ok) {
         throw new Error("Image upload failed.");
       }
@@ -50,7 +49,7 @@ export default function ImageUploaderModal({
 
       const galleryPayload = {
         title,
-        description,
+        description: description || "",
         path: imagePath,
         parkId,
       };

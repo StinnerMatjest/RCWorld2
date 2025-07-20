@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, Suspense } from "react";
 import RatingCard from "./components/RatingCard";
-import Footer from "./components/Footer";
 import RatingModal from "./components/RatingModal";
 import { useRouter } from "next/navigation";
 import { useSearch } from "./context/SearchContext";
@@ -108,9 +107,6 @@ const Home = () => {
           );
         })}
       </div>
-
-      <Footer />
-
       <Suspense fallback={<div>Loading...</div>}>
         <RatingModal
           closeModal={closeModal}
