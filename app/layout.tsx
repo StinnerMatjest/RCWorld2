@@ -1,12 +1,13 @@
 import "./globals.css";
 import { ParksProvider } from "./context/ParksContext";
+import { SearchProvider } from "./context/SearchContext";
 import { Inter, Roboto } from "next/font/google";
 import Header from "./components/Header";
 
 export const metadata = {
   title: "Parkrating",
   description: "We rate themeparks all around the world!",
-    icons: {
+  icons: {
     icon: "/images/Parkrating.png",
     shortcut: "/images/Parkrating.png",
   },
@@ -26,17 +27,18 @@ const roboto = Roboto({
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
-      <head>
-      </head>
+      <head />
       <body className={`${inter.variable} ${roboto.variable} antialiased`}>
         <ParksProvider>
-          <Header />
-          {children}
+          <SearchProvider>
+            <Header />
+            <main>{children}</main>
+          </SearchProvider>
         </ParksProvider>
       </body>
     </html>
