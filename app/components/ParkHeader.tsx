@@ -21,7 +21,7 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park }) => (
     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent z-10" />
 
     {/* Title */}
-    <h1 className="absolute bottom-6 left-6 text-3xl md:text-5xl font-bold text-white z-20 drop-shadow-lg">
+    <h1 className="absolute bottom-6 left-6 text-2x1 md:text-5xl font-bold text-white z-20 drop-shadow-lg">
       {park.name}
     </h1>
   </div>
