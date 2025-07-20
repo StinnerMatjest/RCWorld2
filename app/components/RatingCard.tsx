@@ -87,11 +87,11 @@ const RatingCard: React.FC<RatingCardProps> = ({
           delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""
         }`}
       >
-        <div className="flex flex-col items-center justify-between bg-blue-50 dark:bg-gray-800 rounded-2xl overflow-visible shadow-md dark:shadow-lg transition-transform duration-300 ease-in-out hover:scale-105 hover:shadow-xl">
+        <div className="relative z-[60] flex flex-col items-center justify-between bg-blue-50 dark:bg-[#1e293b] rounded-2xl overflow-visible shadow-md dark:shadow-lg transition-transform duration-300 ease-in-out hover:scale-105 hover:shadow-xl transform-gpu will-change-transform">
           {/* Park Name */}
-          <div className="flex flex-col items-center justify-center w-full min-h-[90px]">
-            <div className="min-h-[50px] flex items-center justify-center text-center px-2">
-              <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white flex items-center justify-center gap-2">
+          <div className="flex flex-col items-center justify-center w-full min-h-[60px]">
+            <div className="flex items-center justify-center text-center px-2 min-h-[40px]">
+              <h1 className="text-[1.75rem] font-bold text-gray-900 dark:text-white flex items-center gap-2 text-center">
                 <Image
                   src={getParkFlag(park.country)}
                   alt={`${park.country} flag`}
@@ -114,7 +114,6 @@ const RatingCard: React.FC<RatingCardProps> = ({
               height={500}
               width={500}
               loading="lazy"
-              unoptimized
               className="w-full h-full object-cover"
             />
           </figure>
@@ -126,7 +125,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
 
           {/* Overall Score */}
           <p
-            className={`text-6xl font-bold py-4 ${getRatingColor(
+            className={`text-5xl font-bold py-2 ${getRatingColor(
               rating.overall
             )}`}
           >
@@ -137,58 +136,47 @@ const RatingCard: React.FC<RatingCardProps> = ({
           <div className="w-3/4 border-t border-gray-300 dark:border-gray-600 my-2"></div>
 
           {/* Grouped Ratings (Now Stacked for Better Spacing) */}
-          <div className="w-full max-w-[360px] flex flex-col gap-6 px-4 pb-4">
-            {[...groupedRow1, ...groupedRow2].map((group, idx) => (
-              <div
-                key={idx}
-                className="relative group cursor-pointer rounded-md p-2 transition duration-200 ease-in-out hover:bg-blue-100 hover:shadow-md"
-              >
-                {/* Tooltip */}
-                <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 text-sm shadow-xl rounded-lg p-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto whitespace-nowrap border border-gray-300 dark:border-gray-700 min-w-[180px]">
-                  <div className="font-semibold mb-2 text-gray-800 dark:text-gray-200">
-                    {group.label} Breakdown
-                  </div>
-                  <div className="space-y-1 text-gray-700 dark:text-gray-300">
-                    {group.details.map((item, i) => (
-                      <div key={i} className="flex justify-between">
-                        <span>{item.label}</span>
-                        <span
-                          className={`font-semibold ${getRatingColor(
-                            item.value
-                          )}`}
-                        >
-                          {item.value.toFixed(1)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+          <div className="w-full max-w-[360px] flex flex-col px-4 pb-4">
+  {[...groupedRow1, ...groupedRow2].map((group, idx) => (
+    <React.Fragment key={idx}>
+      {/* Optional separator */}
+      {idx !== 0 && (
+        <hr className="border-t border-gray-300 dark:border-gray-600 my-2" />
+      )}
 
-                {/* Horizontal Separator except first */}
-                {idx !== 0 && (
-                  <hr className="border-t border-gray-300 dark:border-gray-600 mb-4" />
-                )}
-
-                {/* Label with emoji and score side by side */}
-                <div className="flex items-center gap-4 text-gray-800 dark:text-gray-200">
-                  {/* Emoji */}
-                  <span className="text-3xl">{group.emoji}</span>
-
-                  {/* Label and score */}
-                  <div className="flex items-center gap-6 w-full justify-between">
-                    <span className="text-lg font-semibold">{group.label}</span>
-                    <span
-                      className={`text-2xl font-bold ${getRatingColor(
-                        group.average
-                      )}`}
-                    >
-                      {group.average.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
+      <div className="relative group cursor-pointer rounded-md p-2 transition duration-200 ease-in-out hover:bg-blue-100 hover:shadow-md">
+        {/* Tooltip */}
+        <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 text-sm shadow-xl rounded-lg p-3 z-[60] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto whitespace-nowrap border border-gray-300 dark:border-gray-700 min-w-[180px]">
+          <div className="font-semibold mb-2 text-gray-800 dark:text-gray-200">
+            {group.label} Breakdown
+          </div>
+          <div className="space-y-1 text-gray-700 dark:text-gray-300">
+            {group.details.map((item, i) => (
+              <div key={i} className="flex justify-between">
+                <span>{item.label}</span>
+                <span className={`font-semibold ${getRatingColor(item.value)}`}>
+                  {item.value.toFixed(1)}
+                </span>
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Content */}
+     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-gray-800 dark:text-gray-200">
+          <span className="text-3xl hidden sm:inline">{group.emoji}</span>
+          <div className="flex items-center gap-6 w-full justify-between">
+            <span className="text-lg font-semibold">{group.label}</span>
+            <span className={`text-2xl font-bold ${getRatingColor(group.average)}`}>
+              {group.average.toFixed(2)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </React.Fragment>
+  ))}
+</div>
+
         </div>
       </div>
     </Link>
