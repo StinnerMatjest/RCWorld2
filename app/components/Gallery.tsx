@@ -17,7 +17,7 @@ type GalleryImage = {
 };
 
 const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
-  const [images, setImages] = useState<string[]>([]);
+  const [images, setImages] = useState<GalleryImage[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -30,7 +30,7 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
       const res = await fetch(`/api/park/${parkId}/gallery`);
       const data = await res.json();
       const gallery: GalleryImage[] = data.gallery;
-      setImages(gallery.map((img) => img.path));
+      setImages(gallery);
     } catch (err) {
       console.error("Failed to fetch gallery images", err);
     } finally {
@@ -83,15 +83,15 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
         </p>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {images.map((src, index) => (
+          {images.map((img, index) => (
             <div
-              key={index}
+              key={img.id}
               onClick={() => setSelectedIndex(index)}
               className="cursor-pointer overflow-hidden rounded-lg hover:scale-105 transition-transform duration-300"
             >
               <Image
-                src={src}
-                alt={`Gallery image ${index + 1}`}
+                src={img.path}
+                alt={img.title || `Gallery image ${index + 1}`}
                 width={400}
                 height={300}
                 className="rounded-lg object-cover h-40 w-full"
@@ -144,13 +144,16 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
             )}
 
             <Image
-              src={selected}
-              alt="Full Image"
+              src={selected.path}
+              alt={selected.title || "Full Image"}
               width={1200}
               height={800}
               className="rounded-xl object-contain w-full h-auto max-h-[80vh]"
               unoptimized
             />
+            {selected.description && (
+              <p className="mt-2 text-white text-center">{selected.description}</p>
+            )}
           </div>
         </div>
       )}

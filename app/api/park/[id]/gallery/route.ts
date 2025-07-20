@@ -33,12 +33,17 @@ export async function GET(
 export async function POST(req: NextRequest) {
   const { title, path, description, parkId } = await req.json();
 
-  if (!title || !path || !description || !parkId) {
-    return NextResponse.json(
-      { error: "Missing required fields" },
-      { status: 400 }
-    );
-  }
+if (
+  typeof title !== "string" ||
+  typeof path !== "string" ||
+  typeof description !== "string" ||
+  typeof parkId !== "number"
+) {
+  return NextResponse.json(
+    { error: "Missing or invalid required fields" },
+    { status: 400 }
+  );
+}
 
   try {
     const query = `

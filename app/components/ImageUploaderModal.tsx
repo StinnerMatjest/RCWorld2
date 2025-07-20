@@ -48,7 +48,7 @@ export default function ImageUploaderModal({
       const imagePath = r2Result.imagePath;
 
       const galleryPayload = {
-        title,
+        title: title || "untitled",
         description: description || "",
         path: imagePath,
         parkId,
