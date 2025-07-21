@@ -84,6 +84,29 @@ select {
   animation-delay: 0.5s;
 }
 
+/* About page styles*/
+
+.expandable {
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+}
+
+.expandable.collapsed {
+  max-height: 0;
+}
+
+.expandable.expanded {
+  max-height: 500px;
+}
+
+.chevron {
+  transition: transform 0.3s ease;
+}
+
+.chevron.rotated {
+  transform: rotate(180deg);
+}
+
 /*Modal fadein*/
 
 @keyframes fade-in {
