@@ -42,16 +42,28 @@ export default function AboutPage() {
           className="rounded-xl mx-auto object-cover"
         />
         <h1 className="text-4xl font-extrabold">About ParkRating</h1>
-        <p className="text-lg text-gray-700 max-w-2xl mx-auto">
-          We're two brothers with a passion for theme parks and thrilling experiences. 
-          ParkRating is where we share honest reviews of rides, parks, and food — all from 
-          first-hand adventures across the globe. If it twists, flips, or flies... we’ll rate it.
-        </p>
+   <div className="text-lg text-gray-700 max-w-2xl mx-auto space-y-4 text-center leading-relaxed">
+    <p className="text-1xl font-semibold text-black">
+                We are two brothers with a passion for theme parks and thrilling coasters.
+              </p>
+              <p>
+                ParkRating is our passion project where we share honest and sometimes polarizing reviews — all based on our own first-hand visits to theme parks across Europe.
+              </p>
+              <p>
+                We rate everything from park appearance, coasters and flat rides to food, management, ride operations, and many more (Actually, just 4 more).
+              </p>
+              <p>
+                Take a look around and feel free to yell at us for not rating your favorite coaster higher. We do not mind at all...
+              </p>
+              <p className="text-black font-semibold">
+                ...unless your favorite manufacturer is Vekoma. Then we might.
+              </p>
+            </div>
       </section>
 
       {/* Live Countdown */}
       {nextTrip && (
-        <p className="text-center text-green-600 font-bold text-5xl -mt-12">
+        <p className="text-center text-green-700 font-bold text-4xl -mt-12">
           🎢 Next trip in {getDaysUntil(nextTrip.startDate)} days
         </p>
       )}
