@@ -3,22 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getRatingColor } from "@/app/utils/design";
-
-type RawCoaster = {
-  coaster_id: number;
-  coaster_name: string;
-  manufacturer: string;
-  model: string;
-  scale: string;
-  haveridden: boolean;
-  isbestcoaster: boolean;
-  rcdbpath: string;
-  ridecount: number;
-  rating: number | null;
-  park_id: number;
-  park_name: string;
-  year?: number;
-};
+import { useSearch } from "@/app/context/SearchContext";
 
 type Coaster = {
   id: number;
@@ -42,38 +27,38 @@ export default function CoasterRatingsPage() {
   const [error, setError] = useState("");
   const [sortBy, setSortBy] = useState<keyof Coaster | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const { query } = useSearch();
 
   useEffect(() => {
     const fetchCoasters = async () => {
       try {
         const res = await fetch("/api/coasters");
         const data = await res.json();
-        console.log(data);
 
-        if (res.ok) {
-          const structuredCoasters: Coaster[] = (data as RawCoaster[])
-            .filter((coaster: RawCoaster) => coaster.rating !== null)
-            .map((c: RawCoaster) => ({
-              id: c.coaster_id,
-              name: c.coaster_name,
-              manufacturer: c.manufacturer,
-              model: c.model,
-              scale: c.scale,
-              haveRidden: c.haveridden,
-              isBestCoaster: c.isbestcoaster,
-              rcdbPath: c.rcdbpath,
-              rideCount: c.ridecount,
-              rating:
-                typeof c.rating === "string" ? parseFloat(c.rating) : c.rating,
-              parkId: c.park_id,
-              parkName: c.park_name,
-              year: c.year ?? 0,
-            }));
-
-          setCoasters(structuredCoasters);
-        } else {
-          throw new Error(data.error || "Failed to fetch coasters.");
+        if (!data || !Array.isArray(data.coasters)) {
+          throw new Error("Unexpected data format from API");
         }
+
+        const structuredCoasters: Coaster[] = data.coasters
+          .filter((coaster: Coaster) => coaster.rating !== null)
+          .map((c: Coaster) => ({
+            id: c.id,
+            name: c.name,
+            manufacturer: c.manufacturer,
+            model: c.model,
+            scale: c.scale,
+            haveRidden: c.haveRidden,
+            isBestCoaster: c.isBestCoaster,
+            rcdbPath: c.rcdbPath,
+            rideCount: c.rideCount,
+            rating:
+              typeof c.rating === "string" ? parseFloat(c.rating) : c.rating,
+            parkId: c.parkId,
+            parkName: c.parkName,
+            year: c.year ?? 0,
+          }));
+
+        setCoasters(structuredCoasters);
       } catch (err: unknown) {
         if (err instanceof Error) {
           console.error("Error fetching data:", err.message);
@@ -93,7 +78,14 @@ export default function CoasterRatingsPage() {
   if (loading) return <p className="p-4 text-gray-500">Loading coasters...</p>;
   if (error) return <p className="p-4 text-red-500">Error: {error}</p>;
 
-  const sortedCoasters = [...coasters].sort((a, b) => {
+  const filteredCoasters = coasters.filter(
+    (coaster) =>
+      (coaster.name ?? "").toLowerCase().includes(query.toLowerCase()) ||
+      (coaster.parkName ?? "").toLowerCase().includes(query.toLowerCase()) ||
+      (coaster.manufacturer ?? "").toLowerCase().includes(query.toLowerCase())
+  );
+
+  const sortedCoasters = [...filteredCoasters].sort((a, b) => {
     if (!sortBy) return 0;
 
     const valA = a[sortBy];
@@ -144,53 +136,94 @@ export default function CoasterRatingsPage() {
               <th scope="col" className="px-4 py-3">
                 #
               </th>
+
               <th
                 scope="col"
-                className="px-4 py-3 cursor-pointer hover:underline"
+                className="px-4 py-3 cursor-pointer hover:underline select-none"
                 onClick={() => handleSort("name")}
               >
-                Name{" "}
-                {sortBy === "name" && (sortDirection === "asc" ? "▲" : "▼")}
+                <div className="inline-flex items-center">
+                  Name
+                  <span
+                    className={`ml-1 w-4 text-gray-700 ${
+                      sortBy === "name" ? "visible" : "invisible"
+                    }`}
+                  >
+                    {sortDirection === "asc" ? "▲" : "▼"}
+                  </span>
+                </div>
               </th>
 
               <th
                 scope="col"
-                className="px-4 py-3 cursor-pointer hover:underline"
+                className="px-4 py-3 cursor-pointer hover:underline select-none"
                 onClick={() => handleSort("parkName")}
               >
-                Park{" "}
-                {sortBy === "parkName" && (sortDirection === "asc" ? "▲" : "▼")}
+                <div className="inline-flex items-center">
+                  Park
+                  <span
+                    className={`ml-1 w-4 text-gray-700 ${
+                      sortBy === "parkName" ? "visible" : "invisible"
+                    }`}
+                  >
+                    {sortDirection === "asc" ? "▲" : "▼"}
+                  </span>
+                </div>
               </th>
 
               <th
                 scope="col"
-                className="px-4 py-3 cursor-pointer hover:underline"
+                className="px-4 py-3 cursor-pointer hover:underline select-none"
                 onClick={() => handleSort("manufacturer")}
               >
-                Manufacturer{" "}
-                {sortBy === "manufacturer" &&
-                  (sortDirection === "asc" ? "▲" : "▼")}
+                <div className="inline-flex items-center">
+                  Manufacturer
+                  <span
+                    className={`ml-1 w-4 text-gray-700 ${
+                      sortBy === "manufacturer" ? "visible" : "invisible"
+                    }`}
+                  >
+                    {sortDirection === "asc" ? "▲" : "▼"}
+                  </span>
+                </div>
               </th>
 
               <th
                 scope="col"
-                className="px-4 py-3 cursor-pointer hover:underline"
+                className="px-4 py-3 cursor-pointer hover:underline select-none"
                 onClick={() => handleSort("rating")}
               >
-                Rating{" "}
-                {sortBy === "rating" && (sortDirection === "asc" ? "▲" : "▼")}
+                <div className="inline-flex items-center">
+                  Rating
+                  <span
+                    className={`ml-1 w-4 text-gray-700 ${
+                      sortBy === "rating" ? "visible" : "invisible"
+                    }`}
+                  >
+                    {sortDirection === "asc" ? "▲" : "▼"}
+                  </span>
+                </div>
               </th>
+
               <th
                 scope="col"
-                className="px-4 py-3 cursor-pointer hover:underline"
+                className="px-4 py-3 cursor-pointer hover:underline select-none"
                 onClick={() => handleSort("rideCount")}
               >
-                Ride Count{" "}
-                {sortBy === "rideCount" &&
-                  (sortDirection === "asc" ? "▲" : "▼")}
+                <div className="inline-flex items-center">
+                  Ride Count
+                  <span
+                    className={`ml-1 w-4 text-gray-700 ${
+                      sortBy === "rideCount" ? "visible" : "invisible"
+                    }`}
+                  >
+                    {sortDirection === "asc" ? "▲" : "▼"}
+                  </span>
+                </div>
               </th>
             </tr>
           </thead>
+
           <tbody className="divide-y divide-gray-200">
             {sortedCoasters.map((coaster, index) => (
               <tr key={coaster.id} className="hover:bg-gray-50">
