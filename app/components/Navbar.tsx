@@ -60,6 +60,12 @@ const Navbar: React.FC = () => {
                 Visit RCDB
               </Link>
               <Link
+                href="/coasterratings"
+                className="text-black hover:text-blue-400"
+              >
+                Coaster Ratings
+              </Link>
+              <Link
                 href="/?modal=true"
                 className="text-black hover:text-blue-400"
               >
