@@ -48,6 +48,24 @@ export const trips: Trip[] = [
     status: 'planned',
     notes: 'South Korea roadtrip including every park on the peninsula',
   },
+    {
+    country: 'Germany',
+    parks: [
+        'Europapark'],
+    rcdb: [
+      'https://rcdb.com/4870.htm',
+    ],
+    startDate: '2025-11-20',
+    endDate: '2025-11-24',
+    status: 'booked',
+    notes: 'Hallowinter at Europapark',
+    mapLink: 'https://maps.app.goo.gl/nf3HDX4KT5Zm2idk9',
+    tripLog: [
+      { date: '2025-11-21', activity: 'Europapark Day 1' },
+      { date: '2025-11-22', activity: 'Europapark Day 2' },
+      { date: '2025-11-23', activity: 'Europapark Day 3' },
+    ],
+  },
   {
     country: ['Denmark', 'Germany'],
     parks: [
@@ -59,8 +77,8 @@ export const trips: Trip[] = [
       'https://rcdb.com/4873.htm',
       'https://rcdb.com/4874.htm',
     ],
-    startDate: '2025-09-10',
-    endDate: '2025-09-14',
+    startDate: '2026-09-10',
+    endDate: '2026-09-14',
     status: 'planned',
     notes: 'Dates have to be specified, but this is the general plan',
   },
