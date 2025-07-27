@@ -27,18 +27,23 @@ const getDateRangeLabel = (start: string, end: string) => {
     return 'Dates TBD'
   }
 
-  const from = new Date(start).toLocaleDateString(undefined, {
+  const locale = 'da-DK'
+
+  const from = new Date(start).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   })
-  const to = new Date(end).toLocaleDateString(undefined, {
+
+  const to = new Date(end).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   })
+
   return `${from} – ${to}`
 }
+
 
 const getDurationSummary = (start: string, end: string, parkCount: number) => {
   if (start === 'undecided' || end === 'undecided') {
@@ -118,7 +123,7 @@ export default function TripCard({ trip }: { trip: Trip }) {
         )}
       </div>
 
-      {/* Park Links (Truncated or Full) */}
+      {/* Park Links */}
       <ul className="list-disc list-inside text-gray-800 space-y-1 mb-3">
         {visibleParks.map((park, idx) => {
           const rcdbUrl = trip.rcdb?.[idx]
@@ -178,7 +183,7 @@ export default function TripCard({ trip }: { trip: Trip }) {
               <p className="font-medium">📅 Trip Log:</p>
               {trip.tripLog.map((entry, i) => (
                 <div key={i} className="pl-2">
-                  - {new Date(entry.date).toLocaleDateString()}: {entry.activity}
+                  - {new Date(entry.date).toLocaleDateString('da-DK')}: {entry.activity}
                 </div>
               ))}
             </div>

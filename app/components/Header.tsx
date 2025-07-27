@@ -34,8 +34,6 @@ const Header = () => {
           ? `🎢 ${days} days until next trip`
           : `🥲 No trip planned. Disappointed. Get going!`}
       </Link>
-
-      {/* Navbar Right */}
       <Navbar />
     </header>
   )

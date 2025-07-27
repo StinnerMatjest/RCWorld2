@@ -1,34 +1,43 @@
-'use client'
+"use client";
 
-import Image from 'next/image'
-import { useState } from 'react'
-import { getParkFlag } from '@/app/utils/design'
-import TripCard, { Trip } from '../components/TripCard'
-import { trips, getDaysUntil, getNextTrip } from '@/app/utils/trips'
+import Image from "next/image";
+import { useState } from "react";
+import Link from "next/link";
+import TripCard, { Trip } from "../components/TripCard";
+import { trips, getDaysUntil, getNextTrip } from "@/app/utils/trips";
 
 const groupTripsByYear = (filteredTrips: Trip[]) => {
-  const grouped: { [year: string]: Trip[] } = {}
+  const grouped: { [year: string]: Trip[] } = {};
 
   filteredTrips
-    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
-    .forEach(trip => {
-      const year = new Date(trip.startDate).getFullYear().toString()
-      if (!grouped[year]) grouped[year] = []
-      grouped[year].push(trip)
-    })
+    .sort(
+      (a, b) =>
+        new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+    )
+    .forEach((trip) => {
+      const year = new Date(trip.startDate).getFullYear().toString();
+      if (!grouped[year]) grouped[year] = [];
+      grouped[year].push(trip);
+    });
 
-  return grouped
-}
+  return grouped;
+};
 
 export default function AboutPage() {
-  const [showPast, setShowPast] = useState(false)
+  const [showPast, setShowPast] = useState(false);
 
-  const filtered = trips.filter(t => showPast ? t.status === 'past' : t.status !== 'past')
-  const undecidedTrips = filtered.filter(t => t.startDate === 'undecided' || t.endDate === 'undecided')
-  const decidedTrips = filtered.filter(t => t.startDate !== 'undecided' && t.endDate !== 'undecided')
+  const filtered = trips.filter((t) =>
+    showPast ? t.status === "past" : t.status !== "past"
+  );
+  const undecidedTrips = filtered.filter(
+    (t) => t.startDate === "undecided" || t.endDate === "undecided"
+  );
+  const decidedTrips = filtered.filter(
+    (t) => t.startDate !== "undecided" && t.endDate !== "undecided"
+  );
 
-  const grouped = groupTripsByYear(decidedTrips)
-  const nextTrip = getNextTrip()
+  const grouped = groupTripsByYear(decidedTrips);
+  const nextTrip = getNextTrip();
 
   return (
     <main className="max-w-5xl mx-auto px-6 py-12 space-y-20">
@@ -42,28 +51,38 @@ export default function AboutPage() {
           className="rounded-xl mx-auto object-cover"
         />
         <h1 className="text-4xl font-extrabold">About ParkRating</h1>
-   <div className="text-lg text-gray-700 max-w-2xl mx-auto space-y-4 text-center leading-relaxed">
-    <p className="text-1xl font-semibold text-black">
-                We are two brothers with a passion for theme parks and thrilling coasters.
-              </p>
-              <p>
-                ParkRating is our passion project where we share honest and sometimes polarizing reviews — all based on our own first-hand visits to theme parks across Europe.
-              </p>
-              <p>
-                We rate everything from park appearance, coasters and flat rides to food, management, ride operations, and many more (Actually, just 4 more).
-              </p>
-              <p>
-                Take a look around and feel free to yell at us for not rating your favorite coaster higher. We do not mind at all...
-              </p>
-              <p className="text-black font-semibold">
-                ...unless your favorite manufacturer is Vekoma. Then we might.
-              </p>
-            </div>
+        <div className="text-lg text-gray-700 max-w-2xl mx-auto space-y-4 text-center leading-relaxed">
+          <p className="text-1xl font-semibold text-black">
+            We are two brothers with a passion for theme parks and thrilling
+            coasters.
+          </p>
+          <p>
+            ParkRating is our passion project where we share honest and
+            sometimes polarizing reviews — all based on our own first-hand
+            experiences, visiting theme parks all across the world.
+          </p>
+          <p>
+            We rate everything from park appearance, coasters and flat rides to
+            food, management, ride operations, and many more (Actually, just 4
+            more). For more information about this, visit our{" "}
+            <Link
+              href="/info"
+              className="text-black hover:text-blue-400 underline"
+            >
+              Rating Evaluation
+            </Link>{" "}
+            page.
+          </p>
+          <p>
+            Take a look around and feel free to yell at us for not rating your
+            favorite coaster higher.
+          </p>
+        </div>
       </section>
 
       {/* Live Countdown */}
       {nextTrip && (
-        <p className="text-center text-green-700 font-bold text-4xl -mt-12">
+        <p className="text-center text-green-700 font-bold text-3xl -mt-12">
           🎢 Next trip in {getDaysUntil(nextTrip.startDate)} days
         </p>
       )}
@@ -75,8 +94,8 @@ export default function AboutPage() {
             onClick={() => setShowPast(false)}
             className={`px-4 py-2 rounded-full text-sm font-medium border transition ${
               !showPast
-                ? 'bg-black text-white border-black'
-                : 'bg-white text-black border-gray-300 hover:bg-gray-100'
+                ? "bg-black text-white border-black"
+                : "bg-white text-black border-gray-300 hover:bg-gray-100"
             }`}
           >
             Upcoming Trips
@@ -85,8 +104,8 @@ export default function AboutPage() {
             onClick={() => setShowPast(true)}
             className={`px-4 py-2 rounded-full text-sm font-medium border transition ${
               showPast
-                ? 'bg-black text-white border-black'
-                : 'bg-white text-black border-gray-300 hover:bg-gray-100'
+                ? "bg-black text-white border-black"
+                : "bg-white text-black border-gray-300 hover:bg-gray-100"
             }`}
           >
             Past Trips
@@ -97,7 +116,9 @@ export default function AboutPage() {
         <div className="space-y-16 animate-fade-in-up delay-2">
           {Object.entries(grouped).map(([year, yearTrips]) => (
             <div key={year} className="space-y-4">
-              <h3 className="text-2xl font-bold text-center text-gray-800">{year}</h3>
+              <h3 className="text-2xl font-bold text-center text-gray-800">
+                {year}
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {yearTrips.map((trip, i) => (
                   <TripCard key={i} trip={trip} />
@@ -109,7 +130,9 @@ export default function AboutPage() {
           {/* Undecided Trips Last */}
           {undecidedTrips.length > 0 && (
             <div className="space-y-4 pt-10">
-              <h3 className="text-2xl font-bold text-center text-gray-800">As Soon As Possible</h3>
+              <h3 className="text-2xl font-bold text-center text-gray-800">
+                As Soon As Possible
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {undecidedTrips.map((trip, i) => (
                   <TripCard key={`undecided-${i}`} trip={trip} />
@@ -120,5 +143,5 @@ export default function AboutPage() {
         </div>
       </section>
     </main>
-  )
+  );
 }
