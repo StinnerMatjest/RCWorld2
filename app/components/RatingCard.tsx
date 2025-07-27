@@ -99,8 +99,8 @@ const RatingCard: React.FC<RatingCardProps> = ({
                   width={24}
                   height={16}
                   loading="lazy"
-                  unoptimized
                   className="rounded-sm"
+                  unoptimized
                 />
                 {park.name}
               </h1>
@@ -115,8 +115,8 @@ const RatingCard: React.FC<RatingCardProps> = ({
               height={500}
               width={500}
               loading="lazy"
-              unoptimized
               className="w-full h-full object-cover"
+              unoptimized
             />
           </figure>
 

@@ -49,6 +49,7 @@ export default function AboutPage() {
           width={350}
           height={350}
           className="rounded-xl mx-auto object-cover"
+          unoptimized
         />
         <h1 className="text-4xl font-extrabold">About ParkRating</h1>
         <div className="text-lg text-gray-700 max-w-2xl mx-auto space-y-4 text-center leading-relaxed">
