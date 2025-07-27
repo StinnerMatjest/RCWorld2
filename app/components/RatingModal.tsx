@@ -329,7 +329,7 @@ const RatingModal: React.FC<ModalProps> = ({
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <div
-        className="fixed inset-0 backdrop-blur-lg flex justify-center items-center"
+        className="fixed inset-0 z-[1000] backdrop-blur-lg flex justify-center items-center"
         onClick={closeModal}
       >
         <div
@@ -338,7 +338,7 @@ const RatingModal: React.FC<ModalProps> = ({
         >
           {/* Close button */}
           <button
-            className="absolute top-4 left-4 text-gray-500 hover:text-gray-700 transition duration-300"
+            className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition duration-300 cursor-pointer"
             onClick={closeModal}
           >
             ✕

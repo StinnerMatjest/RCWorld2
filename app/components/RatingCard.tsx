@@ -88,7 +88,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
           delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""
         }`}
       >
-        <div className="relative z-[60] flex flex-col items-center justify-between bg-blue-50 dark:bg-[#1e293b] rounded-2xl overflow-visible shadow-md dark:shadow-lg transition-transform duration-300 ease-in-out hover:scale-105 hover:shadow-xl transform-gpu will-change-transform">
+        <div className="flex flex-col items-center justify-between bg-blue-50 dark:bg-[#1e293b] rounded-2xl overflow-visible shadow-md dark:shadow-lg transition-transform duration-300 ease-in-out hover:scale-105 hover:shadow-xl transform-gpu will-change-transform">
           {/* Park Name */}
           <div className="flex flex-col items-center justify-center w-full min-h-[80px]">
             <div className="flex items-center justify-center text-center">
