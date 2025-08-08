@@ -12,6 +12,7 @@ import RatingCard from "./components/RatingCard";
 import RatingModal from "./components/RatingModal";
 import { useRouter } from "next/navigation";
 import { useSearch } from "./context/SearchContext";
+import LoadingSpinner from "./components/LoadingSpinner";
 
 export interface Rating {
   id: number;
@@ -157,7 +158,7 @@ const Home = () => {
     }, SETTLE_DELAY) as unknown as number;
   };
 
-  if (isLoading) return <div>Loading ratings and parks...</div>;
+if (isLoading) return <LoadingSpinner/>;
   if (error) return <div>Error: {error}</div>;
 
   const closeModal = () => {

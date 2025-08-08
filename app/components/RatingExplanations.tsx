@@ -37,10 +37,10 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
   return (
     <div className="space-y-8">
       <div className="flex items-center gap-2">
-        <h2 className="text-3xl font-semibold">Rating Explanations</h2>
+        <h2 className="text-3xl font-semibold dark:text-white">Rating Explanations</h2>
         <button
           onClick={() => setShowModal(true)}
-          className="text-gray-500 hover:text-gray-700 cursor-pointer"
+          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer transition-colors"
           aria-label="Edit Rating Explanations"
         >
           🔧
@@ -52,17 +52,16 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
         .map((key) => {
           const text = localExplanations[key] ?? "";
           const value = rating[key as keyof Rating] as number;
-          console.log("Category key:", key, "Value:", value);
 
           return (
             <div key={key} className="space-y-2">
               <div className="flex items-baseline gap-3">
-                <h3 className="text-xl font-semibold">{humanizeLabel(key)}</h3>
+                <h3 className="text-xl font-semibold dark:text-white">{humanizeLabel(key)}</h3>
                 <span className={`text-2xl font-bold ${getRatingColor(value)}`}>
                   {value}
                 </span>
               </div>
-              <p className="text-gray-700">{text}</p>
+              <p className="text-gray-700 dark:text-gray-400">{text}</p>
             </div>
           );
         })}
