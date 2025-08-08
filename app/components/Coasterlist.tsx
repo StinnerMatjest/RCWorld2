@@ -18,14 +18,14 @@ const CoasterList: React.FC<CoasterListProps> = ({
   const sorted = [...coasters].sort((a, b) =>
     b.isbestcoaster === a.isbestcoaster ? 0 : b.isbestcoaster ? 1 : -1
   );
-  const main = sorted.filter(c => c.scale !== "Junior" && c.scale !== "Kiddie");
-  const optional = sorted.filter(c => c.scale === "Junior" || c.scale === "Kiddie");
+  const main = sorted.filter((c) => c.scale !== "Junior" && c.scale !== "Kiddie");
+  const optional = sorted.filter((c) => c.scale === "Junior" || c.scale === "Kiddie");
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Roller Coasters</h2>
-      
+        <h2 className="text-2xl font-bold dark:text-white">Roller Coasters</h2>
+
         <button
           onClick={onAdd}
           className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm cursor-pointer"
@@ -39,10 +39,10 @@ const CoasterList: React.FC<CoasterListProps> = ({
       ) : main.length > 0 ? (
         <>
           <ul className="space-y-1 md:space-y-0">
-            {main.map(c => (
+            {main.map((c) => (
               <li
                 key={c.id}
-                className="flex items-center justify-between text-m md:text-lg border-b border-gray-100 py-1"
+                className="flex items-center justify-between text-m md:text-lg border-b border-gray-100 dark:border-white/10 py-1"
               >
                 {/* Left: name + info */}
                 <div className="flex flex-col md:flex-row md:items-center md:gap-2 min-w-0">
@@ -50,11 +50,11 @@ const CoasterList: React.FC<CoasterListProps> = ({
                     href={c.rcdbpath}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-blue-600 hover:underline font-medium truncate max-w-[200px]"
+                    className="text-blue-600 dark:text-blue-400 hover:underline font-medium truncate max-w-[200px]"
                   >
                     {c.name}
                   </a>
-                  <span className="text-gray-600 truncate">
+                  <span className="text-gray-600 dark:text-gray-400 truncate">
                     {c.year} • {c.manufacturer} • {c.model} • {c.scale}
                   </span>
                 </div>
@@ -64,21 +64,21 @@ const CoasterList: React.FC<CoasterListProps> = ({
                   <span
                     className={`px-2 py-0.5 text-xs rounded-md font-bold md:text-base ${
                       c.haveridden
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
+                        ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 dark:ring-1 dark:ring-green-700/40"
+                        : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 dark:ring-1 dark:ring-red-700/40"
                     }`}
                   >
                     {c.haveridden ? "Ridden" : "Not ridden"}
                   </span>
                   {c.isbestcoaster && (
-                    <span className="px-2 py-0.5 text-xs font-semibold rounded bg-yellow-100 text-yellow-800">
+                    <span className="px-2 py-0.5 text-xs font-semibold rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 dark:ring-1 dark:ring-yellow-700/40">
                       ⭐ Best
                     </span>
                   )}
                   <button
                     onClick={() => onEdit(c)}
                     title="Edit"
-                    className="text-gray-500 hover:text-gray-700 text-sm cursor-pointer"
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm cursor-pointer transition-colors"
                   >
                     🔧
                   </button>
@@ -89,23 +89,23 @@ const CoasterList: React.FC<CoasterListProps> = ({
 
           {optional.length > 0 && (
             <>
-              <h3 className="text-lg font-semibold mt-4">Optional Coasters</h3>
+              <h3 className="text-lg font-semibold mt-4 dark:text-white">Optional Coasters</h3>
               <ul className="space-y-1">
-                {optional.map(c => (
+                {optional.map((c) => (
                   <li
                     key={c.id}
-                    className="flex items-center justify-between gap-2 text-sm md:text-lg border-b border-gray-100 py-1"
+                    className="flex items-center justify-between gap-2 text-sm md:text-lg border-b border-gray-100 dark:border-white/10 py-1"
                   >
                     <div className="flex flex-col md:flex-row md:items-center md:gap-2 min-w-0">
                       <a
                         href={c.rcdbpath}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-blue-600 hover:underline font-medium truncate max-w-[200px] md:text-lg"
+                        className="text-blue-600 dark:text-blue-400 hover:underline font-medium truncate max-w-[200px] md:text-lg"
                       >
                         {c.name}
                       </a>
-                      <span className="text-gray-600 truncate">
+                      <span className="text-gray-600 dark:text-gray-400 truncate">
                         {c.year} • {c.manufacturer} • {c.model} • {c.scale}
                       </span>
                     </div>
@@ -114,8 +114,8 @@ const CoasterList: React.FC<CoasterListProps> = ({
                       <span
                         className={`px-2 py-0.5 text-xs rounded-md font-bold md:text-base ${
                           c.haveridden
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
+                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 dark:ring-1 dark:ring-green-700/40"
+                            : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 dark:ring-1 dark:ring-red-700/40"
                         }`}
                       >
                         {c.haveridden ? "Ridden" : "Not ridden"}
@@ -123,7 +123,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
                       <button
                         onClick={() => onEdit(c)}
                         title="Edit"
-                        className="text-gray-500 hover:text-gray-700 text-sm cursor-pointer"
+                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm cursor-pointer transition-colors"
                       >
                         🔧
                       </button>

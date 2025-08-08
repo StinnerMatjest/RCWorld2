@@ -120,6 +120,32 @@ select {
   }
 }
 
+/* Hide horizontal scrollbar in the mobile carousel */
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none;    /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;            /* Chrome/Safari */
+}
+
+/* Hide horizontal scrollbar for the carousel */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Edge bounce animation (respects reduced motion) */
+@keyframes edge-bounce {
+  0%   { transform: translateX(0); }
+  40%  { transform: translateX(8px); }
+  100% { transform: translateX(0); }
+}
+.edge-bounce-left  { animation: edge-bounce 180ms ease-out; }
+.edge-bounce-right { animation: edge-bounce 180ms ease-out reverse; }
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-bounce-left, .edge-bounce-right { animation: none !important; }
+}
+
 .animate-fade-in {
   animation: fade-in 200ms ease-out forwards;
 }

@@ -12,6 +12,7 @@ import Gallery from "@/app/components/Gallery";
 import GoogleMapView from "@/app/components/GoogleMapView";
 import ArchivePanel from "@/app/components/ArchivePanel";
 import type { Park, Rating, RollerCoaster } from "@/app/types";
+import LoadingSpinner from "@/app/components/LoadingSpinner";
 
 const ParkPage: React.FC = () => {
   const { id: parkId } = useParams();
@@ -68,29 +69,37 @@ const ParkPage: React.FC = () => {
     setCoasters(await res.json());
   };
 
-  if (!park) return <div>Loading park...</div>;
+if (!park) return <LoadingSpinner />;
 
   return (
     <div className="w-full">
       <ParkHeader park={park} />
 
-      <div className="grid grid-cols-1 md:grid-cols-[20%_1fr_1fr] gap-6 w-full py-10 px-6 md:px-20 bg-base-200">
+      <div className="grid grid-cols-1 md:grid-cols-[20%_1fr_1fr] gap-6 w-full py-10 px-6 md:px-20 bg-base-200 dark:bg-gray-900">
         {/* Info Panel */}
-        <div className="bg-blue-50 rounded-2xl p-6 shadow-sm text-center space-y-6 self-start">
+        <div
+          className="
+            bg-blue-50 dark:bg-gray-800
+            rounded-2xl p-6 text-center space-y-6 self-start
+            border border-gray-300 dark:border-white/10
+            shadow-sm dark:shadow-xl
+            ring ring-gray-200 dark:ring-white/10
+          "
+        >
           <div>
-            <h2 className="text-xl font-semibold mb-1">Park Info</h2>
-            <div className="border-t border-gray-300 my-3" />
+            <h2 className="text-xl font-semibold mb-1 dark:text-white">Park Info</h2>
+            <div className="border-t border-gray-300 dark:border-white/10 my-3" />
             <ParkInfo park={park} />
           </div>
 
           <div>
-            <div className="border-t border-gray-300 my-3" />
-            <h2 className="text-xl font-semibold mb-1 py-1">Location Map</h2>
+            <div className="border-t border-gray-300 dark:border-white/10 my-3" />
+            <h2 className="text-xl font-semibold mb-1 py-1 dark:text-white">Location Map</h2>
             <GoogleMapView />
           </div>
 
           <div>
-            <div className="border-t border-gray-300 my-3" />
+            <div className="border-t border-gray-300 dark:border-white/10 my-3" />
             <ArchivePanel
               ratings={ratings}
               parkId={Number(parkId)}
@@ -102,9 +111,9 @@ const ParkPage: React.FC = () => {
         {/* Introduction and Rating Explanations */}
         <div className="space-y-6">
           <div>
-            <h2 className="text-3xl font-semibold">Introduction</h2>
-            <div className="border-t border-gray-300 my-3" />
-            <p className="text-gray-700 text-base leading-relaxed">
+            <h2 className="text-3xl font-semibold dark:text-white">Introduction</h2>
+            <div className="border-t border-gray-300 dark:border-white/10 my-3" />
+            <p className="text-gray-700 dark:text-gray-400 text-base leading-relaxed">
               {explanations.description ?? "No description available."}
             </p>
           </div>
@@ -142,7 +151,7 @@ const ParkPage: React.FC = () => {
               onCoasterAdded={refreshCoasters}
             />
           )}
-          <Gallery parkId={park.id}  />
+          <Gallery parkId={park.id} />
         </div>
       </div>
 
