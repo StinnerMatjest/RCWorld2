@@ -32,7 +32,7 @@ const Navbar: React.FC = () => {
   }, [isDropdownOpen]);
 
   return (
-    <nav>
+    <div>
       {/* Desktop */}
       <div className="hidden md:flex justify-between items-center w-full space-x-6">
         <div className="w-auto max-w-xs">
@@ -42,6 +42,7 @@ const Navbar: React.FC = () => {
           <Link href="/about" className="hover:text-blue-500">About</Link>
           <Link href="/info" className="hover:text-blue-500">Rating Evaluation</Link>
           <Link href="https://rcdb.com/" className="hover:text-blue-500">Visit RCDB</Link>
+          <Link href="/coasterratings" className="text-black hover:text-blue-400">Coaster Ratings</Link>
           <Link href="/?modal=true" className="hover:text-blue-500">Rate a Park</Link>
         </div>
       </div>
@@ -126,7 +127,7 @@ const Navbar: React.FC = () => {
               <Link
                 href="/?modal=true"
                 className="text-black hover:text-blue-400"
-              >
+              />
             </li>
             <li>
               <Link href="/?modal=true" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>
@@ -137,7 +138,7 @@ const Navbar: React.FC = () => {
           </ul>
         </div>
       </div>
-    </nav>
+    </div>
   );
 };
 
