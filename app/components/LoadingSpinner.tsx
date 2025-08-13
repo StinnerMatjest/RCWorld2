@@ -14,6 +14,10 @@ const FALLBACKS = [
   "Measuring the speed of Troy…",
   "Preparing the drop of Kondaa…",
   "Sharing the love of Storm…",
+  "Taming the twists of Taron…",
+  "Smoothing the airtime on Balder…",
+  "Diving deep with Valkyria…",
+  "Spreading the wings of Fēnix…"
 ];
 
 const LoadingSpinner: React.FC<Props> = ({ messages, className }) => {

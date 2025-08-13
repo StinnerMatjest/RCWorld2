@@ -20,7 +20,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
   const cardRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
 
-  // SSR-safe check for mobile
+  // if window is smaller than 768px, set isMobile to true
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();

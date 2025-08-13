@@ -41,8 +41,8 @@ export interface Park {
   imagePath: string;
 }
 
-const SETTLE_DELAY = 110; // debounce before snapping to nearest
-const DOTS_OFFSET = 10;   // px above the safe area for dots
+const SETTLE_DELAY = 110; // wait before snapping to nearest
+const DOTS_OFFSET = 10; // distance above safe area for dots
 
 const Home = () => {
   const router = useRouter();
@@ -158,7 +158,7 @@ const Home = () => {
     }, SETTLE_DELAY) as unknown as number;
   };
 
-if (isLoading) return <LoadingSpinner/>;
+  if (isLoading) return <LoadingSpinner />;
   if (error) return <div>Error: {error}</div>;
 
   const closeModal = () => {
@@ -189,7 +189,11 @@ if (isLoading) return <LoadingSpinner/>;
             return (
               <div
                 key={rating.id}
-                style={{ ["--px" as any]: `${parallaxByIndex[index] ?? 0}px` }}
+                style={
+                  {
+                    "--px": `${parallaxByIndex[index] ?? 0}px`,
+                  } as React.CSSProperties
+                }
                 className={`
                   snap-center shrink-0
                   transition-transform duration-150 ease-out
@@ -199,7 +203,7 @@ if (isLoading) return <LoadingSpinner/>;
                   min-[480px]:w-[64vw]
                   min-[560px]:w-[60vw]
                   max-w-sm
-                `}
+                  `}
               >
                 <RatingCard rating={rating} park={park} delayIndex={index} />
               </div>

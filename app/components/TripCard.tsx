@@ -17,12 +17,11 @@ export type Trip = {
 }
 
 const getCardStyle = (status: Trip['status']) => {
-  // Balanced approach: slim border everywhere, slightly brighter borders & gently lifted bg in dark mode.
-  if (status === 'past')
+  if (status === 'past' || !status)
     return 'bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-500 border'
   if (status === 'booked')
     return 'bg-green-50 border-green-300 dark:bg-green-950 dark:border-green-500 border'
-  // planned
+  if (status === 'planned')
   return 'bg-yellow-50 border-yellow-300 dark:bg-yellow-950 dark:border-yellow-500 border'
 }
 

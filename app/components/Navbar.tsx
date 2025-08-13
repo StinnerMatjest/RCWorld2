@@ -33,7 +33,7 @@ const Navbar: React.FC = () => {
 
   return (
     <nav>
-      {/* Desktop: unchanged */}
+      {/* Desktop */}
       <div className="hidden md:flex justify-between items-center w-full space-x-6">
         <div className="w-auto max-w-xs">
           <SearchBar />
