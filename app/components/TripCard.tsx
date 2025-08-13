@@ -17,39 +17,35 @@ export type Trip = {
 }
 
 const getCardStyle = (status: Trip['status']) => {
-  if (status === 'past') return 'bg-gray-50 border-gray-200'
-  if (status === 'booked') return 'bg-green-50 border-green-400'
-  return 'bg-yellow-50 border-yellow-300'
+  if (status === 'past' || !status)
+    return 'bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-500 border'
+  if (status === 'booked')
+    return 'bg-green-50 border-green-300 dark:bg-green-950 dark:border-green-500 border'
+  if (status === 'planned')
+  return 'bg-yellow-50 border-yellow-300 dark:bg-yellow-950 dark:border-yellow-500 border'
 }
 
 const getDateRangeLabel = (start: string, end: string) => {
-  if (start === 'undecided' || end === 'undecided') {
-    return 'Dates TBD'
-  }
+  if (start === 'undecided' || end === 'undecided') return 'Dates TBD'
 
   const locale = 'da-DK'
-
   const from = new Date(start).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   })
-
   const to = new Date(end).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   })
-
   return `${from} – ${to}`
 }
-
 
 const getDurationSummary = (start: string, end: string, parkCount: number) => {
   if (start === 'undecided' || end === 'undecided') {
     return `📍 ${parkCount} ${parkCount === 1 ? 'park' : 'parks'} · TBD`
   }
-
   const dayMs = 1000 * 60 * 60 * 24
   const from = new Date(start)
   const to = new Date(end)
@@ -65,29 +61,29 @@ export default function TripCard({ trip }: { trip: Trip }) {
   return (
     <div
       onClick={() => setExpanded(prev => !prev)}
-      className={`relative rounded-xl border p-5 cursor-pointer ${getCardStyle(trip.status)} transition-transform hover:scale-[1.01] hover:shadow-md animate-fade-in-up delay-0 w-full`}
+      className={`relative rounded-xl p-5 cursor-pointer ${getCardStyle(trip.status)} transition-transform hover:scale-[1.01] hover:shadow-md dark:shadow animate-fade-in-up delay-0 w-full`}
     >
       {/* Status Badge */}
       <span
         className={`absolute -top-3 -left-3 px-3 py-1 text-xs font-bold rounded-full shadow-md ${
           trip.status === 'past'
-            ? 'bg-gray-200 text-gray-800'
+            ? 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100'
             : trip.status === 'booked'
-            ? 'bg-green-500 text-white'
-            : 'bg-yellow-400 text-black'
+            ? 'bg-green-500 text-white dark:bg-green-600 dark:text-white'
+            : 'bg-yellow-400 text-black dark:bg-yellow-500 dark:text-black'
         }`}
       >
         {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
       </span>
 
       {/* Trip Summary Top Right */}
-      <div className="absolute top-4 right-5 text-sm text-gray-600 font-medium">
+      <div className="absolute top-4 right-5 text-sm text-gray-600 dark:text-gray-300 font-medium">
         {getDurationSummary(trip.startDate, trip.endDate, parkCount)}
       </div>
 
       {/* Chevron */}
       <div
-        className="absolute bottom-4 right-5 text-gray-700 text-sm transition-transform duration-300 ease-in-out"
+        className="absolute bottom-4 right-5 text-gray-700 dark:text-gray-300 text-sm transition-transform duration-300 ease-in-out"
         style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
       >
         ▼
@@ -106,8 +102,8 @@ export default function TripCard({ trip }: { trip: Trip }) {
                 className="rounded-sm object-cover"
                 unoptimized
               />
-              <span className="text-2xl font-bold">{c}</span>
-              {idx < trip.country.length - 1 && <span className="text-xl font-bold">+</span>}
+              <span className="text-2xl font-bold dark:text-white">{c}</span>
+              {idx < trip.country.length - 1 && <span className="text-xl font-bold dark:text-white">+</span>}
             </div>
           ))
         ) : (
@@ -120,13 +116,13 @@ export default function TripCard({ trip }: { trip: Trip }) {
               className="rounded-sm object-cover"
               unoptimized
             />
-            <h4 className="text-2xl font-bold">{trip.country}</h4>
+            <h4 className="text-2xl font-bold dark:text-white">{trip.country}</h4>
           </div>
         )}
       </div>
 
       {/* Park Links */}
-      <ul className="list-disc list-inside text-gray-800 space-y-1 mb-3">
+      <ul className="list-disc list-inside text-gray-800 dark:text-gray-200 space-y-1 mb-3">
         {visibleParks.map((park, idx) => {
           const rcdbUrl = trip.rcdb?.[idx]
           return (
@@ -136,7 +132,7 @@ export default function TripCard({ trip }: { trip: Trip }) {
                   href={rcdbUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-600 hover:underline"
+                  className="text-gray-600 dark:text-gray-300 hover:underline"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {park}
@@ -148,14 +144,14 @@ export default function TripCard({ trip }: { trip: Trip }) {
           )
         })}
         {!expanded && trip.parks.length > 2 && (
-          <li className="text-sm text-gray-600 italic">
+          <li className="text-sm text-gray-600 dark:text-gray-400 italic">
             ...and {trip.parks.length - 2} more park{trip.parks.length - 2 > 1 ? 's' : ''}
           </li>
         )}
       </ul>
 
       {/* Date Range */}
-      <p className="text-sm text-gray-600 flex items-center gap-1">
+      <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-1">
         📅 {getDateRangeLabel(trip.startDate, trip.endDate)}
       </p>
 
@@ -163,8 +159,8 @@ export default function TripCard({ trip }: { trip: Trip }) {
       <div className={`expandable mt-4 ${expanded ? 'expanded' : 'collapsed'}`}>
         <div className="space-y-3">
           {trip.notes && (
-            <p className="text-sm text-gray-700">
-              📝 <span className="font-medium">Notes:</span> {trip.notes}
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              📝 <span className="font-medium dark:text-white">Notes:</span> {trip.notes}
             </p>
           )}
 
@@ -174,15 +170,15 @@ export default function TripCard({ trip }: { trip: Trip }) {
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="text-blue-600 text-sm hover:underline inline-block"
+              className="text-blue-600 dark:text-blue-300 text-sm hover:underline dark:hover:text-blue-200 inline-block"
             >
               🗺️ View on Google Maps
             </a>
           )}
 
           {trip.tripLog?.length && (
-            <div className="text-sm text-gray-800 space-y-1 pt-2">
-              <p className="font-medium">📅 Trip Log:</p>
+            <div className="text-sm text-gray-800 dark:text-gray-200 space-y-1 pt-2">
+              <p className="font-medium dark:text-white">📅 Trip Log:</p>
               {trip.tripLog.map((entry, i) => (
                 <div key={i} className="pl-2">
                   - {new Date(entry.date).toLocaleDateString('da-DK')}: {entry.activity}
