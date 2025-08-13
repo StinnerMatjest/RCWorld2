@@ -84,6 +84,29 @@ select {
   animation-delay: 0.5s;
 }
 
+/* About page styles*/
+
+.expandable {
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+}
+
+.expandable.collapsed {
+  max-height: 0;
+}
+
+.expandable.expanded {
+  max-height: 500px;
+}
+
+.chevron {
+  transition: transform 0.3s ease;
+}
+
+.chevron.rotated {
+  transform: rotate(180deg);
+}
+
 /*Modal fadein*/
 
 @keyframes fade-in {
@@ -95,6 +118,32 @@ select {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+/* Hide horizontal scrollbar in the mobile carousel */
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none;    /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;            /* Chrome/Safari */
+}
+
+/* Hide horizontal scrollbar for the carousel */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Edge bounce animation (respects reduced motion) */
+@keyframes edge-bounce {
+  0%   { transform: translateX(0); }
+  40%  { transform: translateX(8px); }
+  100% { transform: translateX(0); }
+}
+.edge-bounce-left  { animation: edge-bounce 180ms ease-out; }
+.edge-bounce-right { animation: edge-bounce 180ms ease-out reverse; }
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-bounce-left, .edge-bounce-right { animation: none !important; }
 }
 
 .animate-fade-in {
