@@ -2,7 +2,6 @@ import { Pool } from "pg";
 import { NextResponse } from "next/server";
 import { Rating } from "@/app/page";
 
-
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
@@ -10,50 +9,56 @@ const pool = new Pool({
   },
 });
 
-
 export async function GET() {
   try {
     const query = `
-      SELECT 
-        ratings.id AS rating_id,
-        ratings.date,
-        ratings.parkAppearance AS "parkappearance",
-        ratings.bestCoaster AS "bestcoaster",
-        ratings.waterRides AS "waterrides",
-        ratings.rideLineup AS "rideLineup",
-        ratings.food,
-        ratings.snacksAndDrinks AS "snacksanddrinks",
-        ratings.parkPracticality AS "parkpracticality",
-        ratings.rideOperations AS "rideoperations",
-        ratings.parkManagement AS "parkmanagement",
-        ratings.overall,
-        ratings.park_id,
-        parks.id AS park_id,
-        parks.name AS park_name,
-        parks.imagepath AS park_image
-      FROM ratings
-      JOIN parks ON ratings.park_id = parks.id
-    `;
+  SELECT DISTINCT ON (parks.id)
+    ratings.id AS rating_id,
+    ratings.date,
+    ratings.parkAppearance AS "parkappearance",
+    ratings.bestCoaster AS "bestcoaster",
+    ratings.coasterDepth AS "coasterdepth",
+    ratings.waterRides AS "waterrides",
+    ratings.flatridesAndDarkrides AS "flatridesanddarkrides",
+    ratings.food,
+    ratings.snacksAndDrinks AS "snacksanddrinks",
+    ratings.parkPracticality AS "parkpracticality",
+    ratings.rideOperations AS "rideoperations",
+    ratings.parkManagement AS "parkmanagement",
+    ratings.overall,
+    ratings.park_id,
+    parks.id AS park_id,
+    parks.name AS park_name,
+    parks.imagepath AS park_image
+  FROM ratings
+  JOIN parks ON ratings.park_id = parks.id
+  ORDER BY parks.id, ratings.date DESC
+`;
 
     const result = await pool.query(query);
 
-    const ratings: Rating[] = result.rows.map((row) => ({
-      id: row.rating_id,
-      date: row.date,
-      park: row.park_name,
-      parkAppearance: row.parkappearance,
-      bestCoaster: row.bestcoaster,
-      waterRides: row.waterrides,
-      rideLineup: row.rideLineup,
-      food: row.food,
-      snacksAndDrinks: row.snacksanddrinks,
-      parkPracticality: row.parkpracticality,
-      rideOperations: row.rideoperations,
-      parkManagement: row.parkmanagement,
-      overall: row.overall,
-      imagePath: row.park_image,
-      parkId: row.park_id,
-    }));
+const ratings: Rating[] = result.rows.map((row) => {
+  console.log(row);
+  return {
+    id: row.rating_id,
+    date: row.date,
+    park: row.park_name,
+    parkAppearance: row.parkappearance,
+    bestCoaster: row.bestcoaster,
+    coasterDepth: row.coasterdepth,
+    waterRides: row.waterrides,
+    flatridesAndDarkrides: row.flatridesanddarkrides,
+    food: row.food,
+    snacksAndDrinks: row.snacksanddrinks,
+    parkPracticality: row.parkpracticality,
+    rideOperations: row.rideoperations,
+    parkManagement: row.parkmanagement,
+    overall: row.overall,
+    imagePath: row.park_image,
+    parkId: row.park_id,
+  };
+});
+
 
     console.log(ratings);
 
@@ -68,18 +73,40 @@ export async function GET() {
   }
 }
 
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log('Received body:', body);
+    console.log("Received body:", body);
 
-    const {date, parkAppearance, bestCoaster, waterRides, rideLineup, food, snacksAndDrinks, parkPracticality, rideOperations, parkManagement, overall, parkId} = body;
+    const {
+      date,
+      parkAppearance,
+      parkPracticality,
+      bestCoaster,
+      coasterDepth,
+      waterRides,
+      flatridesAndDarkrides,
+      food,
+      snacksAndDrinks,
+      rideOperations,
+      parkManagement,
+      parkId,
+    } = body;
 
-    if (date === undefined || parkAppearance === undefined || bestCoaster === undefined || waterRides === undefined || rideLineup === undefined || food === undefined ||
-        snacksAndDrinks === undefined || parkPracticality === undefined || rideOperations === undefined || parkManagement === undefined || overall === undefined || parkId === undefined
-    )
-      {
+    if (
+      date === undefined ||
+      parkAppearance === undefined ||
+      parkPracticality === undefined ||
+      bestCoaster === undefined ||
+      coasterDepth === undefined ||
+      waterRides === undefined ||
+      flatridesAndDarkrides === undefined ||
+      food === undefined ||
+      snacksAndDrinks === undefined ||
+      rideOperations === undefined ||
+      parkManagement === undefined ||
+      parkId === undefined
+    ) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -90,21 +117,34 @@ export async function POST(request: Request) {
       INSERT INTO ratings (
         date,
         parkappearance,
+        parkpracticality,
         bestcoaster,
+        coasterdepth,
         waterrides,
-        rideLineup,
+        flatridesanddarkrides,
         food,
         snacksanddrinks,
-        parkpracticality,
         rideoperations,
         parkmanagement,
-        overall,
         park_id
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING id
     `;
 
-    const values = [date, parkAppearance, bestCoaster, waterRides, rideLineup, food, snacksAndDrinks, parkPracticality, rideOperations, parkManagement, overall, parkId];
+    const values = [
+      date,
+      parkAppearance,
+      parkPracticality,
+      bestCoaster,
+      coasterDepth,
+      waterRides,
+      flatridesAndDarkrides,
+      food,
+      snacksAndDrinks,
+      rideOperations,
+      parkManagement,
+      parkId,
+    ];
 
     const result = await pool.query(query, values);
 
