@@ -131,18 +131,18 @@ const RatingModal: React.FC<ModalProps> = ({
       rating === "Select Rating" ||
       typeof rating !== "number"
     ) {
-      return "text-black";
+      return "text-black dark:text-gray-100";
     }
 
-    if (rating >= 10.0) return "rainbow-animation"; // GOAT
-    if (rating >= 9.0) return "text-blue-700 dark:text-blue-400"; // Excellent
-    if (rating >= 7.5) return "text-green-600 dark:text-green-400"; // Great
-    if (rating >= 6.5) return "text-green-400 dark:text-green-300"; // Good
-    if (rating >= 5.5) return "text-yellow-400 dark:text-yellow-300"; // Average
-    if (rating >= 4.5) return "text-yellow-600 dark:text-yellow-500"; // Mediocre
-    if (rating >= 3.0) return "text-red-400 dark:text-red-300"; // Poor
-    if (rating <= 2.9) return "text-red-600 dark:text-red-500"; // Bad
-    return "text-black"; // Fallback
+    if (rating >= 10.0) return "rainbow-animation";
+    if (rating >= 9.0) return "text-blue-700 dark:text-blue-400";
+    if (rating >= 7.5) return "text-green-600 dark:text-green-400";
+    if (rating >= 6.5) return "text-green-400 dark:text-green-300";
+    if (rating >= 5.5) return "text-yellow-400 dark:text-yellow-300";
+    if (rating >= 4.5) return "text-yellow-600 dark:text-yellow-500";
+    if (rating >= 3.0) return "text-red-400 dark:text-red-300";
+    if (rating <= 2.9) return "text-red-600 dark:text-red-500";
+    return "text-black dark:text-gray-100";
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -178,7 +178,6 @@ const RatingModal: React.FC<ModalProps> = ({
   ) => {
     const { name, value } = e.target;
 
-    // If the continent changes, reset the country selection
     if (name === "continent") {
       setParkInfo((prev) => ({
         ...prev,
@@ -329,22 +328,24 @@ const RatingModal: React.FC<ModalProps> = ({
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <div
-        className="fixed inset-0 backdrop-blur-lg flex justify-center items-center"
+        className="fixed inset-0 z-[1000] bg-black/40 dark:bg-black/60 backdrop-blur-sm flex justify-center items-center"
         onClick={closeModal}
       >
         <div
-          className="bg-white p-8 rounded-lg shadow-lg max-w-lg w-full max-h-[80vh] overflow-y-auto relative flex flex-col"
-          onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+          className="bg-white dark:bg-gray-800 dark:text-gray-100 border border-transparent dark:border-white/10 p-8 rounded-lg shadow-lg max-w-lg w-full max-h-[80vh] overflow-y-auto relative flex flex-col"
+          onClick={(e) => e.stopPropagation()}
         >
           {/* Close button */}
           <button
-            className="absolute top-4 left-4 text-gray-500 hover:text-gray-700 transition duration-300"
+            className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white transition duration-300 cursor-pointer"
             onClick={closeModal}
           >
             ✕
           </button>
 
-          <h2 className="text-3xl mb-6 text-center font-bold">Rate a Park</h2>
+          <h2 className="text-3xl mb-6 text-center font-bold dark:text-white">
+            Rate a Park
+          </h2>
 
           {/* Display success message */}
           {message && (
@@ -353,10 +354,8 @@ const RatingModal: React.FC<ModalProps> = ({
               onClose={() => setMessage("")}
             />
           )}
-          <div
-            className="flex-1 overflow-y-auto px-3"
-            style={{ maxHeight: "60vh" }}
-          >
+
+          <div className="flex-1 overflow-y-auto px-3" style={{ maxHeight: "60vh" }}>
             <form className="space-y-4">
               {/* Park Section */}
               <div className="cursor-pointer">
@@ -364,18 +363,15 @@ const RatingModal: React.FC<ModalProps> = ({
                   className="flex justify-between items-center"
                   onClick={() => setParkSectionExpanded(!isParkSectionExpanded)}
                 >
-                  {/* Left arrow */}
-                  <span className="mr-2">
+                  <span className="mr-2 dark:text-gray-300">
                     {isParkSectionExpanded ? "▲" : "▼"}
                   </span>
 
-                  {/* Text in the middle */}
                   <div className="flex-1 flex justify-center">
-                    <h3 className="text-lg font-semibold">Park</h3>
+                    <h3 className="text-lg font-semibold dark:text-white">Park</h3>
                   </div>
 
-                  {/* Right arrow */}
-                  <span className="ml-2">
+                  <span className="ml-2 dark:text-gray-300">
                     {isParkSectionExpanded ? "▲" : "▼"}
                   </span>
                 </div>
@@ -385,14 +381,16 @@ const RatingModal: React.FC<ModalProps> = ({
                     <div>
                       <label
                         htmlFor="visitDate"
-                        className="block text-lg font-semibold"
+                        className="block text-lg font-semibold text-gray-800 dark:text-gray-300"
                       >
                         Visit Date
                       </label>
                       <DatePicker
                         selected={selectedDate}
                         onChange={(date: Date | null) => setSelectedDate(date)}
-                        className="w-96 p-2 border border-gray-300 rounded-md"
+                        className="w-96 p-2 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
+                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                                   dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
                         dateFormat="yyyy-MM-dd"
                         placeholderText="Select visit date"
                       />
@@ -401,7 +399,7 @@ const RatingModal: React.FC<ModalProps> = ({
                     <div>
                       <label
                         htmlFor="name"
-                        className="block text-lg font-semibold"
+                        className="block text-lg font-semibold text-gray-800 dark:text-gray-300"
                       >
                         Park Name
                       </label>
@@ -410,7 +408,9 @@ const RatingModal: React.FC<ModalProps> = ({
                         name="name"
                         value={parkInfo.name}
                         onChange={handleParkChange}
-                        className="w-96 p-2 border border-gray-300 rounded-md"
+                        className="w-96 p-2 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
+                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                                   dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
                         placeholder="Enter park name"
                         disabled={loading}
                       />
@@ -419,7 +419,7 @@ const RatingModal: React.FC<ModalProps> = ({
                     <div>
                       <label
                         htmlFor="continent"
-                        className="block text-lg font-semibold"
+                        className="block text-lg font-semibold text-gray-800 dark:text-gray-300"
                       >
                         Continent
                       </label>
@@ -427,7 +427,9 @@ const RatingModal: React.FC<ModalProps> = ({
                         name="continent"
                         value={parkInfo.continent}
                         onChange={handleParkChange}
-                        className="w-full p-2 border border-gray-300 rounded-md"
+                        className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900
+                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                                   dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:focus-visible:ring-offset-gray-800"
                       >
                         <option value="">Select Continent</option>
                         {Object.keys(continentCountries).map((continent) => (
@@ -441,7 +443,7 @@ const RatingModal: React.FC<ModalProps> = ({
                     <div>
                       <label
                         htmlFor="country"
-                        className="block text-lg font-semibold"
+                        className="block text-lg font-semibold text-gray-800 dark:text-gray-300"
                       >
                         Country
                       </label>
@@ -449,7 +451,10 @@ const RatingModal: React.FC<ModalProps> = ({
                         name="country"
                         value={parkInfo.country}
                         onChange={handleParkChange}
-                        className="w-full p-2 border border-gray-300 rounded-md"
+                        className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900
+                                   disabled:opacity-60
+                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                                   dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:focus-visible:ring-offset-gray-800"
                         disabled={!parkInfo.continent}
                       >
                         <option value="">Select Country</option>
@@ -467,7 +472,7 @@ const RatingModal: React.FC<ModalProps> = ({
                     <div>
                       <label
                         htmlFor="city"
-                        className="block text-lg font-semibold"
+                        className="block text-lg font-semibold text-gray-800 dark:text-gray-300"
                       >
                         City
                       </label>
@@ -476,7 +481,9 @@ const RatingModal: React.FC<ModalProps> = ({
                         name="city"
                         value={parkInfo.city}
                         onChange={handleParkChange}
-                        className="w-96 p-2 border border-gray-300 rounded-md"
+                        className="w-96 p-2 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
+                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                                   dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
                         placeholder="Enter city"
                       />
                     </div>
@@ -484,7 +491,7 @@ const RatingModal: React.FC<ModalProps> = ({
                     <div>
                       <label
                         htmlFor="image"
-                        className="block text-lg font-semibold"
+                        className="block text-lg font-semibold text-gray-800 dark:text-gray-300"
                       >
                         Park Image
                       </label>
@@ -494,14 +501,14 @@ const RatingModal: React.FC<ModalProps> = ({
                         onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            // Just save the file in parkInfo, no upload yet
                             setParkInfo({
                               ...parkInfo,
                               image: file,
                             });
                           }
                         }}
-                        className="w-full p-2 border border-gray-300 rounded-md"
+                        className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-2
+                                   dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:file:bg-gray-800"
                       />
                     </div>
                   </div>
@@ -516,21 +523,19 @@ const RatingModal: React.FC<ModalProps> = ({
                     setRatingSectionExpanded(!isRatingSectionExpanded)
                   }
                 >
-                  {/* Left arrow */}
-                  <span className="mr-2">
+                  <span className="mr-2 dark:text-gray-300">
                     {isParkSectionExpanded ? "▲" : "▼"}
                   </span>
 
-                  {/* Text in the middle */}
                   <div className="flex-1 flex justify-center">
-                    <h3 className="text-lg font-semibold">Rating</h3>
+                    <h3 className="text-lg font-semibold dark:text-white">Rating</h3>
                   </div>
 
-                  {/* Right arrow */}
-                  <span className="ml-2">
+                  <span className="ml-2 dark:text-gray-300">
                     {isParkSectionExpanded ? "▲" : "▼"}
                   </span>
                 </div>
+
                 {isRatingSectionExpanded && (
                   <div className="space-y-4 mt-2">
                     {[
@@ -546,21 +551,23 @@ const RatingModal: React.FC<ModalProps> = ({
                       "parkManagement",
                     ].map((field) => (
                       <div key={field} className="flex items-center space-x-4">
-                        {/* Rating Section */}
                         <div className="flex-1">
                           <label
                             htmlFor={field}
-                            className="block text-lg font-semibold"
+                            className="block text-lg font-semibold text-gray-800 dark:text-gray-300"
                           >
                             {field.replace(/([A-Z])/g, " $1").toUpperCase()}
                           </label>
+
                           <select
                             name={field}
                             value={ratings[field]?.toFixed(1) || ""}
                             onChange={handleInputChange}
-                            className={`w-full p-2 border border-gray-300 rounded-md ${getRatingColor(
-                              ratings[field] ?? ""
-                            )}`}
+                            className={`w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900
+                                        focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                                        dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:focus-visible:ring-offset-gray-800 ${getRatingColor(
+                                          ratings[field] ?? ""
+                                        )}`}
                           >
                             <option value="">Select Rating</option>
                             {[...Array(21)].map((_, i) => {
@@ -581,7 +588,6 @@ const RatingModal: React.FC<ModalProps> = ({
                             })}
                           </select>
 
-                          {/* GOLDEN RATINGS */}
                           {(field === "parkAppearance" ||
                             field === "bestCoaster" ||
                             field === "coasterDepth" ||
@@ -595,9 +601,10 @@ const RatingModal: React.FC<ModalProps> = ({
                                     name={field}
                                     checked={checkboxState[field]}
                                     onChange={handleCheckboxChange}
-                                    className="h-5 w-5 rounded border-gray-300 text-yellow-400 focus:ring-yellow-400 cursor-pointer"
+                                    className="h-5 w-5 rounded border-gray-300 text-yellow-400 focus:ring-yellow-400 cursor-pointer
+                                               dark:bg-gray-900 dark:border-white/10"
                                   />
-                                  <span className="text-sm font-medium text-gray-700">
+                                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                     GOLDEN RATING
                                   </span>
                                 </label>
@@ -615,17 +622,19 @@ const RatingModal: React.FC<ModalProps> = ({
                 type="button"
                 onClick={handleSubmit}
                 className={`w-full p-3 text-white font-semibold rounded-md transition duration-300 cursor-pointer
-        ${
-          isFormValid()
-            ? "bg-blue-500 hover:bg-blue-700"
-            : "bg-gray-400 cursor-not-allowed"
-        }`}
+                ${
+                  isFormValid()
+                    ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
+                    : "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
+                }
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800`}
                 disabled={!isFormValid() || loading}
               >
                 {loading ? <Loading /> : "Submit Rating"}
               </button>
             </form>
           </div>
+
           {showAuthModal && (
             <AuthenticationModal
               onClose={() => setShowAuthModal(false)}
