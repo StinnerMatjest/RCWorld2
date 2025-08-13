@@ -19,6 +19,7 @@ type Coaster = {
   parkId: number;
   parkName: string;
   year: number;
+  lastVisitDate: string | null;
 };
 
 export default function CoasterRatingsPage() {
@@ -56,6 +57,7 @@ export default function CoasterRatingsPage() {
             parkId: c.parkId,
             parkName: c.parkName,
             year: c.year ?? 0,
+            lastVisitDate: c.lastVisitDate,
           }));
 
         setCoasters(structuredCoasters);
@@ -129,14 +131,15 @@ export default function CoasterRatingsPage() {
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold mb-6">TOP COASTERS</h1>
-      <div className="overflow-auto rounded-lg shadow border border-gray-200 max-h-[1200px]">
-        <table className="min-w-full text-sm text-left">
+      <div className="overflow-auto rounded-lg shadow border border-gray-200 max-h-[1200px] w-full">
+        <table className="w-full text-sm lg:text-base xl:text-lg text-left">
           <thead className="bg-gray-100 text-xs uppercase text-gray-600 sticky top-0 z-10">
             <tr>
               <th scope="col" className="px-4 py-3">
                 #
               </th>
 
+              {/* Name */}
               <th
                 scope="col"
                 className="px-4 py-3 cursor-pointer hover:underline select-none"
@@ -154,40 +157,7 @@ export default function CoasterRatingsPage() {
                 </div>
               </th>
 
-              <th
-                scope="col"
-                className="px-4 py-3 cursor-pointer hover:underline select-none"
-                onClick={() => handleSort("parkName")}
-              >
-                <div className="inline-flex items-center">
-                  Park
-                  <span
-                    className={`ml-1 w-4 text-gray-700 ${
-                      sortBy === "parkName" ? "visible" : "invisible"
-                    }`}
-                  >
-                    {sortDirection === "asc" ? "▲" : "▼"}
-                  </span>
-                </div>
-              </th>
-
-              <th
-                scope="col"
-                className="px-4 py-3 cursor-pointer hover:underline select-none"
-                onClick={() => handleSort("manufacturer")}
-              >
-                <div className="inline-flex items-center">
-                  Manufacturer
-                  <span
-                    className={`ml-1 w-4 text-gray-700 ${
-                      sortBy === "manufacturer" ? "visible" : "invisible"
-                    }`}
-                  >
-                    {sortDirection === "asc" ? "▲" : "▼"}
-                  </span>
-                </div>
-              </th>
-
+              {/* Rating */}
               <th
                 scope="col"
                 className="px-4 py-3 cursor-pointer hover:underline select-none"
@@ -205,6 +175,43 @@ export default function CoasterRatingsPage() {
                 </div>
               </th>
 
+              {/* Park */}
+              <th
+                scope="col"
+                className="px-4 py-3 cursor-pointer hover:underline select-none"
+                onClick={() => handleSort("parkName")}
+              >
+                <div className="inline-flex items-center">
+                  Park
+                  <span
+                    className={`ml-1 w-4 text-gray-700 ${
+                      sortBy === "parkName" ? "visible" : "invisible"
+                    }`}
+                  >
+                    {sortDirection === "asc" ? "▲" : "▼"}
+                  </span>
+                </div>
+              </th>
+
+              {/* Manufacturer */}
+              <th
+                scope="col"
+                className="px-4 py-3 cursor-pointer hover:underline select-none"
+                onClick={() => handleSort("manufacturer")}
+              >
+                <div className="inline-flex items-center">
+                  Manufacturer
+                  <span
+                    className={`ml-1 w-4 text-gray-700 ${
+                      sortBy === "manufacturer" ? "visible" : "invisible"
+                    }`}
+                  >
+                    {sortDirection === "asc" ? "▲" : "▼"}
+                  </span>
+                </div>
+              </th>
+
+              {/* Ride Count */}
               <th
                 scope="col"
                 className="px-4 py-3 cursor-pointer hover:underline select-none"
@@ -221,15 +228,36 @@ export default function CoasterRatingsPage() {
                   </span>
                 </div>
               </th>
+
+              {/* Last Ridden */}
+              <th
+                scope="col"
+                className="px-4 py-3 cursor-pointer hover:underline select-none"
+                onClick={() => handleSort("lastVisitDate")}
+              >
+                <div className="inline-flex items-center">
+                  Last Ridden
+                  <span
+                    className={`ml-1 w-4 text-gray-700 ${
+                      sortBy === "lastVisitDate" ? "visible" : "invisible"
+                    }`}
+                  >
+                    {sortDirection === "asc" ? "▲" : "▼"}
+                  </span>
+                </div>
+              </th>
             </tr>
           </thead>
 
           <tbody className="divide-y divide-gray-200">
             {sortedCoasters.map((coaster, index) => (
               <tr key={coaster.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-900">
+                {/* Index */}
+                <td className="px-4 py-3 font-medium text-gray-900 ">
                   {index + 1}
                 </td>
+
+                {/* Name */}
                 <td className="px-4 py-3 font-medium text-gray-900">
                   <a
                     href={coaster.rcdbPath}
@@ -240,16 +268,8 @@ export default function CoasterRatingsPage() {
                     {coaster.name}
                   </a>
                 </td>
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/park/${coaster.parkId}`}
-                    className="text-blue-600 hover:underline"
-                    rel="noopener noreferrer"
-                  >
-                    {coaster.parkName}
-                  </Link>
-                </td>
-                <td className="px-4 py-3">{coaster.manufacturer}</td>
+
+                {/* Rating */}
                 <td
                   className={`px-5 py-3 font-semibold ${
                     coaster.rating !== null
@@ -259,7 +279,30 @@ export default function CoasterRatingsPage() {
                 >
                   {coaster.rating !== null ? coaster.rating.toFixed(1) : "—"}
                 </td>
+
+                {/* Park */}
+                <td className="px-4 py-3">
+                  <Link
+                    href={`/park/${coaster.parkId}`}
+                    className="text-blue-600 hover:underline"
+                    rel="noopener noreferrer"
+                  >
+                    {coaster.parkName}
+                  </Link>
+                </td>
+
+                {/* Manufacturer */}
+                <td className="px-4 py-3">{coaster.manufacturer}</td>
+
+                {/* Ride Count */}
                 <td className="px-12 py-3">{coaster.rideCount}</td>
+
+                {/* Last Ridden */}
+                <td className="px-4 py-3">
+                  {coaster.lastVisitDate
+                    ? new Date(coaster.lastVisitDate).toLocaleDateString()
+                    : "—"}
+                </td>
               </tr>
             ))}
           </tbody>
