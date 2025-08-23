@@ -10,7 +10,7 @@ export type Trip = {
   rcdb?: string[]
   startDate: string
   endDate: string
-  status: 'booked' | 'planned' | 'past'
+  status: 'booked' | 'planned' | 'past' | 'backlog'
   notes?: string
   mapLink?: string
   tripLog?: { date: string; activity: string }[]
@@ -22,7 +22,9 @@ const getCardStyle = (status: Trip['status']) => {
   if (status === 'booked')
     return 'bg-green-50 border-green-300 dark:bg-green-950 dark:border-green-500 border'
   if (status === 'planned')
-  return 'bg-yellow-50 border-yellow-300 dark:bg-yellow-950 dark:border-yellow-500 border'
+    return 'bg-yellow-50 border-yellow-300 dark:bg-yellow-950 dark:border-yellow-500 border'
+  if (status === 'backlog')
+    return 'bg-blue-50 border-blue-300 dark:bg-blue-950 dark:border-blue-500 border'
 }
 
 const getDateRangeLabel = (start: string, end: string) => {
@@ -53,6 +55,15 @@ const getDurationSummary = (start: string, end: string, parkCount: number) => {
   return `📍 ${parkCount} ${parkCount === 1 ? 'park' : 'parks'} · ${days} ${days === 1 ? 'day' : 'days'}`
 }
 
+/** Formats either an ISO date or a free-form label like 'Day 1'. */
+const formatTripLogDate = (value: string) => {
+  if (!value) return ''
+  const isDayLabel = /^day\s*\d+$/i.test(value.trim())
+  if (value === 'undecided' || isDayLabel) return value
+  const d = new Date(value)
+  return isNaN(d.getTime()) ? value : d.toLocaleDateString('da-DK')
+}
+
 export default function TripCard({ trip }: { trip: Trip }) {
   const [expanded, setExpanded] = useState(false)
   const parkCount = trip.parks.length
@@ -70,7 +81,9 @@ export default function TripCard({ trip }: { trip: Trip }) {
             ? 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100'
             : trip.status === 'booked'
             ? 'bg-green-500 text-white dark:bg-green-600 dark:text-white'
-            : 'bg-yellow-400 text-black dark:bg-yellow-500 dark:text-black'
+            : trip.status === 'planned'
+            ? 'bg-yellow-400 text-black dark:bg-yellow-500 dark:text-black'
+            : 'bg-blue-500 text-white dark:bg-blue-600 dark:text-white'
         }`}
       >
         {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
@@ -158,12 +171,12 @@ export default function TripCard({ trip }: { trip: Trip }) {
       {/* Expandable Section */}
       <div className={`expandable mt-4 ${expanded ? 'expanded' : 'collapsed'}`}>
         <div className="space-y-3">
-          {trip.notes && (
-            <p className="text-sm text-gray-700 dark:text-gray-300">
-              📝 <span className="font-medium dark:text-white">Notes:</span> {trip.notes}
-            </p>
-          )}
-
+            {trip.notes && (
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            📝 <span className="font-medium dark:text-white">Notes:</span>{' '}
+            <span className="whitespace-pre-line leading-relaxed">{trip.notes}</span>
+          </p>
+        )}
           {trip.mapLink && (
             <a
               href={trip.mapLink}
@@ -181,7 +194,7 @@ export default function TripCard({ trip }: { trip: Trip }) {
               <p className="font-medium dark:text-white">📅 Trip Log:</p>
               {trip.tripLog.map((entry, i) => (
                 <div key={i} className="pl-2">
-                  - {new Date(entry.date).toLocaleDateString('da-DK')}: {entry.activity}
+                  - {formatTripLogDate(entry.date)}: {entry.activity}
                 </div>
               ))}
             </div>
