@@ -151,28 +151,22 @@ export default function EvaluationCriteriaPage() {
         }
       `}</style>
 
-      {/* Hero (centered full-width) */}
-      <section className="mx-auto max-w-6xl px-6 pt-14 pb-16 text-center">
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 dark:text-white">
-          Rating Evaluation
-        </h1>
-        <p className="mt-4 mx-auto max-w-2xl text-lg text-gray-700 dark:text-gray-300">
-           Our park ratings are split into five categories: <strong>Coasters</strong>, <strong>Rides</strong>, <strong>Park</strong>, <strong>Food</strong>, and <strong>Management</strong>.  
-  Each category has two criteria, scored from 0–10, and the overall rating is just the average of all five categories.  
-  <br />
-  These reviews are, of course, only our personal opinions, so please do not hold us liable if you suddenly find yourself falling in love with a new manufacturer or swearing by a ride we did not love quite as much.
-        </p>
-      </section>
-
-      {/* Two-column doc layout: TOC left, all content right */}
-      <div className="mx-auto max-w-6xl grid grid-cols-1 md:grid-cols-12 gap-10 px-6 pb-24">
-        {/* TOC */}
+      <div className="mx-auto max-w-6xl grid grid-cols-1 md:grid-cols-12 gap-10 px-6 pt-14 pb-24">
+        {/* TOC (left) */}
         <aside className="hidden md:block md:col-span-3">
           <nav className="sticky top-20">
             <p className="text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400 mb-3">
               Jump to section
             </p>
             <ul className="space-y-3 text-sm">
+              <li>
+                <a
+                  href="#introduction"
+                  className="inline-flex items-center gap-2 font-medium text-gray-900 dark:text-white rounded px-2 py-1 hover:bg-blue-50 dark:hover:bg-[#1e293b]"
+                >
+                  📖 Introduction
+                </a>
+              </li>
               <li>
                 <a
                   href="#how-scoring-works"
@@ -193,7 +187,6 @@ export default function EvaluationCriteriaPage() {
                   <ul className="space-y-1 pl-2 border-l border-gray-200 dark:border-white/10">
                     {group.categories.map((c) => (
                       <li key={c.id}>
-                        {/* Still 5 scroll zones → link to group anchor */}
                         <a
                           href={`#${group.name}`}
                           className="block rounded-l px-2 py-1 hover:bg-blue-50 dark:hover:bg-[#1e293b] text-gray-700 dark:text-gray-300"
@@ -210,27 +203,34 @@ export default function EvaluationCriteriaPage() {
           </nav>
         </aside>
 
-        {/* Main content (right column) */}
+        {/* RIGHT column content */}
         <main className="md:col-span-9 space-y-28">
+          {/* Hero/Introduction */}
+          <section id="introduction" className="pt-0 pb-4 text-center">
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 dark:text-white">
+              Rating Evaluation
+            </h1>
+            <p className="mt-4 mx-auto max-w-2xl text-lg text-gray-700 dark:text-gray-300">
+              Our park ratings are split into five categories: <strong>Coasters</strong>, <strong>Rides</strong>, <strong>Park</strong>, <strong>Food</strong>, and <strong>Management</strong>.
+              Each category has two criteria, scored from 0 to 10, and the overall rating is just the average of all five categories.
+              <br />
+              These reviews are, of course, only our personal opinions, so please do not hold us liable if you suddenly find yourself falling in love with a new manufacturer or swearing by a ride we did not love quite as much.
+            </p>
+          </section>
+
           {/* How scoring works */}
           <section id="how-scoring-works">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white text-center">
               How scoring works
             </h2>
             <p className="mt-3 text-gray-700 dark:text-gray-300 text-base text-center">
-
-              Each criterion is scored from 0–10 based on our experience during the visit. The scores and their meanings are outlined below. In rare cases, a truly standout criterion may break the scale and earn a{" "}
-  <span className="font-extrabold text-yellow-500">Golden</span> rating of 11.
+              Each criterion is scored from 0–10 based on our experience during the visit. The scores and their meanings are outlined below. In rare cases, a truly standout criterion may break the scale and earn a {" "}
+              <span className="font-extrabold text-yellow-500">Golden</span> rating of 11.
               <br />
             </p>
 
-            {/* Legend grid — Golden spans full row on mobile, 3x3 on desktop */}
             <div className="mt-10 grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
-              <LegendBox
-                spanMobile
-                number={<span className="text-yellow-500">👑 11 👑</span>}
-                label="Golden"
-              />
+              <LegendBox spanMobile number={<span className="text-yellow-500">👑 11 👑</span>} label="Golden" />
               <LegendBox number={<span className="rainbow-animation">10.0</span>} label="Extraordinary" />
               <LegendBox number={<span className="text-blue-700 dark:text-blue-400">9–10</span>} label="Elite" />
               <LegendBox number={<span className="text-green-600 dark:text-green-400">7.5–9</span>} label="Great" />
@@ -242,17 +242,14 @@ export default function EvaluationCriteriaPage() {
             </div>
           </section>
 
-          {/* Evaluation Criteria headline */}
           <section>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900 dark:text-white text-center">
               Evaluation Criteria
             </h2>
           </section>
 
-          {/* Groups */}
           {groups.map((group, gi) => (
             <section key={group.name}>
-              {/* Group header centered */}
               <div id={group.name} className="group-anchor mb-12">
                 <div className="flex flex-col items-center gap-2">
                   <span className="text-4xl md:text-5xl">{GROUP_ICON[group.name]}</span>
@@ -262,7 +259,6 @@ export default function EvaluationCriteriaPage() {
                 </div>
               </div>
 
-              {/* 2-column subcategories */}
               <div className="relative mx-auto max-w-3xl">
                 <div className="pointer-events-none absolute inset-y-0 left-1/2 hidden -translate-x-1/2 md:block">
                   <div className="h-full border-l border-gray-200 dark:border-white/10" />
@@ -277,14 +273,12 @@ export default function EvaluationCriteriaPage() {
                 </div>
               </div>
 
-              {/* Divider between groups */}
               {gi !== groups.length - 1 && (
                 <div className="mt-16">
                   <hr className="mx-auto max-w-3xl border-gray-200 dark:border-white/10" />
                 </div>
               )}
 
-              {/* On the last group add CTAs and a scroll-buffer */}
               {gi === groups.length - 1 && (
                 <>
                   <div className="mt-16 w-full">
@@ -299,7 +293,7 @@ export default function EvaluationCriteriaPage() {
                         href="/"
                         className="px-6 py-3 rounded-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-semibold shadow-md hover:scale-105 transition transform"
                       >
-                        Ready to browse our reviews? →
+                        Browse Park Reviews →
                       </a>
                     </div>
                   </div>
@@ -315,7 +309,6 @@ export default function EvaluationCriteriaPage() {
   );
 }
 
-/** Legend box helper — blue-tinted background & rounded-2xl to match your cards */
 function LegendBox({
   number,
   label,
@@ -337,7 +330,6 @@ function LegendBox({
   );
 }
 
-/** Subcategory block — aligned toggle + bullets */
 function CategoryMinimal({
   data,
 }: {
