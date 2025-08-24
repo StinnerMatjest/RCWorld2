@@ -15,7 +15,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve", // Change from "preserve" to "react-jsx"
+    "jsx": "preserve",
     "incremental": true,
     "plugins": [
       {
@@ -32,8 +32,10 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts"
-, "tailwind.config.mjs", "tailwind.config.mjs"  ],
+    ".next/types/**/*.ts",
+    "tailwind.config.mjs",
+    "tailwind.config.mjs"
+  ],
   "exclude": [
     "node_modules"
   ]

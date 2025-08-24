@@ -22,34 +22,61 @@ interface AddCoasterModalProps {
 
 const manufacturers = [
   "abc rides",
+  "Allan Herschell Company",
   "Arrow Dynamics",
   "ART Engineering",
+  "Barbisan",
+  "Beijing Shibaolai",
+  "BHS",
   "Bolliger & Mabillard",
+  "Chance Rides",
+  "CCI",
+  "Dinn Corporation",
+  "Dynamic Attractions",
+  "E&F Miler",
+  "EOS Rides",
+  "Extreme Engineering",
+  "Fabbri",
   "Gerstlauer",
   "Giovanola",
   "Gravity Group",
-  "Great Coasters International",
+  "GCI",
   "Hopkins",
+  "I.E. Park",
   "Intamin",
+  "Interpark",
   "Jinma Rides",
+  "L.A. Thompson",
+  "L&T Systems",
   "Mack Rides",
+  "Martin & Vleminckx",
   "Maurer",
+  "Meisho",
+  "Morgan",
+  "Pax Company",
   "Pinfari",
   "Premier Rides",
   "Preston & Barbieri",
+  "PTC",
+  "RCCA",
   "Reverchon",
-  "Ride Engineers Switzerland",
-  "Rocky Mountain Construction",
+  "RES Rides AG",
+  "RMC",
   "S&S Worldwide",
   "SBF Visa",
+  "S.D.C.",
   "Schwarzkopf",
+  "Skyline Attractions",
   "Soquet",
   "Technical Park",
   "Togo",
   "Vekoma",
+  "Walther Queenland",
   "Zamperla",
+  "Zhipao",
   "Zierer",
 ];
+
 const scales = [
   "High Thrill",
   "Thrill",
@@ -86,12 +113,15 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
 
   useEffect(() => {
     if (isAuthenticated && postAuthAction) {
-      if (postAuthAction === "submit") {
-        handleSubmit();
-      } else if (postAuthAction === "delete") {
-        handleDelete();
-      }
-      setPostAuthAction(null);
+      const runAction = async () => {
+        if (postAuthAction === "submit") {
+          await handleSubmit();
+        } else if (postAuthAction === "delete") {
+          await handleDelete();
+        }
+        setPostAuthAction(null);
+      };
+      runAction();
     }
   }, [isAuthenticated, postAuthAction]);
 
@@ -177,7 +207,7 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 backdrop-blur-lg flex justify-center items-center">
+    <div className="fixed inset-0 backdrop-blur-lg flex justify-center items-center z-50">
       <div className="bg-white p-6 rounded-lg shadow-lg w-[400px]">
         <h2 className="text-2xl font-semibold mb-6 text-center">
           {coaster ? "Edit Roller Coaster" : "Add New Roller Coaster"}
