@@ -39,6 +39,20 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
   };
 
   useEffect(() => {
+    const fetchGalleryImages = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/park/${parkId}/gallery`);
+        const data = await res.json();
+        const gallery: GalleryImage[] = data.gallery;
+        setImages(gallery);
+      } catch (err) {
+        console.error("Failed to fetch gallery images", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchGalleryImages();
   }, [parkId]);
 
@@ -152,7 +166,9 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
               unoptimized
             />
             {selected.description && (
-              <p className="mt-2 text-white text-center">{selected.description}</p>
+              <p className="mt-2 text-white text-center">
+                {selected.description}
+              </p>
             )}
           </div>
         </div>

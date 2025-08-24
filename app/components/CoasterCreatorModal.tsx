@@ -113,12 +113,15 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
 
   useEffect(() => {
     if (isAuthenticated && postAuthAction) {
-      if (postAuthAction === "submit") {
-        handleSubmit();
-      } else if (postAuthAction === "delete") {
-        handleDelete();
-      }
-      setPostAuthAction(null);
+      const runAction = async () => {
+        if (postAuthAction === "submit") {
+          await handleSubmit();
+        } else if (postAuthAction === "delete") {
+          await handleDelete();
+        }
+        setPostAuthAction(null);
+      };
+      runAction();
     }
   }, [isAuthenticated, postAuthAction]);
 

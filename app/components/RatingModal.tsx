@@ -120,7 +120,13 @@ const RatingModal: React.FC<ModalProps> = ({
 
   useEffect(() => {
     if (isAuthenticated && shouldSubmitAfterAuth) {
-      handleSubmit();
+      if (!isFormValid()) {
+        alert("Please fill out all required fields.");
+      } else if (!isAuthenticated) {
+        setShowAuthModal(true);
+      } else {
+        submitData();
+      }
       setShouldSubmitAfterAuth(false);
     }
   }, [isAuthenticated, shouldSubmitAfterAuth]);
@@ -355,7 +361,10 @@ const RatingModal: React.FC<ModalProps> = ({
             />
           )}
 
-          <div className="flex-1 overflow-y-auto px-3" style={{ maxHeight: "60vh" }}>
+          <div
+            className="flex-1 overflow-y-auto px-3"
+            style={{ maxHeight: "60vh" }}
+          >
             <form className="space-y-4">
               {/* Park Section */}
               <div className="cursor-pointer">
@@ -368,7 +377,9 @@ const RatingModal: React.FC<ModalProps> = ({
                   </span>
 
                   <div className="flex-1 flex justify-center">
-                    <h3 className="text-lg font-semibold dark:text-white">Park</h3>
+                    <h3 className="text-lg font-semibold dark:text-white">
+                      Park
+                    </h3>
                   </div>
 
                   <span className="ml-2 dark:text-gray-300">
@@ -528,7 +539,9 @@ const RatingModal: React.FC<ModalProps> = ({
                   </span>
 
                   <div className="flex-1 flex justify-center">
-                    <h3 className="text-lg font-semibold dark:text-white">Rating</h3>
+                    <h3 className="text-lg font-semibold dark:text-white">
+                      Rating
+                    </h3>
                   </div>
 
                   <span className="ml-2 dark:text-gray-300">
