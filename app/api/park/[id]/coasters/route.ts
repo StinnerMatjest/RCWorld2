@@ -8,51 +8,90 @@ const pool = new Pool({
   },
 });
 
-export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     const { id: parkId } = await context.params; // Resolve params in Next.js 15
 
     console.log("Fetching coasters for park ID:", parkId);
 
     const query = `
-      SELECT 
-        id,
-        name,
-        year,
-        manufacturer,
-        model,
-        scale,
-        haveridden,
-        isbestcoaster,
-        rcdbpath
-      FROM rollercoasters
-      WHERE park_id = $1
-    `;
+  SELECT 
+    id,
+    name,
+    year,
+    manufacturer,
+    model,
+    scale,
+    haveridden,
+    isbestcoaster,
+    rcdbpath,
+    rating,
+    ridecount
+  FROM rollercoasters
+  WHERE park_id = $1
+`;
 
     const result = await pool.query(query, [parkId]);
 
     return NextResponse.json(result.rows, { status: 200 });
   } catch (error) {
     console.error("Database query error:", error);
-    return NextResponse.json({ error: "Failed to fetch roller coasters" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch roller coasters" },
+      { status: 500 }
+    );
   }
 }
 
-export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id: parkId } = await context.params; // Resolve params in Next.js 15
+    const { id: parkId } = await context.params;
     const body = await req.json();
-    const { name, year, manufacturer, model, scale, haveridden, isbestcoaster, rcdbpath } = body;
+    const {
+      name,
+      year,
+      manufacturer,
+      model,
+      scale,
+      haveridden,
+      isbestcoaster,
+      rcdbpath,
+      rating,
+      rideCount,
+    } = body;
 
-    console.log("Adding coaster to park ID:", parkId, name, year, manufacturer, model);
-
-    if (!name || !year || !manufacturer || !model || !scale || haveridden === undefined || isbestcoaster === undefined || !rcdbpath) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (
+      !name ||
+      !year ||
+      !manufacturer ||
+      !model ||
+      !scale ||
+      haveridden === undefined ||
+      isbestcoaster === undefined ||
+      !rcdbpath ||
+      rating === undefined ||
+      rideCount === undefined
+    ) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
+    const rideCountInitial = Number.isNaN(Number(rideCount))
+      ? 0
+      : Number(rideCount);
+
     const query = `
-      INSERT INTO rollercoasters (park_id, name, year, manufacturer, model, scale, haveridden, isbestcoaster, rcdbpath)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO rollercoasters
+        (park_id, name, year, manufacturer, model, scale, haveridden, isbestcoaster, rcdbpath, rating, ridecount)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
       RETURNING *;
     `;
 
@@ -66,11 +105,16 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       haveridden,
       isbestcoaster,
       rcdbpath,
+      rating,
+      rideCountInitial,
     ]);
 
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error) {
     console.error("Database insert error:", error);
-    return NextResponse.json({ error: "Failed to add roller coaster" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create roller coaster" },
+      { status: 500 }
+    );
   }
 }

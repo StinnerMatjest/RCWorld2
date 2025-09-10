@@ -17,25 +17,29 @@ export async function GET(
 
   const result = await pool.query(
     `
-    SELECT
-      id,
-      name,
-      year,
-      manufacturer,
-      model,
-      scale,
-      haveridden,
-      isbestcoaster,
-      rcdbpath
-    FROM rollercoasters
-    WHERE id = $1 AND park_id = $2;
-    `,
+  SELECT
+    id,
+    name,
+    year,
+    manufacturer,
+    model,
+    scale,
+    haveridden,
+    isbestcoaster,
+    rcdbpath,
+    rating,
+    ridecount
+  FROM rollercoasters
+  WHERE id = $1 AND park_id = $2;
+  `,
     [coasterId, parkId]
   );
 
   if (result.rowCount === 0) {
     return NextResponse.json(
-      { error: `Park: ${parkId} does not contain a coaster with ID: ${coasterId}` },
+      {
+        error: `Park: ${parkId} does not contain a coaster with ID: ${coasterId}`,
+      },
       { status: 404 }
     );
   }
@@ -59,9 +63,9 @@ export async function PUT(
       haveridden,
       isbestcoaster,
       rcdbpath,
+      rating,
+      rideCount,
     } = body;
-
-    console.log("Updating coaster ID:", coasterId, "in park ID:", parkId);
 
     if (
       !name ||
@@ -71,7 +75,9 @@ export async function PUT(
       !scale ||
       haveridden === undefined ||
       isbestcoaster === undefined ||
-      !rcdbpath
+      !rcdbpath ||
+      rating === undefined ||
+      rideCount === undefined
     ) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -80,18 +86,20 @@ export async function PUT(
     }
 
     const query = `
-        UPDATE rollercoasters
-        SET name = $1,
-            year = $2,
-            manufacturer = $3,
-            model = $4,
-            scale = $5,
-            haveridden = $6,
-            isbestcoaster = $7,
-            rcdbpath = $8
-        WHERE id = $9 AND park_id = $10
-        RETURNING *;
-      `;
+  UPDATE rollercoasters
+  SET name = $1,
+      year = $2,
+      manufacturer = $3,
+      model = $4,
+      scale = $5,
+      haveridden = $6,
+      isbestcoaster = $7,
+      rcdbpath = $8,
+      rating = $9,
+      ridecount = ridecount + $10
+  WHERE id = $11 AND park_id = $12
+  RETURNING *;
+`;
 
     const result = await pool.query(query, [
       name,
@@ -102,6 +110,8 @@ export async function PUT(
       haveridden,
       isbestcoaster,
       rcdbpath,
+      rating,
+      rideCount,
       coasterId,
       parkId,
     ]);
@@ -147,7 +157,10 @@ export async function DELETE(
   }
 
   return NextResponse.json(
-    { message: `Coaster ${coasterId} deleted successfully`, coaster: result.rows[0] },
+    {
+      message: `Coaster ${coasterId} deleted successfully`,
+      coaster: result.rows[0],
+    },
     { status: 200 }
   );
 }

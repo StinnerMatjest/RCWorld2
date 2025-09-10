@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getRatingColor } from "@/app/utils/design";
 import AuthenticationModal from "./AuthenticationModal";
 
 interface Coaster {
@@ -11,6 +12,8 @@ interface Coaster {
   haveridden: boolean;
   isbestcoaster: boolean;
   rcdbpath: string;
+  rating?: number; // Optional
+  rideCount?: number;
 }
 
 interface AddCoasterModalProps {
@@ -104,6 +107,11 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
     coaster?.isbestcoaster ?? false
   );
   const [rcdbpath, setRcdbPath] = useState(coaster?.rcdbpath ?? "");
+  const [rating, setRating] = useState<number | "">(coaster?.rating ?? "");
+  const [rideCount, setRideCount] = useState<number | "">(
+    coaster?.rideCount ?? ""
+  );
+
   const [loading, setLoading] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -138,6 +146,22 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
       setShowAuthModal(true);
       return;
     }
+
+    // --- Validation rules ---
+    if (!haveridden && rating !== "") {
+      alert("You can only rate a coaster if you have ridden it.");
+      return;
+    }
+
+    if (isbestcoaster) {
+      if (rating === "" || typeof rating !== "number" || Number.isNaN(rating)) {
+        alert(
+          "You must provide a rating if you mark this as your best coaster."
+        );
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const method = coaster ? "PUT" : "POST";
@@ -159,6 +183,8 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
           haveridden,
           isbestcoaster,
           rcdbpath,
+          rating,
+          rideCount,
         }),
       });
 
@@ -290,6 +316,63 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
               placeholder="RCDB URL"
               value={rcdbpath}
               onChange={(e) => setRcdbPath(e.target.value)}
+            />
+          </div>
+
+          {/* Rating input */}
+          <div>
+            <select
+              value={
+                rating === "" || rating === null || rating === undefined
+                  ? ""
+                  : Number(rating).toFixed(1)
+              }
+              onChange={(e) =>
+                setRating(
+                  e.target.value === "" ? "" : parseFloat(e.target.value)
+                )
+              }
+              disabled={!haveridden}
+              className={`w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900
+  focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+  dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:focus-visible:ring-offset-gray-800 ${getRatingColor(
+    rating ?? ""
+  )}`}
+            >
+              <option value="">Rating</option>
+              {[...Array(20)].map((_, i) => {
+                const base = 10 - i * 0.5;
+                if (base < 0.5) return null;
+                const formattedValue = base.toFixed(1);
+                const colorClass = getRatingColor(base);
+
+                return (
+                  <option
+                    key={`rating-${formattedValue}`}
+                    value={formattedValue}
+                    className={colorClass}
+                  >
+                    {formattedValue}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          {/* Ride Count input */}
+          <div>
+            <input
+              type="number"
+              min={0}
+              placeholder="Ride Count"
+              value={rideCount === "" ? "" : rideCount}
+              onChange={(e) =>
+                setRideCount(
+                  e.target.value === "" ? "" : parseInt(e.target.value)
+                )
+              }
+              className="input input-bordered w-full p-1 text-mg border-2 border-gray-300 
+               focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary rounded-md"
             />
           </div>
 
