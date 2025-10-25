@@ -56,45 +56,42 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
     window.location.reload();
   };
 
-const handleSave = async () => {
-  setIsSaving(true);
-  setSaveSuccess(false);
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveSuccess(false);
 
-  try {
-    const method = localExplanations[selectedCategory]
-      ? "PUT"
-      : "POST";
+    try {
+      const method = localExplanations[selectedCategory] ? "PUT" : "POST";
 
-    const res = await fetch(`/api/park/${parkId}/parkTexts`, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category: selectedCategory, text }),
-    });
+      const res = await fetch(`/api/park/${parkId}/parkTexts`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: selectedCategory, text }),
+      });
 
-    if (!res.ok) {
-      console.error(`Failed to ${method} text`);
-      return;
+      if (!res.ok) {
+        console.error(`Failed to ${method} text`);
+        return;
+      }
+
+      const updatedText = await res.json();
+
+      const updatedExplanations = {
+        ...localExplanations,
+        [selectedCategory]: updatedText.text,
+      };
+
+      setLocalExplanations(updatedExplanations);
+      onSave?.(updatedExplanations);
+
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (err) {
+      console.error("Error submitting request:", err);
+    } finally {
+      setIsSaving(false);
     }
-
-    const updatedText = await res.json();
-
-    // Update local state with the new/updated text
-    const updatedExplanations = {
-      ...localExplanations,
-      [selectedCategory]: updatedText.text, // use returned text in case it was sanitized/modified by backend
-    };
-
-    setLocalExplanations(updatedExplanations);
-    onSave?.(updatedExplanations);
-
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 2000);
-  } catch (err) {
-    console.error("Error submitting request:", err);
-  } finally {
-    setIsSaving(false);
-  }
-};
+  };
 
   const handleSaveClick = () => {
     if (!isAuthenticated) {
@@ -106,13 +103,27 @@ const handleSave = async () => {
   };
 
   return (
-    <div className="fixed inset-0 backdrop-blur-lg flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-xl">
-        <h2 className="text-2xl font-semibold mb-4">Edit Explanation</h2>
+    <div className="fixed inset-0 z-[1000] bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center">
+      <div className="relative bg-white dark:bg-gray-800 dark:text-gray-100 border border-transparent dark:border-white/10 p-6 rounded-lg shadow-lg w-full max-w-xl">
+        {/* Close button (visual only, same behavior) */}
+        <button
+          onClick={handleClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white transition duration-300 cursor-pointer"
+        >
+          ✕
+        </button>
 
-        <label className="block mb-2 font-medium text-gray-700">Category</label>
+        <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">
+          Edit Explanation
+        </h2>
+
+        <label className="block mb-2 font-medium text-gray-700 dark:text-gray-300">
+          Category
+        </label>
         <select
-          className="w-full border border-gray-300 rounded-lg p-2 mb-4"
+          className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900
+                     focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                     dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:focus-visible:ring-offset-gray-800 mb-4"
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
         >
@@ -123,36 +134,50 @@ const handleSave = async () => {
           ))}
         </select>
 
-        <label className="block mb-2 font-medium text-gray-700">Text</label>
+        <label className="block mb-2 font-medium text-gray-700 dark:text-gray-300">
+          Text
+        </label>
         <textarea
-          className="w-full border border-gray-300 rounded-lg p-3 h-40 resize-none"
+          className="w-full p-3 h-40 resize-none rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
+                     focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                     dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
 
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="mt-6 flex items-center justify-end gap-3">
+          {saveSuccess && (
+            <div className="text-green-600 dark:text-green-400 text-sm font-medium mr-auto">
+              Saved!
+            </div>
+          )}
+
           <button
             onClick={handleClose}
-            className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 cursor-pointer"
+            className="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300 text-gray-800 cursor-pointer
+                       focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                       dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 dark:focus-visible:ring-offset-gray-800"
           >
             Close
           </button>
+
           <button
             onClick={handleSaveClick}
             disabled={isSaving}
-            className={`px-4 py-2 rounded-lg text-white cursor-pointer transition ${
-              isSaving
-                ? "bg-blue-300 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700"
-            }`}
+            className={`px-4 py-2 rounded-md text-white cursor-pointer transition
+                        focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                        dark:focus-visible:ring-offset-gray-800
+                        ${
+                          isSaving
+                            ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed"
+                            : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
+                        }`}
           >
             {isSaving ? "Saving..." : "Save"}
           </button>
-          {saveSuccess && (
-            <div className="text-green-600 mt-2 text-sm font-medium">Saved!</div>
-          )}
         </div>
       </div>
+
       {showAuthModal && (
         <AuthenticationModal
           onClose={() => setShowAuthModal(false)}
