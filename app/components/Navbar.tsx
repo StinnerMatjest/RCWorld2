@@ -38,11 +38,11 @@ const Navbar: React.FC = () => {
         <div className="w-auto max-w-xs">
           <SearchBar />
         </div>
-         <div className="flex space-x-6 text-lg text-slate-900 dark:text-slate-100">
+        <div className="flex space-x-6 text-lg text-slate-900 dark:text-slate-100">
           <Link href="/about" className="hover:text-blue-500">About</Link>
           <Link href="/info" className="hover:text-blue-500">Rating Evaluation</Link>
-          <Link href="https://rcdb.com/" className="hover:text-blue-500">Visit RCDB</Link>
-          <Link href="/coasterratings" className="text-black hover:text-blue-400">Coaster Ratings</Link>
+          {/* RCDB link removed */}
+          <Link href="/coasterratings" className="hover:text-blue-500">Coaster Ratings</Link>
           <Link href="/?modal=true" className="hover:text-blue-500">Rate a Park</Link>
         </div>
       </div>
@@ -95,7 +95,7 @@ const Navbar: React.FC = () => {
         {/* Dropdown */}
         <div
           id="mobile-menu"
-          className={`absolute right-0 mt-2 w-72 z-[50] rounded-lg border
+          className={`absolute right-0 mt-2 w-72 z-[500] rounded-lg border
                      border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800
                      shadow-xl transition-all duration-200
                      ${isDropdownOpen ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-2 pointer-events-none"}`}
@@ -114,24 +114,14 @@ const Navbar: React.FC = () => {
                 Rating Evaluation
               </Link>
             </li>
+            {/* RCDB link removed */}
             <li>
-              <Link href="https://rcdb.com/" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>
-                Visit RCDB
-              </Link>
-              <Link
-                href="/coasterratings"
-                className="text-black hover:text-blue-400"
-              >
+              <Link href="/coasterratings" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>
                 Coaster Ratings
               </Link>
-              <Link
-                href="/?modal=true"
-                className="text-black hover:text-blue-400"
-              />
             </li>
             <li>
               <Link href="/?modal=true" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>
-
                 Rate a Park
               </Link>
             </li>
