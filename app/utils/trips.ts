@@ -10,7 +10,7 @@ export const trips: Trip[] = [
     ],
     startDate: '2025-10-11',
     endDate: '2025-10-17',
-    status: 'booked',
+    status: 'past',
     notes: 'ZADRA FUCK YE!!!!!!!',
     mapLink: 'https://maps.app.goo.gl/hZQC9Uc8XbwxEcAf8',
     tripLog: [
