@@ -33,5 +33,7 @@ export interface Park {
     haveridden: boolean;
     isbestcoaster: boolean;
     rcdbpath: string;
+    ridecount: number;
+    rating: number;
   }
   
