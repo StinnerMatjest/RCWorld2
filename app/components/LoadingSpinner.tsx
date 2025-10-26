@@ -17,6 +17,8 @@ const FALLBACKS = [
   "Taming the twists of Taron…",
   "Smoothing the airtime on Balder…",
   "Diving deep with Valkyria…",
+  "Flying on Zadra",
+  "Weaving left and right on Hyperion",
   "Spreading the wings of Fēnix…"
 ];
 

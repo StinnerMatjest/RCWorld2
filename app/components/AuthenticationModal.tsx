@@ -99,9 +99,12 @@ const AuthenticationModal: React.FC<AuthenticationModalProps> = ({
   const isLocked = !!(lockUntil && Date.now() < lockUntil);
 
   return (
-    <div className="fixed inset-0 backdrop-blur-lg flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-2xl shadow-lg w-80 text-center space-y-4">
-        <h2 className="text-xl font-bold">Enter Access Password</h2>
+    <div className="fixed inset-0 z-[1000] bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center">
+      <div className="bg-white dark:bg-gray-800 dark:text-gray-100 border border-transparent dark:border-white/10 p-6 rounded-lg shadow-lg w-80 text-center space-y-4">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+          Enter Access Password
+        </h2>
+
         <input
           type="password"
           value={input}
@@ -110,36 +113,46 @@ const AuthenticationModal: React.FC<AuthenticationModalProps> = ({
             setError("");
             setJustUnlocked(false);
           }}
-          className="w-full px-3 py-2 border rounded-md"
+          className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
+                     focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                     dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800 disabled:opacity-60"
           placeholder="Password"
           disabled={isLocked}
         />
 
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+        {error && (
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        )}
 
         {isLocked && (
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
             Try again in <span className="font-semibold">{timeLeft}</span>s
           </p>
         )}
 
         {justUnlocked && (
-          <p className="text-green-600 text-sm font-semibold">
+          <p className="text-sm font-semibold text-green-600 dark:text-green-400">
             You can now try again
           </p>
         )}
 
-        <div className="flex space-x-2">
+        <div className="flex gap-2">
           <button
             onClick={handleSubmit}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md w-full cursor-pointer disabled:opacity-50"
+            className="w-full px-4 py-2 rounded-md text-white cursor-pointer transition
+                       bg-blue-600 hover:bg-blue-700
+                       focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                       dark:bg-blue-500 dark:hover:bg-blue-400 dark:focus-visible:ring-offset-gray-800 disabled:opacity-50"
             disabled={isLocked}
           >
             Submit
           </button>
           <button
             onClick={onClose}
-            className="bg-gray-300 px-4 py-2 rounded-md w-full cursor-pointer"
+            className="w-full px-4 py-2 rounded-md cursor-pointer transition
+                       border border-gray-300 text-gray-800 hover:bg-gray-100
+                       focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                       dark:border-white/10 dark:text-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 dark:focus-visible:ring-offset-gray-800"
           >
             Cancel
           </button>

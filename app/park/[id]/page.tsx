@@ -90,15 +90,7 @@ if (!park) return <LoadingSpinner />;
             <h2 className="text-xl font-semibold mb-1 dark:text-white">Park Info</h2>
             <div className="border-t border-gray-300 dark:border-white/10 my-3" />
             <ParkInfo park={park} />
-          </div>
-
-          <div>
-            <div className="border-t border-gray-300 dark:border-white/10 my-3" />
-            <h2 className="text-xl font-semibold mb-1 py-1 dark:text-white">Location Map</h2>
-            <GoogleMapView />
-          </div>
-
-          <div>
+  
             <div className="border-t border-gray-300 dark:border-white/10 my-3" />
             <ArchivePanel
               ratings={ratings}
