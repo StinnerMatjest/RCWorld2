@@ -1,25 +1,13 @@
 /** @type {import('next').NextConfig} */
-const config = {
+const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "img.daisyui.com",
-      },
-      {
-        protocol: "https",
-        hostname: "pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev",
-      },
-      {
-        protocol: "https",
-        hostname: "cdn.pixabay.com",
-      },
-      {
-        protocol: "https",
-        hostname: "flagcdn.com",
-      },
+      { protocol: "https", hostname: "img.daisyui.com" },
+      { protocol: "https", hostname: "pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev" },
+      { protocol: "https", hostname: "cdn.pixabay.com" },
+      { protocol: "https", hostname: "flagcdn.com" },
     ],
   },
   eslint: {
@@ -27,5 +15,4 @@ const config = {
   },
 };
 
-module.exports = config;
-export default config;
+export default nextConfig;
