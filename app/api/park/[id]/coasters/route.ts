@@ -76,7 +76,7 @@ export async function POST(
       isbestcoaster === undefined ||
       !rcdbpath ||
       rating === undefined ||
-      rideCount === undefined
+      (haveridden && rideCount === undefined)
     ) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -84,9 +84,20 @@ export async function POST(
       );
     }
 
-    const rideCountInitial = Number.isNaN(Number(rideCount))
-      ? 0
-      : Number(rideCount);
+    // Default to 0 if not ridden
+    const ratingInitial = haveridden
+      ? Number.isNaN(Number(rating))
+        ? 0
+        : Number(rating)
+      : 0;
+
+    // Default to 0 if not ridden
+    const rideCountInitial = haveridden
+      ? Number.isNaN(Number(rideCount))
+        ? 0
+        : Number(rideCount)
+      : 0;
+
 
     const query = `
       INSERT INTO rollercoasters
@@ -105,7 +116,7 @@ export async function POST(
       haveridden,
       isbestcoaster,
       rcdbpath,
-      rating,
+      ratingInitial,
       rideCountInitial,
     ]);
 

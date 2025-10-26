@@ -85,20 +85,30 @@ export async function PUT(
       );
     }
 
+    const ratingInitial = haveridden
+      ? Number.isNaN(Number(rating)) ? 0 : Number(rating)
+      : 0;
+
+    const rideCountInitial = haveridden
+      ? Number.isNaN(Number(rideCount)) ? 0 : Number(rideCount)
+      : 0;
+
+
     const query = `
-  UPDATE rollercoasters
-  SET name = $1,
-      year = $2,
-      manufacturer = $3,
-      model = $4,
-      scale = $5,
-      haveridden = $6,
-      isbestcoaster = $7,
-      rcdbpath = $8,
-      rating = $9,
-      ridecount = ridecount + $10
-  WHERE id = $11 AND park_id = $12
-  RETURNING *;
+UPDATE rollercoasters
+SET name = $1,
+    year = $2,
+    manufacturer = $3,
+    model = $4,
+    scale = $5,
+    haveridden = $6,
+    isbestcoaster = $7,
+    rcdbpath = $8,
+    rating = $9,
+    ridecount = CASE WHEN $6 THEN ridecount + $10 ELSE ridecount END
+WHERE id = $11 AND park_id = $12
+RETURNING *;
+
 `;
 
     const result = await pool.query(query, [
@@ -110,11 +120,12 @@ export async function PUT(
       haveridden,
       isbestcoaster,
       rcdbpath,
-      rating,
-      rideCount,
+      ratingInitial,
+      rideCountInitial,
       coasterId,
       parkId,
     ]);
+
 
     console.log("Database Update Result:", result);
     console.log("Row Count:", result.rowCount);

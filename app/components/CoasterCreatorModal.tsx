@@ -108,6 +108,7 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
   );
   const [rcdbpath, setRcdbPath] = useState(coaster?.rcdbpath ?? "");
   const [rating, setRating] = useState<number | "">(coaster?.rating ?? "");
+  const [goldenCoaster, setGoldenCoaster] = useState(false);
   const [rideCount, setRideCount] = useState<number | "">(
     coaster?.rideCount ?? ""
   );
@@ -153,9 +154,7 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
 
     if (isbestcoaster) {
       if (rating === "" || typeof rating !== "number" || Number.isNaN(rating)) {
-        alert(
-          "You must provide a rating if you mark this as your best coaster."
-        );
+        alert("You must provide a rating if you mark this as your best coaster.");
         return;
       }
     }
@@ -166,6 +165,8 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
       const url = coaster
         ? `/api/park/${parkId}/coasters/${coaster.id}`
         : `/api/park/${parkId}/coasters`;
+
+      const finalRating = rating ? rating + (goldenCoaster ? 1 : 0) : 0;
 
       const response = await fetch(url, {
         method,
@@ -181,12 +182,16 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
           haveridden,
           isbestcoaster,
           rcdbpath,
-          rating,
-          rideCount,
+          rating: haveridden ? finalRating : 0,
+          rideCount: haveridden ? rideCount ?? 0 : 0,
         }),
       });
 
-      if (!response.ok) throw new Error("Failed to save coaster");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Save coaster failed:", response.status, errorData);
+        throw new Error("Failed to save coaster");
+      }
 
       onCoasterAdded();
       onClose();
@@ -333,41 +338,57 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
           {/* Rating input */}
           <div>
             <select
-              value={
-                rating === "" || rating === null || rating === undefined
-                  ? ""
-                  : Number(rating).toFixed(1)
-              }
-              onChange={(e) =>
-                setRating(
-                  e.target.value === "" ? "" : parseFloat(e.target.value)
-                )
-              }
-              disabled={!haveridden}
-              className={`w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900
-                          focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                          dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:focus-visible:ring-offset-gray-800 ${getRatingColor(
-                            rating ?? ""
-                          )}`}
-            >
-              <option value="">Rating</option>
-              {[...Array(20)].map((_, i) => {
-                const base = 10 - i * 0.5;
-                if (base < 0.5) return null;
-                const formattedValue = base.toFixed(1);
-                const colorClass = getRatingColor(base);
+              value={rating ?? ""}
+              onChange={(e) => {
+                const val = e.target.value === "" ? "" : parseFloat(e.target.value);
+                setRating(val);
 
-                return (
-                  <option
-                    key={`rating-${formattedValue}`}
-                    value={formattedValue}
-                    className={colorClass}
-                  >
-                    {formattedValue}
-                  </option>
-                );
-              })}
+                // Reset golden checkbox if rating is not 10
+                if (val !== 10) setGoldenCoaster(false);
+              }}
+              disabled={!haveridden}
+              className={`w-full p-2 rounded-md border
+      ${!haveridden ? "italic text-sm text-gray-500" : "text-gray-900"}
+      bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
+      dark:bg-gray-900 dark:border-white/10 dark:text-gray-100`}
+            >
+              {haveridden ? (
+                <>
+                  <option value="">Rating</option>
+                  {[...Array(20)].map((_, i) => {
+                    const base = 10 - i * 0.5;
+                    if (base < 0.5) return null;
+                    return (
+                      <option
+                        key={i}
+                        value={base.toFixed(1)}
+                        className={getRatingColor(base)}
+                      >
+                        {base.toFixed(1)}
+                      </option>
+                    );
+                  })}
+                </>
+              ) : (
+                <option value="">Please mark as 'Have ridden' to enable</option>
+              )}
             </select>
+
+            {/* GOLDEN RATING checkbox */}
+            {rating === 10 && haveridden && (
+              <div className="flex items-center space-x-2 mt-2">
+                <input
+                  type="checkbox"
+                  checked={goldenCoaster}
+                  onChange={(e) => setGoldenCoaster(e.target.checked)}
+                  className="h-5 w-5 rounded border-gray-300 text-yellow-400 focus:ring-yellow-400 cursor-pointer
+          dark:bg-gray-900 dark:border-white/10"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  GOLDEN RATING
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Ride Count input */}
@@ -447,18 +468,17 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
               className={`h-9 w-20 text-lg font-semibold text-white rounded-lg transition duration-300
                           focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
                           dark:focus-visible:ring-offset-gray-800
-                          ${
-                            loading
-                              ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed"
-                              : !name ||
-                                !isValidYear ||
-                                !manufacturer ||
-                                !model ||
-                                !scale ||
-                                !rcdbpath
-                              ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
-                              : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 cursor-pointer"
-                          }`}
+                          ${loading
+                  ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed"
+                  : !name ||
+                    !isValidYear ||
+                    !manufacturer ||
+                    !model ||
+                    !scale ||
+                    !rcdbpath
+                    ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 cursor-pointer"
+                }`}
               disabled={
                 loading ||
                 !name ||
@@ -482,10 +502,11 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
               setShowAuthModal(false);
 
               if (coaster) {
-                setPostAuthAction("delete");
+                setPostAuthAction("submit");
               } else {
                 setPostAuthAction("submit");
               }
+
             }}
           />
         )}

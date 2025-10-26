@@ -74,8 +74,8 @@ const CoasterList: React.FC<CoasterListProps> = ({
   }, [coasters]);
 
   // Groups
-  const ridden = sorted.filter((c) => !isOptionalByScale(c.scale) && hasRidden(c.haveridden));
-  const optional = sorted.filter((c) => isOptionalByScale(c.scale) || !hasRidden(c.haveridden));
+  const mainCoasters = sorted.filter((c) => !isOptionalByScale(c.scale));
+  const optionalCoasters = sorted.filter((c) => isOptionalByScale(c.scale));
 
   /** One row */
   const Row: React.FC<{ c: RollerCoaster }> = ({ c }) => {
@@ -181,15 +181,15 @@ const CoasterList: React.FC<CoasterListProps> = ({
                 !riddenStatus
                   ? "Not ridden"
                   : typeof r === "number"
-                  ? `Rating: ${r.toFixed(1)}`
-                  : "No rating"
+                    ? `Rating: ${r.toFixed(1)}`
+                    : "No rating"
               }
             >
               {!riddenStatus
                 ? "NR"
                 : typeof r === "number"
-                ? r.toFixed(1)
-                : "—"}
+                  ? r.toFixed(1)
+                  : "—"}
             </span>
 
             {typeof r === "number" && r === 11 && <span aria-hidden>👑</span>}
@@ -202,9 +202,8 @@ const CoasterList: React.FC<CoasterListProps> = ({
               }}
               aria-expanded={open}
               aria-controls={`coaster-details-${c.id}`}
-              className={`transition-transform duration-200 ${
-                open ? "rotate-90" : "rotate-0"
-              } text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100 text-sm md:text-base`}
+              className={`transition-transform duration-200 ${open ? "rotate-90" : "rotate-0"
+                } text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100 text-sm md:text-base`}
               title={open ? "Collapse details" : "Expand details"}
             >
               ▸
@@ -214,7 +213,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
               <button
                 type="button"
                 onClick={() => onEdit(c)}
-                className="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100 text-[15px]"
+                className="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100 text-[15px] cursor-pointer"
               >
                 🔧
               </button>
@@ -235,7 +234,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
               className="overflow-hidden px-1"
             >
               <div className="mt-1 rounded-lg bg-gray-100 dark:bg-white/5">
-                <div className="border-t border-gray-100 dark:border-white/10 pt-2 pb-2 px-2 text-sm md:text-base text-gray-700 dark:text-gray-300 grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-1">
+                <div className="border-t border-gray-100 dark:border-white/10 pt-2 pb-2 px-2 text-sm md:text-base text-gray-700 dark:text-gray-300 grid grid-cols-1 gap-y-1">
                   <div>
                     <span className="text-gray-500 dark:text-gray-400">Type: </span>
                     <span>{c.model ?? "—"}</span>
@@ -253,6 +252,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
             </motion.div>
           )}
         </AnimatePresence>
+
       </motion.li>
     );
   };
@@ -271,11 +271,10 @@ const CoasterList: React.FC<CoasterListProps> = ({
             type="button"
             onClick={() => setShowEdit((v) => !v)}
             aria-pressed={showEdit}
-            className={`px-3 py-1.5 rounded border text-sm md:text-base transition cursor-pointer ${
-              showEdit
+            className={`px-3 py-1.5 rounded border text-sm md:text-base transition cursor-pointer ${showEdit
                 ? "border-gray-400 bg-gray-100 dark:border-white/20 dark:bg-white/10"
                 : "border-gray-300 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
-            }`}
+              }`}
           >
             {showEdit ? "Done" : "Edit"}
           </button>
@@ -301,9 +300,9 @@ const CoasterList: React.FC<CoasterListProps> = ({
         </div>
       ) : (
         <>
-          {ridden.length ? (
+          {mainCoasters.length ? (
             <ul className="divide-y divide-gray-300 dark:divide-white/10">
-              {ridden.map((c) => (
+              {mainCoasters.map((c) => (
                 <Row key={c.id} c={c} />
               ))}
             </ul>
@@ -312,12 +311,12 @@ const CoasterList: React.FC<CoasterListProps> = ({
           <h3 className="text-lg lg: text-xl font-semibold mt-3 dark:text-white">
             Optional Coasters{" "}
             <span className="font-medium text-gray-500 dark:text-gray-400">
-              ({optional.length})
+              ({optionalCoasters.length})
             </span>
           </h3>
-          {optional.length ? (
+          {optionalCoasters.length ? (
             <ul className="divide-y divide-gray-300 dark:divide-white/10">
-              {optional.map((c) => (
+              {optionalCoasters.map((c) => (
                 <Row key={c.id} c={c} />
               ))}
             </ul>
