@@ -9,7 +9,6 @@ import Coasterlist from "@/app/components/Coasterlist";
 import ParkHeader from "@/app/components/ParkHeader";
 import ParkInfo from "@/app/components/ParkInfo";
 import Gallery from "@/app/components/Gallery";
-import GoogleMapView from "@/app/components/GoogleMapView";
 import ArchivePanel from "@/app/components/ArchivePanel";
 import type { Park, Rating, RollerCoaster } from "@/app/types";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
