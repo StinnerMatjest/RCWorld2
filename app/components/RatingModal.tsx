@@ -109,14 +109,24 @@ const RatingModal: React.FC<ModalProps> = ({
     parkAppearance: boolean;
     bestCoaster: boolean;
     coasterDepth: boolean;
+    waterRides: boolean;
+    flatridesAndDarkrides: boolean;
     food: boolean;
     snacksAndDrinks: boolean;
+    parkPracticality: boolean;
+    rideOperations: boolean;
+    parkManagement: boolean;
   }>({
     parkAppearance: false,
     bestCoaster: false,
     coasterDepth: false,
+    waterRides: false,
+    flatridesAndDarkrides: false,
     food: false,
     snacksAndDrinks: false,
+    parkPracticality: false,
+    rideOperations: false,
+    parkManagement: false,
   });
 
   useEffect(() => {
@@ -271,23 +281,19 @@ const RatingModal: React.FC<ModalProps> = ({
         ...ratings,
         date: selectedDate ? selectedDate.toISOString().split("T")[0] : "",
         parkId: savedPark.parkId,
-        parkAppearance:
-          (ratings.parkAppearance ?? 0) +
-          (checkboxState.parkAppearance ? 1 : 0),
-        parkPracticality: ratings.parkPracticality ?? 0,
-        bestCoaster:
-          (ratings.bestCoaster ?? 0) + (checkboxState.bestCoaster ? 1 : 0),
-        coasterDepth:
-          (ratings.coasterDepth ?? 0) + (checkboxState.coasterDepth ? 1 : 0),
-        waterRides: ratings.waterRides ?? 0,
-        flatridesAndDarkrides: ratings.flatridesAndDarkrides ?? 0,
+
+        parkAppearance: (ratings.parkAppearance ?? 0) + (checkboxState.parkAppearance ? 1 : 0),
+        parkPracticality: (ratings.parkPracticality ?? 0) + (checkboxState.parkPracticality ? 1 : 0),
+        bestCoaster: (ratings.bestCoaster ?? 0) + (checkboxState.bestCoaster ? 1 : 0),
+        coasterDepth: (ratings.coasterDepth ?? 0) + (checkboxState.coasterDepth ? 1 : 0),
+        waterRides: (ratings.waterRides ?? 0) + (checkboxState.waterRides ? 1 : 0),
+        flatridesAndDarkrides: (ratings.flatridesAndDarkrides ?? 0) + (checkboxState.flatridesAndDarkrides ? 1 : 0),
         food: (ratings.food ?? 0) + (checkboxState.food ? 1 : 0),
-        snacksAndDrinks:
-          (ratings.snacksAndDrinks ?? 0) +
-          (checkboxState.snacksAndDrinks ? 1 : 0),
-        rideOperations: ratings.rideOperations ?? 0,
-        parkManagement: ratings.parkManagement ?? 0,
+        snacksAndDrinks: (ratings.snacksAndDrinks ?? 0) + (checkboxState.snacksAndDrinks ? 1 : 0),
+        rideOperations: (ratings.rideOperations ?? 0) + (checkboxState.rideOperations ? 1 : 0),
+        parkManagement: (ratings.parkManagement ?? 0) + (checkboxState.parkManagement ? 1 : 0),
       };
+
 
       const ratingResponse = await fetch("/api/ratings", {
         method: "POST",
@@ -561,8 +567,8 @@ const RatingModal: React.FC<ModalProps> = ({
                             className={`w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900
                                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
                                         dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:focus-visible:ring-offset-gray-800 ${getRatingColor(
-                                          ratings[field] ?? ""
-                                        )}`}
+                              ratings[field] ?? ""
+                            )}`}
                           >
                             <option value="">Select Rating</option>
                             {[...Array(21)].map((_, i) => {
@@ -582,29 +588,23 @@ const RatingModal: React.FC<ModalProps> = ({
                               );
                             })}
                           </select>
-
-                          {(field === "parkAppearance" ||
-                            field === "bestCoaster" ||
-                            field === "coasterDepth" ||
-                            field === "food" ||
-                            field === "snacksAndDrinks") &&
-                            ratings[field] === 10.0 && (
-                              <div className="flex flex-col justify-center items-start h-full mt-2">
-                                <label className="flex items-center space-x-2 select-none">
-                                  <input
-                                    type="checkbox"
-                                    name={field}
-                                    checked={checkboxState[field]}
-                                    onChange={handleCheckboxChange}
-                                    className="h-5 w-5 rounded border-gray-300 text-yellow-400 focus:ring-yellow-400 cursor-pointer
-                                               dark:bg-gray-900 dark:border-white/10"
-                                  />
-                                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    GOLDEN RATING
-                                  </span>
-                                </label>
-                              </div>
-                            )}
+                          {ratings[field as keyof typeof checkboxState] === 10.0 && (
+                            <div className="flex flex-col justify-center items-start h-full mt-2">
+                              <label className="flex items-center space-x-2 select-none">
+                                <input
+                                  type="checkbox"
+                                  name={field}
+                                  checked={checkboxState[field as keyof typeof checkboxState]}
+                                  onChange={handleCheckboxChange}
+                                  className="h-5 w-5 rounded border-gray-300 text-yellow-400 focus:ring-yellow-400 cursor-pointer
+                   dark:bg-gray-900 dark:border-white/10"
+                                />
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                  GOLDEN RATING
+                                </span>
+                              </label>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -617,11 +617,10 @@ const RatingModal: React.FC<ModalProps> = ({
                 type="button"
                 onClick={handleSubmit}
                 className={`w-full p-3 text-white font-semibold rounded-md transition duration-300 cursor-pointer
-                ${
-                  isFormValid()
+                ${isFormValid()
                     ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
                     : "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
-                }
+                  }
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800`}
                 disabled={!isFormValid() || loading}
               >
