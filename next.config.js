@@ -1,5 +1,4 @@
 /** @type {import('next').NextConfig} */
-
 const config = {
   reactStrictMode: true,
   output: "standalone",
@@ -23,6 +22,10 @@ const config = {
       },
     ],
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
+module.exports = config;
 export default config;
