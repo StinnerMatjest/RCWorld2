@@ -16,7 +16,7 @@ type GalleryImage = {
   description: string;
 };
 
-/** Swipe helper (pointer events) — mobile friendly with pointercancel + drag guard */
+/** Swipe helper */
 function useSwipe(
   onSwipeLeft: () => void,
   onSwipeRight: () => void,
@@ -84,7 +84,6 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
 
   useEffect(() => {
     fetchGalleryImages();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parkId]);
 
   // Keyboard navigation
@@ -104,10 +103,9 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIndex, images.length]);
 
-  // Preload neighbors
+  // Preload images
   useEffect(() => {
     if (selectedIndex == null) return;
     const preload = (idx: number) => {
@@ -120,7 +118,6 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
     preload(selectedIndex - 1);
   }, [selectedIndex, images]);
 
-  // Nav helpers
   const goNext = () => {
     setDirection("right");
     setSelectedIndex((p) => (p !== null && p < images.length - 1 ? p + 1 : p));
@@ -146,7 +143,6 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
       ? "animate-slide-in-left"
       : "";
 
-  // ---- Auto-scaling progress dots (never cut off) ----
   const dotsContainerRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(1);
   const DOT = 8; // h-2 w-2
@@ -169,7 +165,6 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
       ro.disconnect();
       window.removeEventListener("resize", onWin);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [images.length]);
 
   return (
@@ -307,7 +302,7 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
               </p>
             )}
 
-            {/* Static bottom progress: pill with dots (auto-scales to fit) */}
+            {/* Static bottom progress: pill with dots */}
             <div className="mt-3 w-full flex items-center justify-center" ref={dotsContainerRef}>
               <div
                 className="px-2.5 py-1 rounded-full bg-white/10 border border-white/10 backdrop-blur-sm"

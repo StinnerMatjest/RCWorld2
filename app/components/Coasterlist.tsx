@@ -260,7 +260,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold dark:text-white">
+        <h2 className="text-2xl lg: text-3xl font-bold dark:text-white">
           Roller Coasters{" "}
           <span className="font-medium text-gray-500 dark:text-gray-400">
             ({sorted.length})
@@ -271,7 +271,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
             type="button"
             onClick={() => setShowEdit((v) => !v)}
             aria-pressed={showEdit}
-            className={`px-3 py-1.5 rounded border text-sm md:text-base transition ${
+            className={`px-3 py-1.5 rounded border text-sm md:text-base transition cursor-pointer ${
               showEdit
                 ? "border-gray-400 bg-gray-100 dark:border-white/20 dark:bg-white/10"
                 : "border-gray-300 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
@@ -283,7 +283,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
           <button
             type="button"
             onClick={onAdd}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm md:text-base"
+            className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm md:text-base cursor-pointer"
           >
             + Add
           </button>
@@ -309,7 +309,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
             </ul>
           ) : null}
 
-          <h3 className="text-lg font-semibold mt-3 dark:text-white">
+          <h3 className="text-lg lg: text-xl font-semibold mt-3 dark:text-white">
             Optional Coasters{" "}
             <span className="font-medium text-gray-500 dark:text-gray-400">
               ({optional.length})
