@@ -94,7 +94,6 @@ export default function CoasterRatingsPage() {
     const valB = b[sortBy];
 
     if (valA === valB) return 0;
-
     if (valA === null || valA === undefined) return 1;
     if (valB === null || valB === undefined) return -1;
 
@@ -104,13 +103,13 @@ export default function CoasterRatingsPage() {
 
     return sortDirection === "asc"
       ? String(valA).localeCompare(String(valB), "en", {
-          ignorePunctuation: true,
-          sensitivity: "base",
-        })
+        ignorePunctuation: true,
+        sensitivity: "base",
+      })
       : String(valB).localeCompare(String(valA), "en", {
-          ignorePunctuation: true,
-          sensitivity: "base",
-        });
+        ignorePunctuation: true,
+        sensitivity: "base",
+      });
   });
 
   function handleSort(column: keyof Coaster) {
@@ -148,9 +147,8 @@ export default function CoasterRatingsPage() {
                 <div className="inline-flex items-center">
                   Name
                   <span
-                    className={`ml-1 w-4 text-gray-700 ${
-                      sortBy === "name" ? "visible" : "invisible"
-                    }`}
+                    className={`ml-1 w-4 text-gray-700 ${sortBy === "name" ? "visible" : "invisible"
+                      }`}
                   >
                     {sortDirection === "asc" ? "▲" : "▼"}
                   </span>
@@ -166,9 +164,8 @@ export default function CoasterRatingsPage() {
                 <div className="inline-flex items-center">
                   Rating
                   <span
-                    className={`ml-1 w-4 text-gray-700 ${
-                      sortBy === "rating" ? "visible" : "invisible"
-                    }`}
+                    className={`ml-1 w-4 text-gray-700 ${sortBy === "rating" ? "visible" : "invisible"
+                      }`}
                   >
                     {sortDirection === "asc" ? "▲" : "▼"}
                   </span>
@@ -184,9 +181,8 @@ export default function CoasterRatingsPage() {
                 <div className="inline-flex items-center">
                   Park
                   <span
-                    className={`ml-1 w-4 text-gray-700 ${
-                      sortBy === "parkName" ? "visible" : "invisible"
-                    }`}
+                    className={`ml-1 w-4 text-gray-700 ${sortBy === "parkName" ? "visible" : "invisible"
+                      }`}
                   >
                     {sortDirection === "asc" ? "▲" : "▼"}
                   </span>
@@ -202,9 +198,8 @@ export default function CoasterRatingsPage() {
                 <div className="inline-flex items-center">
                   Manufacturer
                   <span
-                    className={`ml-1 w-4 text-gray-700 ${
-                      sortBy === "manufacturer" ? "visible" : "invisible"
-                    }`}
+                    className={`ml-1 w-4 text-gray-700 ${sortBy === "manufacturer" ? "visible" : "invisible"
+                      }`}
                   >
                     {sortDirection === "asc" ? "▲" : "▼"}
                   </span>
@@ -220,9 +215,8 @@ export default function CoasterRatingsPage() {
                 <div className="inline-flex items-center">
                   Ride Count
                   <span
-                    className={`ml-1 w-4 text-gray-700 ${
-                      sortBy === "rideCount" ? "visible" : "invisible"
-                    }`}
+                    className={`ml-1 w-4 text-gray-700 ${sortBy === "rideCount" ? "visible" : "invisible"
+                      }`}
                   >
                     {sortDirection === "asc" ? "▲" : "▼"}
                   </span>
@@ -238,9 +232,8 @@ export default function CoasterRatingsPage() {
                 <div className="inline-flex items-center">
                   Last Ridden
                   <span
-                    className={`ml-1 w-4 text-gray-700 ${
-                      sortBy === "lastVisitDate" ? "visible" : "invisible"
-                    }`}
+                    className={`ml-1 w-4 text-gray-700 ${sortBy === "lastVisitDate" ? "visible" : "invisible"
+                      }`}
                   >
                     {sortDirection === "asc" ? "▲" : "▼"}
                   </span>
@@ -248,63 +241,63 @@ export default function CoasterRatingsPage() {
               </th>
             </tr>
           </thead>
-
           <tbody className="divide-y divide-gray-200">
-            {sortedCoasters.map((coaster, index) => (
-              <tr key={coaster.id} className="hover:bg-gray-50">
-                {/* Index */}
-                <td className="px-4 py-3 font-medium text-gray-900 ">
-                  {index + 1}
-                </td>
+            {sortedCoasters
+              .filter((coaster) => coaster.rating && coaster.rating > 0)
+              .map((coaster, index) => (
+                <tr key={coaster.id} className="hover:bg-gray-50">
+                  {/* Index */}
+                  <td className="px-4 py-3 font-medium text-gray-900 ">
+                    {index + 1}
+                  </td>
 
-                {/* Name */}
-                <td className="px-4 py-3 font-medium text-gray-900">
-                  <a
-                    href={coaster.rcdbPath}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
+                  {/* Name */}
+                  <td className="px-4 py-3 font-medium text-gray-900">
+                    <a
+                      href={coaster.rcdbPath}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      {coaster.name}
+                    </a>
+                  </td>
+
+                  {/* Rating */}
+                  <td
+                    className={`px-5 py-3 font-semibold ${coaster.rating !== null
+                        ? getRatingColor(coaster.rating)
+                        : ""
+                      }`}
                   >
-                    {coaster.name}
-                  </a>
-                </td>
+                    {coaster.rating !== null ? coaster.rating.toFixed(1) : "—"}
+                  </td>
 
-                {/* Rating */}
-                <td
-                  className={`px-5 py-3 font-semibold ${
-                    coaster.rating !== null
-                      ? getRatingColor(coaster.rating)
-                      : ""
-                  }`}
-                >
-                  {coaster.rating !== null ? coaster.rating.toFixed(1) : "—"}
-                </td>
+                  {/* Park */}
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/park/${coaster.parkId}`}
+                      className="text-blue-600 hover:underline"
+                      rel="noopener noreferrer"
+                    >
+                      {coaster.parkName}
+                    </Link>
+                  </td>
 
-                {/* Park */}
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/park/${coaster.parkId}`}
-                    className="text-blue-600 hover:underline"
-                    rel="noopener noreferrer"
-                  >
-                    {coaster.parkName}
-                  </Link>
-                </td>
+                  {/* Manufacturer */}
+                  <td className="px-4 py-3">{coaster.manufacturer}</td>
 
-                {/* Manufacturer */}
-                <td className="px-4 py-3">{coaster.manufacturer}</td>
+                  {/* Ride Count */}
+                  <td className="px-12 py-3">{coaster.rideCount}</td>
 
-                {/* Ride Count */}
-                <td className="px-12 py-3">{coaster.rideCount}</td>
-
-                {/* Last Ridden */}
-                <td className="px-4 py-3">
-                  {coaster.lastVisitDate
-                    ? new Date(coaster.lastVisitDate).toLocaleDateString()
-                    : "—"}
-                </td>
-              </tr>
-            ))}
+                  {/* Last Ridden */}
+                  <td className="px-4 py-3">
+                    {coaster.lastVisitDate
+                      ? new Date(coaster.lastVisitDate).toLocaleDateString()
+                      : "—"}
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>

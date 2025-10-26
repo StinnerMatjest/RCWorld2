@@ -37,27 +37,27 @@ export async function GET() {
 
     const result = await pool.query(query);
 
-const ratings: Rating[] = result.rows.map((row) => {
-  console.log(row);
-  return {
-    id: row.rating_id,
-    date: row.date,
-    park: row.park_name,
-    parkAppearance: row.parkappearance,
-    bestCoaster: row.bestcoaster,
-    coasterDepth: row.coasterdepth,
-    waterRides: row.waterrides,
-    flatridesAndDarkrides: row.flatridesanddarkrides,
-    food: row.food,
-    snacksAndDrinks: row.snacksanddrinks,
-    parkPracticality: row.parkpracticality,
-    rideOperations: row.rideoperations,
-    parkManagement: row.parkmanagement,
-    overall: row.overall,
-    imagePath: row.park_image,
-    parkId: row.park_id,
-  };
-});
+    const ratings: Rating[] = result.rows.map((row) => {
+      console.log(row);
+      return {
+        id: row.rating_id,
+        date: row.date,
+        park: row.park_name,
+        parkAppearance: row.parkappearance,
+        bestCoaster: row.bestcoaster,
+        coasterDepth: row.coasterdepth,
+        waterRides: row.waterrides,
+        flatridesAndDarkrides: row.flatridesanddarkrides,
+        food: row.food,
+        snacksAndDrinks: row.snacksanddrinks,
+        parkPracticality: row.parkpracticality,
+        rideOperations: row.rideoperations,
+        parkManagement: row.parkmanagement,
+        overall: row.overall,
+        imagePath: row.park_image,
+        parkId: row.park_id,
+      };
+    });
 
 
     console.log(ratings);
@@ -92,6 +92,7 @@ export async function POST(request: Request) {
       parkManagement,
       parkId,
     } = body;
+
 
     if (
       date === undefined ||

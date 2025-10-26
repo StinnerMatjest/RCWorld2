@@ -62,7 +62,7 @@ const Navbar: React.FC = () => {
                      focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
                      transition"
         >
-          {/* Hamburger / X (pure SVG, no libs) */}
+          {/* Hamburger */}
           <svg
             className={`w-6 h-6 transition-transform duration-200 ${isDropdownOpen ? "rotate-90 opacity-0" : "opacity-100"}`}
             viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -82,11 +82,11 @@ const Navbar: React.FC = () => {
           </svg>
         </button>
 
-        {/* Backdrop (tap to close) */}
+        {/* Backdrop */}
         {isDropdownOpen && (
           <button
             onClick={closeDropdown}
-            className="fixed inset-0 bg-black/30 backdrop-blur-[1px] z-[40]"
+            className="fixed inset-0 bg-black/30 backdrop-blur-[1px] z-[998]"
             aria-hidden="true"
             tabIndex={-1}
           />
@@ -95,10 +95,10 @@ const Navbar: React.FC = () => {
         {/* Dropdown */}
         <div
           id="mobile-menu"
-          className={`absolute right-0 mt-2 w-72 z-[500] rounded-lg border
-                     border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800
-                     shadow-xl transition-all duration-200
-                     ${isDropdownOpen ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-2 pointer-events-none"}`}
+          className={`fixed top-14 right-4 w-72 z-[999] rounded-lg border
+             border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800
+             shadow-xl transition-all duration-200
+             ${isDropdownOpen ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-2 pointer-events-none"}`}
         >
           <div className="p-3 border-b border-slate-200 dark:border-slate-700">
             <SearchBar />
