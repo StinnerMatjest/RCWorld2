@@ -1,13 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useRef, useState, Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { getRatingColor } from "@/app/utils/design";
-import RatingSuccessMessage from "./RatingSuccessMessage";
 import Loading from "./Loading";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import AuthenticationModal from "./AuthenticationModal";
+import ParkRankLane from "./ParkRankLane";
+import { AnimatePresence, motion } from "framer-motion";
+import { useSyncExternalStore } from "react";
+import { ratingsStore, type Ratings } from "@/app/utils/ratingStoreManager";
+import { getRatingColor } from "@/app/utils/design";
 
 interface ModalProps {
   closeModal: () => void;
@@ -15,79 +18,103 @@ interface ModalProps {
 }
 
 const continentCountries: Record<string, string[]> = {
-  Europe: [
-    "Austria",
-    "Belgium",
-    "Bulgaria",
-    "Croatia",
-    "Czech Republic",
-    "Denmark",
-    "Finland",
-    "France",
-    "Germany",
-    "Greece",
-    "Hunagry",
-    "Ireland",
-    "Italy",
-    "Malta",
-    "Netherlands",
-    "Norway",
-    "Poland",
-    "Portugal",
-    "Republic of Ireland",
-    "Romania",
-    "Russia",
-    "Spain",
-    "Sweden",
-    "Switzerland",
-    "Turkey",
-    "United Kingdom",
-  ],
-  NorthAmerica: ["Canada", "Mexico", "Puerto Rico", "United States"],
-  CentralAmerica: [
-    "Costa Rica",
-    "Cuba",
-    "Dominican Republic",
-    "El Salvador",
-    "Guatemala",
-    "Honduras",
-    "Nicaragua",
-    "Panama",
-  ],
-  SouthAmerica: [
-    "Argentina",
-    "Bolivia",
-    "Brazil",
-    "Chile",
-    "Columbia",
-    "Ecuador",
-    "Paraguay",
-    "Uruguay",
-    "Venezuela",
-  ],
-  Asia: [
-    "Japan",
-    "China",
-    "India",
-    "Indonesia",
-    "Malaysia",
-    "South Korea",
-    "Thailand",
-    "Vietnam",
-  ],
-  Oceania: ["Australia", "New Zealand", "Fiji"],
-  Africa: ["South Africa", "Egypt", "Kenya", "Nigeria", "Morocco", "Tunesia"],
-  "South America": ["Brazil", "Argentina", "Chile", "Colombia", "Peru"],
+  Europe: ["Austria","Belgium","Bulgaria","Croatia","Czech Republic","Denmark","Finland","France","Germany","Greece","Hungary","Ireland","Italy","Malta","Netherlands","Norway","Poland","Portugal","Romania","Spain","Sweden","Switzerland","Turkey","United Kingdom"],
+  "North America": ["Canada","Mexico","Puerto Rico","United States"],
+  "Central America": ["Costa Rica","Cuba","Dominican Republic","El Salvador","Guatemala","Honduras","Nicaragua","Panama"],
+  "South America": ["Argentina","Bolivia","Brazil","Chile","Colombia","Ecuador","Paraguay","Peru","Uruguay","Venezuela"],
+  Asia: ["China","India","Indonesia","Japan","Malaysia","South Korea","Thailand","Vietnam"],
+  Oceania: ["Australia","New Zealand","Fiji"],
+  Africa: ["South Africa","Egypt","Kenya","Nigeria","Morocco","Tunisia"],
 };
 
-const RatingModal: React.FC<ModalProps> = ({
-  closeModal,
-  fetchRatingsAndParks,
-}) => {
+const CATEGORIES = [
+  "parkAppearance",
+  "bestCoaster",
+  "coasterDepth",
+  "waterRides",
+  "flatridesAndDarkrides",
+  "food",
+  "snacksAndDrinks",
+  "parkPracticality",
+  "rideOperations",
+  "parkManagement",
+] as const;
+
+type Category = typeof CATEGORIES[number];
+
+function toTitleCaseFromCamel(key: string) {
+  const spaced = key.replace(/([A-Z])/g, " $1").trim();
+  return spaced
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
+/** Store snapshot (no re-render storms) */
+function useRatingsSnapshot(): Ratings {
+  return useSyncExternalStore<Ratings>(
+    ratingsStore.subscribe,
+    ratingsStore.getSnapshot,
+    ratingsStore.getServerSnapshot
+  );
+}
+
+function ProgressBar({ categories }: { categories: readonly string[] }) {
+  const ratings = useRatingsSnapshot();
+  const ratedCount = categories.reduce((acc, c) => acc + (ratings[c] !== undefined ? 1 : 0), 0);
+  const progressPct = Math.round((ratedCount / categories.length) * 100);
+  return (
+    <div>
+      <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+        <div className="h-full bg-blue-500 transition-all" style={{ width: `${progressPct}%` }} />
+      </div>
+      <div className="mt-1 text-[11px] sm:text-xs text-gray-600 dark:text-gray-400 text-right">
+        {ratedCount}/{categories.length} categories rated
+      </div>
+    </div>
+  );
+}
+
+function SummaryList({
+  categories,
+  onEditCategory,
+}: {
+  categories: readonly string[];
+  onEditCategory: (cat: string) => void;
+}) {
+  const ratings = useRatingsSnapshot();
+  return (
+    <div className="mt-4 border-t border-gray-300 dark:border-gray-700 pt-3 space-y-1 max-h-[40vh] overflow-y-auto">
+      {categories.map((c) => {
+        const val = ratings[c];
+        const text = val !== undefined ? val.toFixed(1) : "0.0";
+        const color = val !== undefined ? getRatingColor(val) : "";
+        return (
+          <div key={c} className="flex items-center justify-between gap-3">
+            <span className="truncate">{toTitleCaseFromCamel(c)}</span>
+            <div className="flex items-center gap-2">
+              <span className={`font-semibold ${color}`}>{text}</span>
+              <button
+                type="button"
+                onClick={() => onEditCategory(c)}
+                className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                aria-label={`Edit ${c}`}
+                title="Edit"
+              >
+                ✎
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks }) => {
   const searchParams = useSearchParams();
   const isOpen = searchParams?.get("modal") === "true";
 
-  const [ratings, setRatings] = useState<Record<string, number | null>>({});
   const [parkInfo, setParkInfo] = useState({
     name: "",
     continent: "",
@@ -95,160 +122,64 @@ const RatingModal: React.FC<ModalProps> = ({
     city: "",
     image: null as File | null,
   });
-
-  const [message, setMessage] = useState<string>("");
-  const [isParkSectionExpanded, setParkSectionExpanded] = useState(false);
-  const [isRatingSectionExpanded, setRatingSectionExpanded] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [loading, setLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [shouldSubmitAfterAuth, setShouldSubmitAfterAuth] = useState(false);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [categoryIndex, setCategoryIndex] = useState(0);
+  const category: Category = CATEGORIES[categoryIndex];
 
-  const [checkboxState, setCheckboxState] = useState<{
-    parkAppearance: boolean;
-    bestCoaster: boolean;
-    coasterDepth: boolean;
-    waterRides: boolean;
-    flatridesAndDarkrides: boolean;
-    food: boolean;
-    snacksAndDrinks: boolean;
-    parkPracticality: boolean;
-    rideOperations: boolean;
-    parkManagement: boolean;
-  }>({
-    parkAppearance: false,
-    bestCoaster: false,
-    coasterDepth: false,
-    waterRides: false,
-    flatridesAndDarkrides: false,
-    food: false,
-    snacksAndDrinks: false,
-    parkPracticality: false,
-    rideOperations: false,
-    parkManagement: false,
-  });
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-scroll to top when category changes
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (el) el.scrollTo({ top: 0, behavior: "smooth" });
+  }, [categoryIndex]);
+
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  useEffect(() => {
+    if (!parkInfo.image) {
+      setImagePreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(parkInfo.image);
+    setImagePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [parkInfo.image]);
 
   useEffect(() => {
-    if (isAuthenticated && shouldSubmitAfterAuth) {
-      if (!isFormValid()) {
-        alert("Please fill out all required fields.");
-      } else if (!isAuthenticated) {
-        setShowAuthModal(true);
-      } else {
-        submitData();
-      }
-      setShouldSubmitAfterAuth(false);
+    if (isOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev;
+      };
     }
-  }, [isAuthenticated, shouldSubmitAfterAuth]);
+  }, [isOpen]);
 
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    const numericValue = parseFloat(value);
-
-    if (!isNaN(numericValue)) {
-      setRatings((prev) => ({
-        ...prev,
-        [name]: numericValue,
-      }));
-
-      setCheckboxState((prev) => ({
-        ...prev,
-        [name as keyof typeof checkboxState]:
-          numericValue === 10.0
-            ? false
-            : prev[name as keyof typeof checkboxState],
-      }));
-    }
-  };
-
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target;
-    setCheckboxState((prev) => ({
-      ...prev,
-      [name as keyof typeof checkboxState]: checked,
-    }));
-  };
-
-  const handleParkChange = (
-    e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>
-  ) => {
-    const { name, value } = e.target;
-
-    if (name === "continent") {
-      setParkInfo((prev) => ({
-        ...prev,
-        continent: value,
-        country: "",
-      }));
-    } else {
-      setParkInfo((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
-    }
-  };
-
-  const isFormValid = () => {
-    const areParkFieldsFilled =
-      parkInfo.name &&
-      parkInfo.continent &&
-      parkInfo.country &&
-      parkInfo.city &&
-      parkInfo.image &&
-      selectedDate !== null;
-
-    const areRatingFieldsFilled = [
-      "parkAppearance",
-      "parkPracticality",
-      "bestCoaster",
-      "coasterDepth",
-      "waterRides",
-      "flatridesAndDarkrides",
-      "food",
-      "snacksAndDrinks",
-      "rideOperations",
-      "parkManagement",
-    ].every((key) => ratings[key] !== null && ratings[key] !== undefined);
-
-    return areParkFieldsFilled && areRatingFieldsFilled;
-  };
-
-  const handleSubmit = () => {
-    if (!isFormValid()) {
-      alert("Please fill out all required fields.");
-      return;
-    }
-
-    if (!isAuthenticated) {
-      setShowAuthModal(true);
-      return;
-    }
-
-    submitData();
-  };
+  const isFormValid =
+    Boolean(parkInfo.name) &&
+    Boolean(parkInfo.continent) &&
+    Boolean(parkInfo.country) &&
+    Boolean(parkInfo.city) &&
+    Boolean(parkInfo.image) &&
+    selectedDate !== null;
 
   const submitData = async () => {
     setLoading(true);
     try {
       let imagePath = "/images/Error.PNG";
-
       if (parkInfo.image) {
         const formData = new FormData();
         formData.append("file", parkInfo.image);
-
-        const r2Response = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-
+        const r2Response = await fetch("/api/upload", { method: "POST", body: formData });
         if (r2Response.ok) {
           const r2Result = await r2Response.json();
           imagePath = r2Result.imagePath;
         } else {
-          console.error("Image upload failed");
-          alert("Failed to upload image. Please try again.");
+          alert("Image upload failed");
           return;
         }
       }
@@ -266,55 +197,45 @@ const RatingModal: React.FC<ModalProps> = ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(parkPayload),
       });
-
       if (!parkResponse.ok) {
-        const error = await parkResponse.json();
-        console.error("Error creating park:", error);
-        alert(`Error creating park: ${error.message || "Unknown error"}`);
+        const err = await parkResponse.json().catch(() => ({}));
+        alert(`Error creating park: ${err.message || "Unknown error"}`);
         return;
       }
 
       const savedPark = await parkResponse.json();
-      console.log(savedPark);
-
       const ratingPayload = {
-        ...ratings,
+        ...ratingsStore.all(),
         date: selectedDate ? selectedDate.toISOString().split("T")[0] : "",
         parkId: savedPark.parkId,
-
-        parkAppearance: (ratings.parkAppearance ?? 0) + (checkboxState.parkAppearance ? 1 : 0),
-        parkPracticality: (ratings.parkPracticality ?? 0) + (checkboxState.parkPracticality ? 1 : 0),
-        bestCoaster: (ratings.bestCoaster ?? 0) + (checkboxState.bestCoaster ? 1 : 0),
-        coasterDepth: (ratings.coasterDepth ?? 0) + (checkboxState.coasterDepth ? 1 : 0),
-        waterRides: (ratings.waterRides ?? 0) + (checkboxState.waterRides ? 1 : 0),
-        flatridesAndDarkrides: (ratings.flatridesAndDarkrides ?? 0) + (checkboxState.flatridesAndDarkrides ? 1 : 0),
-        food: (ratings.food ?? 0) + (checkboxState.food ? 1 : 0),
-        snacksAndDrinks: (ratings.snacksAndDrinks ?? 0) + (checkboxState.snacksAndDrinks ? 1 : 0),
-        rideOperations: (ratings.rideOperations ?? 0) + (checkboxState.rideOperations ? 1 : 0),
-        parkManagement: (ratings.parkManagement ?? 0) + (checkboxState.parkManagement ? 1 : 0),
       };
-
 
       const ratingResponse = await fetch("/api/ratings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(ratingPayload),
       });
-
-      if (ratingResponse.ok) {
-        setMessage(`${savedPark.message}`);
-        setTimeout(() => closeModal(), 2000);
+      if (!ratingResponse.ok) {
+        alert("Failed to save rating");
       } else {
-        console.error("Failed to save rating");
+        alert("All ratings submitted successfully!");
+        setTimeout(() => closeModal(), 800);
       }
-    } catch (error) {
-      console.error("Submission error:", error);
-      alert("Failed to submit. Please try again.");
+    } catch (e) {
+      console.error(e);
+      alert("Submission failed.");
     } finally {
       setLoading(false);
+      fetchRatingsAndParks();
     }
+  };
 
-    fetchRatingsAndParks();
+  const jumpToCategory = (cat: string) => {
+    const idx = CATEGORIES.indexOf(cat as Category);
+    if (idx >= 0) {
+      setCategoryIndex(idx);
+      setStep(2);
+    }
   };
 
   if (!isOpen) return null;
@@ -322,323 +243,256 @@ const RatingModal: React.FC<ModalProps> = ({
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <div
-        className="fixed inset-0 z-[1000] bg-black/40 dark:bg-black/60 backdrop-blur-sm flex justify-center items-center"
+        className="fixed left-0 right-0 top-0 z-[9999] bg-black/50 dark:bg-black/70 backdrop-blur-sm flex justify-center items-start"
+        style={{
+          height: "100dvh",
+          paddingTop: "120px", // offset under your site nav
+          WebkitOverflowScrolling: "touch",
+        }}
         onClick={closeModal}
       >
         <div
-          className="bg-white dark:bg-gray-800 dark:text-gray-100 border border-transparent dark:border-white/10 p-8 rounded-lg shadow-lg max-w-lg w-full max-h-[80vh] overflow-y-auto relative flex flex-col"
+          className="bg-white dark:bg-gray-900 dark:text-gray-100 border border-transparent dark:border-white/10 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] relative flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Close button */}
-          <button
-            className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white transition duration-300 cursor-pointer"
-            onClick={closeModal}
-          >
-            ✕
-          </button>
-
-          <h2 className="text-3xl mb-6 text-center font-bold dark:text-white">
-            Rate a Park
-          </h2>
-
-          {/* Display success message */}
-          {message && (
-            <RatingSuccessMessage
-              message={message}
-              onClose={() => setMessage("")}
-            />
-          )}
-
+          {/* Scroll container */}
           <div
-            className="flex-1 overflow-y-auto px-3"
-            style={{ maxHeight: "60vh" }}
+            ref={scrollContainerRef}
+            className="relative flex-1 overflow-y-auto"
+            style={{
+              WebkitOverflowScrolling: "touch",
+              // extra bottom padding so nothing gets cut off inside the modal
+              paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 28px)",
+            }}
           >
-            <form className="space-y-4">
-              {/* Park Section */}
-              <div className="cursor-pointer">
-                <div
-                  className="flex justify-between items-center"
-                  onClick={() => setParkSectionExpanded(!isParkSectionExpanded)}
+            {/* Close */}
+            <button
+              className="absolute top-3 right-4 text-gray-500 hover:text-gray-300 dark:text-gray-400 dark:hover:text-white text-2xl transition cursor-pointer z-[10000]"
+              onClick={closeModal}
+              aria-label="Close modal"
+            >
+              ✕
+            </button>
+
+            {/* Title */}
+            <h2 className="px-4 sm:px-8 pt-8 pb-4 text-2xl sm:text-3xl text-center font-bold">
+              {step === 1 && "Step 1: Park Details"}
+              {step === 2 && "Step 2: Rate the Park"}
+              {step === 3 && "Step 3: Summary"}
+            </h2>
+
+            <AnimatePresence mode="wait">
+              {/* STEP 1 */}
+              {step === 1 && (
+                <motion.div
+                  key="info"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="px-4 sm:px-8 pb-24 space-y-4" // pb-24 adds comfortable bottom space
                 >
-                  <span className="mr-2 dark:text-gray-300">
-                    {isParkSectionExpanded ? "▲" : "▼"}
-                  </span>
+                  <DatePicker
+                    selected={selectedDate}
+                    onChange={(d) => setSelectedDate(d)}
+                    className="w-full p-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"
+                    placeholderText="Select visit date"
+                    dateFormat="yyyy-MM-dd"
+                  />
+                  <input
+                    placeholder="Park name"
+                    value={parkInfo.name}
+                    onChange={(e) => setParkInfo((p) => ({ ...p, name: e.target.value }))}
+                    className="w-full p-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"
+                  />
+                  <select
+                    value={parkInfo.continent}
+                    onChange={(e) =>
+                      setParkInfo((p) => ({ ...p, continent: e.target.value, country: "" }))
+                    }
+                    className="w-full p-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"
+                  >
+                    <option value="">Select Continent</option>
+                    {Object.keys(continentCountries).map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={parkInfo.country}
+                    disabled={!parkInfo.continent}
+                    onChange={(e) => setParkInfo((p) => ({ ...p, country: e.target.value }))}
+                    className="w-full p-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 disabled:opacity-60"
+                  >
+                    <option value="">Select Country</option>
+                    {parkInfo.continent &&
+                      continentCountries[parkInfo.continent]?.map((country) => (
+                        <option key={country}>{country}</option>
+                      ))}
+                  </select>
+                  <input
+                    placeholder="City"
+                    value={parkInfo.city}
+                    onChange={(e) => setParkInfo((p) => ({ ...p, city: e.target.value }))}
+                    className="w-full p-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"
+                  />
 
-                  <div className="flex-1 flex justify-center">
-                    <h3 className="text-lg font-semibold dark:text-white">
-                      Park
-                    </h3>
-                  </div>
-
-                  <span className="ml-2 dark:text-gray-300">
-                    {isParkSectionExpanded ? "▲" : "▼"}
-                  </span>
-                </div>
-
-                {isParkSectionExpanded && (
-                  <div className="space-y-2 mt-2">
-                    <div>
-                      <label
-                        htmlFor="visitDate"
-                        className="block text-lg font-semibold text-gray-800 dark:text-gray-300"
-                      >
-                        Visit Date
-                      </label>
-                      <DatePicker
-                        selected={selectedDate}
-                        onChange={(date: Date | null) => setSelectedDate(date)}
-                        className="w-96 p-2 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
-                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                                   dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
-                        dateFormat="yyyy-MM-dd"
-                        placeholderText="Select visit date"
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="name"
-                        className="block text-lg font-semibold text-gray-800 dark:text-gray-300"
-                      >
-                        Park Name
-                      </label>
-                      <input
-                        type="text"
-                        name="name"
-                        value={parkInfo.name}
-                        onChange={handleParkChange}
-                        className="w-96 p-2 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
-                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                                   dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
-                        placeholder="Enter park name"
-                        disabled={loading}
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="continent"
-                        className="block text-lg font-semibold text-gray-800 dark:text-gray-300"
-                      >
-                        Continent
-                      </label>
-                      <select
-                        name="continent"
-                        value={parkInfo.continent}
-                        onChange={handleParkChange}
-                        className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900
-                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                                   dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:focus-visible:ring-offset-gray-800"
-                      >
-                        <option value="">Select Continent</option>
-                        {Object.keys(continentCountries).map((continent) => (
-                          <option key={continent} value={continent}>
-                            {continent.replace(/([a-z])([A-Z])/g, "$1 $2")}{" "}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="country"
-                        className="block text-lg font-semibold text-gray-800 dark:text-gray-300"
-                      >
-                        Country
-                      </label>
-                      <select
-                        name="country"
-                        value={parkInfo.country}
-                        onChange={handleParkChange}
-                        className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900
-                                   disabled:opacity-60
-                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                                   dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:focus-visible:ring-offset-gray-800"
-                        disabled={!parkInfo.continent}
-                      >
-                        <option value="">Select Country</option>
-                        {parkInfo.continent &&
-                          continentCountries[parkInfo.continent].map(
-                            (country) => (
-                              <option key={country} value={country}>
-                                {country}
-                              </option>
-                            )
-                          )}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="city"
-                        className="block text-lg font-semibold text-gray-800 dark:text-gray-300"
-                      >
-                        City
-                      </label>
-                      <input
-                        type="text"
-                        name="city"
-                        value={parkInfo.city}
-                        onChange={handleParkChange}
-                        className="w-96 p-2 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
-                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                                   dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
-                        placeholder="Enter city"
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="image"
-                        className="block text-lg font-semibold text-gray-800 dark:text-gray-300"
-                      >
-                        Park Image
-                      </label>
+                  {/* Image chooser + preview */}
+                  <div className="flex items-center gap-3">
+                    <label className="inline-flex items-center gap-2 rounded-md px-4 py-2 bg-indigo-600 text-white font-medium shadow hover:bg-indigo-700 cursor-pointer">
+                      Choose Image
                       <input
                         type="file"
-                        name="image"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setParkInfo({
-                              ...parkInfo,
-                              image: file,
-                            });
-                          }
-                        }}
-                        className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-2
-                                   dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:file:bg-gray-800"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) =>
+                          setParkInfo((p) => ({ ...p, image: e.target.files?.[0] ?? null }))
+                        }
                       />
+                    </label>
+                    {imagePreview && (
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-12 h-12 object-cover rounded-md border border-gray-300 dark:border-gray-700"
+                      />
+                    )}
+                  </div>
+                  {parkInfo.image && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                      Selected: {parkInfo.image.name}
+                    </p>
+                  )}
+
+                  <button
+                    disabled={!isFormValid}
+                    onClick={() => {
+                      if (!isFormValid) {
+                        alert("Please fill out all required fields.");
+                        return;
+                      }
+                      setStep(2);
+                    }}
+                    className={`w-full mt-6 p-3 rounded-md font-semibold text-white transition ${
+                      isFormValid ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-400 cursor-not-allowed"
+                    }`}
+                  >
+                    Proceed to ratings →
+                  </button>
+                </motion.div>
+              )}
+
+              {/* STEP 2 */}
+              {step === 2 && (
+                <motion.div
+                  key="ratings"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="pb-24" // extra bottom space so manual input never gets clipped
+                >
+                  {/* Sticky header */}
+                  <div className="sticky top-0 left-0 right-0 z-[10001] w-full bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 pt-3 pb-3 shadow-sm">
+                    <ProgressBar categories={CATEGORIES} />
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <button
+                        onClick={() =>
+                          setCategoryIndex((i) => (i - 1 + CATEGORIES.length) % CATEGORIES.length)
+                        }
+                        className="px-3 py-1.5 rounded-md bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-xs sm:text-sm"
+                      >
+                        ← Prev
+                      </button>
+
+                      <div className="text-sm sm:text-base font-semibold truncate text-center">
+                        {toTitleCaseFromCamel(category)} · {categoryIndex + 1}/{CATEGORIES.length}
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          if (categoryIndex === CATEGORIES.length - 1) setStep(3);
+                          else setCategoryIndex((i) => (i + 1) % CATEGORIES.length);
+                        }}
+                        className="px-3 py-1.5 rounded-md bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-xs sm:text-sm"
+                      >
+                        {categoryIndex === CATEGORIES.length - 1 ? "Finish →" : "Next →"}
+                      </button>
                     </div>
                   </div>
-                )}
-              </div>
 
-              {/* Rating Section */}
-              <div className="cursor-pointer">
-                <div
-                  className="flex justify-between items-center"
-                  onClick={() =>
-                    setRatingSectionExpanded(!isRatingSectionExpanded)
-                  }
+                  {/* Lane */}
+                  <div className="px-4 sm:px-8 pt-6">
+                    {/* force remount per category so new ones start at 0.0 and old ones restore */}
+                    <ParkRankLane
+                      key={category}
+                      category={category}
+                      newParkName={parkInfo.name || "New Park"}
+                      initialRating={ratingsStore.get(category)} // undefined => 0.0 in child
+                      newParkImageUrl={imagePreview ?? undefined}
+                      onSetRating={(v) => ratingsStore.set(category, v)}
+                    />
+                  </div>
+                </motion.div>
+              )}
+
+              {/* STEP 3 */}
+              {step === 3 && (
+                <motion.div
+                  key="summary"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="px-4 sm:px-8 pb-28 space-y-4" // extra bottom so Submit stays visible
                 >
-                  <span className="mr-2 dark:text-gray-300">
-                    {isParkSectionExpanded ? "▲" : "▼"}
-                  </span>
-
-                  <div className="flex-1 flex justify-center">
-                    <h3 className="text-lg font-semibold dark:text-white">
-                      Rating
-                    </h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-semibold">Summary</h3>
+                    <button
+                      type="button"
+                      onClick={() => setStep(1)}
+                      className="text-sm underline"
+                      aria-label="Edit park details"
+                    >
+                      Edit park details
+                    </button>
                   </div>
 
-                  <span className="ml-2 dark:text-gray-300">
-                    {isParkSectionExpanded ? "▲" : "▼"}
-                  </span>
-                </div>
-
-                {isRatingSectionExpanded && (
-                  <div className="space-y-4 mt-2">
-                    {[
-                      "parkAppearance",
-                      "parkPracticality",
-                      "bestCoaster",
-                      "coasterDepth",
-                      "waterRides",
-                      "flatridesAndDarkrides",
-                      "food",
-                      "snacksAndDrinks",
-                      "rideOperations",
-                      "parkManagement",
-                    ].map((field) => (
-                      <div key={field} className="flex items-center space-x-4">
-                        <div className="flex-1">
-                          <label
-                            htmlFor={field}
-                            className="block text-lg font-semibold text-gray-800 dark:text-gray-300"
-                          >
-                            {field.replace(/([A-Z])/g, " $1").toUpperCase()}
-                          </label>
-
-                          <select
-                            name={field}
-                            value={ratings[field]?.toFixed(1) || ""}
-                            onChange={handleInputChange}
-                            className={`w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900
-                                        focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                                        dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:focus-visible:ring-offset-gray-800 ${getRatingColor(
-                              ratings[field] ?? ""
-                            )}`}
-                          >
-                            <option value="">Select Rating</option>
-                            {[...Array(21)].map((_, i) => {
-                              const base = 10 - i * 0.5;
-                              if (base > 10) return null;
-                              const formattedValue = base.toFixed(1);
-                              const colorClass = getRatingColor(base);
-
-                              return (
-                                <option
-                                  key={`${field}-${formattedValue}`}
-                                  value={formattedValue}
-                                  className={colorClass}
-                                >
-                                  {formattedValue}
-                                </option>
-                              );
-                            })}
-                          </select>
-                          {ratings[field as keyof typeof checkboxState] === 10.0 && (
-                            <div className="flex flex-col justify-center items-start h-full mt-2">
-                              <label className="flex items-center space-x-2 select-none">
-                                <input
-                                  type="checkbox"
-                                  name={field}
-                                  checked={checkboxState[field as keyof typeof checkboxState]}
-                                  onChange={handleCheckboxChange}
-                                  className="h-5 w-5 rounded border-gray-300 text-yellow-400 focus:ring-yellow-400 cursor-pointer
-                   dark:bg-gray-900 dark:border-white/10"
-                                />
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                  GOLDEN RATING
-                                </span>
-                              </label>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                  <div className="text-gray-700 dark:text-gray-300 space-y-1">
+                    <div><strong>Park:</strong> {parkInfo.name}</div>
+                    <div><strong>Location:</strong> {parkInfo.city}, {parkInfo.country}</div>
+                    <div><strong>Date:</strong> {selectedDate?.toISOString().split("T")[0]}</div>
                   </div>
-                )}
-              </div>
 
-              {/* Submit Button */}
-              <button
-                type="button"
-                onClick={handleSubmit}
-                className={`w-full p-3 text-white font-semibold rounded-md transition duration-300 cursor-pointer
-                ${isFormValid()
-                    ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
-                    : "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
-                  }
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800`}
-                disabled={!isFormValid() || loading}
-              >
-                {loading ? <Loading /> : "Submit Rating"}
-              </button>
-            </form>
+                  <SummaryList
+                    categories={CATEGORIES}
+                    onEditCategory={(cat) => jumpToCategory(cat)}
+                  />
+
+                  <button
+                    onClick={submitData}
+                    disabled={loading}
+                    className={`mt-6 w-full p-3 text-white font-semibold rounded-md transition ${
+                      loading
+                        ? "bg-gray-400 dark:bg-gray-600"
+                        : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
+                    }`}
+                  >
+                    {loading ? <Loading /> : "Submit All Ratings"}
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {showAuthModal && (
+              <AuthenticationModal
+                onClose={() => setShowAuthModal(false)}
+                onAuthenticated={() => {
+                  setIsAuthenticated(true);
+                  setShowAuthModal(false);
+                }}
+              />
+            )}
           </div>
-
-          {showAuthModal && (
-            <AuthenticationModal
-              onClose={() => setShowAuthModal(false)}
-              onAuthenticated={() => {
-                setIsAuthenticated(true);
-                setShowAuthModal(false);
-                setShouldSubmitAfterAuth(true);
-              }}
-            />
-          )}
         </div>
       </div>
     </Suspense>
