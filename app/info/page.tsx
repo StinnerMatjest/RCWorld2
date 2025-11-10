@@ -1,3 +1,9 @@
+export const metadata = {
+  title: "About ParkRating",
+  description:
+    "We are two brothers with a passion for theme parks and thrilling coasters",
+};
+
 "use client";
 
 import React, { useState } from "react";
