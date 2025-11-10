@@ -3,6 +3,7 @@ import { ParksProvider } from "./context/ParksContext";
 import { SearchProvider } from "./context/SearchContext";
 import { Inter, Roboto } from "next/font/google";
 import Header from "./components/Header";
+import Script from "next/script"; // 👈 important
 
 export const metadata = {
   title: "Parkrating",
@@ -32,7 +33,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head />
+      <head>
+        {/* ✅ Umami Cloud analytics */}
+        <Script
+          src="https://cloud.umami.is/script.js"
+          data-website-id="acd51e6e-baaa-4194-aaf1-41851db17222"
+          strategy="afterInteractive"
+          defer
+        />
+      </head>
       <body className={`${inter.variable} ${roboto.variable} antialiased`}>
         <ParksProvider>
           <SearchProvider>
