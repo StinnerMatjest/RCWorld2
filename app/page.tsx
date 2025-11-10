@@ -1,10 +1,3 @@
-export const metadata = {
-  title: "ParkRating, Ride, Rate, Repeat",
-  description:
-    "Honest and fun reviews of theme parks across the world — with ratings, photos, and personal insights.",
-};
-
-
 "use client";
 
 import React, {
