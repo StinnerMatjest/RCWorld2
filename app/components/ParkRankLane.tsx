@@ -19,8 +19,11 @@ interface Props {
   onSetRating: (rating: number) => void;
 }
 
-const snapHalf = (v: number) => Math.round(v * 2) / 2;
-const clamp = (v: number, min = 0, max = 10) => Math.min(Math.max(v, min), max);
+const snapHalf = (v: number) => {
+  const snapped = Math.round(v * 2) / 2;
+  return snapped > 10 ? 10 : snapped;
+};
+const clamp = (v: number, min = 0, max = 11) => Math.min(Math.max(v, min), max);
 const NEW_PARK_ID = -1;
 
 // Per-category caches to preserve order and ratings without reflow/flicker
@@ -59,7 +62,6 @@ const ParkRankLane: React.FC<Props> = ({
 
   const label = useMemo(() => titleCase(category), [category]);
 
-  // Load or hydrate list for this category
   useEffect(() => {
     let cancelled = false;
 
@@ -116,10 +118,7 @@ const ParkRankLane: React.FC<Props> = ({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, startVal, newParkName]);
-
-  const isNew = (p: Park) => p.id === NEW_PARK_ID;
 
   const calcRatingFromNeighbors = (arr: Park[]) => {
     const idx = arr.findIndex((p) => p.id === NEW_PARK_ID);
@@ -133,7 +132,7 @@ const ParkRankLane: React.FC<Props> = ({
     if (higher && lower) next = snapHalf((higher.value + lower.value) / 2);
     else if (higher) next = snapHalf(higher.value + 0.5);
     else if (lower) next = snapHalf(lower.value - 0.5);
-    return clamp(next, 0, 10);
+    return snapHalf(clamp(next, 0, 11));
   };
 
   const handleReorder = (next: Park[]) => {
@@ -163,28 +162,58 @@ const ParkRankLane: React.FC<Props> = ({
     setTimeout(() => setSavedToast(false), 900);
   };
 
-  // Manual input (text so mobile can clear)
-  const onManualChange = (text: string) => {
-    setManualText(text);
-    const normalized = text.replace(",", ".").trim();
+  const handleInputChange = (text: string) => {
+    setManualText(text); // let user type freely
+  };
+
+  const handleInputCommit = () => {
+    const normalized = manualText.toUpperCase().trim().replace(",", ".");
+
+    // Golden rating
+    if (normalized === "G") {
+      const special = 11;
+      setManualText("G");
+      setCurrentRating(special);
+      ratingCache.set(category, special);
+
+      setOrder((prev) => {
+        const others = prev.filter((p) => p.id !== NEW_PARK_ID);
+        const newEntry: Park = { id: NEW_PARK_ID, name: newParkName || "New Park", value: special };
+        const next = insertByValueDesc(others, newEntry);
+        orderCache.set(category, next);
+        return next;
+      });
+
+      onSetRating(special);
+      setSavedToast(true);
+      setTimeout(() => setSavedToast(false), 900);
+      return;
+    }
+
+    // Empty input => 0
     if (normalized === "") {
-      // treat as 0.0 and move to top
+      setManualText("");
       setCurrentRating(0);
       ratingCache.set(category, 0);
+
       setOrder((prev) => {
         const others = prev.filter((p) => p.id !== NEW_PARK_ID);
         const next = [{ id: NEW_PARK_ID, name: newParkName || "New Park", value: 0 }, ...others];
         orderCache.set(category, next);
         return next;
       });
+
       onSetRating(0);
       return;
     }
 
-    const raw = parseFloat(normalized);
-    if (!Number.isFinite(raw)) return;
+    // Parse number
+    const num = parseFloat(normalized);
+    if (!Number.isFinite(num)) return;
 
-    const snapped = snapHalf(clamp(raw, 0, 10));
+    // Snap to nearest 0.5, clamp 0.5–10
+    const snapped = snapHalf(clamp(num, 0.5, 10));
+    setManualText(snapped.toFixed(1));
     setCurrentRating(snapped);
     ratingCache.set(category, snapped);
 
@@ -201,11 +230,10 @@ const ParkRankLane: React.FC<Props> = ({
     setTimeout(() => setSavedToast(false), 900);
   };
 
-  const displayValue = (v: number) => v.toFixed(1); // always show 0.0 instead of dash
+  const displayValue = (v: number) => v.toFixed(1);
 
   return (
     <div className="relative flex flex-col items-center py-6 w-full">
-      {/* Subtle blocking layer on first load to avoid any flicker */}
       <AnimatePresence>
         {pending && (
           <motion.div
@@ -253,11 +281,11 @@ const ParkRankLane: React.FC<Props> = ({
                 : {}
             }
             transition={{ type: "spring", stiffness: 480, damping: 34 }}
-            className={`flex items-center justify-between px-3 py-2 rounded-lg shadow-md border select-none ${
-              p.id === NEW_PARK_ID
-                ? "bg-blue-600/90 text-white border-blue-400"
-                : "bg-gray-800/70 border-gray-700 text-gray-100"
-            }`}
+            className={`flex items-center justify-between px-3 py-2 lg:px-4 lg:py-3 rounded-lg shadow-md border select-none ${p.id === NEW_PARK_ID
+              ? "bg-blue-600/90 text-white border-blue-400"
+              : "bg-gray-800/70 border-gray-700 text-gray-100"
+              }`}
+
             style={{ cursor: p.id === NEW_PARK_ID ? "grab" : "default", willChange: "transform" }}
           >
             <div className="flex items-center gap-3">
@@ -282,35 +310,31 @@ const ParkRankLane: React.FC<Props> = ({
             <motion.span
               layout="position"
               transition={{ type: "spring", stiffness: 600, damping: 35 }}
-              className={`font-bold text-sm ${getRatingColor(p.id === NEW_PARK_ID ? currentRating : p.value)}`}
+              className={`font-bold text-sm lg:text-lg ${getRatingColor(p.id === NEW_PARK_ID ? currentRating : p.value)}`}
             >
               {displayValue(p.id === NEW_PARK_ID ? currentRating : p.value)}
             </motion.span>
+
           </Reorder.Item>
         ))}
       </Reorder.Group>
 
-      {/* Assigned + manual numeric entry + spacer so it's never clipped */}
       <div className="mt-5 flex flex-col items-center">
-        <div className="text-lg font-semibold text-blue-400 mb-2">
-          Assigned: <span className="font-bold">{displayValue(currentRating)}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-500 dark:text-gray-400">Enter value:</label>
+        <div className="flex items-center gap-2 text-base lg:text-lg">
+          <label className="text-sm text-gray-500 dark:text-gray-400 lg:text-lg">Enter value:</label>
           <input
-            type="text"
-            inputMode="decimal"
+            type="text"                  // allows letters
+            inputMode="decimal"          // numeric keyboard on mobile
             autoComplete="off"
-            enterKeyHint="done"
-            placeholder="0 – 10"
+            placeholder="0 – 10 or G"
             value={manualText}
-            onChange={(e) => onManualChange(e.target.value)}
+            onChange={(e) => handleInputChange(e.target.value)} // free typing
+            onBlur={handleInputCommit}                         // snap & update on leaving input
+            onKeyDown={(e) => e.key === "Enter" && handleInputCommit()} // snap & update on Enter
             className="w-24 p-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-center"
           />
         </div>
       </div>
-
-      {/* Spacer ensures the numeric input never sits at the very bottom edge */}
       <div className="h-16" />
     </div>
   );

@@ -372,7 +372,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                       }
                       setStep(2);
                     }}
-                    className={`w-full mt-6 p-3 rounded-md font-semibold text-white transition ${
+                    className={`w-full mt-6 p-3 rounded-md font-semibold text-white transition cursor-pointer ${
                       isFormValid ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-400 cursor-not-allowed"
                     }`}
                   >
@@ -389,7 +389,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.18 }}
-                  className="pb-24" // extra bottom space so manual input never gets clipped
+                  className="pb-24"
                 >
                   {/* Sticky header */}
                   <div className="sticky top-0 left-0 right-0 z-[10001] w-full bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 pt-3 pb-3 shadow-sm">
@@ -399,7 +399,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                         onClick={() =>
                           setCategoryIndex((i) => (i - 1 + CATEGORIES.length) % CATEGORIES.length)
                         }
-                        className="px-3 py-1.5 rounded-md bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-xs sm:text-sm"
+                        className="px-3 py-1.5 rounded-md bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-xs sm:text-sm cursor-pointer"
                       >
                         ← Prev
                       </button>
@@ -413,7 +413,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                           if (categoryIndex === CATEGORIES.length - 1) setStep(3);
                           else setCategoryIndex((i) => (i + 1) % CATEGORIES.length);
                         }}
-                        className="px-3 py-1.5 rounded-md bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-xs sm:text-sm"
+                        className="px-3 py-1.5 rounded-md bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-xs sm:text-sm cursor-pointer"
                       >
                         {categoryIndex === CATEGORIES.length - 1 ? "Finish →" : "Next →"}
                       </button>
@@ -450,7 +450,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                     <button
                       type="button"
                       onClick={() => setStep(1)}
-                      className="text-sm underline"
+                      className="text-sm underline cursor-pointer"
                       aria-label="Edit park details"
                     >
                       Edit park details
@@ -471,7 +471,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                   <button
                     onClick={submitData}
                     disabled={loading}
-                    className={`mt-6 w-full p-3 text-white font-semibold rounded-md transition ${
+                    className={`mt-6 w-full p-3 text-white font-semibold rounded-md transition cursor-pointer ${
                       loading
                         ? "bg-gray-400 dark:bg-gray-600"
                         : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
