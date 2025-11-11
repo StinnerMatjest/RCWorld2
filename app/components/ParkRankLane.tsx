@@ -170,9 +170,9 @@ const ParkRankLane: React.FC<Props> = ({
     const normalized = manualText.toUpperCase().trim().replace(",", ".");
 
     // Golden rating
-    if (normalized === "G") {
+    if (normalized === "G" || normalized === "11") {
       const special = 11;
-      setManualText("G");
+      setManualText("11"); // or "11" instead of "G"
       setCurrentRating(special);
       ratingCache.set(category, special);
 
@@ -189,6 +189,7 @@ const ParkRankLane: React.FC<Props> = ({
       setTimeout(() => setSavedToast(false), 900);
       return;
     }
+
 
     // Empty input => 0
     if (normalized === "") {
