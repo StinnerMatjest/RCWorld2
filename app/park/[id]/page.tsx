@@ -10,7 +10,7 @@ import ParkHeader from "@/app/components/ParkHeader";
 import ParkInfo from "@/app/components/ParkInfo";
 import Gallery from "@/app/components/Gallery";
 import ArchivePanel from "@/app/components/ArchivePanel";
-import type { Park, Rating, RollerCoaster } from "@/app/types";
+import type { Park, Rating, RatingWarningType, RollerCoaster } from "@/app/types";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 
 const ParkPage: React.FC = () => {
@@ -45,9 +45,12 @@ const ParkPage: React.FC = () => {
       setRatings(
         ratingsData.ratings
           .filter((r: Rating) => r.parkId === Number(parkId))
-          .sort(
-            (a: Rating, b: Rating) =>
-              new Date(b.date).getTime() - new Date(a.date).getTime()
+          .map((r: Rating) => ({
+            ...r,
+            warnings: r.warnings ?? [],
+          }))
+          .sort((a: Rating, b: Rating) =>
+            new Date(b.date).getTime() - new Date(a.date).getTime()
           )
       );
 
@@ -68,7 +71,7 @@ const ParkPage: React.FC = () => {
     setCoasters(await res.json());
   };
 
-if (!park) return <LoadingSpinner />;
+  if (!park) return <LoadingSpinner />;
 
   return (
     <div className="w-full">
@@ -89,7 +92,7 @@ if (!park) return <LoadingSpinner />;
             <h2 className="text-xl font-semibold mb-1 dark:text-white">Park Info</h2>
             <div className="border-t border-gray-300 dark:border-white/10 my-3" />
             <ParkInfo park={park} />
-  
+
             <div className="border-t border-gray-300 dark:border-white/10 my-3" />
             <ArchivePanel
               ratings={ratings}

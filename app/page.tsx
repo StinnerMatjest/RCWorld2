@@ -8,6 +8,7 @@ import React, {
   UIEvent,
   useLayoutEffect,
 } from "react";
+import { RatingWarningType } from "@/app/types";
 import RatingCard from "./components/RatingCard";
 import RatingModal from "./components/RatingModal";
 import { useRouter } from "next/navigation";
@@ -30,6 +31,7 @@ export interface Rating {
   parkManagement: number;
   overall: number;
   parkId: number;
+  warnings?: { ride: string; note: string }[];
 }
 
 export interface Park {
@@ -60,6 +62,7 @@ const Home = () => {
   const settleTimer = useRef<number | null>(null);
   const isAutoScrolling = useRef(false);
 
+  const [ratingWarnings, setRatingWarnings] = useState<RatingWarningType[]>([]);
   const sortedRatings = [...ratings].sort((a, b) => b.overall - a.overall);
   const filteredRatings = sortedRatings.filter((rating) => {
     const park = parks.find((p) => p.id === rating.parkId);
@@ -69,20 +72,16 @@ const Home = () => {
   const fetchRatingsAndParks = async () => {
     try {
       const ratingsResponse = await fetch("/api/ratings");
-      if (!ratingsResponse.ok) throw new Error("Failed to fetch ratings");
       const ratingsData = await ratingsResponse.json();
 
       const parksResponse = await fetch("/api/parks");
-      if (!parksResponse.ok) throw new Error("Failed to fetch parks");
       const parksData = await parksResponse.json();
+
 
       setParks(Array.isArray(parksData.parks) ? parksData.parks : []);
       setRatings(Array.isArray(ratingsData.ratings) ? ratingsData.ratings : []);
-      setError(null);
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "An unexpected error occurred"
-      );
+    } catch (err) {
+      console.error(err);
     } finally {
       setIsLoading(false);
     }
@@ -101,7 +100,6 @@ const Home = () => {
     return () => window.removeEventListener("resize", recalc);
   }, []);
 
-  // compute active index + small parallax on scroll
   const handleScrollInternal = (el: HTMLDivElement) => {
     const containerCenter = el.scrollLeft + el.clientWidth / 2;
 
@@ -120,7 +118,7 @@ const Home = () => {
         closestIdx = idx;
       }
 
-      const ratio = dist / el.clientWidth; // ~[-1..1]
+      const ratio = dist / el.clientWidth;
       const px = Math.max(-14, Math.min(14, -ratio * 28));
       nextParallax[idx] = Math.round(px);
     });
@@ -149,7 +147,7 @@ const Home = () => {
     const el = e.currentTarget;
     handleScrollInternal(el);
 
-    // Debounce: when scroll pauses, snap to nearest
+    // When scroll pauses, snap to nearest
     if (settleTimer.current) window.clearTimeout(settleTimer.current);
     settleTimer.current = window.setTimeout(() => {
       if (!isAutoScrolling.current) {
@@ -167,7 +165,7 @@ const Home = () => {
 
   return (
     <main className="relative z-0 bg-gray-100 dark:bg-[#0f172a] min-h-screen overflow-visible">
-      {/* -------- Mobile: horizontal swipe carousel -------- */}
+      {/* Mobile: horizontal swipe carousel */}
       <div className="md:hidden px-4 py-3 relative">
         <div
           ref={carouselRef}
@@ -205,7 +203,13 @@ const Home = () => {
                   max-w-sm
                   `}
               >
-                <RatingCard rating={rating} park={park} delayIndex={index} />
+                <RatingCard
+                  key={rating.id}
+                  rating={rating}
+                  park={park}
+                  delayIndex={index}
+                  ratingWarnings={rating.warnings}
+                />
               </div>
             );
           })}
@@ -228,17 +232,16 @@ const Home = () => {
           {filteredRatings.map((_, i) => (
             <span
               key={i}
-              className={`h-2 w-2 rounded-full transition-colors ${
-                i === currentIndex
-                  ? "bg-blue-600 dark:bg-blue-400"
-                  : "bg-gray-300 dark:bg-gray-600"
-              }`}
+              className={`h-2 w-2 rounded-full transition-colors ${i === currentIndex
+                ? "bg-blue-600 dark:bg-blue-400"
+                : "bg-gray-300 dark:bg-gray-600"
+                }`}
             />
           ))}
         </div>
       </div>
 
-      {/* -------- Tablet & up: normal grid -------- */}
+      {/* Tablet & up: normal grid */}
       <div className="hidden md:grid relative z-10 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 px-6 flex-grow bg-white dark:bg-transparent py-2.5">
         {filteredRatings.map((rating, index) => {
           const park = parks.find((p) => p.id === rating.parkId);
@@ -250,6 +253,7 @@ const Home = () => {
               rating={rating}
               park={park}
               delayIndex={index}
+              ratingWarnings={rating.warnings}
             />
           );
         })}

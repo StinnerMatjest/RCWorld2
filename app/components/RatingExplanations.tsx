@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import type { Rating } from "@/app/types";
+import type { Rating, RatingWarningType } from "@/app/types";
 import ParkRatingsModal from "./ParkTextsModal";
 import { getRatingColor } from "@/app/utils/design";
 import { ratingCategories } from "@/app/utils/ratings";
+import RatingWarning from "./RatingWarning";
 
 interface RatingExplanationsProps {
   rating: Rating;
@@ -34,6 +35,18 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
 
   if (!rating) return <p>No rating available yet.</p>;
 
+  const categoryWarningsMap: Record<string, RatingWarningType[]> = {};
+
+  // Build the map
+  rating.warnings?.forEach((warning) => {
+    const normalizedCategory = warning.category.toLowerCase();
+    if (!categoryWarningsMap[normalizedCategory]) {
+      categoryWarningsMap[normalizedCategory] = [];
+    }
+    categoryWarningsMap[normalizedCategory].push(warning);
+  });
+
+
   return (
     <div className="space-y-8">
       <div className="flex items-center gap-2">
@@ -50,8 +63,10 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
       {ratingCategories
         .filter((key) => key !== "description" && key !== "overall")
         .map((key) => {
+          const value = (rating as any)[key] ?? 0;
           const text = localExplanations[key] ?? "";
-          const value = rating[key as keyof Rating] as number;
+          const normalizedKey = key.toLowerCase();
+          const categoryWarnings = categoryWarningsMap[normalizedKey] ?? [];
 
           return (
             <div key={key} className="space-y-2">
@@ -60,12 +75,14 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
                 <span className={`text-2xl font-bold ${getRatingColor(value)}`}>
                   {value}
                 </span>
+                {categoryWarnings.length > 0 && (
+                  <RatingWarning warning={categoryWarnings} />
+                )}
               </div>
               <p className="text-gray-700 dark:text-gray-400">{text}</p>
             </div>
           );
         })}
-
       {showModal && (
         <ParkRatingsModal
           explanations={localExplanations}

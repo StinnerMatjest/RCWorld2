@@ -20,47 +20,75 @@ export async function GET(
 
     if (dateParam) {
       query = `
-        SELECT 
-          ratings.id AS rating_id,
-          ratings.date,
-          ratings.parkAppearance AS "parkappearance",
-          ratings.bestCoaster AS "bestcoaster",
-          ratings.coasterDepth AS "coasterdepth",
-          ratings.waterRides AS "waterrides",
-          ratings.flatridesAndDarkrides AS "flatridesanddarkrides",
-          ratings.food,
-          ratings.snacksAndDrinks AS "snacksanddrinks",
-          ratings.parkPracticality AS "parkpracticality",
-          ratings.rideOperations AS "rideoperations",
-          ratings.parkManagement AS "parkmanagement",
-          ratings.overall,
-          ratings.park_id
-        FROM ratings
-        WHERE park_id = $1 AND date = $2
-        LIMIT 1
-      `;
+    SELECT 
+      ratings.id AS rating_id,
+      ratings.date,
+      ratings.parkAppearance AS "parkappearance",
+      ratings.bestCoaster AS "bestcoaster",
+      ratings.coasterDepth AS "coasterdepth",
+      ratings.waterRides AS "waterrides",
+      ratings.flatridesAndDarkrides AS "flatridesanddarkrides",
+      ratings.food,
+      ratings.snacksAndDrinks AS "snacksanddrinks",
+      ratings.parkPracticality AS "parkpracticality",
+      ratings.rideOperations AS "rideoperations",
+      ratings.parkManagement AS "parkmanagement",
+      ratings.overall,
+      ratings.park_id,
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'id', ratingwarning.id,
+            'ratingId', ratingwarning.ratingid,
+            'ride', ratingwarning.ride,
+            'note', ratingwarning.note,
+            'category', ratingwarning.category
+          )
+        ) FILTER (WHERE ratingwarning.id IS NOT NULL),
+        '[]'
+      ) AS warnings
+    FROM ratings
+    LEFT JOIN ratingwarning ON ratingwarning.ratingid = ratings.id
+    WHERE ratings.park_id = $1 AND ratings.date = $2
+    GROUP BY ratings.id
+    LIMIT 1
+  `;
       values = [parkId, dateParam];
     } else {
       query = `
-        SELECT 
-          ratings.id AS rating_id,
-          ratings.date,
-          ratings.parkAppearance AS "parkappearance",
-          ratings.bestCoaster AS "bestcoaster",
-          ratings.coasterDepth AS "coasterdepth",
-          ratings.waterRides AS "waterrides",
-          ratings.flatridesAndDarkrides AS "flatridesanddarkrides",
-          ratings.food,
-          ratings.snacksAndDrinks AS "snacksanddrinks",
-          ratings.parkPracticality AS "parkpracticality",
-          ratings.rideOperations AS "rideoperations",
-          ratings.parkManagement AS "parkmanagement",
-          ratings.overall,
-          ratings.park_id
-        FROM ratings
-        WHERE park_id = $1
-        ORDER BY date DESC
-      `;
+    SELECT 
+      ratings.id AS rating_id,
+      ratings.date,
+      ratings.parkAppearance AS "parkappearance",
+      ratings.bestCoaster AS "bestcoaster",
+      ratings.coasterDepth AS "coasterdepth",
+      ratings.waterRides AS "waterrides",
+      ratings.flatridesAndDarkrides AS "flatridesanddarkrides",
+      ratings.food,
+      ratings.snacksAndDrinks AS "snacksanddrinks",
+      ratings.parkPracticality AS "parkpracticality",
+      ratings.rideOperations AS "rideoperations",
+      ratings.parkManagement AS "parkmanagement",
+      ratings.overall,
+      ratings.park_id,
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'id', ratingwarning.id,
+            'ratingId', ratingwarning.ratingid,
+            'ride', ratingwarning.ride,
+            'note', ratingwarning.note,
+            'category', ratingwarning.category
+          )
+        ) FILTER (WHERE ratingwarning.id IS NOT NULL),
+        '[]'
+      ) AS warnings
+    FROM ratings
+    LEFT JOIN ratingwarning ON ratingwarning.ratingid = ratings.id
+    WHERE ratings.park_id = $1
+    GROUP BY ratings.id
+    ORDER BY ratings.date DESC
+  `;
       values = [parkId];
     }
 
@@ -81,6 +109,7 @@ export async function GET(
       parkManagement: row.parkmanagement,
       overall: row.overall,
       parkId: row.park_id,
+      warnings: row.warnings,
     }));
 
     // If filtering by date, return a single object

@@ -1,6 +1,7 @@
 import { Pool } from "pg";
 import { NextResponse } from "next/server";
 import { Rating } from "@/app/page";
+import { RatingWarningType } from "@/app/types";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -12,64 +13,69 @@ const pool = new Pool({
 export async function GET() {
   try {
     const query = `
-  SELECT DISTINCT ON (parks.id)
-    ratings.id AS rating_id,
-    ratings.date,
-    ratings.parkAppearance AS "parkappearance",
-    ratings.bestCoaster AS "bestcoaster",
-    ratings.coasterDepth AS "coasterdepth",
-    ratings.waterRides AS "waterrides",
-    ratings.flatridesAndDarkrides AS "flatridesanddarkrides",
-    ratings.food,
-    ratings.snacksAndDrinks AS "snacksanddrinks",
-    ratings.parkPracticality AS "parkpracticality",
-    ratings.rideOperations AS "rideoperations",
-    ratings.parkManagement AS "parkmanagement",
-    ratings.overall,
-    ratings.park_id,
-    parks.id AS park_id,
-    parks.name AS park_name,
-    parks.imagepath AS park_image
-  FROM ratings
-  JOIN parks ON ratings.park_id = parks.id
-  ORDER BY parks.id, ratings.date DESC
-`;
+      SELECT DISTINCT ON (parks.id)
+        ratings.id AS rating_id,
+        ratings.date,
+        ratings.parkAppearance AS "parkappearance",
+        ratings.bestCoaster AS "bestcoaster",
+        ratings.coasterDepth AS "coasterdepth",
+        ratings.waterRides AS "waterrides",
+        ratings.flatridesAndDarkrides AS "flatridesanddarkrides",
+        ratings.food,
+        ratings.snacksAndDrinks AS "snacksanddrinks",
+        ratings.parkPracticality AS "parkpracticality",
+        ratings.rideOperations AS "rideoperations",
+        ratings.parkManagement AS "parkmanagement",
+        ratings.overall,
+        ratings.park_id,
+        parks.id AS park_id,
+        parks.name AS park_name,
+        parks.imagepath AS park_image,
+        COALESCE(
+          json_agg(
+            json_build_object(
+            'id', ratingwarning.id,
+            'ratingId', ratingwarning.ratingid,
+            'ride', ratingwarning.ride,
+            'note', ratingwarning.note,
+            'category', ratingwarning.category
+            )
+          ) FILTER (WHERE ratingwarning.id IS NOT NULL),
+          '[]'
+        ) AS warnings
+      FROM ratings
+      JOIN parks ON ratings.park_id = parks.id
+      LEFT JOIN ratingwarning ON ratingwarning.ratingid = ratings.id
+      GROUP BY ratings.id, parks.id
+      ORDER BY parks.id, ratings.date DESC;
+    `;
 
     const result = await pool.query(query);
 
-    const ratings: Rating[] = result.rows.map((row) => {
-      console.log(row);
-      return {
-        id: row.rating_id,
-        date: row.date,
-        park: row.park_name,
-        parkAppearance: row.parkappearance,
-        bestCoaster: row.bestcoaster,
-        coasterDepth: row.coasterdepth,
-        waterRides: row.waterrides,
-        flatridesAndDarkrides: row.flatridesanddarkrides,
-        food: row.food,
-        snacksAndDrinks: row.snacksanddrinks,
-        parkPracticality: row.parkpracticality,
-        rideOperations: row.rideoperations,
-        parkManagement: row.parkmanagement,
-        overall: row.overall,
-        imagePath: row.park_image,
-        parkId: row.park_id,
-      };
-    });
-
-
-    console.log(ratings);
+    const ratings: Rating[] = result.rows.map((row) => ({
+      id: row.rating_id,
+      date: row.date,
+      park: row.park_name,
+      parkAppearance: row.parkappearance,
+      bestCoaster: row.bestcoaster,
+      coasterDepth: row.coasterdepth,
+      waterRides: row.waterrides,
+      flatridesAndDarkrides: row.flatridesanddarkrides,
+      food: row.food,
+      snacksAndDrinks: row.snacksanddrinks,
+      parkPracticality: row.parkpracticality,
+      rideOperations: row.rideoperations,
+      parkManagement: row.parkmanagement,
+      overall: row.overall,
+      imagePath: row.park_image,
+      parkId: row.park_id,
+      warnings: row.warnings as RatingWarningType[],
+    }));
 
     return NextResponse.json({ ratings }, { status: 200 });
   } catch (error) {
     console.error("Database query error:", error);
-
-    return NextResponse.json(
-      { error: "Failed to fetch ratings" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch ratings" }, { status: 500 });
   }
 }
 

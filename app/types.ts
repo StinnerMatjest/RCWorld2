@@ -21,6 +21,14 @@ export interface Park {
     parkManagement: number;
     overall: number;
     parkId: number;
+    warnings?: RatingWarningType[];
+  }
+
+  export interface RatingWarningType {
+    ratingId: number;
+    ride: string;
+    note: string;
+    category: string;
   }
   
   export interface RollerCoaster {
