@@ -47,7 +47,12 @@ const ParkPage: React.FC = () => {
           .filter((r: Rating) => r.parkId === Number(parkId))
           .map((r: Rating) => ({
             ...r,
-            warnings: r.warnings ?? [],
+            warnings: (r.warnings ?? []).map((w: any) => ({
+              ratingId: w.ratingId,
+              category: w.category,
+              ride: w.ride,
+              note: w.note,
+            })) as RatingWarningType[],
           }))
           .sort((a: Rating, b: Rating) =>
             new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -61,6 +66,7 @@ const ParkPage: React.FC = () => {
         explanationMap[item.category] = item.text;
       }
       setExplanations(explanationMap);
+
     })();
   }, [parkId]);
 
