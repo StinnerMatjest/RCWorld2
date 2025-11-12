@@ -208,8 +208,16 @@ const Home = () => {
                   rating={rating}
                   park={park}
                   delayIndex={index}
-                  ratingWarnings={rating.warnings}
+                  ratingWarnings={
+                    rating.warnings?.map((w: any) => ({
+                      ratingId: w.ratingId ?? rating.id,
+                      category: w.category ?? "",
+                      ride: w.ride,
+                      note: w.note,
+                    })) as RatingWarningType[]
+                  }
                 />
+
               </div>
             );
           })}
@@ -253,7 +261,14 @@ const Home = () => {
               rating={rating}
               park={park}
               delayIndex={index}
-              ratingWarnings={rating.warnings}
+              ratingWarnings={
+                rating.warnings?.map((w: any) => ({
+                  ratingId: w.ratingId ?? rating.id,
+                  category: w.category ?? "",
+                  ride: w.ride,
+                  note: w.note,
+                })) as RatingWarningType[]
+              }
             />
           );
         })}
