@@ -150,7 +150,6 @@ const ParkRankLane: React.FC<Props> = ({
     onSetRating(currentRating);
     ratingCache.set(category, currentRating);
 
-    // persist the visual order (with the new park's latest value)
     const finalOrder = (prev: Park[]) => {
       const others = prev.filter((p) => p.id !== NEW_PARK_ID);
       const entry: Park = { id: NEW_PARK_ID, name: newParkName || "New Park", value: currentRating };
@@ -163,7 +162,7 @@ const ParkRankLane: React.FC<Props> = ({
   };
 
   const handleInputChange = (text: string) => {
-    setManualText(text); // let user type freely
+    setManualText(text);
   };
 
   const handleInputCommit = () => {
@@ -172,7 +171,7 @@ const ParkRankLane: React.FC<Props> = ({
     // Golden rating
     if (normalized === "G" || normalized === "11") {
       const special = 11;
-      setManualText("11"); // or "11" instead of "G"
+      setManualText("11");
       setCurrentRating(special);
       ratingCache.set(category, special);
 
@@ -189,7 +188,6 @@ const ParkRankLane: React.FC<Props> = ({
       setTimeout(() => setSavedToast(false), 900);
       return;
     }
-
 
     // Empty input => 0
     if (normalized === "") {
@@ -208,11 +206,10 @@ const ParkRankLane: React.FC<Props> = ({
       return;
     }
 
-    // Parse number
     const num = parseFloat(normalized);
     if (!Number.isFinite(num)) return;
 
-    // Snap to nearest 0.5, clamp 0.5–10
+    // Snap to valid value
     const snapped = snapHalf(clamp(num, 0.5, 10));
     setManualText(snapped.toFixed(1));
     setCurrentRating(snapped);
