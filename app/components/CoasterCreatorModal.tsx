@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { getRatingColor } from "@/app/utils/design";
-import AuthenticationModal from "./AuthenticationModal";
 
 interface Coaster {
   id: number;
@@ -97,7 +96,7 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
   onCoasterAdded,
 }) => {
   const [name, setName] = useState(coaster?.name ?? "");
-  const [year, setYear] = useState(coaster?.year.toString() ?? "");
+  const [year, setYear] = useState(coaster ? String(coaster.year) : "");
   const isValidYear = /^\d{4}$/.test(year);
   const [manufacturer, setManufacturer] = useState(coaster?.manufacturer ?? "");
   const [model, setModel] = useState(coaster?.model ?? "");
@@ -114,25 +113,6 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
   );
 
   const [loading, setLoading] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [postAuthAction, setPostAuthAction] = useState<
-    "submit" | "delete" | null
-  >(null);
-
-  useEffect(() => {
-    if (isAuthenticated && postAuthAction) {
-      const runAction = async () => {
-        if (postAuthAction === "submit") {
-          await handleSubmit();
-        } else if (postAuthAction === "delete") {
-          await handleDelete();
-        }
-        setPostAuthAction(null);
-      };
-      runAction();
-    }
-  }, [isAuthenticated, postAuthAction]);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value;
@@ -142,11 +122,6 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
   };
 
   const handleSubmit = async () => {
-    if (!isAuthenticated) {
-      setShowAuthModal(true);
-      return;
-    }
-
     if (!haveridden && rating !== "") {
       alert("You can only rate a coaster if you have ridden it.");
       return;
@@ -203,11 +178,8 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
   };
 
   const handleDelete = async () => {
-    if (!isAuthenticated) {
-      setShowAuthModal(true);
-      return;
-    }
     if (!coaster) return;
+
     const confirmDelete = confirm(
       `Are you sure you want to delete"${coaster.name}" ?`
     );
@@ -452,7 +424,7 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
             {coaster && (
               <div className="flex justify-center mt-4">
                 <button
-                  onClick={() => handleDelete()}
+                  onClick={handleDelete}
                   className="h-8 w-24 text-sm font-semibold text-white rounded-lg transition duration-300 cursor-pointer
                              bg-red-600 hover:bg-red-700
                              focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
@@ -468,17 +440,18 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
               className={`h-9 w-20 text-lg font-semibold text-white rounded-lg transition duration-300
                           focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
                           dark:focus-visible:ring-offset-gray-800
-                          ${loading
-                  ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed"
-                  : !name ||
-                    !isValidYear ||
-                    !manufacturer ||
-                    !model ||
-                    !scale ||
-                    !rcdbpath
-                    ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 cursor-pointer"
-                }`}
+                          ${
+                            loading
+                              ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed"
+                              : !name ||
+                                !isValidYear ||
+                                !manufacturer ||
+                                !model ||
+                                !scale ||
+                                !rcdbpath
+                              ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
+                              : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 cursor-pointer"
+                          }`}
               disabled={
                 loading ||
                 !name ||
@@ -493,23 +466,6 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
             </button>
           </div>
         </div>
-
-        {showAuthModal && (
-          <AuthenticationModal
-            onClose={() => setShowAuthModal(false)}
-            onAuthenticated={() => {
-              setIsAuthenticated(true);
-              setShowAuthModal(false);
-
-              if (coaster) {
-                setPostAuthAction("submit");
-              } else {
-                setPostAuthAction("submit");
-              }
-
-            }}
-          />
-        )}
       </div>
     </div>
   );

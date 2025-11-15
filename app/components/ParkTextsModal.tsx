@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import AuthenticationModal from "./AuthenticationModal";
 
 interface ParkTextsModalProps {
   explanations: Record<string, string>;
@@ -42,9 +41,6 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
     useState<Record<string, string>>(explanations);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [postAuthAction, setPostAuthAction] = useState<"submit" | null>(null);
 
   useEffect(() => {
     setText(localExplanations[selectedCategory] || "");
@@ -53,7 +49,7 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
   const handleClose = () => {
     onSave?.(localExplanations);
     onClose();
-    window.location.reload();
+    // ❌ window.location.reload() removed to keep admin mode + state
   };
 
   const handleSave = async () => {
@@ -94,11 +90,6 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
   };
 
   const handleSaveClick = () => {
-    if (!isAuthenticated) {
-      setPostAuthAction("submit");
-      setShowAuthModal(true);
-      return;
-    }
     handleSave();
   };
 
@@ -177,20 +168,6 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
           </button>
         </div>
       </div>
-
-      {showAuthModal && (
-        <AuthenticationModal
-          onClose={() => setShowAuthModal(false)}
-          onAuthenticated={() => {
-            setIsAuthenticated(true);
-            setShowAuthModal(false);
-            if (postAuthAction === "submit") {
-              handleSave();
-              setPostAuthAction(null);
-            }
-          }}
-        />
-      )}
     </div>
   );
 };

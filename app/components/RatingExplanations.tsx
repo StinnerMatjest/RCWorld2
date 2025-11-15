@@ -6,6 +6,7 @@ import ParkRatingsModal from "./ParkTextsModal";
 import { getRatingColor } from "@/app/utils/design";
 import { ratingCategories } from "@/app/utils/ratings";
 import RatingWarning from "./RatingWarning";
+import { useAdminMode } from "../context/AdminModeContext";
 
 interface RatingExplanationsProps {
   rating: Rating;
@@ -26,12 +27,20 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
   explanations,
   parkId,
 }) => {
+  const { isAdminMode } = useAdminMode();
   const [showModal, setShowModal] = useState(false);
   const [localExplanations, setLocalExplanations] = useState(explanations);
 
   useEffect(() => {
     setLocalExplanations(explanations);
   }, [explanations]);
+
+  // Auto-close modal if we leave admin mode
+  useEffect(() => {
+    if (!isAdminMode) {
+      setShowModal(false);
+    }
+  }, [isAdminMode]);
 
   if (!rating) return <p>No rating available yet.</p>;
 
@@ -46,18 +55,22 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
     categoryWarningsMap[normalizedCategory].push(warning);
   });
 
-
   return (
     <div className="space-y-8">
       <div className="flex items-center gap-2">
-        <h2 className="text-3xl font-semibold dark:text-white">Rating Explanations</h2>
-        <button
-          onClick={() => setShowModal(true)}
-          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer transition-colors"
-          aria-label="Edit Rating Explanations"
-        >
-          🔧
-        </button>
+        <h2 className="text-3xl font-semibold dark:text-white">
+          Rating Explanations
+        </h2>
+
+        {isAdminMode && (
+          <button
+            onClick={() => setShowModal(true)}
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer transition-colors"
+            aria-label="Edit Rating Explanations"
+          >
+            🔧
+          </button>
+        )}
       </div>
 
       {ratingCategories
@@ -71,7 +84,9 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
           return (
             <div key={key} className="space-y-2">
               <div className="flex items-baseline gap-3">
-                <h3 className="text-xl font-semibold dark:text-white">{humanizeLabel(key)}</h3>
+                <h3 className="text-xl font-semibold dark:text-white">
+                  {humanizeLabel(key)}
+                </h3>
                 <span className={`text-2xl font-bold ${getRatingColor(value)}`}>
                   {value}
                 </span>
@@ -83,11 +98,13 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
             </div>
           );
         })}
-      {showModal && (
+
+      {isAdminMode && showModal && (
         <ParkRatingsModal
           explanations={localExplanations}
           parkId={Number(parkId)}
           onClose={() => setShowModal(false)}
+          onSave={(updated) => setLocalExplanations(updated)}
         />
       )}
     </div>

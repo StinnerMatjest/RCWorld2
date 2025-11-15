@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import Loading from "./Loading";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import AuthenticationModal from "./AuthenticationModal";
 import ParkRankLane from "./ParkRankLane";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSyncExternalStore } from "react";
@@ -124,8 +123,6 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
   });
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [categoryIndex, setCategoryIndex] = useState(0);
   const category: Category = CATEGORIES[categoryIndex];
@@ -482,16 +479,6 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                 </motion.div>
               )}
             </AnimatePresence>
-
-            {showAuthModal && (
-              <AuthenticationModal
-                onClose={() => setShowAuthModal(false)}
-                onAuthenticated={() => {
-                  setIsAuthenticated(true);
-                  setShowAuthModal(false);
-                }}
-              />
-            )}
           </div>
         </div>
       </div>
