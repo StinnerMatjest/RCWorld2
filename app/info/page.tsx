@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { getRatingColor } from "@/app/utils/design";
 
 type Group = "Coasters" | "Rides" | "Park" | "Food" | "Management";
 
@@ -171,20 +172,6 @@ export default function EvaluationCriteriaPage() {
           transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease;
         }
         .scroll-buffer { height: calc(100vh - var(--anchor-offset)); }
-
-        @media (prefers-reduced-motion: no-preference) {
-          .rainbow-animation {
-            background: linear-gradient(90deg, #ef4444, #f59e0b, #eab308, #22c55e, #3b82f6, #8b5cf6, #ec4899);
-            background-size: 400% 100%;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: rainbow-move 6s linear infinite;
-          }
-          @keyframes rainbow-move {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 100% 50%; }
-          }
-        }
       `}</style>
 
       <div className="mx-auto max-w-6xl grid grid-cols-1 md:grid-cols-12 gap-10 px-6 pt-14 pb-24">
@@ -271,7 +258,7 @@ export default function EvaluationCriteriaPage() {
               the visit. The scores and their meanings are outlined below. In
               rare cases, a truly standout criterion may break the scale and
               earn a{" "}
-              <span className="font-extrabold text-yellow-500">Golden</span>{" "}
+              <span className={getRatingColor(11)}>Golden</span>{" "}
               rating of 11.
               <br />
             </p>
@@ -279,60 +266,56 @@ export default function EvaluationCriteriaPage() {
             <div className="mt-10 grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
               <LegendBox
                 spanMobile
-                number={<span className="text-yellow-500">👑 11 👑</span>}
+                number={
+                  <span className={getRatingColor(11)}>👑 11 👑</span>
+                }
                 label="Golden"
               />
               <LegendBox
-                number={<span className="rainbow-animation">10</span>}
+                number={
+                  <span className={getRatingColor(10)}>10</span>
+                }
                 label="Extraordinary"
               />
               <LegendBox
                 number={
-                  <span className="text-blue-700 dark:text-blue-400">9–10</span>
+                  <span className={getRatingColor(9.2)}>9–10</span>
                 }
                 label="Elite"
               />
               <LegendBox
                 number={
-                  <span className="text-green-600 dark:text-green-400">
-                    7.5–9
-                  </span>
+                  <span className={getRatingColor(8)}>7.5–9</span>
                 }
                 label="Great"
               />
               <LegendBox
                 number={
-                  <span className="text-green-400 dark:text-green-300">
-                    6.5–7.5
-                  </span>
+                  <span className={getRatingColor(7)}>6.5–7.5</span>
                 }
                 label="Good"
               />
               <LegendBox
                 number={
-                  <span className="text-yellow-400 dark:text-yellow-300">
-                    5.5–6.5
-                  </span>
+                  <span className={getRatingColor(6)}>5.5–6.5</span>
                 }
                 label="Decent"
               />
               <LegendBox
                 number={
-                  <span className="text-yellow-600 dark:text-yellow-500">
-                    4.5–5.5
-                  </span>
+                  <span className={getRatingColor(5)}>4.5–5.5</span>
                 }
                 label="Below Avg"
               />
               <LegendBox
                 number={
-                  <span className="text-red-400 dark:text-red-300">3–4.5</span>
+                  <span className={getRatingColor(3.5)}>3–4.5</span>
                 }
                 label="Poor"
               />
               <LegendBox
                 number={
-                  <span className="text-red-600 dark:text-red-500">0–3</span>
+                  <span className={getRatingColor(2)}>0–3</span>
                 }
                 label="Very Poor"
               />

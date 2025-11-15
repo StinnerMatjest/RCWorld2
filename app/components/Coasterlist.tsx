@@ -1,6 +1,7 @@
 // app/components/CoasterList.tsx
 import React from "react";
 import type { RollerCoaster } from "@/app/types";
+import { getRatingColor } from "@/app/utils/design";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAdminMode } from "../context/AdminModeContext";
 
@@ -34,19 +35,6 @@ function isOptionalByScale(scale: unknown): boolean {
   if (typeof scale !== "string") return false;
   const s = scale.trim().toLowerCase();
   return s === "junior" || s === "kiddie";
-}
-
-/** Rating colors */
-function ratingTextClass(r?: number): string {
-  if (typeof r !== "number") return "text-black dark:text-gray-100";
-  if (r >= 10.0) return "rainbow-animation";
-  if (r >= 9.0) return "text-blue-700 dark:text-blue-400";
-  if (r >= 7.5) return "text-green-600 dark:text-green-400";
-  if (r >= 6.5) return "text-green-400 dark:text-green-300";
-  if (r >= 5.5) return "text-yellow-400 dark:text-yellow-300";
-  if (r >= 4.5) return "text-yellow-600 dark:text-yellow-500";
-  if (r >= 3.0) return "text-red-400 dark:text-red-300";
-  return "text-red-600 dark:text-red-500";
 }
 
 const CoasterList: React.FC<CoasterListProps> = ({
@@ -90,7 +78,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
   const Row: React.FC<{ c: RollerCoaster }> = ({ c }) => {
     const [open, setOpen] = React.useState(false);
     const r = getRating(c.rating);
-    const ratingClass = ratingTextClass(r);
+    const ratingClass = getRatingColor(r ?? "");
     const riddenStatus = hasRidden(c.haveridden);
 
     const toggleOpen = () => setOpen((v) => !v);
@@ -162,7 +150,6 @@ const CoasterList: React.FC<CoasterListProps> = ({
 
           {/* Rating + actions */}
           <div className="shrink-0 flex items-center justify-end gap-2">
-
             {/* Rating text — crowns removed */}
             <span
               className={`inline-block w-12 text-right font-semibold tabular-nums ${ratingClass}`}
@@ -215,15 +202,21 @@ const CoasterList: React.FC<CoasterListProps> = ({
               <div className="mt-1 rounded-lg bg-gray-100 dark:bg-white/5">
                 <div className="border-t border-gray-100 dark:border-white/10 pt-2 pb-2 px-2 text-sm md:text-base text-gray-700 dark:text-gray-300 grid grid-cols-1 gap-y-1">
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">Type: </span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Type:{" "}
+                    </span>
                     <span>{c.model ?? "—"}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">Scale: </span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Scale:{" "}
+                    </span>
                     <span>{c.scale ?? "—"}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">Ride count: </span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Ride count:{" "}
+                    </span>
                     <span className="tabular-nums">{c.ridecount ?? 0}</span>
                   </div>
                 </div>
@@ -277,7 +270,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
           {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
-              className="h-6 rounded bg-gray-100 dark:bg-white/10 overflow-hidden"
+              className="h-6 rounded bg-gray-100 dark:bg:white/10 overflow-hidden"
             >
               <span className="block h-full animate-[shimmer_1.2s_infinite] bg-gradient-to-r from-transparent via-black/5 to-transparent dark:via-white/10" />
             </div>
@@ -293,7 +286,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
             </ul>
           ) : null}
 
-          <h3 className="text-lg lg:text-xl font-semibold mt-3 dark:text-white">
+          <h3 className="text-lg lg:text-xl font-semibold mt-3 dark:text:white">
             Optional Coasters{" "}
             <span className="font-medium text-gray-500 dark:text-gray-400">
               ({optionalCoasters.length})

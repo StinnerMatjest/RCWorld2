@@ -7,16 +7,61 @@ export const getRatingColor = (rating: number | string) => {
     return "text-black dark:text-gray-100";
   }
 
-  if (rating >= 10.0) return "rainbow-animation";
-  if (rating >= 9.0) return "text-blue-700 dark:text-blue-400";
-  if (rating >= 7.5) return "text-green-600 dark:text-green-400";
-  if (rating >= 6.5) return "text-green-400 dark:text-green-300";
-  if (rating >= 5.5) return "text-yellow-400 dark:text-yellow-300";
-  if (rating >= 4.5) return "text-yellow-600 dark:text-yellow-500";
-  if (rating >= 3.0) return "text-red-400 dark:text-red-300";
-  if (rating <= 2.9) return "text-red-600 dark:text-red-500";
-  return "text-black dark:text-gray-100";
+  // ⭐ 11 — SPECIAL (gold + soft glow)
+  if (rating >= 11) {
+    return [
+      "text-[#FACC15]",
+      "dark:text-[#FACC15]",
+      "drop-shadow-[0_0_6px_rgba(250,204,21,0.55)]",
+    ].join(" ");
+  }
+
+  // 💜 10 — Extraordinary (clean purple)
+  if (rating >= 10.0) {
+    return "text-[#8B5CF6] dark:text-[#C4B5FD]";
+  }
+
+  // 🔵 9 — Elite (refined deep blue)
+  if (rating >= 9.0) {
+    return "text-[#1D4ED8] dark:text-[#60A5FA]";
+  }
+
+  // 🟦 7.5–8.9 — Great (rich green)
+  if (rating >= 7.5) {
+    return "text-[#16A34A] dark:text-[#4ADE80]";
+  }
+
+  // 🍋 6.5–7.4 — Good (lime-yellow)
+  if (rating >= 6.5) {
+    return "text-[#A3E635] dark:text-[#BEF264]";
+  }
+
+  // ————————
+  // 🔥 ORIGINAL LOW-END RETURNS HERE EXACTLY
+  // ————————
+
+  // 🟡 5.5–6.4 — Decent (original yellow)
+  if (rating >= 5.5) {
+    return "text-yellow-400 dark:text-yellow-300";
+  }
+
+  // 🟠 4.5–5.4 — Below Avg (original darker yellow-orange)
+  if (rating >= 4.5) {
+    return "text-yellow-600 dark:text-yellow-500";
+  }
+
+  // 🔥 3.0–4.4 — Poor (original red-orange)
+  if (rating >= 3.0) {
+    return "text-red-400 dark:text-red-300";
+  }
+
+  // 🩸 0–2.9 — Very Poor (original deep red)
+  return "text-red-600 dark:text-red-500";
 };
+
+
+
+
 
 const countryNameToCode: Record<string, string> = {
   Albania: "al",
