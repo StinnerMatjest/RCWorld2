@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import AuthenticationModal from "./AuthenticationModal";
 
 interface ParkTextsModalProps {
   explanations: Record<string, string>;
@@ -42,9 +41,6 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
     useState<Record<string, string>>(explanations);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [postAuthAction, setPostAuthAction] = useState<"submit" | null>(null);
 
   useEffect(() => {
     setText(localExplanations[selectedCategory] || "");
@@ -53,7 +49,7 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
   const handleClose = () => {
     onSave?.(localExplanations);
     onClose();
-    window.location.reload();
+    // ❌ window.location.reload() removed to keep admin mode + state
   };
 
   const handleSave = async () => {
@@ -94,18 +90,12 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
   };
 
   const handleSaveClick = () => {
-    if (!isAuthenticated) {
-      setPostAuthAction("submit");
-      setShowAuthModal(true);
-      return;
-    }
     handleSave();
   };
 
   return (
     <div className="fixed inset-0 z-[1000] bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center">
       <div className="relative bg-white dark:bg-gray-800 dark:text-gray-100 border border-transparent dark:border-white/10 p-6 rounded-lg shadow-lg w-full max-w-xl">
-        {/* Close button (visual only, same behavior) */}
         <button
           onClick={handleClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white transition duration-300 cursor-pointer"
@@ -177,20 +167,6 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
           </button>
         </div>
       </div>
-
-      {showAuthModal && (
-        <AuthenticationModal
-          onClose={() => setShowAuthModal(false)}
-          onAuthenticated={() => {
-            setIsAuthenticated(true);
-            setShowAuthModal(false);
-            if (postAuthAction === "submit") {
-              handleSave();
-              setPostAuthAction(null);
-            }
-          }}
-        />
-      )}
     </div>
   );
 };

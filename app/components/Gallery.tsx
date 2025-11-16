@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import ImageUploaderModal from "@/app/components/ImageUploaderModal";
+import { useAdminMode } from "../context/AdminModeContext";
 
 interface GalleryProps {
   parkId: number;
@@ -60,6 +61,8 @@ function useSwipe(
 }
 
 const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
+  const { isAdminMode } = useAdminMode();
+
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -85,6 +88,13 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
   useEffect(() => {
     fetchGalleryImages();
   }, [parkId]);
+
+  // Close uploader modal if we leave admin mode
+  useEffect(() => {
+    if (!isAdminMode) {
+      setShowModal(false);
+    }
+  }, [isAdminMode]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -185,16 +195,20 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
 
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Gallery</h2>
-        <button
-          onClick={() => setShowModal(true)}
-          className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm cursor-pointer"
-        >
-          + Upload
-        </button>
+        {isAdminMode && (
+          <button
+            onClick={() => setShowModal(true)}
+            className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm cursor-pointer"
+          >
+            + Upload
+          </button>
+        )}
       </div>
 
       {loading ? (
-        <p className="text-center py-4 italic text-gray-600">Loading images...</p>
+        <p className="text-center py-4 italic text-gray-600">
+          Loading images...
+        </p>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {images.map((img, index) => (
@@ -303,12 +317,18 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
             )}
 
             {/* Static bottom progress: pill with dots */}
-            <div className="mt-3 w-full flex items-center justify-center" ref={dotsContainerRef}>
+            <div
+              className="mt-3 w-full flex items-center justify-center"
+              ref={dotsContainerRef}
+            >
               <div
                 className="px-2.5 py-1 rounded-full bg-white/10 border border-white/10 backdrop-blur-sm"
                 role="group"
                 aria-label="Image progress"
-                style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}
+                style={{
+                  transform: `scale(${scale})`,
+                  transformOrigin: "center center",
+                }}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center gap-1.5">
@@ -336,7 +356,7 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
         </div>
       )}
 
-      {showModal && (
+      {isAdminMode && showModal && (
         <ImageUploaderModal
           parkId={parkId}
           onClose={() => setShowModal(false)}

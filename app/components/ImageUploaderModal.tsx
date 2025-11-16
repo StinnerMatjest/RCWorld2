@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import AuthenticationModal from "./AuthenticationModal";
 
 type ImageUploaderModalProps = {
   parkId: number;
@@ -19,9 +18,6 @@ export default function ImageUploaderModal({
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [postAuthAction, setPostAuthAction] = useState<"upload" | null>(null);
 
   const uploadImage = async () => {
     if (!file) {
@@ -82,115 +78,93 @@ export default function ImageUploaderModal({
 
   const handleUploadClick = (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!isAuthenticated) {
-      setPostAuthAction("upload");
-      setShowAuthModal(true);
-      return;
-    }
     uploadImage();
   };
 
   return (
-    <>
-      <div className="fixed inset-0 z-[1000] bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center">
-        <div className="relative bg-white dark:bg-gray-800 dark:text-gray-100 border border-transparent dark:border-white/10 rounded-lg shadow-lg w-full max-w-md mx-4 p-6">
-          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-            Add Gallery Image
-          </h2>
+    <div className="fixed inset-0 z-[1000] bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center">
+      <div className="relative bg-white dark:bg-gray-800 dark:text-gray-100 border border-transparent dark:border-white/10 rounded-lg shadow-lg w-full max-w-md mx-4 p-6">
+        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
+          Add Gallery Image
+        </h2>
 
-          <form onSubmit={handleUploadClick} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                Image File
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                className="block w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-2
-                           focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                           dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:file:bg-gray-800 dark:file:text-gray-100 dark:focus-visible:ring-offset-gray-800"
-              />
-            </div>
+        <form onSubmit={handleUploadClick} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+              Image File
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="block w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-2
+                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                         dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:file:bg-gray-800 dark:file:text-gray-100 dark:focus-visible:ring-offset-gray-800"
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                Title
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Image title (optional)"
-                className="block w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
-                           focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                           dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+              Title
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Image title (optional)"
+              className="block w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
+                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                         dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                Description
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Image description (optional)"
-                rows={3}
-                className="block w-full p-3 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
-                           focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                           dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Image description (optional)"
+              rows={3}
+              className="block w-full p-3 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
+                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                         dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
+            />
+          </div>
 
-            {error && (
-              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-            )}
+          {error && (
+            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          )}
 
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                type="submit"
-                disabled={loading}
-                className={`px-4 py-2 rounded-md text-white transition cursor-pointer
-                            focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                            dark:focus-visible:ring-offset-gray-800
-                            ${
-                              loading
-                                ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed"
-                                : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
-                            }`}
-              >
-                {loading ? "Uploading..." : "Upload"}
-              </button>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className={`px-4 py-2 rounded-md text-white transition cursor-pointer
+                          focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                          dark:focus-visible:ring-offset-gray-800
+                          ${
+                            loading
+                              ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed"
+                              : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
+                          }`}
+            >
+              {loading ? "Uploading..." : "Upload"}
+            </button>
 
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 rounded-md border border-gray-300 text-gray-800 hover:bg-gray-100 cursor-pointer
-                           focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                           dark:border-white/10 dark:text-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 dark:focus-visible:ring-offset-gray-800"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-md border border-gray-300 text-gray-800 hover:bg-gray-100 cursor-pointer
+                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                         dark:border-white/10 dark:text-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 dark:focus-visible:ring-offset-gray-800"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
       </div>
-
-      {showAuthModal && (
-        <AuthenticationModal
-          onClose={() => setShowAuthModal(false)}
-          onAuthenticated={() => {
-            setIsAuthenticated(true);
-            setShowAuthModal(false);
-            if (postAuthAction === "upload") {
-              uploadImage();
-              setPostAuthAction(null);
-            }
-          }}
-        />
-      )}
-    </>
+    </div>
   );
 }

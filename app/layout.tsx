@@ -1,9 +1,11 @@
 import "./globals.css";
 import { ParksProvider } from "./context/ParksContext";
 import { SearchProvider } from "./context/SearchContext";
+import { AdminModeProvider } from "./context/AdminModeContext";
 import { Inter, Roboto } from "next/font/google";
 import Header from "./components/Header";
-import Script from "next/script"; // 👈 important
+import AdminToggle from "./components/AdminToggle";
+import Script from "next/script";
 
 export const metadata = {
   title: "Parkrating",
@@ -34,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* ✅ Umami Cloud analytics */}
+        {/* Umami Cloud analytics */}
         <Script
           src="https://cloud.umami.is/script.js"
           data-website-id="acd51e6e-baaa-4194-aaf1-41851db17222"
@@ -43,12 +45,15 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.variable} ${roboto.variable} antialiased`}>
-        <ParksProvider>
-          <SearchProvider>
-            <Header />
-            <main>{children}</main>
-          </SearchProvider>
-        </ParksProvider>
+        <AdminModeProvider>
+          <ParksProvider>
+            <SearchProvider>
+              <Header />
+              <AdminToggle />
+              <main>{children}</main>
+            </SearchProvider>
+          </ParksProvider>
+        </AdminModeProvider>
       </body>
     </html>
   );

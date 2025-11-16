@@ -1,7 +1,9 @@
 // app/components/CoasterList.tsx
 import React from "react";
 import type { RollerCoaster } from "@/app/types";
+import { getRatingColor } from "@/app/utils/design";
 import { AnimatePresence, motion } from "framer-motion";
+import { useAdminMode } from "../context/AdminModeContext";
 
 interface CoasterListProps {
   coasters: RollerCoaster[];
@@ -10,7 +12,7 @@ interface CoasterListProps {
   onAdd: () => void;
 }
 
-/** Parse rating; allow 0..11 (11 = special crown case). Return undefined if invalid */
+/** Parse rating; allow 0..11. Return undefined if invalid */
 function getRating(raw: unknown): number | undefined {
   const n = Number(raw);
   if (!Number.isFinite(n)) return undefined;
@@ -28,25 +30,11 @@ function hasRidden(val: unknown): boolean {
   return false;
 }
 
-/** A coaster is ALWAYS optional if scale is Junior/Kiddie (case-insensitive) */
+/** Always optional if Junior/Kiddie */
 function isOptionalByScale(scale: unknown): boolean {
   if (typeof scale !== "string") return false;
   const s = scale.trim().toLowerCase();
   return s === "junior" || s === "kiddie";
-}
-
-/** Text color / special class for rating, per user's palette */
-function ratingTextClass(r?: number): string {
-  if (typeof r !== "number") return "text-black dark:text-gray-100";
-  if (r >= 10.0) return "rainbow-animation";
-  if (r >= 9.0) return "text-blue-700 dark:text-blue-400";
-  if (r >= 7.5) return "text-green-600 dark:text-green-400";
-  if (r >= 6.5) return "text-green-400 dark:text-green-300";
-  if (r >= 5.5) return "text-yellow-400 dark:text-yellow-300";
-  if (r >= 4.5) return "text-yellow-600 dark:text-yellow-500";
-  if (r >= 3.0) return "text-red-400 dark:text-red-300";
-  if (r <= 2.9) return "text-red-600 dark:text-red-500";
-  return "text-black dark:text-gray-100";
 }
 
 const CoasterList: React.FC<CoasterListProps> = ({
@@ -55,25 +43,34 @@ const CoasterList: React.FC<CoasterListProps> = ({
   onEdit,
   onAdd,
 }) => {
+  const { isAdminMode } = useAdminMode();
   const [showEdit, setShowEdit] = React.useState(false);
 
-  // Sort: Best first, then rating desc, then year desc, then name A–Z
+  /** Automatically disable edit mode when leaving admin mode */
+  React.useEffect(() => {
+    if (!isAdminMode) setShowEdit(false);
+  }, [isAdminMode]);
+
+  /** Sorting */
   const sorted = React.useMemo(() => {
     return [...coasters].sort((a, b) => {
-      if (!!a.isbestcoaster !== !!b.isbestcoaster) return b.isbestcoaster ? 1 : -1;
+      if (!!a.isbestcoaster !== !!b.isbestcoaster)
+        return b.isbestcoaster ? 1 : -1;
+
       const ra = getRating(a.rating);
       const rb = getRating(b.rating);
-      const rAnum = typeof ra === "number" ? ra : -Infinity;
-      const rBnum = typeof rb === "number" ? rb : -Infinity;
-      if (rAnum !== rBnum) return rBnum - rAnum;
+      const rA = typeof ra === "number" ? ra : -Infinity;
+      const rB = typeof rb === "number" ? rb : -Infinity;
+      if (rA !== rB) return rB - rA;
+
       const ya = Number(a.year) || 0;
       const yb = Number(b.year) || 0;
       if (ya !== yb) return yb - ya;
+
       return String(a.name).localeCompare(String(b.name));
     });
   }, [coasters]);
 
-  // Groups
   const mainCoasters = sorted.filter((c) => !isOptionalByScale(c.scale));
   const optionalCoasters = sorted.filter((c) => isOptionalByScale(c.scale));
 
@@ -81,24 +78,14 @@ const CoasterList: React.FC<CoasterListProps> = ({
   const Row: React.FC<{ c: RollerCoaster }> = ({ c }) => {
     const [open, setOpen] = React.useState(false);
     const r = getRating(c.rating);
-    const ratingClass = ratingTextClass(r);
+    const ratingClass = getRatingColor(r ?? "");
     const riddenStatus = hasRidden(c.haveridden);
 
     const toggleOpen = () => setOpen((v) => !v);
-    const onKeyToggle: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        toggleOpen();
-      }
-      if (e.key === "Escape" && open) {
-        e.preventDefault();
-        setOpen(false);
-      }
-    };
 
     return (
       <motion.li layout className="transition-colors duration-200">
-        {/* GRID: name | year | manufacturer | rating/actions */}
+        {/* Row grid */}
         <div
           className="
             grid
@@ -113,12 +100,9 @@ const CoasterList: React.FC<CoasterListProps> = ({
           {/* Name */}
           <div
             className="min-w-0 flex items-center gap-2 cursor-pointer"
+            onClick={toggleOpen}
             role="button"
             tabIndex={0}
-            aria-expanded={open}
-            aria-controls={`coaster-details-${c.id}`}
-            onClick={toggleOpen}
-            onKeyDown={onKeyToggle}
           >
             {c.rcdbpath ? (
               <a
@@ -126,16 +110,14 @@ const CoasterList: React.FC<CoasterListProps> = ({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-medium text-blue-700 hover:underline truncate dark:text-blue-400"
-                title={c.name}
                 onClick={(e) => e.stopPropagation()}
               >
                 {c.name}
               </a>
             ) : (
-              <span className="font-medium truncate" title={c.name}>
-                {c.name}
-              </span>
+              <span className="font-medium truncate">{c.name}</span>
             )}
+
             {c.isbestcoaster && (
               <span className="hidden md:inline-flex rounded px-1.5 py-0.5 text-[12px] font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
                 Best
@@ -146,13 +128,11 @@ const CoasterList: React.FC<CoasterListProps> = ({
           {/* Year */}
           <div
             className="
-              tabular-nums text-gray-800 dark:text-gray-200 text-left cursor-pointer
-              pl-1 md:pl-0
+              tabular-nums text-gray-800 dark:text-gray-200
+              text-left cursor-pointer pl-1 md:pl-0
               text-[15px] md:text-[17px]
             "
             onClick={toggleOpen}
-            role="button"
-            tabIndex={0}
           >
             {c.year ?? "—"}
           </div>
@@ -164,52 +144,39 @@ const CoasterList: React.FC<CoasterListProps> = ({
               text-[15px] md:text-[17px]
             "
             onClick={toggleOpen}
-            role="button"
-            tabIndex={0}
-            title={c.manufacturer ?? undefined}
           >
             {c.manufacturer ?? "—"}
           </div>
 
           {/* Rating + actions */}
           <div className="shrink-0 flex items-center justify-end gap-2">
-            {typeof r === "number" && r === 11 && <span aria-hidden>👑</span>}
-
+            {/* Rating text — crowns removed */}
             <span
               className={`inline-block w-12 text-right font-semibold tabular-nums ${ratingClass}`}
-              title={
-                !riddenStatus
-                  ? "Not ridden"
-                  : typeof r === "number"
-                    ? `Rating: ${r.toFixed(1)}`
-                    : "No rating"
-              }
             >
               {!riddenStatus
                 ? "NR"
                 : typeof r === "number"
-                  ? r.toFixed(1)
-                  : "—"}
+                ? r.toFixed(1)
+                : "—"}
             </span>
 
-            {typeof r === "number" && r === 11 && <span aria-hidden>👑</span>}
-
+            {/* Expand arrow */}
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 toggleOpen();
               }}
-              aria-expanded={open}
-              aria-controls={`coaster-details-${c.id}`}
-              className={`transition-transform duration-200 ${open ? "rotate-90" : "rotate-0"
-                } text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100 text-sm md:text-base`}
-              title={open ? "Collapse details" : "Expand details"}
+              className={`transition-transform duration-200 ${
+                open ? "rotate-90" : "rotate-0"
+              } text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100 text-sm md:text-base`}
             >
               ▸
             </button>
 
-            {showEdit && (
+            {/* Admin-only edit wrench */}
+            {isAdminMode && showEdit && (
               <button
                 type="button"
                 onClick={() => onEdit(c)}
@@ -226,25 +193,30 @@ const CoasterList: React.FC<CoasterListProps> = ({
           {open && (
             <motion.div
               key={`details-${c.id}`}
-              id={`coaster-details-${c.id}`}
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
+              transition={{ duration: 0.25 }}
               className="overflow-hidden px-1"
             >
               <div className="mt-1 rounded-lg bg-gray-100 dark:bg-white/5">
                 <div className="border-t border-gray-100 dark:border-white/10 pt-2 pb-2 px-2 text-sm md:text-base text-gray-700 dark:text-gray-300 grid grid-cols-1 gap-y-1">
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">Type: </span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Type:{" "}
+                    </span>
                     <span>{c.model ?? "—"}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">Scale: </span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Scale:{" "}
+                    </span>
                     <span>{c.scale ?? "—"}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">Ride count: </span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Ride count:{" "}
+                    </span>
                     <span className="tabular-nums">{c.ridecount ?? 0}</span>
                   </div>
                 </div>
@@ -252,7 +224,6 @@ const CoasterList: React.FC<CoasterListProps> = ({
             </motion.div>
           )}
         </AnimatePresence>
-
       </motion.li>
     );
   };
@@ -260,40 +231,47 @@ const CoasterList: React.FC<CoasterListProps> = ({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl lg: text-3xl font-bold dark:text-white">
+        <h2 className="text-2xl lg:text-3xl font-bold dark:text-white">
           Roller Coasters{" "}
           <span className="font-medium text-gray-500 dark:text-gray-400">
             ({sorted.length})
           </span>
         </h2>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowEdit((v) => !v)}
-            aria-pressed={showEdit}
-            className={`px-3 py-1.5 rounded border text-sm md:text-base transition cursor-pointer ${showEdit
-                ? "border-gray-400 bg-gray-100 dark:border-white/20 dark:bg-white/10"
-                : "border-gray-300 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
-              }`}
-          >
-            {showEdit ? "Done" : "Edit"}
-          </button>
 
-          <button
-            type="button"
-            onClick={onAdd}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm md:text-base cursor-pointer"
-          >
-            + Add
-          </button>
-        </div>
+        {/* Admin-only top buttons */}
+        {isAdminMode && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowEdit((v) => !v)}
+              className={`px-3 py-1.5 rounded border text-sm md:text-base transition cursor-pointer ${
+                showEdit
+                  ? "border-gray-400 bg-gray-100 dark:border-white/20 dark:bg-white/10"
+                  : "border-gray-300 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
+              }`}
+            >
+              {showEdit ? "Done" : "Edit"}
+            </button>
+
+            <button
+              type="button"
+              onClick={onAdd}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm md:text-base cursor-pointer"
+            >
+              + Add
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Lists */}
       {loading ? (
-        <div role="status" aria-live="polite" className="space-y-1">
+        <div role="status" className="space-y-1">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="h-6 rounded bg-gray-100 dark:bg-white/10 overflow-hidden">
+            <div
+              key={i}
+              className="h-6 rounded bg-gray-100 dark:bg:white/10 overflow-hidden"
+            >
               <span className="block h-full animate-[shimmer_1.2s_infinite] bg-gradient-to-r from-transparent via-black/5 to-transparent dark:via-white/10" />
             </div>
           ))}
@@ -308,12 +286,13 @@ const CoasterList: React.FC<CoasterListProps> = ({
             </ul>
           ) : null}
 
-          <h3 className="text-lg lg: text-xl font-semibold mt-3 dark:text-white">
+          <h3 className="text-lg lg:text-xl font-semibold mt-3 dark:text:white">
             Optional Coasters{" "}
             <span className="font-medium text-gray-500 dark:text-gray-400">
               ({optionalCoasters.length})
             </span>
           </h3>
+
           {optionalCoasters.length ? (
             <ul className="divide-y divide-gray-300 dark:divide-white/10">
               {optionalCoasters.map((c) => (

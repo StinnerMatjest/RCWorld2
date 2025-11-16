@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import Loading from "./Loading";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import AuthenticationModal from "./AuthenticationModal";
 import ParkRankLane from "./ParkRankLane";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSyncExternalStore } from "react";
@@ -124,8 +123,6 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
   });
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [categoryIndex, setCategoryIndex] = useState(0);
   const category: Category = CATEGORIES[categoryIndex];
@@ -246,7 +243,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
         className="fixed left-0 right-0 top-0 z-[9999] bg-black/50 dark:bg-black/70 backdrop-blur-sm flex justify-center items-start"
         style={{
           height: "100dvh",
-          paddingTop: "120px", // offset under your site nav
+          paddingTop: "120px",
           WebkitOverflowScrolling: "touch",
         }}
         onClick={closeModal}
@@ -261,7 +258,6 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
             className="relative flex-1 overflow-y-auto"
             style={{
               WebkitOverflowScrolling: "touch",
-              // extra bottom padding so nothing gets cut off inside the modal
               paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 28px)",
             }}
           >
@@ -290,7 +286,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.18 }}
-                  className="px-4 sm:px-8 pb-24 space-y-4" // pb-24 adds comfortable bottom space
+                  className="px-4 sm:px-8 pb-24 space-y-4"
                 >
                   <DatePicker
                     selected={selectedDate}
@@ -422,12 +418,11 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
 
                   {/* Lane */}
                   <div className="px-4 sm:px-8 pt-6">
-                    {/* force remount per category so new ones start at 0.0 and old ones restore */}
                     <ParkRankLane
                       key={category}
                       category={category}
                       newParkName={parkInfo.name || "New Park"}
-                      initialRating={ratingsStore.get(category)} // undefined => 0.0 in child
+                      initialRating={ratingsStore.get(category)}
                       newParkImageUrl={imagePreview ?? undefined}
                       onSetRating={(v) => ratingsStore.set(category, v)}
                     />
@@ -443,7 +438,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.18 }}
-                  className="px-4 sm:px-8 pb-28 space-y-4" // extra bottom so Submit stays visible
+                  className="px-4 sm:px-8 pb-28 space-y-4"
                 >
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-semibold">Summary</h3>
@@ -482,16 +477,6 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                 </motion.div>
               )}
             </AnimatePresence>
-
-            {showAuthModal && (
-              <AuthenticationModal
-                onClose={() => setShowAuthModal(false)}
-                onAuthenticated={() => {
-                  setIsAuthenticated(true);
-                  setShowAuthModal(false);
-                }}
-              />
-            )}
           </div>
         </div>
       </div>

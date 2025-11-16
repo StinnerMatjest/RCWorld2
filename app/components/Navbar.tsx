@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import SearchBar from "./SearchBar";
+import { useAdminMode } from "../context/AdminModeContext";
 
 const Navbar: React.FC = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -10,6 +11,14 @@ const Navbar: React.FC = () => {
 
   const toggleDropdown = () => setIsDropdownOpen((prev) => !prev);
   const closeDropdown = () => setIsDropdownOpen(false);
+  const { isAdminMode } = useAdminMode();
+  const [showRate, setShowRate] = useState(false);
+
+  // Auto-disable when leaving admin mode
+  useEffect(() => {
+    if (!isAdminMode) setShowRate(false);
+  }, [isAdminMode]);
+
 
   // Close on outside click
   useEffect(() => {
@@ -41,9 +50,13 @@ const Navbar: React.FC = () => {
         <div className="flex space-x-6 text-lg text-slate-900 dark:text-slate-100">
           <Link href="/about" className="hover:text-blue-500">About</Link>
           <Link href="/info" className="hover:text-blue-500">Rating Evaluation</Link>
-          {/* RCDB link removed */}
           <Link href="/coasterratings" className="hover:text-blue-500">Coaster Ratings</Link>
-          <Link href="/?modal=true" className="hover:text-blue-500">Rate a Park</Link>
+          {isAdminMode && (
+            <Link href="/?modal=true" className="hover:text-blue-500">
+              Rate a Park
+            </Link>
+          )}
+
         </div>
       </div>
 
@@ -114,17 +127,20 @@ const Navbar: React.FC = () => {
                 Rating Evaluation
               </Link>
             </li>
-            {/* RCDB link removed */}
             <li>
               <Link href="/coasterratings" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>
                 Coaster Ratings
               </Link>
             </li>
-            <li>
-              <Link href="/?modal=true" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>
-                Rate a Park
-              </Link>
-            </li>
+            {isAdminMode && (
+                <Link
+                  href="/?modal=true"
+                  className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  onClick={closeDropdown}
+                >
+                  Rate a Park
+                </Link>
+            )}
           </ul>
         </div>
       </div>
