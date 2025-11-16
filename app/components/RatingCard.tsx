@@ -25,6 +25,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
   const cardRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Detect mobile once + on resize
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
@@ -32,21 +33,31 @@ const RatingCard: React.FC<RatingCardProps> = ({
     return () => window.removeEventListener("resize", check);
   }, []);
 
+  // Close popup on outside click, and on scroll only for desktop
   useEffect(() => {
     const closeOnOutside = (e: MouseEvent) => {
       if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
         setActiveIdx(null);
       }
     };
-    const closeOnScroll = () => setActiveIdx(null);
 
     document.addEventListener("click", closeOnOutside);
-    window.addEventListener("scroll", closeOnScroll, true);
+
+    // Only close on scroll for non-mobile, to avoid fighting horizontal swipe
+    let closeOnScroll: (() => void) | null = null;
+
+    if (!isMobile) {
+      closeOnScroll = () => setActiveIdx(null);
+      window.addEventListener("scroll", closeOnScroll, true);
+    }
+
     return () => {
       document.removeEventListener("click", closeOnOutside);
-      window.removeEventListener("scroll", closeOnScroll, true);
+      if (closeOnScroll) {
+        window.removeEventListener("scroll", closeOnScroll, true);
+      }
     };
-  }, []);
+  }, [isMobile]);
 
   const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
 
@@ -111,7 +122,12 @@ const RatingCard: React.FC<RatingCardProps> = ({
           delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""
         }`}
       >
-        <div className="flex flex-col items-center justify-between bg-blue-50 dark:bg-[#1e293b] rounded-2xl overflow-hidden shadow-md dark:shadow-lg transition-transform duration-300 ease-in-out hover:scale-105 hover:shadow-xl transform-gpu will-change-transform">
+        <div className="flex flex-col items-center justify-between 
+    bg-blue-50 dark:bg-[#1e293b] rounded-2xl overflow-hidden 
+    shadow-md dark:shadow-lg transition-transform duration-300 ease-in-out 
+    hover:scale-105 hover:shadow-xl transform-gpu will-change-transform">
+
+          {/* Park Name */}
           <div
             className={`flex flex-col items-center justify-center w-full ${
               isMobile ? "min-h-[56px] px-2" : "min-h-[80px]"
@@ -139,6 +155,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
             </div>
           </div>
 
+          {/* Park Image */}
           <figure
             className={`w-full aspect-[16/9] md:aspect-video overflow-hidden bg-gray-100 will-change-transform transition-transform duration-350 ease-[cubic-bezier(0.33,1,0.68,1)]`}
             style={{
@@ -158,10 +175,12 @@ const RatingCard: React.FC<RatingCardProps> = ({
             />
           </figure>
 
+          {/* Rating Date */}
           <div className="text-sm italic py-1 text-gray-600 dark:text-gray-400">
             Date: {new Date(rating.date).toLocaleDateString()}
           </div>
 
+          {/* Overall Score */}
           <p
             className={`${
               isMobile
@@ -172,12 +191,14 @@ const RatingCard: React.FC<RatingCardProps> = ({
             {rating.overall.toFixed(2)}
           </p>
 
+          {/* Separator */}
           <div
             className={`${
               isMobile ? "w-10/12 my-1.5" : "w-3/4 my-2"
             } border-t border-gray-300 dark:border-gray-600`}
           />
 
+          {/* Grouped Ratings */}
           <div
             className={`w-full max-w-[360px] flex flex-col ${
               isMobile ? "px-3 pb-3 space-y-1" : "px-4 pb-4"
@@ -214,10 +235,12 @@ const RatingCard: React.FC<RatingCardProps> = ({
                     onClick={(e) => {
                       if (isMobile) {
                         e.preventDefault();
+                        e.stopPropagation(); // important: don't bubble to Link
                         setActiveIdx(isActive ? null : idx);
                       }
                     }}
                   >
+                    {/* Desktop hover tooltip */}
                     {!isMobile && (
                       <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 text-sm shadow-xl rounded-lg p-3 z-[60] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border border-gray-300 dark:border-gray-700 min-w-[200px]">
                         <div className="font-semibold mb-2 text-gray-800 dark:text-gray-200">
@@ -276,6 +299,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
                       </div>
                     )}
 
+                    {/* Mobile click tooltip */}
                     {isMobile && isActive && (
                       <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 text-sm shadow-xl rounded-lg p-3 z-[60] border border-gray-300 dark:border-gray-700 min-w-[200px]">
                         <div className="font-semibold mb-2 text-gray-800 dark:text-gray-200">
@@ -334,6 +358,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
                       </div>
                     )}
 
+                    {/* Row Content */}
                     {isMobile ? (
                       <div className="grid grid-cols-[1fr_auto] items-baseline gap-2 w-full min-w-0">
                         <span className="text-[1.05rem] font-semibold truncate flex items-center gap-1">

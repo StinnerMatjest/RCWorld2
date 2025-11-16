@@ -12,13 +12,6 @@ const Navbar: React.FC = () => {
   const toggleDropdown = () => setIsDropdownOpen((prev) => !prev);
   const closeDropdown = () => setIsDropdownOpen(false);
   const { isAdminMode } = useAdminMode();
-  const [showRate, setShowRate] = useState(false);
-
-  // Auto-disable when leaving admin mode
-  useEffect(() => {
-    if (!isAdminMode) setShowRate(false);
-  }, [isAdminMode]);
-
 
   // Close on outside click
   useEffect(() => {
@@ -51,12 +44,18 @@ const Navbar: React.FC = () => {
           <Link href="/about" className="hover:text-blue-500">About</Link>
           <Link href="/info" className="hover:text-blue-500">Rating Evaluation</Link>
           <Link href="/coasterratings" className="hover:text-blue-500">Coaster Ratings</Link>
-          {isAdminMode && (
-            <Link href="/?modal=true" className="hover:text-blue-500">
-              Rate a Park
-            </Link>
-          )}
 
+          {/* Admin-only links */}
+          {isAdminMode && (
+            <>
+              <Link href="/?modal=true" className="hover:text-blue-500">
+                Rate a Park
+              </Link>
+              <Link href="/Checklist" className="hover:text-blue-500">
+                Checklist
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
@@ -118,28 +117,55 @@ const Navbar: React.FC = () => {
           </div>
           <ul className="py-2 text-slate-900 dark:text-slate-100">
             <li>
-              <Link href="/about" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>
+              <Link
+                href="/about"
+                className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700"
+                onClick={closeDropdown}
+              >
                 About
               </Link>
             </li>
             <li>
-              <Link href="/info" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>
+              <Link
+                href="/info"
+                className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700"
+                onClick={closeDropdown}
+              >
                 Rating Evaluation
               </Link>
             </li>
             <li>
-              <Link href="/coasterratings" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>
+              <Link
+                href="/coasterratings"
+                className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700"
+                onClick={closeDropdown}
+              >
                 Coaster Ratings
               </Link>
             </li>
+
+            {/* Admin-only mobile links */}
             {isAdminMode && (
-                <Link
-                  href="/?modal=true"
-                  className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700"
-                  onClick={closeDropdown}
-                >
-                  Rate a Park
-                </Link>
+              <>
+                <li>
+                  <Link
+                    href="/?modal=true"
+                    className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700"
+                    onClick={closeDropdown}
+                  >
+                    Rate a Park
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/Checklist"
+                    className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700"
+                    onClick={closeDropdown}
+                  >
+                    Checklist
+                  </Link>
+                </li>
+              </>
             )}
           </ul>
         </div>
