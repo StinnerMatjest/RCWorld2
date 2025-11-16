@@ -36,10 +36,6 @@ export const getRatingColor = (rating: number | string) => {
     return "text-[#A3E635] dark:text-[#BEF264]";
   }
 
-  // ————————
-  // 🔥 ORIGINAL LOW-END RETURNS HERE EXACTLY
-  // ————————
-
   // 🟡 5.5–6.4 — Decent (original yellow)
   if (rating >= 5.5) {
     return "text-yellow-400 dark:text-yellow-300";
@@ -58,10 +54,6 @@ export const getRatingColor = (rating: number | string) => {
   // 🩸 0–2.9 — Very Poor (original deep red)
   return "text-red-600 dark:text-red-500";
 };
-
-
-
-
 
 const countryNameToCode: Record<string, string> = {
   Albania: "al",

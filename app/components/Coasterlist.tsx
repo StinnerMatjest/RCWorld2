@@ -180,7 +180,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
               <button
                 type="button"
                 onClick={() => onEdit(c)}
-                className="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100 text-[15px]"
+                className="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100 text-[15px] cursor-pointer"
               >
                 🔧
               </button>
@@ -244,7 +244,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
             <button
               type="button"
               onClick={() => setShowEdit((v) => !v)}
-              className={`px-3 py-1.5 rounded border text-sm md:text-base transition ${
+              className={`px-3 py-1.5 rounded border text-sm md:text-base transition cursor-pointer ${
                 showEdit
                   ? "border-gray-400 bg-gray-100 dark:border-white/20 dark:bg-white/10"
                   : "border-gray-300 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
@@ -256,7 +256,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
             <button
               type="button"
               onClick={onAdd}
-              className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm md:text-base"
+              className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm md:text-base cursor-pointer"
             >
               + Add
             </button>

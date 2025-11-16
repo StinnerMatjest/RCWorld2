@@ -96,7 +96,6 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
   return (
     <div className="fixed inset-0 z-[1000] bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center">
       <div className="relative bg-white dark:bg-gray-800 dark:text-gray-100 border border-transparent dark:border-white/10 p-6 rounded-lg shadow-lg w-full max-w-xl">
-        {/* Close button (visual only, same behavior) */}
         <button
           onClick={handleClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white transition duration-300 cursor-pointer"

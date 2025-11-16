@@ -4,41 +4,36 @@ import React, { useState } from "react";
 import { useAdminMode } from "../context/AdminModeContext";
 import AuthenticationModal from "./AuthenticationModal";
 
-export default function AdminToggle() {
+const AdminToggle = () => {
   const { isAdminMode, toggleAdminMode, welcomeMessage } = useAdminMode();
 
-  // Has this browser session already passed the password?
   const [unlocked, setUnlocked] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
 
   const label = isAdminMode ? "Admin mode: ON" : "Admin mode: OFF";
 
   const handleClick = () => {
-    // Turning OFF admin mode never requires password
     if (isAdminMode) {
       toggleAdminMode();
       return;
     }
 
-    // If already unlocked once this session, just toggle on
     if (unlocked) {
       toggleAdminMode();
       return;
     }
 
-    // Otherwise: show existing AuthenticationModal
     setShowAuth(true);
   };
 
   const handleAuthenticated = () => {
     setUnlocked(true);
     setShowAuth(false);
-    toggleAdminMode(); // finally turn admin mode ON (this also triggers the welcome message)
+    toggleAdminMode();
   };
 
   return (
     <>
-      {/* Fun welcome bubble above the pill */}
       {welcomeMessage && (
         <div
           className="
@@ -59,7 +54,6 @@ export default function AdminToggle() {
         </div>
       )}
 
-      {/* MAIN TOGGLE BUTTON (unchanged styling) */}
       <button
         type="button"
         onClick={handleClick}
@@ -107,23 +101,19 @@ export default function AdminToggle() {
           `}
         />
 
-        {/* Text – hidden on mobile, only icon+dot */}
         <span className="hidden sm:inline">
           {isAdminMode ? "Admin mode" : "Viewer mode"}
         </span>
-
-        {/* On mobile, just show short text OR nothing if you want ultra-minimal */}
         <span className="sm:hidden">
           {isAdminMode ? "Admin" : ""}
         </span>
 
-        {/* Icon */}
         <span aria-hidden className="text-base leading-none">
           {isAdminMode ? "🛠" : "🧩"}
         </span>
       </button>
 
-      {/* EXISTING AUTH MODAL */}
+      {/* Authentication Check */}
       {showAuth && (
         <AuthenticationModal
           onClose={() => setShowAuth(false)}
@@ -133,3 +123,5 @@ export default function AdminToggle() {
     </>
   );
 }
+
+export default AdminToggle;

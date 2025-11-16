@@ -29,7 +29,6 @@ export const AdminModeProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsAdminMode(true);
       }
     } catch {
-      // ignore
     }
   }, []);
 
@@ -43,7 +42,6 @@ export const AdminModeProvider: React.FC<{ children: React.ReactNode }> = ({
         window.localStorage.removeItem(STORAGE_KEY);
       }
     } catch {
-      // ignore
     }
   }, [isAdminMode]);
 

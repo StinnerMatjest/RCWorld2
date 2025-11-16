@@ -42,9 +42,7 @@ export interface Park {
   city: string;
   imagePath: string;
 }
-
-// removed SETTLE_DELAY – we no longer force snapping with JS
-const DOTS_OFFSET = 10; // distance above safe area for dots
+const DOTS_OFFSET = 10;
 
 const Home = () => {
   const router = useRouter();
@@ -59,9 +57,6 @@ const Home = () => {
   const [parallaxByIndex, setParallaxByIndex] = useState<number[]>([]);
   const carouselRef = useRef<HTMLDivElement>(null);
 
-  // removed settleTimer + isAutoScrolling – we rely on native scroll-snap now
-
-  const [ratingWarnings, setRatingWarnings] = useState<RatingWarningType[]>([]);
   const sortedRatings = [...ratings].sort((a, b) => b.overall - a.overall);
   const filteredRatings = sortedRatings.filter((rating) => {
     const park = parks.find((p) => p.id === rating.parkId);
@@ -125,8 +120,6 @@ const Home = () => {
     setParallaxByIndex(nextParallax);
   };
 
-  // ❌ removed settleToNearest + timer-based snapping
-  // ✅ let scroll-snap CSS do the snapping instead
   const handleScroll = (e: UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
     handleScrollInternal(el);
