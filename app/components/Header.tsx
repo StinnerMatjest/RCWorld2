@@ -10,15 +10,12 @@ const Header = () => {
   const nextTrip = getNextTrip();
   const days = nextTrip ? getDaysUntil(nextTrip.startDate) : null;
   const [isVisible, setIsVisible] = useState(true);
-  
-  // Helper state to handle the overflow toggle for smooth animation
   const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
     const handleToggle = (e: CustomEvent) => {
       setIsAnimating(true);
       setIsVisible(e.detail.visible);
-      // Stop hiding overflow after animation ends to allow dropdowns to pop out
       setTimeout(() => setIsAnimating(false), 500); 
     };
 
@@ -34,7 +31,7 @@ const Header = () => {
         transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] relative z-50
         ${isVisible 
             ? 'max-h-[300px] opacity-100' 
-            : 'max-h-0 opacity-0 md:max-h-[300px] md:opacity-100' // Force visible on Desktop
+            : 'max-h-0 opacity-0 md:max-h-[300px] md:opacity-100'
         }
         ${isAnimating || !isVisible ? 'overflow-hidden' : 'overflow-visible'}
       `}
