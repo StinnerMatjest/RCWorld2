@@ -1,445 +1,35 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import type { ReactNode } from "react";
 import Image from "next/image";
+import Fuse from "fuse.js";
 import { getParkFlag } from "@/app/utils/design";
 
-// --- Icons ---
-function XMarkIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  );
-}
+// Imports from your types and utils
+import { ApiCoaster, CoastleCoaster, Guess, GameStats } from "@/app/types";
+import { 
+  INITIAL_STATS, 
+  getDailyCoaster, 
+  getTodayString, 
+  getMatchStatus, 
+  mapApiToCoastle, 
+  legacyCopy 
+} from "@/app/utils/coastle";
 
-function ShareIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
-    </svg>
-  );
-}
+// Component Imports from your new folder
+import { 
+  XMarkIcon, 
+  PlayIcon, 
+  BookOpenIcon, 
+  ChartBarIcon, 
+  ArrowPathIcon 
+} from "@/app/components/coastle/Icons";
+import { Countdown } from "@/app/components/coastle/Countdown";
+import { GuessRow } from "@/app/components/coastle/GuessRow";
+import { ResultModal } from "@/app/components/coastle/ResultModal";
+import { HowTo } from "@/app/components/coastle/HowTo";
+import { Leaderboard } from "@/app/components/coastle/Leaderboard";
 
-function PlayIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
-    </svg>
-  );
-}
-
-function BookOpenIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-    </svg>
-  );
-}
-
-function ChartBarIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-    </svg>
-  );
-}
-
-function ArrowPathIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={className}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-    </svg>
-  );
-}
-
-function ClockIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-    </svg>
-  )
-}
-
-// ---- Types ----
-type ApiCoaster = {
-  id: number;
-  name: string;
-  manufacturer: string;
-  model: string;
-  scale: string;
-  haveRidden: boolean;
-  isBestCoaster: boolean;
-  rcdbPath: string;
-  rideCount: number;
-  rating: number | string | null;
-  parkId: number;
-  parkName: string;
-  year: number | null;
-  lastVisitDate: string | null;
-};
-
-type CoastleCoaster = {
-  id: string;
-  name: string;
-  rating: number;
-  manufacturer: string;
-  park: string;
-  rideCount: number;
-  lastRidden: string | null;
-  year: number;
-  parkId: number;
-  rcdbPath: string;
-  countryName?: string;
-};
-
-type MatchStatus = "correct" | "wrong";
-
-type Guess = {
-  coaster: CoastleCoaster;
-  matches: {
-    park: MatchStatus;
-    manufacturer: MatchStatus;
-    rating: MatchStatus;
-    year: MatchStatus;
-    country: MatchStatus;
-    rideCount: MatchStatus;
-  };
-};
-
-type Cell = {
-  key: string;
-  content: ReactNode;
-  status: MatchStatus;
-  noColor?: boolean;
-  isArrow?: boolean;
-  diff?: number;
-  hiddenOnMobile?: boolean;
-};
-
-type GameStats = {
-  played: number;
-  won: number;
-  currentStreak: number;
-  maxStreak: number;
-  guessDistribution: number[];
-};
-
-const PARK_COUNTRY_MAP: Record<string, string> = {
-  "Alton Towers": "UnitedKingdom",
-  "Bakken": "Denmark",
-  "BonBon-Land": "Denmark",
-  "Cedar Point": "UnitedStates",
-  "Djurs Sommerland": "Denmark",
-  "Efteling": "Netherlands",
-  "Energylandia": "Poland",
-  "Europa-Park": "Germany",
-  "Fårup Sommerland": "Denmark",
-  "Legendia": "Poland",
-  "Legoland Billung": "Denmark",
-  "Liseberg": "Sweden",
-  "Phantasialand": "Germany",
-  "Plopsaland Belgium": "Belgium",
-  "Plopsaland Deutschland": "Germany",
-  "PortAventura Park": "Spain",
-  "Tivoli Gardens": "Denmark",
-  "Tivoli Friheden": "Denmark",
-  "Toverland": "Netherlands",
-  "Tusenfryd": "Norway",
-  "Walibi Belgium": "Belgium",
-};
-
-const INITIAL_STATS: GameStats = {
-  played: 0,
-  won: 0,
-  currentStreak: 0,
-  maxStreak: 0,
-  guessDistribution: [0, 0, 0, 0, 0],
-};
-
-function getUTCTodaySeed() {
-  const d = new Date();
-  const year = d.getUTCFullYear();
-  const month = d.getUTCMonth() + 1;
-  const day = d.getUTCDate();
-  return year * 10000 + month * 100 + day;
-}
-
-function seededRandom(seed: number) {
-  const a = 1664525;
-  const c = 1013904223;
-  const m = 4294967296;
-  return (a * seed + c) % m;
-}
-
-function getDailyCoaster(coasters: CoastleCoaster[]): CoastleCoaster | null {
-  if (coasters.length === 0) return null;
-  const seed = getUTCTodaySeed();
-  const randomInt = seededRandom(seed);
-  const index = Math.abs(randomInt) % coasters.length;
-  return coasters[index];
-}
-
-function getTodayString() {
-  const seed = getUTCTodaySeed();
-  return String(seed);
-}
-
-function formatLastRidden(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "2-digit",
-  });
-}
-
-function getMatchStatus(
-  guess: number | string | undefined | null,
-  answer: number | string | undefined | null
-): MatchStatus {
-  if (guess === answer) return "correct";
-  return "wrong";
-}
-
-function getStatusStyles(status: MatchStatus) {
-  switch (status) {
-    case "correct":
-      return "bg-emerald-500 text-white border-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.4)]";
-    case "wrong":
-    default:
-      return "bg-red-800 text-white border-red-900 dark:bg-red-900 dark:border-red-950";
-  }
-}
-
-function mapApiToCoastle(c: ApiCoaster): CoastleCoaster | null {
-  const rawRating = c.rating;
-  const rating =
-    rawRating === null || rawRating === undefined
-      ? null
-      : typeof rawRating === "string"
-        ? parseFloat(rawRating)
-        : rawRating;
-
-  if (rating === null || Number.isNaN(rating)) return null;
-
-  const parkName = c.parkName;
-  const countryName = PARK_COUNTRY_MAP[parkName];
-
-  return {
-    id: String(c.id),
-    name: c.name,
-    rating,
-    manufacturer: c.manufacturer,
-    park: parkName,
-    rideCount: c.rideCount ?? 0,
-    lastRidden: c.lastVisitDate,
-    year: c.year ?? 0,
-    parkId: c.parkId,
-    rcdbPath: c.rcdbPath,
-    countryName,
-  };
-}
-
-// Fallback copy function for insecure contexts
-async function legacyCopy(text: string) {
-  const textArea = document.createElement("textarea");
-  textArea.value = text;
-  textArea.style.position = "fixed";
-  textArea.style.left = "-9999px";
-  textArea.style.top = "0";
-  document.body.appendChild(textArea);
-  textArea.focus();
-  textArea.select();
-  try {
-    document.execCommand('copy');
-    return true;
-  } catch (err) {
-    console.error('Fallback copy failed', err);
-    return false;
-  } finally {
-    document.body.removeChild(textArea);
-  }
-}
-
-// ---- Sub-components ----
-
-function Countdown() {
-  const [timeLeft, setTimeLeft] = useState("");
-
-  useEffect(() => {
-    const calculate = () => {
-      const now = new Date();
-      const tomorrow = new Date(now);
-      tomorrow.setUTCHours(24, 0, 0, 0);
-      const diff = tomorrow.getTime() - now.getTime();
-
-      const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
-      const m = Math.floor((diff / (1000 * 60)) % 60);
-      const s = Math.floor((diff / 1000) % 60);
-
-      return `${h}h ${m}m ${s}s`;
-    };
-
-    setTimeLeft(calculate());
-    const interval = setInterval(() => setTimeLeft(calculate()), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <div className="w-full h-[42px] sm:h-[46px] flex items-center justify-center gap-2 bg-slate-100 dark:bg-neutral-800 rounded-2xl text-slate-500 dark:text-slate-400 font-bold text-sm sm:text-base animate-reveal shadow-inner border border-slate-200 dark:border-neutral-700">
-      <ClockIcon className="w-5 h-5" />
-      <span>Next Coastle: {timeLeft}</span>
-    </div>
-  );
-}
-
-function GuessRow({
-  guess,
-  answer,
-}: {
-  guess: Guess;
-  answer: CoastleCoaster | null;
-}) {
-  if (!answer) return null;
-
-  const isCorrect = guess.coaster.id === answer.id;
-
-  const cells: Cell[] = [
-    {
-      key: "rating",
-      content: guess.coaster.rating.toFixed(1),
-      status: guess.matches.rating,
-      isArrow: true,
-      diff: guess.coaster.rating - answer.rating,
-      noColor: false,
-    },
-    {
-      key: "manufacturer",
-      content: guess.coaster.manufacturer,
-      status: guess.matches.manufacturer,
-      noColor: false,
-    },
-    {
-      key: "park",
-      content: guess.coaster.park,
-      status: guess.matches.park,
-      noColor: false,
-    },
-    {
-      key: "country",
-      content: guess.coaster.countryName ? (
-        <div className="flex flex-col items-center justify-center gap-1.5 w-full">
-          <div className="relative shadow-md rounded-sm overflow-hidden border border-black/20">
-            <Image
-              src={getParkFlag(guess.coaster.countryName)}
-              alt={`${guess.coaster.countryName} flag`}
-              width={42}
-              height={28}
-              className="object-cover"
-              unoptimized
-            />
-          </div>
-          {/* HIDE country name on mobile */}
-          <span className="text-[10px] uppercase tracking-wide opacity-90 font-bold hidden md:block">
-            {guess.coaster.countryName.substring(0, 3)}
-          </span>
-        </div>
-      ) : (
-        "—"
-      ),
-      status: guess.matches.country,
-      noColor: false,
-    },
-    {
-      key: "rideCount",
-      content: guess.coaster.rideCount,
-      status: guess.matches.rideCount,
-      isArrow: true,
-      diff: guess.coaster.rideCount - answer.rideCount,
-      noColor: false,
-    },
-    {
-      key: "lastRidden",
-      content: formatLastRidden(guess.coaster.lastRidden),
-      status: "wrong",
-      noColor: true,
-      hiddenOnMobile: true,
-    },
-    {
-      key: "year",
-      content: guess.coaster.year || "—",
-      status: guess.matches.year,
-      isArrow: true,
-      diff: guess.coaster.year - answer.year,
-      noColor: false,
-    },
-  ];
-
-  return (
-    <tr className="border-b border-transparent">
-      {/* Desktop Only: Coaster Name */}
-      <td className="hidden md:table-cell p-2 align-middle text-center overflow-hidden bg-slate-50 dark:bg-neutral-900 border-r border-slate-200 dark:border-neutral-800">
-        <div className={`
-          text-lg font-black leading-tight mx-auto max-w-[200px] whitespace-normal break-words
-          ${isCorrect ? "text-emerald-500 dark:text-emerald-400" : "text-slate-800 dark:text-slate-200"}
-          animate-flipInCell
-        `}>
-          <a
-            href={guess.coaster.rcdbPath}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:underline decoration-2 underline-offset-2 block"
-            title={guess.coaster.name}
-          >
-            {guess.coaster.name}
-          </a>
-        </div>
-      </td>
-
-      {/* Attributes */}
-      {cells.map((cell, i) => (
-        <td
-          key={cell.key}
-          // Tight padding on mobile
-          className={`p-0.5 sm:p-2 align-middle ${cell.hiddenOnMobile ? 'hidden md:table-cell' : ''}`}
-        >
-          <div
-            className={`
-              relative flex flex-col items-center justify-center
-              h-12 sm:h-16 w-full rounded-lg border text-[10px] sm:text-base font-bold
-              shadow-md transition-all overflow-hidden shrink-0
-              ${cell.noColor
-                ? "bg-white border-slate-200 text-slate-800 dark:bg-neutral-900 dark:border-neutral-700 dark:text-slate-200"
-                : getStatusStyles(cell.status)
-              }
-              opacity-0 animate-flipInCell
-            `}
-            style={{
-              animationDelay: `${(i + 1) * 80}ms`,
-              animationFillMode: "forwards",
-            }}
-          >
-            {/* Manufacturer & Park */}
-            <span className={`px-0.5 sm:px-1 text-center w-full z-10 relative drop-shadow-sm ${cell.key === 'park' || cell.key === 'manufacturer' ? 'whitespace-normal leading-[1.1] line-clamp-2 break-words' : 'truncate leading-tight'}`}>
-              {cell.content}
-            </span>
-            {cell.isArrow && typeof cell.diff === "number" && cell.diff !== 0 && (
-              <span className="z-10 text-[7px] sm:text-[10px] uppercase opacity-90 font-bold leading-none mt-0.5 sm:mt-1 flex items-center gap-0.5 bg-black/25 px-1 py-0.5 rounded-full backdrop-blur-sm tracking-tighter">
-                {cell.diff > 0 ? "Lower ▼" : "Higher ▲"}
-              </span>
-            )}
-          </div>
-        </td>
-      ))}
-    </tr>
-  );
-}
-
-// ---- Main Coastle page ----
 export default function CoastlePage() {
   const [allCoasters, setAllCoasters] = useState<CoastleCoaster[]>([]);
   const [answer, setAnswer] = useState<CoastleCoaster | null>(null);
@@ -451,48 +41,43 @@ export default function CoastlePage() {
   const [gameState, setGameState] = useState<"playing" | "won" | "lost">("playing");
   const [toast, setToast] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
 
   const [activeTab, setActiveTab] = useState<"play" | "howto" | "leaderboard">("play");
   const [showModal, setShowModal] = useState(false);
   const [stats, setStats] = useState<GameStats>(INITIAL_STATS);
-
-  // Toggle state - DEFAULT TO DAILY
   const [gameMode, setGameMode] = useState<"daily" | "endless">("daily");
 
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Logic: Hide HEADER if user is interacting with input (focused) OR if game is actively being played (guesses exist & not over)
-  // IMPORTANT: We use `showMenu` to trigger the Header Slide Up animation.
   const isGameActive = guesses.length > 0 && gameState === 'playing';
   const showMenu = !isGameActive && !isFocused;
 
-  // Signal to Header to hide/show - Smooth Transition Logic
+  // --- Effects ---
+
+  // Header Animation Control
   useEffect(() => {
-    // On Desktop (md+), we ALWAYS want the header visible regardless of game state.
     const shouldHideHeader = !showMenu;
     window.dispatchEvent(new CustomEvent('toggle-header', { detail: { visible: !shouldHideHeader } }));
-
-    // Cleanup on unmount (show header)
     return () => {
       window.dispatchEvent(new CustomEvent('toggle-header', { detail: { visible: true } }));
     };
   }, [showMenu]);
 
-  // Fetch coasters
+  // Load Data
   useEffect(() => {
     async function fetchCoasters() {
       try {
         const res = await fetch("/api/coasters");
         const data = await res.json();
-        if (!data || !Array.isArray(data.coasters)) {
-          throw new Error("Unexpected data format");
-        }
+        if (!data || !Array.isArray(data.coasters)) throw new Error("Unexpected data format");
 
         const mapped: CoastleCoaster[] = (data.coasters as ApiCoaster[])
           .map(mapApiToCoastle)
           .filter((c): c is CoastleCoaster => !!c && c.rating > 0);
 
+        // Sort by ID for consistency
         mapped.sort((a, b) => {
           const idA = parseInt(a.id, 10);
           const idB = parseInt(b.id, 10);
@@ -502,7 +87,7 @@ export default function CoastlePage() {
 
         setAllCoasters(mapped);
 
-        // INITIAL LOAD: Check for Daily state
+        // Daily Mode Logic (Default)
         if (mapped.length > 0) {
           const today = getTodayString();
           const savedDaily = localStorage.getItem('coastle-daily-state');
@@ -542,12 +127,15 @@ export default function CoastlePage() {
     }
   }, []);
 
+  // --- Game Logic ---
+
   function switchMode(mode: "daily" | "endless") {
     setGameMode(mode);
     setInput("");
     setToast(null);
     setShowModal(false);
     setIsFocused(false);
+    setActiveIndex(-1);
 
     if (mode === 'daily') {
       const today = getTodayString();
@@ -564,7 +152,6 @@ export default function CoastlePage() {
           restored = true;
         }
       }
-
       if (!restored && allCoasters.length > 0) {
         const dailyAnswer = getDailyCoaster(allCoasters);
         setAnswer(dailyAnswer);
@@ -572,6 +159,7 @@ export default function CoastlePage() {
         setGameState("playing");
       }
     } else {
+      // Endless
       setGuesses([]);
       setGameState("playing");
       if (allCoasters.length > 0) {
@@ -580,11 +168,16 @@ export default function CoastlePage() {
     }
   }
 
+  // Fuzzy Search
+  const fuse = useMemo(() => new Fuse(allCoasters, { keys: ["name", "park"], threshold: 0.3 }), [allCoasters]);
+  
   const suggestions = useMemo(() => {
     if (!input.trim() || !allCoasters.length) return [];
-    const q = input.toLowerCase().trim();
-    return allCoasters.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 6);
-  }, [input, allCoasters]);
+    const results = fuse.search(input.trim());
+    return results.map(r => r.item).slice(0, 6);
+  }, [input, fuse, allCoasters]);
+
+  useEffect(() => setActiveIndex(-1), [input]);
 
   const MAX_GUESSES = 5;
 
@@ -600,6 +193,7 @@ export default function CoastlePage() {
     setToast(null);
     setShowModal(false);
     setIsFocused(false);
+    setActiveIndex(-1);
 
     if (gameMode === 'endless' && allCoasters.length > 0) {
       const random = allCoasters[Math.floor(Math.random() * allCoasters.length)];
@@ -607,13 +201,13 @@ export default function CoastlePage() {
     }
   }
 
-  // Handle the "X" button which cancels focus or resets game
   function handleExitOrReset() {
     setIsFocused(false);
     setInput("");
     inputRef.current?.blur();
-    setGuesses([]); // Reset board
+    setGuesses([]);
     setGameState("playing");
+    setActiveIndex(-1);
   }
 
   function handleGuess(coaster: CoastleCoaster) {
@@ -639,19 +233,17 @@ export default function CoastlePage() {
     const nextGuesses = [...guesses, guess];
     setGuesses(nextGuesses);
     setInput("");
+    setActiveIndex(-1);
 
     inputRef.current?.focus();
 
-    // Game End Logic
     let newStatus: "playing" | "won" | "lost" = gameState;
 
     if (coaster.id === answer.id) newStatus = "won";
     else if (nextGuesses.length >= MAX_GUESSES) newStatus = "lost";
 
-    // Update Game State
     if (newStatus !== "playing") {
       setGameState(newStatus);
-
       setIsFocused(false);
       inputRef.current?.blur();
 
@@ -682,36 +274,54 @@ export default function CoastlePage() {
     }
   }
 
-  async function handleShare() {
+async function handleShare() {
+    // 1. ALIGNMENT & GRID (Kept exactly as you liked it)
+    const headers = "Rat\u2003Mfr\u2003Prk\u2003Cty\u2003Cnt\u2003Yr";
+
     const grid = guesses.map(g => {
       const m = g.matches;
       const row = [m.rating, m.manufacturer, m.park, m.country, m.rideCount, m.year];
-      return row.map(status => status === 'correct' ? '🟩' : '🟥').join('');
+      const emojiStr = row.map(status => status === 'correct' ? '🟩' : '🟥').join('\u2003\u200A');
+      
+      const name = g.coaster.name;
+      const targetVisualLen = 22; 
+      const needed = Math.max(0, Math.ceil((targetVisualLen - name.length) / 1.7));
+      const paddedName = name + "\u3000".repeat(needed);
+
+      return `${emojiStr}\u2003||${paddedName}||`;
     }).join('\n');
 
-    let intro = "";
-    if (gameMode === 'daily') {
-      if (gameState === 'won') intro = `I completed the Daily Coastle in ${guesses.length} guesses!`;
-      else intro = "I did not guess today's Daily Coastle...";
+    // 2. SIMPLIFIED TEXT
+    const title = gameMode === 'daily' ? '**Daily Coastle**' : '**Endless Coastle**';
+    
+    let status = "";
+    if (gameState === 'won') {
+        status = `I completed it in ${guesses.length} guesses.`;
     } else {
-      if (gameState === 'won') intro = `I guessed ${answer?.name} in ${guesses.length} guesses in coastle endless mode.`;
-      else intro = `I did not guess ${answer?.name} in coastle endless mode.`;
+        status = "I did not complete it.";
     }
 
-    const text = `${intro}\n\n${grid}\n\nPlay at: parkrating.com/coastle`;
+    // 3. NO PREVIEW LINK (< > wrappers)
+    let footer = "\n\nPlay at <https://parkrating.com/coastle>";
+    
+    if (gameState === 'lost') {
+      const ansName = answer?.name || "";
+      const needed = Math.max(0, Math.ceil((22 - ansName.length) / 1.7));
+      const paddedAns = ansName + "\u3000".repeat(needed);
+      footer = `\nAnswer: ||${paddedAns}||${footer}`;
+    }
+
+    const text = `${title}\n${status}\n\n${headers}\n${grid}${footer}`;
 
     try {
       if (navigator.share) {
-        await navigator.share({
-          title: 'Coastle',
-          text: text,
-        });
+        await navigator.share({ title: 'Coastle Results', text: text });
       } else {
         throw new Error("Web Share not supported");
       }
     } catch (err) {
       const success = await legacyCopy(text);
-      if (success) showToast("Results copied!");
+      if (success) showToast("Results copied to clipboard!");
       else showToast("Failed to copy");
     }
   }
@@ -722,15 +332,45 @@ export default function CoastlePage() {
       if (gameMode === 'endless') resetGame();
       return;
     }
+    
+    if (activeIndex >= 0 && activeIndex < suggestions.length) {
+      handleGuess(suggestions[activeIndex]);
+      return;
+    }
+
     if (!input.trim() || !allCoasters.length) return;
+    
     const q = input.trim().toLowerCase();
     const exact = allCoasters.find((c) => c.name.toLowerCase() === q) ?? suggestions[0];
+    
     if (!exact) {
       showToast("Coaster not found in your ratings");
       return;
     }
     handleGuess(exact);
   }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!suggestions.length) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : prev));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev > 0 ? prev - 1 : -1));
+    } else if (e.key === "Enter") {
+      if (activeIndex >= 0 && activeIndex < suggestions.length) {
+        e.preventDefault();
+        handleGuess(suggestions[activeIndex]);
+        setActiveIndex(-1);
+      }
+    } else if (e.key === "Escape") {
+      setInput("");
+      inputRef.current?.blur();
+      setIsFocused(false);
+      setActiveIndex(-1);
+    }
+  };
 
   const handleInputFocus = () => {
     setIsFocused(true);
@@ -775,7 +415,7 @@ export default function CoastlePage() {
         }
       `}</style>
 
-      {/* Toast Notification */}
+      {/* Toast */}
       {toast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs font-bold px-4 py-3 rounded-full shadow-2xl whitespace-nowrap animate-bounce z-[200]">
           {toast}
@@ -783,13 +423,7 @@ export default function CoastlePage() {
       )}
 
       {/* Header Container */}
-      <div
-        className={`
-            transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden
-            ${showMenu ? 'max-h-[200px] opacity-100' : 'max-h-0 opacity-0'}
-            md:max-h-none md:opacity-100
-        `}
-      >
+      <div className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${showMenu ? 'max-h-[200px] opacity-100' : 'max-h-0 opacity-0'} md:max-h-none md:opacity-100`}>
         <header className="mb-2 text-center mt-2 space-y-2 px-4 animate-reveal">
           <h1 className="text-4xl sm:text-6xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 drop-shadow-sm italic transform -skew-x-6 pr-4">
             COASTLE
@@ -812,12 +446,7 @@ export default function CoastlePage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`
-                            flex flex-col items-center justify-center py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer
-                            ${isActive
-                    ? 'bg-white dark:bg-neutral-700 text-blue-600 dark:text-blue-400 shadow-sm scale-100'
-                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-300/50 dark:hover:bg-neutral-700/50 hover:scale-95'}
-                        `}
+                className={`flex flex-col items-center justify-center py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${isActive ? 'bg-white dark:bg-neutral-700 text-blue-600 dark:text-blue-400 shadow-sm scale-100' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-300/50 dark:hover:bg-neutral-700/50 hover:scale-95'}`}
               >
                 <Icon className="w-5 h-5 mb-0.5" />
                 {tab.label}
@@ -827,118 +456,68 @@ export default function CoastlePage() {
         </div>
       </div>
 
-      {/* Play Content */}
+      {/* Main Content Area */}
       {activeTab === 'play' && (
-        // CHANGED: Increased mobile gap to gap-4 (middle ground between gap-2 and gap-6)
         <div key="play-tab" className="w-full max-w-[1400px] flex flex-col items-center gap-4 sm:gap-6 animate-reveal">
 
-          {/* Mode Switch Container */}
-          <div
-            className={`
-                    transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden
-                    ${showMenu ? 'max-h-[50px] opacity-100 mb-0' : 'max-h-0 opacity-0 mb-0'}
-                    md:max-h-none md:opacity-100 md:mb-0
-                `}
-          >
+          {/* Mode Switcher */}
+          <div className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${showMenu ? 'max-h-[50px] opacity-100 mb-0' : 'max-h-0 opacity-0 mb-0'} md:max-h-none md:opacity-100 md:mb-0`}>
             <div className="bg-slate-200 dark:bg-neutral-800 p-1 rounded-full flex gap-1 relative z-10 items-center mx-auto w-fit">
-              <button
-                onClick={() => switchMode('daily')}
-                className={`px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${gameMode === 'daily' ? 'bg-white dark:bg-neutral-700 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Daily
-              </button>
-              <button
-                onClick={() => switchMode('endless')}
-                className={`px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${gameMode === 'endless' ? 'bg-white dark:bg-neutral-700 text-fuchsia-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Endless
-              </button>
+              <button onClick={() => switchMode('daily')} className={`px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${gameMode === 'daily' ? 'bg-white dark:bg-neutral-700 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Daily</button>
+              <button onClick={() => switchMode('endless')} className={`px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${gameMode === 'endless' ? 'bg-white dark:bg-neutral-700 text-fuchsia-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Endless</button>
             </div>
           </div>
 
           {/* Sticky Search Bar */}
-          <div
-            ref={containerRef}
-            className={`
-                  w-full max-w-xl sticky top-0 z-40 
-                  py-2 px-2 sm:px-0 transition-all flex items-center gap-2
-                  ${!showMenu ? 'bg-white dark:bg-neutral-950 md:bg-transparent' : ''} 
-              `}
-          >
-
+          <div ref={containerRef} className={`w-full max-w-xl sticky top-0 z-40 py-2 px-2 sm:px-0 transition-all flex items-center gap-2 ${!showMenu ? 'bg-white dark:bg-neutral-950 md:bg-transparent' : ''}`}>
             {gameMode === 'daily' && gameState !== 'playing' ? (
               <div className="w-full"><Countdown /></div>
             ) : (
               <form onSubmit={handleSubmit} className="relative group w-full">
                 <div className="absolute -inset-[1.5px] rounded-2xl bg-gradient-to-r from-blue-500 via-cyan-400 to-fuchsia-500 opacity-40 blur-sm group-focus-within:opacity-70 transition duration-500" />
-
-                <div className={`
-                        relative rounded-2xl bg-white/80 dark:bg-neutral-950/70 backdrop-blur border border-gray-200 dark:border-neutral-700 shadow-sm transition-all duration-300
-                    `}>
+                <div className="relative rounded-2xl bg-white/80 dark:bg-neutral-950/70 backdrop-blur border border-gray-200 dark:border-neutral-700 shadow-sm transition-all duration-300">
                   <div className="flex items-center gap-3 px-4 py-3">
                     <input
                       ref={inputRef}
                       type="text"
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
                       onFocus={handleInputFocus}
                       disabled={gameState !== "playing"}
                       placeholder={gameState === "playing" ? "Search coaster..." : "Game Over"}
                       className="w-full bg-transparent outline-none text-base sm:text-lg font-medium placeholder:text-gray-400 text-slate-900 dark:text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
-
                     <button
                       type={gameState === "playing" ? "submit" : "button"}
                       onClick={gameState !== "playing" ? resetGame : undefined}
                       disabled={gameState === "playing" && !input.trim()}
-                      className={`
-                            px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wide 
-                            transition border border-transparent shadow-sm flex items-center gap-2 cursor-pointer
-                            ${gameState !== 'playing'
-                          ? 'bg-blue-600 text-white hover:bg-blue-700 w-auto whitespace-nowrap'
-                          : 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:opacity-80 disabled:opacity-30'}
-                          `}
+                      className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wide transition border border-transparent shadow-sm flex items-center gap-2 cursor-pointer ${gameState !== 'playing' ? 'bg-blue-600 text-white hover:bg-blue-700 w-auto whitespace-nowrap' : 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:opacity-80 disabled:opacity-30'}`}
                     >
-                      {gameState === "playing" ? "Guess" : (
-                        <>
-                          <ArrowPathIcon className="w-4 h-4" />
-                          Play Again
-                        </>
-                      )}
+                      {gameState === "playing" ? "Guess" : <><ArrowPathIcon className="w-4 h-4" />Play Again</>}
                     </button>
                   </div>
                 </div>
               </form>
             )}
 
-            {/* Exit/Reset Button */}
             {!showMenu && (
-              <button
-                onClick={handleExitOrReset}
-                className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300 dark:bg-neutral-800 dark:text-slate-400 dark:hover:bg-neutral-700 transition-all shadow-sm md:hidden"
-                title="Exit Game / Show Menu"
-              >
+              <button onClick={handleExitOrReset} className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300 dark:bg-neutral-800 dark:text-slate-400 dark:hover:bg-neutral-700 transition-all shadow-sm md:hidden" title="Exit Game / Show Menu">
                 <XMarkIcon className="w-5 h-5" />
               </button>
             )}
 
             {suggestions.length > 0 && gameState === "playing" && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-neutral-900 rounded-xl shadow-2xl border border-slate-100 dark:border-neutral-800 overflow-hidden z-40 max-h-[300px] overflow-y-auto">
-                {suggestions.map((s) => (
+                {suggestions.map((s, index) => (
                   <button
                     key={s.id}
                     onClick={() => handleGuess(s)}
-                    className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-neutral-800 transition-colors border-b border-slate-100 dark:border-neutral-800 last:border-0 group cursor-pointer"
+                    className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors border-b border-slate-100 dark:border-neutral-800 last:border-0 group cursor-pointer ${index === activeIndex ? "bg-slate-100 dark:bg-neutral-800" : "hover:bg-slate-50 dark:hover:bg-neutral-800"}`}
                   >
                     {s.countryName && (
                       <div className="relative w-8 h-5 shadow-sm rounded-sm overflow-hidden shrink-0 group-hover:scale-110 transition">
-                        <Image
-                          src={getParkFlag(s.countryName)}
-                          alt="flag"
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
+                        <Image src={getParkFlag(s.countryName)} alt="flag" fill className="object-cover" unoptimized />
                       </div>
                     )}
                     <div>
@@ -965,7 +544,6 @@ export default function CoastlePage() {
                   <th className="pb-2 text-center">Park</th>
                   <th className="pb-2 text-center">Country</th>
                   <th className="pb-2 text-center">Count</th>
-                  <th className="hidden md:table-cell pb-2 text-center opacity-50">Last Ride</th>
                   <th className="pb-2 text-center">Year</th>
                 </tr>
               </thead>
@@ -973,18 +551,13 @@ export default function CoastlePage() {
                 {guesses.map((g, idx) => (
                   <GuessRow key={idx} guess={g} answer={answer} />
                 ))}
-
                 {Array.from({ length: Math.max(0, MAX_GUESSES - guesses.length) }).map((_, i) => (
                   <tr key={`empty-${i}`} className="opacity-30">
                     <td className="hidden md:table-cell p-2 text-center align-middle">
                       <div className="h-16 w-full bg-slate-300 dark:bg-neutral-800 rounded-lg animate-pulse" />
                     </td>
-                    {Array.from({ length: 7 }).map((_, cIdx) => (
-                      <td
-                        key={cIdx}
-                        // 0:Rating 1:Mfr 2:Park 3:Country 4:Count 5:LastRide 6:Year
-                        className={`p-0.5 sm:p-2 align-middle ${cIdx === 5 ? 'hidden md:table-cell' : ''}`}
-                      >
+                    {Array.from({ length: 6 }).map((_, cIdx) => (
+                      <td key={cIdx} className="p-0.5 sm:p-2 align-middle">
                         <div className={`h-12 sm:h-16 w-full rounded-lg border-2 border-dashed border-slate-300 dark:border-neutral-700`} />
                       </td>
                     ))}
@@ -994,7 +567,7 @@ export default function CoastlePage() {
             </table>
           </div>
 
-          {/* Mobile Guess History */}
+          {/* Mobile List */}
           <div className="w-full px-4 mb-2 md:hidden flex flex-col items-center">
             {guesses.map((g, i) => (
               <div key={i} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 animate-reveal" style={{ animationDelay: `${i * 100}ms` }}>
@@ -1003,175 +576,32 @@ export default function CoastlePage() {
               </div>
             ))}
           </div>
-
         </div>
       )}
 
-      {/* --- TAB CONTENT: HOW TO --- */}
-      {activeTab === 'howto' && (
-        <div key="howto-tab" className="w-full max-w-xl animate-reveal">
-          <div className="bg-white dark:bg-neutral-900 rounded-3xl p-8 shadow-xl border border-slate-100 dark:border-neutral-800 text-center">
-            <div className="inline-block p-3 bg-blue-100 text-blue-600 rounded-full mb-4">
-              <BookOpenIcon className="w-8 h-8" />
-            </div>
-            <h2 className="text-3xl font-black mb-6 dark:text-white">
-              Instructions
-            </h2>
-            <ul className="space-y-6 text-slate-600 dark:text-slate-300 text-left">
-              <li className="flex gap-4">
-                <div className="text-3xl bg-slate-50 dark:bg-neutral-800 w-12 h-12 flex items-center justify-center rounded-xl shrink-0">🎢</div>
-                <div>
-                  <p className="font-bold text-slate-800 dark:text-slate-100 mb-1">Guess the Coaster</p>
-                  <p className="text-sm">Search and guess any roller coaster from the parkrating database. Play daily or endless mode.</p>
-                </div>
-              </li>
-              <li className="flex gap-4">
-                <div className="text-3xl bg-emerald-50 dark:bg-emerald-900/20 w-12 h-12 flex items-center justify-center rounded-xl shrink-0">🟩</div>
-                <div>
-                  <p className="font-bold text-slate-800 dark:text-slate-100 mb-1">Perfect Match</p>
-                  <p className="text-sm">Green indicates the attribute matches the secret coaster exactly.</p>
-                </div>
-              </li>
-              <li className="flex gap-4">
-                <div className="text-3xl bg-red-50 dark:bg-red-900/20 w-12 h-12 flex items-center justify-center rounded-xl shrink-0">🟥</div>
-                <div>
-                  <p className="font-bold text-slate-800 dark:text-slate-100 mb-1">Incorrect</p>
-                  <p className="text-sm">Red indicates the attribute does not match.</p>
-                </div>
-              </li>
-              <li className="flex gap-4">
-                <div className="text-3xl bg-slate-50 dark:bg-neutral-800 w-12 h-12 flex items-center justify-center rounded-xl shrink-0">⬇️</div>
-                <div>
-                  <p className="font-bold text-slate-800 dark:text-slate-100 mb-1">Higher or Lower</p>
-                  <p className="text-sm">Arrows for numeric values (Year, Rating, Ride Count) tell you if the answer is higher or lower than your guess.</p>
-                </div>
-              </li>
-            </ul>
-          </div>
-        </div>
-      )}
-
-      {/* --- TAB CONTENT: LEADERBOARD --- */}
+      {/* Tabs Content */}
+      {activeTab === 'howto' && <HowTo />}
+      
       {activeTab === 'leaderboard' && (
-        <div key="leaderboard-tab" className="w-full max-w-xl animate-reveal">
-          <div className="bg-white dark:bg-neutral-900 rounded-3xl p-8 shadow-xl border border-slate-100 dark:border-neutral-800 text-center">
-            <div className="inline-block p-3 bg-yellow-100 text-yellow-600 rounded-full mb-4">
-              <div className="text-4xl">🏆</div>
-            </div>
-            <h2 className="text-3xl font-black mb-8 dark:text-white">Your Stats</h2>
-
-            <div className="grid grid-cols-4 gap-4 mb-10">
-              {[
-                { label: 'Played', val: stats.played },
-                { label: 'Win %', val: stats.played > 0 ? Math.round((stats.won / stats.played) * 100) : 0 },
-                { label: 'Streak', val: stats.currentStreak },
-                { label: 'Max', val: stats.maxStreak },
-              ].map((s) => (
-                <div key={s.label} className="flex flex-col items-center">
-                  <div className="text-3xl font-black text-slate-800 dark:text-slate-100">{s.val}</div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{s.label}</div>
-                </div>
-              ))}
-            </div>
-
-            <div className="text-left bg-slate-50 dark:bg-neutral-800/50 p-6 rounded-2xl">
-              <h3 className="text-xs font-bold uppercase text-slate-400 mb-4 text-center">Guess Distribution</h3>
-              <div className="space-y-3">
-                {stats.guessDistribution.map((count, i) => {
-                  const max = Math.max(...stats.guessDistribution, 1);
-                  const width = Math.max(7, (count / max) * 100);
-                  return (
-                    <div key={i} className="flex items-center gap-3 text-sm font-bold">
-                      <span className="w-3 text-slate-400">{i + 1}</span>
-                      <div
-                        className={`h-8 flex items-center justify-end px-3 rounded-lg ${count > 0 ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-400 dark:bg-neutral-700'}`}
-                        style={{ width: `${width}%` }}
-                      >
-                        {count}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Always show Share button here if a game was recently finished */}
-            {gameState !== 'playing' && (
-              <div className="mt-8 pt-8 border-t border-slate-100 dark:border-neutral-800">
-                <button
-                  onClick={handleShare}
-                  className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl flex items-center justify-center cursor-pointer gap-2 transition shadow-lg shadow-emerald-500/30 transform hover:scale-[1.02] hover:shadow-[0_0_15px_rgba(16,185,129,0.4)]"
-                >
-                  <ShareIcon className="w-6 h-6" />
-                  Share Results
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        <Leaderboard 
+          stats={stats} 
+          gameState={gameState} 
+          onShare={handleShare} 
+        />
       )}
 
+      {/* Result Modal */}
+      <ResultModal 
+        isOpen={showModal}
+        gameState={gameState}
+        answer={answer}
+        gameMode={gameMode}
+        onClose={() => setShowModal(false)}
+        onShare={handleShare}
+        onReset={resetGame}
+        onShowStats={() => setActiveTab('leaderboard')}
+      />
 
-      {/* Win/Loss Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
-          <div className={`
-            relative rounded-3xl p-1 max-w-sm w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-500
-            ${gameState === "won" ? "bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 bg-shine" : "bg-slate-700"}
-          `}>
-            <div className="bg-white dark:bg-neutral-900 rounded-[22px] p-6 text-center relative overflow-hidden flex flex-col">
-              <div className="absolute inset-0 opacity-5 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] pointer-events-none"></div>
-
-              <button onClick={() => setShowModal(false)} className="absolute top-3 right-3 p-2 bg-slate-100 dark:bg-neutral-800 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition z-10 cursor-pointer">
-                <XMarkIcon className="w-5 h-5" />
-              </button>
-
-              <div className="mb-4 mt-2">
-                {gameState === "won" ? (
-                  <div className="w-20 h-20 mx-auto bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center animate-bounce"><div className="text-5xl">🏆</div></div>
-                ) : (
-                  <div className="w-20 h-20 mx-auto bg-slate-100 text-slate-500 rounded-full flex items-center justify-center grayscale opacity-80"><div className="text-5xl">🎢</div></div>
-                )}
-              </div>
-
-              <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-1">
-                {gameState === "won" ? "Nailed It!" : "Track Incomplete"}
-              </h2>
-
-              <div className="relative my-6 group perspective">
-                <div className="bg-slate-50 dark:bg-neutral-800 rounded-2xl p-4 border border-slate-200 dark:border-neutral-700 shadow-inner relative z-10">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">The Answer Was</p>
-                  <div className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600 leading-tight">
-                    {answer?.name}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={handleShare}
-                  className="w-full py-3 bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold rounded-xl flex items-center justify-center gap-2 transition hover:opacity-90 dark:hover:bg-slate-200 dark:hover:text-slate-900 hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] cursor-pointer"
-                >
-                  <ShareIcon className="w-5 h-5" />
-                  Share Result
-                </button>
-                <div className="flex gap-3">
-                  {/* Hide Play Again if Daily */}
-                  {gameMode === 'endless' && (
-                    <button onClick={resetGame} className="flex-1 py-3.5 rounded-xl font-bold text-white shadow-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 cursor-pointer">
-                      Play Again
-                    </button>
-                  )}
-                  <button onClick={() => { setShowModal(false); setActiveTab('leaderboard'); }} className={`${gameMode === 'endless' ? 'flex-none px-4' : 'flex-1 py-3.5'} rounded-xl font-bold text-slate-600 dark:text-slate-300 border-2 border-slate-100 dark:border-neutral-800 hover:bg-slate-50 dark:hover:bg-neutral-800 cursor-pointer`}>
-                    <ChartBarIcon className="w-6 h-6 mx-auto" />
-                    {gameMode === 'daily' && <span className="ml-2">See Stats</span>}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
