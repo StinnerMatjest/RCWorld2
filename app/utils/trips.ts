@@ -52,7 +52,7 @@ export const trips: Trip[] = [
     rcdb: ['https://rcdb.com/4870.htm'],
     startDate: '2025-11-20',
     endDate: '2025-11-24',
-    status: 'booked',
+    status: 'past',
     notes: 'Hallowinter at Europapark',
     mapLink: 'https://maps.app.goo.gl/nf3HDX4KT5Zm2idk9',
     tripLog: [
