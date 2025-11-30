@@ -1,24 +1,36 @@
-// utils/coastle.ts
 import { ApiCoaster, CoastleCoaster, GameStats, MatchStatus } from "../types";
 
-// Static Data
 export const PARK_COUNTRY_MAP: Record<string, string> = {
   "Alton Towers": "UnitedKingdom",
   "Bakken": "Denmark",
   "BonBon-Land": "Denmark",
   "Cedar Point": "UnitedStates",
+  "Disneyland Paris - Disneyland Park": "France",
+  "Disneyland Paris - Walt Disney Studios Park": "France",
   "Djurs Sommerland": "Denmark",
   "Efteling": "Netherlands",
   "Energylandia": "Poland",
   "Europa-Park": "Germany",
   "Fårup Sommerland": "Denmark",
+  "Gardaland": "Italy",
+  "Hansa Park": "Germany",
+  "Heide Park": "Germany",
+  "Jardin d'Acclimatation": "France",
   "Legendia": "Poland",
   "Legoland Billung": "Denmark",
+  "Linnanmäki": "Finland",
   "Liseberg": "Sweden",
+  "Mer de Sable": "France",
+  "Mirabilandia": "Italy",
+  "Parc Astérix": "France",
+  "Parc Saint Paul": "France",
   "Phantasialand": "Germany",
   "Plopsaland Belgium": "Belgium",
   "Plopsaland Deutschland": "Germany",
   "PortAventura Park": "Spain",
+  "PowerPark": "Finland",
+  "Särkänniemi": "Finland",
+  "Serengeti-Park": "Germany",
   "Tivoli Gardens": "Denmark",
   "Tivoli Friheden": "Denmark",
   "Toverland": "Netherlands",
@@ -34,7 +46,6 @@ export const INITIAL_STATS: GameStats = {
   guessDistribution: [0, 0, 0, 0, 0],
 };
 
-// Date & Random Logic
 export function getUTCTodaySeed() {
   const d = new Date();
   const year = d.getUTCFullYear();
@@ -111,7 +122,7 @@ export function mapApiToCoastle(c: ApiCoaster): CoastleCoaster | null {
   };
 }
 
-// Helper: Copy to clipboard
+// Copy to clipboard
 export async function legacyCopy(text: string) {
   const textArea = document.createElement("textarea");
   textArea.value = text;

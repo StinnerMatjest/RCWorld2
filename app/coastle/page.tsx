@@ -5,24 +5,22 @@ import Image from "next/image";
 import Fuse from "fuse.js";
 import { getParkFlag } from "@/app/utils/design";
 
-// Imports from your types and utils
 import { ApiCoaster, CoastleCoaster, Guess, GameStats } from "@/app/types";
-import { 
-  INITIAL_STATS, 
-  getDailyCoaster, 
-  getTodayString, 
-  getMatchStatus, 
-  mapApiToCoastle, 
-  legacyCopy 
+import {
+  INITIAL_STATS,
+  getDailyCoaster,
+  getTodayString,
+  getMatchStatus,
+  mapApiToCoastle,
+  legacyCopy
 } from "@/app/utils/coastle";
 
-// Component Imports from your new folder
-import { 
-  XMarkIcon, 
-  PlayIcon, 
-  BookOpenIcon, 
-  ChartBarIcon, 
-  ArrowPathIcon 
+import {
+  XMarkIcon,
+  PlayIcon,
+  BookOpenIcon,
+  ChartBarIcon,
+  ArrowPathIcon
 } from "@/app/components/coastle/Icons";
 import { Countdown } from "@/app/components/coastle/Countdown";
 import { GuessRow } from "@/app/components/coastle/GuessRow";
@@ -54,9 +52,7 @@ export default function CoastlePage() {
   const isGameActive = guesses.length > 0 && gameState === 'playing';
   const showMenu = !isGameActive && !isFocused;
 
-  // --- Effects ---
-
-  // Header Animation Control
+  // Header Animation
   useEffect(() => {
     const shouldHideHeader = !showMenu;
     window.dispatchEvent(new CustomEvent('toggle-header', { detail: { visible: !shouldHideHeader } }));
@@ -168,13 +164,28 @@ export default function CoastlePage() {
     }
   }
 
+
   // Fuzzy Search
-  const fuse = useMemo(() => new Fuse(allCoasters, { keys: ["name", "park"], threshold: 0.3 }), [allCoasters]);
-  
+  const fuse = useMemo(() => {
+    const searchableCoasters = allCoasters.map(c => ({
+      ...c,
+      cleanName: c.name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]/g, "")
+    }));
+
+    return new Fuse(searchableCoasters, {
+      keys: ["name", "cleanName", "park"],
+      threshold: 0.3,
+      ignoreDiacritics: true
+    });
+  }, [allCoasters]);
+
   const suggestions = useMemo(() => {
     if (!input.trim() || !allCoasters.length) return [];
     const results = fuse.search(input.trim());
-    return results.map(r => r.item).slice(0, 6);
+    return results.map(r => r.item).slice(0, 50);
   }, [input, fuse, allCoasters]);
 
   useEffect(() => setActiveIndex(-1), [input]);
@@ -274,17 +285,17 @@ export default function CoastlePage() {
     }
   }
 
-async function handleShare() {
-    // 1. ALIGNMENT & GRID (Kept exactly as you liked it)
+  async function handleShare() {
+    // 1. ALIGNMENT & GRID
     const headers = "Rat\u2003Mfr\u2003Prk\u2003Cty\u2003Cnt\u2003Yr";
 
     const grid = guesses.map(g => {
       const m = g.matches;
       const row = [m.rating, m.manufacturer, m.park, m.country, m.rideCount, m.year];
       const emojiStr = row.map(status => status === 'correct' ? '🟩' : '🟥').join('\u2003\u200A');
-      
+
       const name = g.coaster.name;
-      const targetVisualLen = 22; 
+      const targetVisualLen = 22;
       const needed = Math.max(0, Math.ceil((targetVisualLen - name.length) / 1.7));
       const paddedName = name + "\u3000".repeat(needed);
 
@@ -293,17 +304,17 @@ async function handleShare() {
 
     // 2. SIMPLIFIED TEXT
     const title = gameMode === 'daily' ? '**Daily Coastle**' : '**Endless Coastle**';
-    
+
     let status = "";
     if (gameState === 'won') {
-        status = `I completed it in ${guesses.length} guesses.`;
+      status = `I completed it in ${guesses.length} guesses.`;
     } else {
-        status = "I did not complete it.";
+      status = "I did not complete it.";
     }
 
-    // 3. NO PREVIEW LINK (< > wrappers)
+    // 3. NO PREVIEW LINK
     let footer = "\n\nPlay at <https://parkrating.com/coastle>";
-    
+
     if (gameState === 'lost') {
       const ansName = answer?.name || "";
       const needed = Math.max(0, Math.ceil((22 - ansName.length) / 1.7));
@@ -332,17 +343,17 @@ async function handleShare() {
       if (gameMode === 'endless') resetGame();
       return;
     }
-    
+
     if (activeIndex >= 0 && activeIndex < suggestions.length) {
       handleGuess(suggestions[activeIndex]);
       return;
     }
 
     if (!input.trim() || !allCoasters.length) return;
-    
+
     const q = input.trim().toLowerCase();
     const exact = allCoasters.find((c) => c.name.toLowerCase() === q) ?? suggestions[0];
-    
+
     if (!exact) {
       showToast("Coaster not found in your ratings");
       return;
@@ -581,17 +592,17 @@ async function handleShare() {
 
       {/* Tabs Content */}
       {activeTab === 'howto' && <HowTo />}
-      
+
       {activeTab === 'leaderboard' && (
-        <Leaderboard 
-          stats={stats} 
-          gameState={gameState} 
-          onShare={handleShare} 
+        <Leaderboard
+          stats={stats}
+          gameState={gameState}
+          onShare={handleShare}
         />
       )}
 
       {/* Result Modal */}
-      <ResultModal 
+      <ResultModal
         isOpen={showModal}
         gameState={gameState}
         answer={answer}
