@@ -1,5 +1,6 @@
 // app/components/CoasterList.tsx
 import React from "react";
+import Link from "next/link";
 import type { RollerCoaster } from "@/app/types";
 import { getRatingColor } from "@/app/utils/design";
 import { AnimatePresence, motion } from "framer-motion";
@@ -12,14 +13,12 @@ interface CoasterListProps {
   onAdd: () => void;
 }
 
-/** Parse rating; allow 0..11. Return undefined if invalid */
 function getRating(raw: unknown): number | undefined {
   const n = Number(raw);
   if (!Number.isFinite(n)) return undefined;
   return Math.max(0, Math.min(11, n));
 }
 
-/** Map various truthy values to "has ridden" */
 function hasRidden(val: unknown): boolean {
   if (val === true) return true;
   if (typeof val === "number") return val === 1;
@@ -30,7 +29,6 @@ function hasRidden(val: unknown): boolean {
   return false;
 }
 
-/** Always optional if Junior/Kiddie */
 function isOptionalByScale(scale: unknown): boolean {
   if (typeof scale !== "string") return false;
   const s = scale.trim().toLowerCase();
@@ -98,25 +96,13 @@ const CoasterList: React.FC<CoasterListProps> = ({
           "
         >
           {/* Name */}
-          <div
-            className="min-w-0 flex items-center gap-2 cursor-pointer"
-            onClick={toggleOpen}
-            role="button"
-            tabIndex={0}
-          >
-            {c.rcdbpath ? (
-              <a
-                href={c.rcdbpath}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-blue-700 hover:underline truncate dark:text-blue-400"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {c.name}
-              </a>
-            ) : (
-              <span className="font-medium truncate">{c.name}</span>
-            )}
+          <div className="min-w-0 flex items-center gap-2 cursor-pointer">
+            <Link
+              href={`/coasters/${c.id}`}
+              className="font-medium text-blue-700 hover:underline truncate dark:text-blue-400"
+            >
+              {c.name}
+            </Link>
 
             {c.isbestcoaster && (
               <span className="hidden md:inline-flex rounded px-1.5 py-0.5 text-[12px] font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
@@ -150,15 +136,14 @@ const CoasterList: React.FC<CoasterListProps> = ({
 
           {/* Rating + actions */}
           <div className="shrink-0 flex items-center justify-end gap-2">
-            {/* Rating text — crowns removed */}
             <span
               className={`inline-block w-12 text-right font-semibold tabular-nums ${ratingClass}`}
             >
               {!riddenStatus
                 ? "NR"
                 : typeof r === "number"
-                ? r.toFixed(1)
-                : "—"}
+                  ? r.toFixed(1)
+                  : "—"}
             </span>
 
             {/* Expand arrow */}
@@ -168,14 +153,13 @@ const CoasterList: React.FC<CoasterListProps> = ({
                 e.stopPropagation();
                 toggleOpen();
               }}
-              className={`transition-transform duration-200 ${
-                open ? "rotate-90" : "rotate-0"
-              } text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100 text-sm md:text-base`}
+              className={`transition-transform duration-200 ${open ? "rotate-90" : "rotate-0"
+                } text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100 text-sm md:text-base`}
             >
               ▸
             </button>
 
-            {/* Admin-only edit wrench */}
+            {/* Admin-only edit icon */}
             {isAdminMode && showEdit && (
               <button
                 type="button"
@@ -244,11 +228,10 @@ const CoasterList: React.FC<CoasterListProps> = ({
             <button
               type="button"
               onClick={() => setShowEdit((v) => !v)}
-              className={`px-3 py-1.5 rounded border text-sm md:text-base transition cursor-pointer ${
-                showEdit
+              className={`px-3 py-1.5 rounded border text-sm md:text-base transition cursor-pointer ${showEdit
                   ? "border-gray-400 bg-gray-100 dark:border-white/20 dark:bg-white/10"
                   : "border-gray-300 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
-              }`}
+                }`}
             >
               {showEdit ? "Done" : "Edit"}
             </button>

@@ -1,51 +1,68 @@
 export interface Park {
-    id: number;
-    name: string;
-    continent: string;
-    country: string;
-    city: string;
-    imagepath: string;
-  }
-  
-  export interface Rating {
-    id: number;
-    date: string;
-    parkAppearance: number;
-    bestCoaster: number;
-    waterRides: number;
-    flatridesAndDarkrides: number;
-    food: number;
-    snacksAndDrinks: number;
-    parkPracticality: number;
-    rideOperations: number;
-    parkManagement: number;
-    overall: number;
-    parkId: number;
-    warnings?: RatingWarningType[];
-  }
+  id: number;
+  name: string;
+  continent: string;
+  country: string;
+  city: string;
+  imagepath: string;
+}
 
-  export interface RatingWarningType {
-    ratingId: number;
-    ride: string;
-    note: string;
-    category: string;
-  }
-  
-  export interface RollerCoaster {
-    id: number;
-    name: string;
-    year: number;
-    manufacturer: string;
-    model: string;
-    scale: string;
-    haveridden: boolean;
-    isbestcoaster: boolean;
-    rcdbpath: string;
-    ridecount: number;
-    rating: number;
-  }
-  
-  export type ApiCoaster = {
+export interface Rating {
+  id: number;
+  date: string;
+  parkAppearance: number;
+  bestCoaster: number;
+  waterRides: number;
+  flatridesAndDarkrides: number;
+  food: number;
+  snacksAndDrinks: number;
+  parkPracticality: number;
+  rideOperations: number;
+  parkManagement: number;
+  overall: number;
+  parkId: number;
+  warnings?: RatingWarningType[];
+}
+
+export interface RatingWarningType {
+  ratingId: number;
+  ride: string;
+  note: string;
+  category: string;
+}
+
+export interface RollerCoaster {
+  id: number;
+  name: string;
+  year: number;
+  manufacturer: string;
+  model: string;
+  scale: string;
+  haveridden: boolean;
+  isbestcoaster: boolean;
+  rcdbpath: string;
+  ridecount: number;
+  rating: number;
+  parkId: number;
+  specs?: RollerCoasterSpecs | null;
+}
+
+export interface RollerCoasterSpecs {
+  type: string | null;
+  classification: string | null;
+  length: number | null;
+  height: number | null;
+  drop: number | null;
+  speed: number | null;
+  inversions: number | null;
+  verticalAngle: number | null;
+  gforce: number | null;
+  duration: number | null;
+  notes: string | null;
+}
+
+
+export type ApiCoaster = {
   id: number;
   name: string;
   manufacturer: string;
