@@ -46,12 +46,16 @@ export const INITIAL_STATS: GameStats = {
   guessDistribution: [0, 0, 0, 0, 0],
 };
 
-export function getUTCTodaySeed() {
-  const d = new Date();
+// Helper for date seeding (Internal use)
+function getSeedFromDate(d: Date) {
   const year = d.getUTCFullYear();
   const month = d.getUTCMonth() + 1;
   const day = d.getUTCDate();
   return year * 10000 + month * 100 + day;
+}
+
+export function getUTCTodaySeed() {
+  return getSeedFromDate(new Date());
 }
 
 export function seededRandom(seed: number) {
@@ -63,9 +67,28 @@ export function seededRandom(seed: number) {
 
 export function getDailyCoaster(coasters: CoastleCoaster[]): CoastleCoaster | null {
   if (coasters.length === 0) return null;
-  const seed = getUTCTodaySeed();
-  const randomInt = seededRandom(seed);
-  const index = Math.abs(randomInt) % coasters.length;
+
+  // 1. Calculate Today's Index
+  const todaySeed = getUTCTodaySeed();
+  const randomInt = seededRandom(todaySeed);
+  let index = Math.abs(randomInt) % coasters.length;
+
+  // 2. Prevent Back-to-Back Duplicates
+  if (coasters.length > 1) {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1); // Go back 1 day
+
+    const yesterdaySeed = getSeedFromDate(yesterday);
+    const yesterdayRandom = seededRandom(yesterdaySeed);
+    const yesterdayIndex = Math.abs(yesterdayRandom) % coasters.length;
+
+    // If today matches yesterday, shift to the next coaster
+    if (index === yesterdayIndex) {
+      console.log("🚫 Duplicate detected! Shifting coaster to avoid repeat."); //
+      index = (index + 1) % coasters.length;
+    }
+  }
+
   return coasters[index];
 }
 
