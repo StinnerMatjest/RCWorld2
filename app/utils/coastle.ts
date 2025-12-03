@@ -46,12 +46,17 @@ export const INITIAL_STATS: GameStats = {
   guessDistribution: [0, 0, 0, 0, 0],
 };
 
-// Helper for date seeding (Internal use)
+// --- CORE FIX: High Variance Seeding ---
+// Instead of 20251001 -> 20251002 (linear +1), this creates wild jumps in the seed
+// while remaining 100% deterministic for everyone globally.
 function getSeedFromDate(d: Date) {
-  const year = d.getUTCFullYear();
-  const month = d.getUTCMonth() + 1;
-  const day = d.getUTCDate();
-  return year * 10000 + month * 100 + day;
+  const str = d.toISOString().split('T')[0]; // "2025-12-03"
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0; 
+  }
+  return Math.abs(hash);
 }
 
 export function getUTCTodaySeed() {
@@ -73,7 +78,7 @@ export function getDailyCoaster(coasters: CoastleCoaster[]): CoastleCoaster | nu
   const randomInt = seededRandom(todaySeed);
   let index = Math.abs(randomInt) % coasters.length;
 
-  // 2. Prevent Back-to-Back Duplicates
+  // 2. Prevent Back-to-Back Duplicates (Cluster Fix)
   if (coasters.length > 1) {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1); // Go back 1 day
@@ -82,10 +87,11 @@ export function getDailyCoaster(coasters: CoastleCoaster[]): CoastleCoaster | nu
     const yesterdayRandom = seededRandom(yesterdaySeed);
     const yesterdayIndex = Math.abs(yesterdayRandom) % coasters.length;
 
-    // If today matches yesterday, shift to the next coaster
+    // If today randomly picks the same as yesterday:
     if (index === yesterdayIndex) {
-      console.log("🚫 Duplicate detected! Shifting coaster to avoid repeat."); //
-      index = (index + 1) % coasters.length;
+      console.log("🚫 Duplicate detected! Shifting coaster.");
+      // Jump by 17 (prime number) to escape any alphabetical park clusters
+      index = (index + 17) % coasters.length;
     }
   }
 
@@ -164,4 +170,44 @@ export async function legacyCopy(text: string) {
   } finally {
     document.body.removeChild(textArea);
   }
+}
+
+// --- VERIFICATION TOOL ---
+// Call debugSchedule(allCoasters) in your app to verify the fix in the console.
+export function debugSchedule(coasters: CoastleCoaster[]) {
+  console.log("%c 🎢 PREDICTED SCHEDULE (Next 7 Days)", "background: #222; color: #bada55; font-size: 14px");
+  
+  const today = new Date();
+  
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    
+    // Manually replicate logic to predict future
+    const seed = getSeedFromDate(d);
+    const randomInt = seededRandom(seed);
+    let index = Math.abs(randomInt) % coasters.length;
+    
+    // Check duplication logic
+    if (i > 0) {
+        const prevD = new Date(d);
+        prevD.setDate(prevD.getDate() - 1);
+        const prevSeed = getSeedFromDate(prevD);
+        const prevRand = seededRandom(prevSeed);
+        const prevIndex = Math.abs(prevRand) % coasters.length;
+        if (index === prevIndex) index = (index + 17) % coasters.length;
+    }
+
+    const c = coasters[index];
+    if (c) {
+      console.log(`Day +${i} (${d.toISOString().split('T')[0]}): ${c.name} @ ${c.park}`);
+    }
+  }
+}
+
+// OPTIONAL: Make it available in browser console immediately for debugging
+// Remove this line for production if you prefer
+if (typeof window !== 'undefined') {
+  // @ts-ignore
+  window.debugSchedule = debugSchedule;
 }
