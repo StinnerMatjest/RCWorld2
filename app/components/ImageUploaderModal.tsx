@@ -98,7 +98,7 @@ export default function ImageUploaderModal({
             </label>
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,video/*"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               className="block w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-2
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
@@ -132,11 +132,10 @@ export default function ImageUploaderModal({
               className={`px-4 py-2 rounded-md text-white transition cursor-pointer
                           focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
                           dark:focus-visible:ring-offset-gray-800
-                          ${
-                            loading
-                              ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed"
-                              : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
-                          }`}
+                          ${loading
+                  ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
+                }`}
             >
               {loading ? "Uploading..." : "Upload"}
             </button>

@@ -18,6 +18,11 @@ type GalleryImage = {
   description: string;
 };
 
+function isVideo(path: string) {
+  const videoExtensions = [".mp4", ".webm", ".ogg"];
+  return videoExtensions.some((ext) => path.toLowerCase().endsWith(ext));
+}
+
 /** STABLE SWIPE HOOK */
 function useSwipe(
   onSwipeLeft: () => void,
@@ -200,7 +205,25 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
               onClick={() => { setDirection(null); setSelectedIndex(index); }}
               className="cursor-pointer overflow-hidden rounded-lg hover:scale-105 transition-transform duration-300"
             >
-              <Image src={img.path} alt={img.title || "Gallery"} width={400} height={300} className="rounded-lg object-cover h-40 w-full" unoptimized />
+              {isVideo(img.path) ? (
+                <video
+                  src={img.path}
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                  className="rounded-lg object-cover h-40 w-full bg-black"
+                />
+              ) : (
+                <Image
+                  src={img.path}
+                  alt={img.title || "Gallery"}
+                  width={400}
+                  height={300}
+                  className="rounded-lg object-cover h-40 w-full"
+                  unoptimized
+                />
+              )}
             </div>
           ))}
         </div>
@@ -276,16 +299,27 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
             {/* IMAGE AREA */}
             <div className="flex-1 flex items-center justify-center w-full h-full overflow-hidden">
               <div className={`relative transition-all duration-200 ${animClass} w-full h-full flex items-center justify-center p-4`}>
-                <Image
-                  src={selected.path}
-                  alt={selected.title || "Full Image"}
-                  width={1920}
-                  height={1080}
-                  onClick={handleImageClick}
-                  className="w-auto h-auto max-w-full max-h-[80vh] object-contain cursor-pointer shadow-2xl rounded-sm"
-                  unoptimized
-                  draggable={false}
-                />
+                {isVideo(selected.path) ? (
+                  <video
+                    src={selected.path}
+                    controls
+                    autoPlay
+                    muted
+                    preload="metadata"
+                    className="w-auto h-auto max-w-full max-h-[80vh] object-contain cursor-pointer shadow-2xl rounded-sm"
+                  />
+                ) : (
+                  <Image
+                    src={selected.path}
+                    alt={selected.title || "Full Image"}
+                    width={1920}
+                    height={1080}
+                    onClick={handleImageClick}
+                    className="w-auto h-auto max-w-full max-h-[80vh] object-contain cursor-pointer shadow-2xl rounded-sm"
+                    unoptimized
+                    draggable={false}
+                  />
+                )}
               </div>
             </div>
 
