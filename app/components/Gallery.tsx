@@ -7,6 +7,7 @@ import { useAdminMode } from "../context/AdminModeContext";
 
 interface GalleryProps {
   parkId: number;
+  parkName: string;
 }
 
 type GalleryImage = {
@@ -44,9 +45,9 @@ function useSwipe(
     const dx = e.clientX - start.current.x;
     const dy = e.clientY - start.current.y;
     start.current = null;
-    if (Math.abs(dy) > verticalRestraint) return; 
-    if (dx <= -threshold) onSwipeLeft(); 
-    else if (dx >= threshold) onSwipeRight(); 
+    if (Math.abs(dy) > verticalRestraint) return;
+    if (dx <= -threshold) onSwipeLeft();
+    else if (dx >= threshold) onSwipeRight();
   };
 
   const onPointerCancel = () => {
@@ -63,7 +64,7 @@ function useSwipe(
   return { onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onPointerLeave, didDrag };
 }
 
-const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
+const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
   const { isAdminMode } = useAdminMode();
 
   const [images, setImages] = useState<GalleryImage[]>([]);
@@ -71,7 +72,7 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [direction, setDirection] = useState<"left" | "right" | null>(null);
-  
+
   const modalContainerRef = useRef<HTMLDivElement>(null);
 
   // Helper to detect Desktop vs Mobile
@@ -98,11 +99,11 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
   const toggleFullscreen = () => {
     if (!document || !modalContainerRef.current) return;
     if (!document.fullscreenElement) {
-       if (modalContainerRef.current.requestFullscreen) {
-           modalContainerRef.current.requestFullscreen().catch(err => console.log(err));
-       }
+      if (modalContainerRef.current.requestFullscreen) {
+        modalContainerRef.current.requestFullscreen().catch(err => console.log(err));
+      }
     } else {
-       if (document.exitFullscreen) document.exitFullscreen();
+      if (document.exitFullscreen) document.exitFullscreen();
     }
   };
 
@@ -112,23 +113,23 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
     if (swipe.didDrag()) return;
 
     if (isDesktop()) {
-        // DESKTOP: Toggle Fullscreen
-        toggleFullscreen();
+      // DESKTOP: Toggle Fullscreen
+      toggleFullscreen();
     } else {
-        // MOBILE: Open in new tab (Native Pinch Zoom)
-        if (selected?.path) {
-            window.open(selected.path, '_blank');
-        }
+      // MOBILE: Open in new tab (Native Pinch Zoom)
+      if (selected?.path) {
+        window.open(selected.path, '_blank');
+      }
     }
   };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-         if (document.fullscreenElement) document.exitFullscreen();
-         else setSelectedIndex(null);
+        if (document.fullscreenElement) document.exitFullscreen();
+        else setSelectedIndex(null);
       }
-      
+
       if (e.key === "ArrowLeft" && selectedIndex !== null && selectedIndex > 0) goPrev();
       if (e.key === "ArrowRight" && selectedIndex !== null && selectedIndex < images.length - 1) goNext();
     };
@@ -144,7 +145,7 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
     setDirection("left");
     setSelectedIndex((p) => (p !== null && p > 0 ? p - 1 : p));
   };
-  
+
   const swipe = useSwipe(goNext, goPrev, { threshold: 55, verticalRestraint: 120 });
 
   const animClass = direction === "right" ? "animate-slide-in-right" : direction === "left" ? "animate-slide-in-left" : "";
@@ -156,7 +157,7 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
     const required = (images.length || 1) * 8 + (Math.max(0, (images.length || 1) - 1)) * 6 + 20;
     setScale(Math.min(1, dotsContainerRef.current.clientWidth / Math.max(required, 1)));
   };
-  
+
   useEffect(() => {
     recalcScale();
     window.addEventListener("resize", recalcScale);
@@ -211,11 +212,11 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
           ref={modalContainerRef}
           className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex items-center justify-center"
           onClick={() => {
-             // Close if background clicked
-             if (!swipe.didDrag()) {
-                 if (document.fullscreenElement) document.exitFullscreen();
-                 setSelectedIndex(null);
-             }
+            // Close if background clicked
+            if (!swipe.didDrag()) {
+              if (document.fullscreenElement) document.exitFullscreen();
+              setSelectedIndex(null);
+            }
           }}
         >
           <div
@@ -226,31 +227,31 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
             onPointerUp={swipe.onPointerUp}
             onPointerCancel={swipe.onPointerCancel}
             onPointerLeave={swipe.onPointerLeave}
-            onClick={(e) => { 
-                if (swipe.didDrag()) e.stopPropagation(); 
+            onClick={(e) => {
+              if (swipe.didDrag()) e.stopPropagation();
             }}
           >
             {/* CONTROLS */}
             <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-[60] pointer-events-none">
-                {/* Left Side Actions */}
-                <div className="flex gap-2 pointer-events-auto">
-                    <a 
-                        href={selected.path} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="bg-black/50 hover:bg-black/70 text-white px-3 py-1.5 rounded-full text-xs font-bold transition backdrop-blur-md cursor-pointer"
-                        onClick={(e) => e.stopPropagation()} 
-                    >
-                    Original ↗
-                    </a>
-                </div>
-
-                <button
-                    onClick={(e) => { e.stopPropagation(); setSelectedIndex(null); }}
-                    className="pointer-events-auto text-white/80 hover:text-white text-4xl leading-none font-bold transition cursor-pointer"
+              {/* Left Side Actions */}
+              <div className="flex gap-2 pointer-events-auto">
+                <a
+                  href={selected.path}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-black/50 hover:bg-black/70 text-white px-3 py-1.5 rounded-full text-xs font-bold transition backdrop-blur-md cursor-pointer"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                    &times;
-                </button>
+                  Original ↗
+                </a>
+              </div>
+
+              <button
+                onClick={(e) => { e.stopPropagation(); setSelectedIndex(null); }}
+                className="pointer-events-auto text-white/80 hover:text-white text-4xl leading-none font-bold transition cursor-pointer"
+              >
+                &times;
+              </button>
             </div>
 
             {/* ARROWS */}
@@ -290,29 +291,29 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
 
             {/* FOOTER */}
             <div className="p-4 bg-gradient-to-t from-black/80 to-transparent z-50">
-                {selected.description && (
+              {selected.description && (
                 <p className="text-white text-center text-sm md:text-base font-medium drop-shadow-md mb-4 max-w-2xl mx-auto" onClick={(e) => e.stopPropagation()}>
-                    {selected.description}
+                  {selected.description}
                 </p>
-                )}
+              )}
 
-                <div className="w-full flex items-center justify-center pb-2" ref={dotsContainerRef}>
-                    <div
-                        className="px-2.5 py-1 rounded-full bg-black/40 border border-white/10 backdrop-blur-md"
-                        style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="flex items-center gap-1.5">
-                        {images.map((_, i) => (
-                            <button
-                                key={i}
-                                onClick={(e) => { e.stopPropagation(); setSelectedIndex(i); setDirection(i > (selectedIndex || 0) ? "right" : "left"); }}
-                                className={`h-2 w-2 rounded-full transition-all duration-200 ${i === selectedIndex ? "bg-blue-500 scale-125" : "bg-white/40 hover:bg-white/60"}`}
-                            />
-                        ))}
-                        </div>
-                    </div>
+              <div className="w-full flex items-center justify-center pb-2" ref={dotsContainerRef}>
+                <div
+                  className="px-2.5 py-1 rounded-full bg-black/40 border border-white/10 backdrop-blur-md"
+                  style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center gap-1.5">
+                    {images.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={(e) => { e.stopPropagation(); setSelectedIndex(i); setDirection(i > (selectedIndex || 0) ? "right" : "left"); }}
+                        className={`h-2 w-2 rounded-full transition-all duration-200 ${i === selectedIndex ? "bg-blue-500 scale-125" : "bg-white/40 hover:bg-white/60"}`}
+                      />
+                    ))}
+                  </div>
                 </div>
+              </div>
             </div>
           </div>
         </div>
@@ -321,6 +322,7 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
       {isAdminMode && showModal && (
         <ImageUploaderModal
           parkId={parkId}
+          parkName={parkName}
           onClose={() => setShowModal(false)}
           onUploadSuccess={fetchGalleryImages}
         />

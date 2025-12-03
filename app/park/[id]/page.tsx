@@ -151,7 +151,7 @@ const ParkPage: React.FC = () => {
               onCoasterAdded={refreshCoasters}
             />
           )}
-          <Gallery parkId={park.id} />
+          <Gallery parkId={park.id} parkName={park.name} />
         </div>
       </div>
 
