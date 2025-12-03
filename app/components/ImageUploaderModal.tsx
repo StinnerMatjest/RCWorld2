@@ -4,17 +4,18 @@ import React, { useState } from "react";
 
 type ImageUploaderModalProps = {
   parkId: number;
+  parkName: string;
   onClose: () => void;
   onUploadSuccess?: () => void;
 };
 
 export default function ImageUploaderModal({
   parkId,
+  parkName,
   onClose,
   onUploadSuccess,
 }: ImageUploaderModalProps) {
   const [file, setFile] = useState<File | null>(null);
-  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -31,6 +32,7 @@ export default function ImageUploaderModal({
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("title", `${parkName} - ${description}`);
 
       const r2Response = await fetch("/api/upload", {
         method: "POST",
@@ -42,9 +44,10 @@ export default function ImageUploaderModal({
 
       const r2Result = await r2Response.json();
       const imagePath = r2Result.imagePath;
+      const title = `${parkName} - ${description}`;
 
       const galleryPayload = {
-        title: title || "untitled",
+        title: title,
         description: description || "",
         path: imagePath,
         parkId,
@@ -100,21 +103,6 @@ export default function ImageUploaderModal({
               className="block w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-2
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
                          dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:file:bg-gray-800 dark:file:text-gray-100 dark:focus-visible:ring-offset-gray-800"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-              Title
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Image title (optional)"
-              className="block w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
-                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                         dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
             />
           </div>
 
