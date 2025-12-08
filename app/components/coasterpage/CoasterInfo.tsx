@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import type { RollerCoaster } from "@/app/types";
 
 interface CoasterInfoProps {
@@ -16,7 +17,7 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster }) => {
       try {
         const res = await fetch(`/api/park/${coaster.parkId}`);
         const data = await res.json();
-        setParkName(data.park?.name ?? "Unknown Park");
+        setParkName(data?.name ?? "Unknown Park");
       } catch {
         setParkName("Unknown Park");
       }
@@ -61,8 +62,19 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster }) => {
           <strong className="font-semibold text-gray-900 dark:text-white">Ride Count:</strong> {coaster.ridecount ?? "N/A"}
         </p>
         <p className="text-gray-700 dark:text-gray-400">
-          <strong className="font-semibold text-gray-900 dark:text-white">Park:</strong> {parkName ?? "Loading..."}
+          <strong className="font-semibold text-gray-900 dark:text-white">Park:</strong>{" "}
+          {parkName ? (
+            <Link
+              href={`/park/${coaster.parkId}`}
+              className="text-blue-600 hover:underline dark:text-blue-400"
+            >
+              {parkName}
+            </Link>
+          ) : (
+            "Loading..."
+          )}
         </p>
+
       </div>
     </div>
   );

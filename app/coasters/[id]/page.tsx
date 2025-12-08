@@ -2,12 +2,13 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import type { RollerCoaster } from "@/app/types";
 import MainPageButton from "@/app/components/MainPageButton";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import { getRatingColor } from "@/app/utils/design";
 import CoasterInfo from "@/app/components/coasterpage/CoasterInfo";
 import CoasterSpecsPanel from "@/app/components/coasterpage/CoasterSpecsPanel";
-import type { RollerCoaster } from "@/app/types";
+import CoasterGallery from "@/app/components/coasterpage/CoasterGallery";
 
 const CoasterPage: React.FC = () => {
   const { id: coasterId } = useParams();
@@ -75,7 +76,7 @@ const CoasterPage: React.FC = () => {
         {/* Right Panel: Technical Specs + Gallery */}
         <div className="space-y-6">
           <CoasterSpecsPanel specs={coaster.specs} />
-          {/* <Gallery coasterId={coaster.id} /> */}
+          <CoasterGallery coasterId={coaster.id} coasterName={coaster.name} />
         </div>
       </div>
 
