@@ -7,11 +7,11 @@ const pool = new Pool({
 });
 
 export async function GET(
-    req: NextRequest,
-    context: { params: { id: string } }
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
-    const { id } = context.params;
-    const coasterId = Number(id);
+  const { id } = await context.params;
+  const coasterId = Number(id);
 
     try {
         const query = `

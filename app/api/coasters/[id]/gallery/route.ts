@@ -6,8 +6,10 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-export async function GET(req: NextRequest, context: any) {
-  const { id } = context.params; // still works
+export async function GET(
+  req: NextRequest,
+) {
+
   const url = new URL(req.url);
   const coasterName = url.searchParams.get("name") || "";
   const parkId = url.searchParams.get("parkId");

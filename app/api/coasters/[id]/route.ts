@@ -6,8 +6,12 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false },
 });
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const coasterId = Number(params.id);
+export async function GET(
+    req: NextRequest,
+    context: { params: Promise<{ id: string }> }
+) {
+    const { id } = await context.params;
+    const coasterId = Number(id);
     try {
         const query = `
       SELECT 
