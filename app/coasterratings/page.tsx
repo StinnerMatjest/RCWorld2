@@ -100,15 +100,20 @@ function CoasterRatingsContent() {
   const query = (searchCtx?.query ?? "").trim();
   const setQuery = searchCtx?.setQuery;
   
-  // FIX: Read URL params safely
+ // FIX: Read URL params safely
   const searchParams = useSearchParams();
 
-  // FIX: Effect to populate search from URL
+  // FIX: Effect to populate search from URL AND clear on exit
   useEffect(() => {
     const urlQuery = searchParams.get("q");
     if (urlQuery && setQuery) {
       setQuery(urlQuery);
     }
+
+    // NEW: Reset search when leaving this page so the homepage stays clean
+    return () => {
+      if (setQuery) setQuery("");
+    };
   }, [searchParams, setQuery]);
 
   // ——— Data fetch ———
