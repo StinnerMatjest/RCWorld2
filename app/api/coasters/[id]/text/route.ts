@@ -101,8 +101,9 @@ export async function POST(
     }
 }
 
-export async function DELETE(req: Request, context: { params: { id: string } }) {
-    const { id } = context.params;
+// DELETE
+export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+    const { id } = await context.params;  // Must await here
     const coasterId = Number(id);
     const body = await req.json();
     const { textId } = body;
