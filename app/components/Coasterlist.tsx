@@ -42,12 +42,6 @@ const CoasterList: React.FC<CoasterListProps> = ({
   onAdd,
 }) => {
   const { isAdminMode } = useAdminMode();
-  const [showEdit, setShowEdit] = React.useState(false);
-
-  /** Automatically disable edit mode when leaving admin mode */
-  React.useEffect(() => {
-    if (!isAdminMode) setShowEdit(false);
-  }, [isAdminMode]);
 
   /** Sorting */
   const sorted = React.useMemo(() => {
@@ -117,14 +111,33 @@ const CoasterList: React.FC<CoasterListProps> = ({
             {c.manufacturer ?? "—"}
           </div>
 
-          {/* Ratings (conditionally) */}
-          {showRating && (
-            <div className="shrink-0 flex items-center justify-end gap-2">
-              <span className={`inline-block w-12 text-right font-semibold tabular-nums ${ratingClass}`}>
+          {/* Ratings */}
+          <div className="shrink-0 flex items-center justify-end gap-2">
+            {showRating && (
+              <span
+                className={`inline-block w-12 text-right font-semibold tabular-nums ${ratingClass}`}
+              >
                 {!riddenStatus ? "NR" : typeof r === "number" ? r.toFixed(1) : "—"}
               </span>
-            </div>
-          )}
+            )}
+            {isAdminMode && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(c);
+                }}
+                className="p-1 rounded text-gray-500 hover:text-gray-800 hover:bg-gray-200
+               dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10
+               text-[15px] cursor-pointer"
+                aria-label={`Edit ${c.name}`}
+                title="Edit coaster"
+              >
+                🔧
+              </button>
+            )}
+          </div>
+
         </div>
 
         {/* Expanded details */}
@@ -161,7 +174,6 @@ const CoasterList: React.FC<CoasterListProps> = ({
     );
   };
 
-
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -175,17 +187,6 @@ const CoasterList: React.FC<CoasterListProps> = ({
         {/* Admin-only top buttons */}
         {isAdminMode && (
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowEdit((v) => !v)}
-              className={`px-3 py-1.5 rounded border text-sm md:text-base transition cursor-pointer ${showEdit
-                ? "border-gray-400 bg-gray-100 dark:border-white/20 dark:bg-white/10"
-                : "border-gray-300 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
-                }`}
-            >
-              {showEdit ? "Done" : "Edit"}
-            </button>
-
             <button
               type="button"
               onClick={onAdd}

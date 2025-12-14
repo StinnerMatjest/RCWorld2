@@ -29,6 +29,8 @@ export async function POST(request: Request) {
     const timestamp = Date.now().toString().slice(-6);        // short unique suffix
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const fileName = `${safeTitle}-${timestamp}.${ext}`;      // europa-park-silver-star-728491.jpg
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
     const bucketName = process.env.R2_BUCKET_NAME || "themeparks";
 
@@ -46,7 +48,7 @@ export async function POST(request: Request) {
       params: {
         Bucket: bucketName,
         Key: fileName,
-        Body: file.stream(),
+        Body: buffer,
         ACL: "public-read",
         ContentType: file.type,
         Metadata: {

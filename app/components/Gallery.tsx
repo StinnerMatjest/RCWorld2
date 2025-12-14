@@ -25,7 +25,7 @@ type GalleryImage = {
 
 function isVideo(path: string) {
   const videoExtensions = [".mp4", ".webm", ".ogg"];
-  return videoExtensions.some((ext) => path.toLowerCase().endsWith(ext));
+  return videoExtensions.some((ext) => path.toLowerCase().endsWith(ext)); 
 }
 
 /** STABLE SWIPE HOOK */
