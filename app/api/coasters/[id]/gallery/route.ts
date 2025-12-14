@@ -6,8 +6,8 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-export async function GET(req: NextRequest, context: { params: { id: string } }) {
-  const { id } = context.params;
+export async function GET(req: NextRequest, context: any) {
+  const { id } = context.params; // still works
   const url = new URL(req.url);
   const coasterName = url.searchParams.get("name") || "";
   const parkId = url.searchParams.get("parkId");
@@ -31,7 +31,6 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
     let headerImage = headerRes.rows[0]?.path;
 
     if (!headerImage) {
-      // fallback image
       const fallbackRes = await pool.query(
         `
         SELECT id, path
@@ -45,7 +44,6 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
       headerImage = fallbackRes.rows[0]?.path || null;
     }
 
-    // Fetch all images for this coaster in the park
     const galleryRes = await pool.query(
       `
       SELECT id, title, path, description
