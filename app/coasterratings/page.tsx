@@ -99,22 +99,24 @@ function CoasterRatingsContent() {
   const searchCtx = useSearch() as { query: string; setQuery?: (q: string) => void };
   const query = (searchCtx?.query ?? "").trim();
   const setQuery = searchCtx?.setQuery;
-  
- // FIX: Read URL params safely
   const searchParams = useSearchParams();
 
-  // FIX: Effect to populate search from URL AND clear on exit
+  // FIX 1: Sync URL Query -> Search State
   useEffect(() => {
     const urlQuery = searchParams.get("q");
     if (urlQuery && setQuery) {
       setQuery(urlQuery);
     }
+  }, [searchParams, setQuery]);
 
-    // NEW: Reset search when leaving this page so the homepage stays clean
+  // FIX 2: Clear Search State -> ONLY on Unmount (Leaving the page)
+  useEffect(() => {
     return () => {
+      // This runs only when the component is destroyed (navigating away)
       if (setQuery) setQuery("");
     };
-  }, [searchParams, setQuery]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array is CRITICAL here to prevent accidental clearing
 
   // ——— Data fetch ———
   useEffect(() => {
@@ -148,7 +150,7 @@ function CoasterRatingsContent() {
             year: c.year ?? 0,
             lastVisitDate: c.lastVisitDate,
           }))
-          .filter((c: Coaster) => (c.rating ?? 0) > 0); // EXCLUDE rating 0.0 or null/undefined
+          .filter((c: Coaster) => (c.rating ?? 0) > 0);
 
         setCoasters(structured);
       } catch (err: any) {

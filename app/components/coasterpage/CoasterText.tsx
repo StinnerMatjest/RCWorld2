@@ -4,6 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useAdminMode } from "../../context/AdminModeContext";
 import CoasterTextModal from "./CoasterTextModal";
 
+// Removed the import that caused the error
+
 interface CoasterTextEntry {
   id: number;
   coaster_id: number;
@@ -64,7 +66,7 @@ const CoasterText: React.FC<Props> = ({ coasterId }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          texts.map((t, i) => ({ id: t.id, order: i })) // send id + new order
+          texts.map((t, i) => ({ id: t.id, order: i }))
         ),
       });
     } catch (err) {
@@ -72,66 +74,94 @@ const CoasterText: React.FC<Props> = ({ coasterId }) => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-8 pt-4 animate-pulse">
+        <div className="space-y-3">
+            <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded w-1/4"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-full"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-full"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-2/3"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 pt-6 w-full">
+    <div className="w-full">
+      {/* Admin Add Button */}
       {isAdminMode && (
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-end mb-6">
           <button
             onClick={() => setModalOpen(true)}
-            className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-400 cursor-pointer"
+            className="px-4 py-2 text-sm font-medium rounded bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-colors"
           >
-            Add Text
+            + Add Section
           </button>
         </div>
       )}
 
-      {loading ? (
-        <p className="text-center text-gray-500 dark:text-gray-400">
-          Loading coaster information...
-        </p>
-      ) : !texts.length ? (
-        <p className="text-center text-gray-600 dark:text-gray-400">
-          No coaster description available yet.
+      {!texts.length ? (
+        <p className="text-gray-500 italic dark:text-gray-400">
+          No experience description available yet.
         </p>
       ) : (
-        texts.map((entry) => (
-          <div
-            key={entry.id}
-            draggable={isAdminMode}
-            onDragStart={() => onDragStart(entry.id)}
-            onDragOver={(e) => onDragOver(e, entry.id)}
-            onDragEnd={onDragEnd}
-            className={`bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-300 dark:border-white/10 mb-4 w-full relative cursor-${isAdminMode ? "grab" : "auto"}`}
-          >
-            {isAdminMode && (
-              <div className="absolute top-4 right-4 flex space-x-2">
-                <button
-                  title="Edit"
-                  className="text-blue-500 hover:text-blue-700 cursor-pointer"
-                  onClick={() => setEditingText(entry)}
-                >
-                  🔧
-                </button>
+        <div className="flex flex-col">
+          {texts.map((entry, index) => (
+            <div
+              key={entry.id}
+              draggable={isAdminMode}
+              onDragStart={() => onDragStart(entry.id)}
+              onDragOver={(e) => onDragOver(e, entry.id)}
+              onDragEnd={onDragEnd}
+              className={`
+                relative group transition-all duration-200
+                ${isAdminMode 
+                  ? "p-4 mb-4 border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-move rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800" 
+                  : "mb-8 last:mb-0" // Standard view spacing
+                }
+              `}
+            >
+              {/* Admin Controls */}
+              {isAdminMode && (
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    title="Edit"
+                    className="p-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-600"
+                    onClick={() => setEditingText(entry)}
+                  >
+                    {/* SVG Replacement for PencilSquareIcon */}
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+
+              {/* Content */}
+              <div>
+                {entry.headline && (
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
+                    {entry.headline}
+                  </h3>
+                )}
+                {entry.text && (
+                  <p className="whitespace-pre-wrap leading-relaxed text-base text-gray-700 dark:text-gray-300">
+                    {entry.text}
+                  </p>
+                )}
               </div>
-            )}
 
-            {isAdminMode && (
-              <span className="text-gray-400 dark:text-gray-500 mb-2 block text-sm">
-                Drag to reorder
-              </span>
-            )}
-
-            <h3 className="text-2xl font-semibold dark:text-white mb-4 break-words">
-              {entry.headline || "Coaster Information"}
-            </h3>
-            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line break-words">
-              {entry.text || ""}
-            </p>
-          </div>
-
-        ))
+              {/* Separator Line (Visible only in public mode, and not on the last item) */}
+              {!isAdminMode && index !== texts.length - 1 && (
+                  <div className="mt-8 border-b border-gray-200 dark:border-gray-800 w-full" />
+              )}
+            </div>
+          ))}
+        </div>
       )}
 
+      {/* Modal Integration */}
       {modalOpen || editingText ? (
         <CoasterTextModal
           coasterId={coasterId}
@@ -143,8 +173,6 @@ const CoasterText: React.FC<Props> = ({ coasterId }) => {
           onSuccess={fetchTexts}
         />
       ) : null}
-
-
     </div>
   );
 };

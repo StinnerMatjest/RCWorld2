@@ -12,53 +12,43 @@ const formatNumber = (value: number | null | undefined, decimals = 1) => {
   return value.toFixed(decimals).replace(".", ",");
 };
 
+const SpecRow = ({ label, value, unit = "" }: { label: string; value: React.ReactNode; unit?: string }) => (
+  <div className="flex justify-between items-baseline py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
+    <span className="text-sm font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide">
+      {label}
+    </span>
+    <span className="text-base font-semibold text-gray-900 dark:text-gray-200 text-right">
+      {value} <span className="text-xs text-gray-400 font-normal ml-0.5">{unit}</span>
+    </span>
+  </div>
+);
+
 const CoasterSpecsPanel: React.FC<CoasterSpecsPanelProps> = ({ specs }) => {
-  if (!specs) return <p className="text-gray-500 dark:text-gray-400">No specs available.</p>;
+  if (!specs) return <p className="text-gray-400 italic text-sm">No specs available.</p>;
 
   return (
-    <div className="
-      bg-blue-50 dark:bg-gray-800
-      rounded-2xl p-6 space-y-4
-      border border-gray-300 dark:border-white/10
-      shadow-sm dark:shadow-xl
-      ring ring-gray-200 dark:ring-white/10
-    ">
-      <h2 className="text-xl font-semibold mb-3 dark:text-white">Technical Specs</h2>
-
-      <div className="grid grid-cols-2 gap-2 text-gray-700 dark:text-gray-300">
-        <div>Type:</div>
-        <div>{specs.type ?? "-"}</div>
-
-        <div>Classification:</div>
-        <div>{specs.classification ?? "-"}</div>
-
-        <div>Length:</div>
-        <div>{formatNumber(specs.length)} ft</div>
-
-        <div>Height:</div>
-        <div>{formatNumber(specs.height)} ft</div>
-
-        <div>Drop:</div>
-        <div>{formatNumber(specs.drop)} ft</div>
-
-        <div>Speed:</div>
-        <div>{formatNumber(specs.speed)} mph</div>
-
-        <div>Inversions:</div>
-        <div>{specs.inversions ?? "-"}</div>
-
-        <div>Vertical Angle:</div>
-        <div>{formatNumber(specs.verticalAngle)}°</div>
-
-        <div>G-Force:</div>
-        <div>{formatNumber(specs.gforce)} G</div>
-
-        <div>Duration:</div>
-        <div>{specs.duration ? `${specs.duration} sec` : "-"}</div>
-
-        <div>Notes:</div>
-        <div className="col-span-1 md:col-span-1">{specs.notes ?? "-"}</div>
-      </div>
+    <div className="flex flex-col w-full">
+      <SpecRow label="Type" value={specs.type ?? "-"} />
+      <SpecRow label="Class" value={specs.classification ?? "-"} />
+      <SpecRow label="Length" value={formatNumber(specs.length)} unit="ft" />
+      <SpecRow label="Height" value={formatNumber(specs.height)} unit="ft" />
+      <SpecRow label="Drop" value={formatNumber(specs.drop)} unit="ft" />
+      <SpecRow label="Speed" value={formatNumber(specs.speed)} unit="mph" />
+      <SpecRow label="Inversions" value={specs.inversions ?? "-"} />
+      <SpecRow label="Vert Angle" value={formatNumber(specs.verticalAngle)} unit="°" />
+      <SpecRow label="G-Force" value={formatNumber(specs.gforce)} unit="G" />
+      <SpecRow label="Duration" value={specs.duration} unit="sec" />
+      
+      {specs.notes && (
+        <div className="pt-3 mt-1">
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-wide block mb-1">
+            Notes
+          </span>
+          <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+            {specs.notes}
+          </p>
+        </div>
+      )}
     </div>
   );
 };
