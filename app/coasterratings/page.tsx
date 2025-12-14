@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { getRatingColor } from "@/app/utils/design";
@@ -87,7 +87,8 @@ const COL_MIN_W_MOBILE: Record<ColumnKey, number> = {
   year: 80,
 };
 
-export default function CoasterRatingsPage() {
+// ——— Inner Component (Contains Logic) ———
+function CoasterRatingsContent() {
   const [coasters, setCoasters] = useState<Coaster[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -627,6 +628,15 @@ export default function CoasterRatingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ——— WRAPPER EXPORT FOR RAILWAY BUILD ———
+export default function CoasterRatingsPage() {
+  return (
+    <Suspense fallback={<p className="p-10 text-center">Loading search...</p>}>
+      <CoasterRatingsContent />
+    </Suspense>
   );
 }
 
