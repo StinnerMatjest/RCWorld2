@@ -9,6 +9,7 @@ import { getRatingColor } from "@/app/utils/design";
 import CoasterInfo from "@/app/components/coasterpage/CoasterInfo";
 import CoasterSpecsPanel from "@/app/components/coasterpage/CoasterSpecsPanel";
 import CoasterGallery from "@/app/components/coasterpage/CoasterGallery";
+import CoasterText from "@/app/components/coasterpage/CoasterText";
 
 const CoasterPage: React.FC = () => {
   const { id: coasterId } = useParams();
@@ -46,31 +47,37 @@ const CoasterPage: React.FC = () => {
         </div>
 
         {/* Middle Panel: */}
-        <div className="space-y-6">
-          <h2 className="text-2xl md:text-4xl font-bold dark:text-white text-center">
+        <div className="space-y-8 flex flex-col items-center">
+          {/* Coaster Name */}
+          <h2 className="text-3xl md:text-5xl font-extrabold text-center dark:text-white tracking-tight">
             {coaster.name}
           </h2>
-          <div className="border-t border-gray-300 dark:border-white/10 my-3" />
 
+          {/* Rating Card */}
           <div
             className={`
       w-full max-w-xs md:max-w-sm
-      aspect-square
-      flex items-center justify-center
-      rounded-2xl
-      border-4
-      ${coaster.rating !== null ? getRatingColor(Number(coaster.rating)) : "border-gray-300 dark:border-gray-500 text-gray-500 dark:text-gray-400"}
+      rounded-3xl p-6
+      shadow-xl
       bg-white dark:bg-gray-800
-      font-bold
-      shadow-lg
-      mx-auto
+      border-4
+      flex flex-col items-center justify-center
       transition-all
+      ${coaster.rating !== null
+                ? getRatingColor(Number(coaster.rating))
+                : "border-gray-300 dark:border-gray-500"
+              }
     `}
           >
-            <span className="text-[6rem] md:text-[8rem] leading-none">
+            <span className="text-[5rem] md:text-[7rem] font-extrabold leading-none dark:text-white">
               {coaster.rating ?? "N/A"}
             </span>
+            <p className="mt-3 text-lg font-medium text-gray-700 dark:text-gray-300">
+              Overall Rating
+            </p>
           </div>
+
+          <CoasterText coasterId={coaster.id} />
         </div>
 
         {/* Right Panel: Technical Specs + Gallery */}
