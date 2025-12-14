@@ -34,6 +34,19 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster }) => {
           <strong className="font-semibold text-gray-900 dark:text-white">Year:</strong> {coaster.year}
         </p>
         <p className="text-gray-700 dark:text-gray-400">
+          <strong className="font-semibold text-gray-900 dark:text-white">Park:</strong>{" "}
+          {parkName ? (
+            <Link
+              href={`/park/${coaster.parkId}`}
+              className="text-blue-600 hover:underline dark:text-blue-400"
+            >
+              {parkName}
+            </Link>
+          ) : (
+            "Loading..."
+          )}
+        </p>
+        <p className="text-gray-700 dark:text-gray-400">
           <strong className="font-semibold text-gray-900 dark:text-white">Manufacturer:</strong> {coaster.manufacturer}
         </p>
         <p className="text-gray-700 dark:text-gray-400">
@@ -41,12 +54,6 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster }) => {
         </p>
         <p className="text-gray-700 dark:text-gray-400">
           <strong className="font-semibold text-gray-900 dark:text-white">Scale:</strong> {coaster.scale}
-        </p>
-        <p className="text-gray-700 dark:text-gray-400">
-          <strong className="font-semibold text-gray-900 dark:text-white">Have Ridden:</strong> {coaster.haveridden ? "Yes" : "No"}
-        </p>
-        <p className="text-gray-700 dark:text-gray-400">
-          <strong className="font-semibold text-gray-900 dark:text-white">Best Coaster:</strong> {coaster.isbestcoaster ? "Yes" : "No"}
         </p>
         <p className="text-gray-700 dark:text-gray-400">
           <strong className="font-semibold text-gray-900 dark:text-white">RCDB:</strong>{" "}
@@ -61,20 +68,6 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster }) => {
         <p className="text-gray-700 dark:text-gray-400">
           <strong className="font-semibold text-gray-900 dark:text-white">Ride Count:</strong> {coaster.ridecount ?? "N/A"}
         </p>
-        <p className="text-gray-700 dark:text-gray-400">
-          <strong className="font-semibold text-gray-900 dark:text-white">Park:</strong>{" "}
-          {parkName ? (
-            <Link
-              href={`/park/${coaster.parkId}`}
-              className="text-blue-600 hover:underline dark:text-blue-400"
-            >
-              {parkName}
-            </Link>
-          ) : (
-            "Loading..."
-          )}
-        </p>
-
       </div>
     </div>
   );

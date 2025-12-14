@@ -7,6 +7,7 @@ import { useAdminMode } from "../context/AdminModeContext";
 
 interface GalleryProps {
   parkId: number;
+  parkName: string;
 }
 
 type GalleryImage = {
@@ -63,7 +64,7 @@ function useSwipe(
   return { onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onPointerLeave, didDrag };
 }
 
-const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
+const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
   const { isAdminMode } = useAdminMode();
 
   const [images, setImages] = useState<GalleryImage[]>([]);
@@ -321,6 +322,7 @@ const Gallery: React.FC<GalleryProps> = ({ parkId }) => {
       {isAdminMode && showModal && (
         <ImageUploaderModal
           parkId={parkId}
+          parkName={parkName}
           onClose={() => setShowModal(false)}
           onUploadSuccess={fetchGalleryImages}
         />

@@ -2,32 +2,68 @@ import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
 });
 
 export async function GET(req: NextRequest, context: { params: { id: string } }) {
-    const { id } = context.params;
-    const url = new URL(req.url);
-    const coasterName = url.searchParams.get("name") || "";
+  const { id } = context.params;
+  const url = new URL(req.url);
+  const coasterName = url.searchParams.get("name") || "";
+  const parkId = url.searchParams.get("parkId");
 
-    try {
-        const res = await pool.query(
-            `
-      SELECT id, park_id, title, path, description
+  if (!parkId) {
+    return NextResponse.json({ error: "Missing parkId" }, { status: 400 });
+  }
+
+  try {
+    const headerRes = await pool.query(
+      `
+      SELECT id, path
       FROM parkgallery
-      WHERE title ILIKE $1
+      WHERE park_id = $1 AND title ILIKE $2
+      ORDER BY id ASC
+      LIMIT 1
+      `,
+      [parkId, `%${coasterName}%HEADER%`]
+    );
+
+    let headerImage = headerRes.rows[0]?.path;
+
+    if (!headerImage) {
+      // fallback image
+      const fallbackRes = await pool.query(
+        `
+        SELECT id, path
+        FROM parkgallery
+        WHERE park_id = $1 AND title ILIKE $2
+        ORDER BY id ASC
+        LIMIT 1
+        `,
+        [parkId, `%${coasterName}%`]
+      );
+      headerImage = fallbackRes.rows[0]?.path || null;
+    }
+
+    // Fetch all images for this coaster in the park
+    const galleryRes = await pool.query(
+      `
+      SELECT id, title, path, description
+      FROM parkgallery
+      WHERE park_id = $1 AND title ILIKE $2
       ORDER BY id ASC
       `,
-            [`%${coasterName}%`]
-        );
+      [parkId, `%${coasterName}%`]
+    );
 
-        return NextResponse.json({ gallery: res.rows });
-    } catch (error) {
-        console.error("Failed to fetch coaster gallery images", error);
-        return NextResponse.json(
-            { error: "Failed to fetch coaster gallery images" },
-            { status: 500 }
-        );
-    }
+    const gallery = galleryRes.rows;
+
+    return NextResponse.json({ headerImage, gallery });
+  } catch (error) {
+    console.error("Failed to fetch coaster gallery images", error);
+    return NextResponse.json(
+      { error: "Failed to fetch coaster gallery images" },
+      { status: 500 }
+    );
+  }
 }

@@ -7,6 +7,7 @@ import { useAdminMode } from "../../context/AdminModeContext";
 interface CoasterGalleryProps {
     coasterId: number;
     coasterName: string;
+    parkId: number;
 }
 
 type GalleryImage = {
@@ -16,29 +17,28 @@ type GalleryImage = {
     description: string;
 };
 
-const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName }) => {
+const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName, parkId }) => {
     const { isAdminMode } = useAdminMode();
-
     const [images, setImages] = useState<GalleryImage[]>([]);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [direction, setDirection] = useState<"left" | "right" | null>(null);
-
     const [scale, setScale] = useState(1);
+
     const dotsContainerRef = useRef<HTMLDivElement | null>(null);
-
     const modalContainerRef = useRef<HTMLDivElement>(null);
-
     const selected = selectedIndex !== null ? images[selectedIndex] : null;
 
     /** Fetch coaster-specific images */
     const fetchImages = async () => {
         setLoading(true);
         try {
+            console.log("Fetching images:", `/api/coasters/${coasterId}/gallery?name=${coasterName}`);
             const res = await fetch(
-                `/api/coasters/${coasterId}/gallery?name=${encodeURIComponent(coasterName)}`
+                `/api/coasters/${coasterId}/gallery?name=${encodeURIComponent(coasterName)}&parkId=${parkId}`
             );
             const data = await res.json();
+            console.log("Gallery data:", data);
             setImages(data.gallery);
         } catch (err) {
             console.error("Failed to fetch coaster gallery images", err);
@@ -100,7 +100,7 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName 
     /** Swipe functionality */
     const goNext = () => {
         setDirection("right");
-        setSelectedIndex((p) => (p !== null && p < images.length - 1 ? p + 1 : p));
+        setSelectedIndex((p) => (p !== null && p < (images?.length ?? 0) - 1 ? p + 1 : p));
     };
 
     const goPrev = () => {
@@ -141,23 +141,24 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName 
         };
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
-    }, [selectedIndex, images.length]);
+    }, [selectedIndex, images]);
+
+
 
     /** Dot scaling recalculation */
     const recalcScale = () => {
         if (!dotsContainerRef.current) return;
-        const required =
-            images.length * 8 + Math.max(0, images.length - 1) * 6 + 20;
-        setScale(
-            Math.min(1, dotsContainerRef.current.clientWidth / Math.max(required, 1))
-        );
+        const len = images?.length ?? 0;
+        const required = len * 8 + Math.max(0, len - 1) * 6 + 20;
+        setScale(Math.min(1, dotsContainerRef.current.clientWidth / Math.max(required, 1)));
     };
 
     useEffect(() => {
         recalcScale();
         window.addEventListener("resize", recalcScale);
         return () => window.removeEventListener("resize", recalcScale);
-    }, [images.length]);
+    }, [images]);
+
 
     const animClass =
         direction === "right"
@@ -188,13 +189,9 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName 
 
             {/* Grid */}
             {loading ? (
-                <p className="text-center py-4 italic text-gray-600">
-                    Loading images...
-                </p>
-            ) : images.length === 0 ? (
-                <p className="text-center py-4 text-gray-400">
-                    No images found for this coaster.
-                </p>
+                <p className="text-center py-4 italic text-gray-600">Loading images...</p>
+            ) : !images?.length ? (
+                <p className="text-center py-4 text-gray-400">No images found for this coaster.</p>
             ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {images.map((img, index) => (
@@ -279,7 +276,7 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName 
                             </button>
                         )}
 
-                        {selectedIndex! < images.length - 1 && (
+                        {selectedIndex !== null && selectedIndex < (images?.length ?? 0) - 1 && (
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
