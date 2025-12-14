@@ -111,7 +111,6 @@ const CoasterPage: React.FC = () => {
     try {
         if (!rating) return "text-gray-900 dark:text-white";
         const color = getRatingColor(Number(rating));
-        // Removed "dark:text-white" so the color persists in dark mode
         return color.replace('bg-', 'text-').replace('border-', '');
     } catch {
         return "text-gray-900 dark:text-white";
@@ -132,15 +131,12 @@ const CoasterPage: React.FC = () => {
         <div className="flex flex-col lg:flex-row justify-between items-center lg:items-end gap-6 lg:gap-8 mb-8 pb-6 border-b border-gray-200 dark:border-gray-800">
           
           {/* Left: Title & Metadata */}
-          {/* Added items-center for mobile, lg:items-start for desktop */}
           <div className="w-full lg:w-auto flex flex-col items-center lg:items-start gap-2 sm:gap-3">
-             {/* Added text-center for mobile, lg:text-left for desktop */}
              <h1 className="text-4xl sm:text-6xl md:text-7xl xl:text-8xl font-black tracking-tighter uppercase italic text-gray-900 dark:text-white leading-none break-words max-w-full text-center lg:text-left">
                {coaster.name}
              </h1>
 
              {/* Metadata Row */}
-             {/* Added justify-center for mobile, lg:justify-start for desktop */}
              <div className="flex flex-wrap justify-center lg:justify-start items-center gap-2 sm:gap-3 mt-1">
                 <span className="px-2 sm:px-3 py-1 bg-black text-white dark:bg-white dark:text-black rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest shadow-sm">
                    {coaster.manufacturer}
@@ -153,7 +149,6 @@ const CoasterPage: React.FC = () => {
           </div>
 
           {/* Right: RANKINGS SECTION */}
-          {/* Added justify-center for mobile consistency, though usually kept flexible */}
           <div className="flex flex-wrap items-end gap-x-6 gap-y-4 sm:gap-8 md:gap-12 shrink-0 w-full lg:w-auto justify-center lg:justify-end">
              <CoasterRanking coaster={coaster} allCoasters={allCoasters} parkName={parkName} />
 

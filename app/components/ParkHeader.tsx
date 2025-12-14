@@ -33,7 +33,7 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park }) => {
         onLoad={() => setImageLoaded(true)}
       />
       
-      {/* Optional: Gradient to make text pop against any image */}
+      {/* Gradient effect*/}
       <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-60 pointer-events-none" />
 
       {/* Title */}

@@ -100,7 +100,6 @@ export default function CoasterRatingsPage() {
   const setQuery = searchCtx?.setQuery;
   const searchParams = useSearchParams();
 
-  // FIX 1: Sync URL Query -> Search State
   useEffect(() => {
     const urlQuery = searchParams.get("q");
     if (urlQuery && setQuery) {
@@ -108,13 +107,10 @@ export default function CoasterRatingsPage() {
     }
   }, [searchParams, setQuery]);
 
-  // FIX 2: Clear Search State -> ONLY on Unmount (Leaving the page)
   useEffect(() => {
     return () => {
-      // This runs only when the component is destroyed (navigating away)
       if (setQuery) setQuery("");
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array is CRITICAL here to prevent accidental clearing
 
   // ——— Data fetch ———
@@ -126,7 +122,7 @@ export default function CoasterRatingsPage() {
         if (!data || !Array.isArray(data.coasters))
           throw new Error("Unexpected data format from API");
 
-        // Normalize first, then filter unridden: rating <= 0 means not ridden
+        // Filter unridden: rating <= 0 means not ridden
         const structured: Coaster[] = (data.coasters as Coaster[])
           .map((c: Coaster): Coaster => ({
             id: c.id,
@@ -291,7 +287,7 @@ export default function CoasterRatingsPage() {
 
       {/* Controls row */}
       <div className="max-w-7xl mx-auto mb-3 sm:mb-4 flex flex-col gap-3">
-        {/* Column chips (no card; centered mobile & desktop) */}
+        {/* Column chips */}
         <div className="px-1">
           <ColumnChips
             columns={ALL_COLUMNS}
@@ -314,7 +310,7 @@ export default function CoasterRatingsPage() {
         </div>
       </div>
 
-      {/* ===== MOBILE (two-table, aligned) ===== */}
+      {/* MOBILE */}
       <div className="sm:hidden">
         <div className="relative max-w-7xl mx-auto rounded-2xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 shadow-sm">
           <div
@@ -323,7 +319,7 @@ export default function CoasterRatingsPage() {
               gridTemplateColumns: `${INDEX_COL_W_MOBILE + NAME_COL_W_MOBILE}px 1fr`,
             }}
           >
-            {/* Left: frozen # + Name */}
+            {/* Left: Name */}
             <div className="overflow-hidden">
               <table className="w-full text-sm text-left border-separate border-spacing-0">
                 <thead className="sticky top-0 z-10 bg-white dark:bg-neutral-950 shadow-sm border-b border-gray-300 dark:border-neutral-700">
@@ -392,7 +388,7 @@ export default function CoasterRatingsPage() {
               </table>
             </div>
 
-            {/* Right: horizontally scrollable extra columns */}
+            {/* Right: */}
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left min-w-full border-separate border-spacing-0">
                 <thead className="sticky top-0 z-10 bg-white dark:bg-neutral-950 shadow-sm border-b border-gray-300 dark:border-neutral-700">
@@ -677,7 +673,7 @@ function ThSortableDesktop({
   );
 }
 
-/* ——— ColumnChips (centered mobile & desktop, improved dark mode) ——— */
+/* ColumnChips */
 function ColumnChips({
   columns,
   visibleCols,
@@ -862,7 +858,7 @@ function SortControl({
   );
 }
 
-/* ——— Minimal inline icons (no extra deps) ——— */
+/* Minimal inline icons */
 function ChevronDown(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-gray-500" {...props}>
