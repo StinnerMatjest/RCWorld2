@@ -26,6 +26,11 @@ const ParkPage: React.FC = () => {
   const [editingCoaster, setEditingCoaster] = useState<RollerCoaster>();
   const [explanations, setExplanations] = useState<Record<string, string>>({});
 
+  // --- Scroll to top on mount ---
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   useEffect(() => {
     if (!parkId) return;
     (async () => {

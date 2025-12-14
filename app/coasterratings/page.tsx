@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { getRatingColor } from "@/app/utils/design";
 import { useSearch } from "@/app/context/SearchContext";
 
@@ -97,6 +98,24 @@ export default function CoasterRatingsPage() {
   const searchCtx = useSearch() as { query: string; setQuery?: (q: string) => void };
   const query = (searchCtx?.query ?? "").trim();
   const setQuery = searchCtx?.setQuery;
+  const searchParams = useSearchParams();
+
+  // FIX 1: Sync URL Query -> Search State
+  useEffect(() => {
+    const urlQuery = searchParams.get("q");
+    if (urlQuery && setQuery) {
+      setQuery(urlQuery);
+    }
+  }, [searchParams, setQuery]);
+
+  // FIX 2: Clear Search State -> ONLY on Unmount (Leaving the page)
+  useEffect(() => {
+    return () => {
+      // This runs only when the component is destroyed (navigating away)
+      if (setQuery) setQuery("");
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array is CRITICAL here to prevent accidental clearing
 
   // ——— Data fetch ———
   useEffect(() => {
@@ -130,7 +149,7 @@ export default function CoasterRatingsPage() {
             year: c.year ?? 0,
             lastVisitDate: c.lastVisitDate,
           }))
-          .filter((c: Coaster) => (c.rating ?? 0) > 0); // EXCLUDE rating 0.0 or null/undefined
+          .filter((c: Coaster) => (c.rating ?? 0) > 0);
 
         setCoasters(structured);
       } catch (err: any) {
@@ -235,7 +254,7 @@ export default function CoasterRatingsPage() {
         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-500 to-fuchsia-500">
           ParkRating's Coaster Library
         </h1>
-       <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-300">
+        <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-300">
         Explore every coaster we’ve ridden with detailed ratings, ride counts, and insights, <br />
         including average scores by park and manufacturer.
 </p>

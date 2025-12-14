@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import type { RollerCoaster } from "@/app/types";
@@ -5,6 +7,18 @@ import type { RollerCoaster } from "@/app/types";
 interface CoasterInfoProps {
   coaster: RollerCoaster;
 }
+
+// Reusable row component for consistent styling
+const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <div className="flex justify-between items-baseline py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
+    <span className="text-sm font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide">
+      {label}
+    </span>
+    <span className="text-base font-semibold text-gray-900 dark:text-gray-200 text-right">
+      {value}
+    </span>
+  </div>
+);
 
 const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster }) => {
   const [parkName, setParkName] = useState<string | null>(null);
@@ -25,17 +39,15 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster }) => {
   }, [coaster.parkId]);
 
   return (
-    <div className="space-y-6">
-      <div className="text-lg space-y-1">
-        <p className="text-gray-700 dark:text-gray-400">
-          <strong className="font-semibold text-gray-900 dark:text-white">Name:</strong> {coaster.name}
-        </p>
-        <p className="text-gray-700 dark:text-gray-400">
-          <strong className="font-semibold text-gray-900 dark:text-white">Year:</strong> {coaster.year}
-        </p>
-        <p className="text-gray-700 dark:text-gray-400">
-          <strong className="font-semibold text-gray-900 dark:text-white">Park:</strong>{" "}
-          {parkName ? (
+    <div className="flex flex-col w-full">
+      <InfoRow label="Name" value={coaster.name} />
+      
+      <InfoRow label="Year" value={coaster.year} />
+      
+      <InfoRow 
+        label="Park" 
+        value={
+          parkName ? (
             <Link
               href={`/park/${coaster.parkId}`}
               className="text-blue-600 hover:underline dark:text-blue-400"
@@ -43,32 +55,39 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster }) => {
               {parkName}
             </Link>
           ) : (
-            "Loading..."
-          )}
-        </p>
-        <p className="text-gray-700 dark:text-gray-400">
-          <strong className="font-semibold text-gray-900 dark:text-white">Manufacturer:</strong> {coaster.manufacturer}
-        </p>
-        <p className="text-gray-700 dark:text-gray-400">
-          <strong className="font-semibold text-gray-900 dark:text-white">Model:</strong> {coaster.model}
-        </p>
-        <p className="text-gray-700 dark:text-gray-400">
-          <strong className="font-semibold text-gray-900 dark:text-white">Scale:</strong> {coaster.scale}
-        </p>
-        <p className="text-gray-700 dark:text-gray-400">
-          <strong className="font-semibold text-gray-900 dark:text-white">RCDB:</strong>{" "}
-          {coaster.rcdbpath ? (
-            <a href={coaster.rcdbpath} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-              Visit
+            <span className="text-gray-400 italic text-sm">Loading...</span>
+          )
+        } 
+      />
+      
+      <InfoRow label="Manufacturer" value={coaster.manufacturer} />
+      
+      <InfoRow label="Model" value={coaster.model} />
+      
+      <InfoRow label="Scale" value={coaster.scale} />
+      
+      <InfoRow 
+        label="Database" 
+        value={
+          coaster.rcdbpath ? (
+            <a 
+              href={coaster.rcdbpath} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-blue-600 hover:underline dark:text-blue-400"
+            >
+              RCDB Entry
             </a>
           ) : (
             "N/A"
-          )}
-        </p>
-        <p className="text-gray-700 dark:text-gray-400">
-          <strong className="font-semibold text-gray-900 dark:text-white">Ride Count:</strong> {coaster.ridecount ?? "N/A"}
-        </p>
-      </div>
+          )
+        } 
+      />
+      
+      <InfoRow 
+        label="Ride Count" 
+        value={coaster.ridecount ?? "0"} 
+      />
     </div>
   );
 };
