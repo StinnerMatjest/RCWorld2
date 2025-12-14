@@ -1,0 +1,232 @@
+[33mf431aa6[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mcoastleimprovements[m[33m, [m[1;31morigin/coastleimprovements[m[33m)[m Database, API, coaster page, CoasterInfo, CoasterSpecsPanel, Types, Navigation stuff
+[33m0769faa[m - Some additional search improvements 	- Handle Fenix 	- Handle . 	- Increased search result limit to 50 - Expanded the Coastle Park List - Modified/removed some comments
+[33m51e2674[m updated coastle + gallery / header
+[33me62e0c2[m[33m ([m[1;32mmain[m[33m)[m Merge pull request #36 from StinnerMatjest/coastle
+[33macff102[m[33m ([m[1;32mcoastle[m[33m)[m Some minor fixes
+[33me5c28e7[m[33m ([m[1;31morigin/Coastle[m[33m)[m Added Coastle. What else is there to say?
+[33ma53d1da[m Merge pull request #34 from StinnerMatjest/bugfix-swipe-+-navbar
+[33m784c953[m[33m ([m[1;31morigin/bugfix-swipe-+-navbar[m[33m)[m Quick bugfix for checklist in navbar + scroll snap
+[33mba3b018[m Merge pull request #33 from StinnerMatjest/new-page-fun-times
+[33mc5563b3[m Merge pull request #31 from StinnerMatjest/Admin-+-minor-cleanup
+[33m89c032a[m[33m ([m[1;31morigin/Admin-+-minor-cleanup[m[33m, [m[1;32mAdmin-+-minor-cleanup[m[33m)[m Removed ShowRate as requiremnt for showing Rate a Park
+[33m80e64fd[m Some fixes
+[33m2ac0156[m[33m ([m[1;31morigin/new-page-fun-times[m[33m)[m updated it to also track time in park.
+[33m23ab784[m Added park checklist functionality, with values stored so we can return to it throughout the visit.
+[33m93532a5[m 1: removed crown from coasterlist. 2: Optimzied swipe functionality on mobile 3: Combined warning popup with other popup 4: Imrpvoed darkmode hover colors 5: Introduced new color scale and removed rainbow. (RIP)
+[33m98e44d7[m Added universal admin mode and very minor UX updates.
+[33mf047ab8[m Fix but this time actually
+[33m850dee6[m deployment fix
+[33ma88659f[m Merge pull request #30 from StinnerMatjest/RatingWarnings
+[33m4f8d992[m[33m ([m[1;31morigin/RatingWarnings[m[33m, [m[1;32mRatingWarnings[m[33m)[m Rating Warnings implemented
+[33mbd9fbbf[m can type 11 in input field
+[33ma4b6947[m Merge pull request #27 from StinnerMatjest/ParkRankLane
+[33mb0ddf0a[m[33m ([m[1;31morigin/ParkRankLane[m[33m, [m[1;32mParkRankLane[m[33m)[m - Increased rating limit to 11 to support golden rating - Added cursor-pointer to buttons - Added limitations to value input field 	- Only numbers (and G) 	- Only 2 characters 	- Only between 1-10 - Both table and input field now 'snaps' to valid ratings (so tpying 10.3 -> 10.5) - Replaced onManuelChange with two inputChange methods that handle this smoothly - Made a lot of text bigger on large monitors - Removed redundant Assigned label - Removed unused member IsNew inside ParkRankLane - Removed ChatGPT comments
+[33m3da821f[m Merge pull request #29 from StinnerMatjest/customer-tracking
+[33me082d6c[m[33m ([m[1;31morigin/customer-tracking[m[33m)[m Added user analytics + tracking
+[33m0cf0a43[m nothing.
+[33me63c89b[m Merge branch 'main' of https://github.com/StinnerMatjest/RCWorld2
+[33m8fd10be[m updated meta text.
+[33m579c749[m Merge pull request #28 from StinnerMatjest/Sitemap
+[33m24470c6[m Added sitemap with higher prio on our about page for SEO
+[33mbada9c2[m Added dynamic parkrating submission.
+[33m7e0472d[m Merge pull request #26 from StinnerMatjest/CoasterTable
+[33m33cec2f[m[33m ([m[1;31morigin/CoasterTable[m[33m)[m Merge branch 'main' into CoasterTable
+[33mb6aa450[m[33m ([m[1;32mCoasterTable[m[33m)[m Fully revised Coaster Library
+[33m294dbf1[m fix
+[33m5882f21[m Ignore ESLint warnings during build
+[33m0fb9ed8[m Merge pull request #25 from StinnerMatjest/Several-Fixes
+[33m173c8e1[m[33m ([m[1;31morigin/Several-Fixes[m[33m, [m[1;32mSeveral-Fixes[m[33m)[m Lots of changes
+[33ma54981f[m Removed GoogleMaps import (causing deployment failure)
+[33m11c091d[m Merge pull request #24 from StinnerMatjest/CoasterListPage
+[33m1570518[m Small update
+[33m025a300[m removed google maps for now
+[33m1071a0a[m new loading text
+[33m9041389[m added poland trip to past trips
+[33mbafdcab[m All modals updated with darkmode support
+[33mbdeeccb[m Updated header menu with coasterrankings page integrated.
+[33mba1fd14[m Updated gallery with swipe functionality
+[33m99c1af4[m Updated Coasterview on parkpage.
+[33m59233f3[m Types.ts fix and version updates
+[33mec58011[m Merge pull request #23 from StinnerMatjest/Expand-CoasterCreationModal
+[33mfed4ad7[m[33m ([m[1;31morigin/Expand-CoasterCreationModal[m[33m)[m Stuffz
+[33m5e3c057[m Fixes
+[33m56ee077[m moved ToC to top
+[33mc65c396[m Updated rating evaluations, easy right? Suddenly. 400 lines of code and no lunch.
+[33m0b76ba8[m Added past trips + upcoming catalogue trips
+[33m6bd2ac8[m[33m ([m[1;31morigin/Haptic-feedback[m[33m)[m hello?
+[33m865041f[m tsconfig fix
+[33m7ddafa0[m Merge pull request #22 from StinnerMatjest/Coaster-Ranking-Page
+[33m978256a[m Merge branch 'main' into Coaster-Ranking-Page
+[33m3485505[m Visit Date included and some design changes
+[33me83b632[m Merge pull request #21 from StinnerMatjest/Mobile-fix
+[33m7108ef5[m[33m ([m[1;31morigin/Mobile-fix[m[33m)[m Small Stuffz
+[33m7be7269[m Added darkmode to rate a park, rating evaluation and about. Also added a loading bar.
+[33m57e8bdb[m Navbar + header darkmode + allignment
+[33md44c714[m Frontpage + ratingcard for mobile
+[33mdcf94f0[m Updated planned trips
+[33m74d5bfb[m Woops forgot one
+[33m47f44e1[m Fixed Images
+[33m17eb273[m Merge pull request #20 from StinnerMatjest/About-Page
+[33m7f6708b[m[33m ([m[1;31morigin/About-Page[m[33m)[m Small fixes
+[33m38ee662[m Searchbar functionality added
+[33m9d60714[m coasterratings page and coasters API added
+[33mbf3bf7a[m Updated about text
+[33m39ac245[m Updated about page including Tripcard functionality.
+[33m17e1dd3[m Added more manufacturers
+[33m45c0ea4[m Description now not required but is shown in gallery
+[33m57033e5[m IMAGE production stuff and removed Footer and RatingPanel components and made image description nullable (kinda)
+[33m52ea121[m Merge pull request #19 from StinnerMatjest/Fix-frontpage-allignment-/-Scale
+[33mf0a1bf3[m[33m ([m[1;31morigin/Fix-frontpage-allignment-/-Scale[m[33m)[m Merge branch 'main' into Fix-frontpage-allignment-/-Scale
+[33m3280816[m Minor allignment fix and removed some comments
+[33m18a936a[m 1: reducerede padding på ratingcard 2: Reducerede padding på navbar 3: Flyttede search til navbar og lavede en ny searchcontext (så search ikke lå på page.tsx men nu ligger i layout) Chatgpt sagde dette var det rigtige? 4: fixede image pixelation 5: fjernede search fra footer 6: begyndte at kigge på darkmode fixes. (ser lidt bedre ud nu) 7: Fixede dropdown på mobil
+[33m0c1eed3[m Image fix
+[33m0116525[m Merge pull request #18 from StinnerMatjest/Dynamic-Park-Gallery
+[33mac2b352[m[33m ([m[1;31morigin/Dynamic-Park-Gallery[m[33m)[m Dynamic park gallery and imageuploader added
+[33m54d4b83[m Merge branch 'main' of https://github.com/StinnerMatjest/RCWorld2
+[33mc1c17aa[m Anti-bruteforce added
+[33m7a0973c[m Removed overlay + image size
+[33mfdc4541[m Merge pull request #17 from StinnerMatjest/Park-Archive
+[33m5fd3260[m[33m ([m[1;31morigin/Park-Archive[m[33m)[m FlatridesAndDarkrides fix
+[33md3f1f57[m Archiving added
+[33m456cce2[m Fixed rating API and RatingModal
+[33m4cebc1a[m Ready for the trip
+[33md1b89d0[m Merge pull request #16 from StinnerMatjest/NewFrontPageAndRatings
+[33maba811a[m[33m ([m[1;31morigin/NewFrontPageAndRatings[m[33m)[m Frontpage updated
+[33mbe31419[m Fix
+[33m49a12f0[m Merge pull request #15 from StinnerMatjest/Improve-authentication
+[33mfa132a2[m[33m ([m[1;31morigin/Improve-authentication[m[33m)[m Temp debugging
+[33m8e2c614[m Merge pull request #14 from StinnerMatjest/Improve-authentication
+[33ma8ffc63[m Improved authentication process through API
+[33m63d2da8[m CoasterModal Fix
+[33m02ff7cc[m More changes: - Added country flags to RatingCards - Added more manufacturers to coaster list - Changed favicon - Small code cleanup changes
+[33mf1956b7[m Merge pull request #13 from StinnerMatjest/individualparkratingtext
+[33m5718c33[m[33m ([m[1;31morigin/individualparkratingtext[m[33m)[m fix
+[33mcd358ab[m Merge pull request #12 from StinnerMatjest/individualparkratingtext
+[33m7ebaf49[m Fixed GET and created some backups
+[33m35d77e8[m Merge branch 'individualparkratingtext' into main
+[33m0b414a6[m Dynamic parkText now works (GET, POST, PUT, Authentication, refreshing, localState)
+[33mc2507eb[m ratingtextfixmaybeidunno
+[33m69b9a94[m Merge pull request #9 from StinnerMatjest/Images
+[33mfd2a34b[m Fixed about page and navigation
+[33m5991e74[m Created emprty about page and fixed creation password
+[33m0ef0323[m[33m ([m[1;31morigin/Images[m[33m)[m Updated header image scaling, park text layout, improved modal gallery and visual cleanups of dividers and margins.
+[33ma672f8c[m[33m ([m[1;31morigin/IndividualParkRatingText[m[33m)[m Image fix maybe i dunno
+[33m2aba318[m Last apos fixes and switched to Next.Image usage
+[33m962cc58[m &apos; fixes
+[33m49bbc9c[m reverted back to hardcoded
+[33mc955e9e[m REDEPLOY PLEASE
+[33m484f788[m temp logging
+[33m5cc392c[m Hidden password
+[33m71b99b2[m Merge pull request #8 from StinnerMatjest/Functionality-Lock
+[33m33dbe78[m[33m ([m[1;31morigin/Functionality-Lock[m[33m)[m Created AuthenticationModal
+[33mf389274[m you're fix
+[33m18b7f5a[m text changes. very minor
+[33m93c23d8[m img fix
+[33mbbe53e6[m Import park fix
+[33m9b8319a[m any eslint error fix
+[33ma605a4d[m Merge pull request #7 from StinnerMatjest/Google-Maps-+-new-park-layout
+[33m6b85c33[m[33m ([m[1;31morigin/Google-Maps-+-new-park-layout[m[33m)[m Minor changes for medium screen sizes
+[33m43d246d[m Major overhaul of the park page including seperating the page into components and introducing google MAPS.
+[33m63b2c6f[m Merge pull request #6 from StinnerMatjest/Jannik-Park-Page
+[33m8674951[m[33m ([m[1;31morigin/Jannik-Park-Page[m[33m)[m Code cleanup
+[33m2c03e61[m[33m ([m[1;31morigin/Jannik-Park-page[m[33m)[m Park.tsx overhaul including dynamic ratings and layout
+[33mb54eb2f[m Removed footer, moved header to layout so it is there on all pages. also updated navbar with icon and animation. made logo clickable to return to frontpage.
+[33m57ae65e[m[33m ([m[1;31morigin/UserRoles-Authorization[m[33m)[m Merge pull request #4 from StinnerMatjest/Fix-Golden-Ratings
+[33md192453[m[33m ([m[1;31morigin/Fix-Golden-Ratings[m[33m)[m Fixed it
+[33m5a28bcc[m Merge pull request #2 from StinnerMatjest/Jannik-Card-Branch
+[33mb7f0781[m[33m ([m[1;31morigin/Jannik-Card-Branch[m[33m)[m rainbow effect re-added and small code cleanup
+[33mb719c1d[m Fixed card clickable link
+[33ma809817[m Merge pull request #3 from StinnerMatjest/Delete-Coaster-Button
+[33mc09bf77[m Added Delelete Coaster button
+[33mf4e1aee[m Update the placement and size of the logo.
+[33mba8d154[m made cards blue again.
+[33mc48c66b[m Temporary fix for darkmode. has to be revisited.
+[33m719c67d[m Changed card color to bg-blue-50
+[33mb2b1531[m Made each card clickable directly and removed "go to park"
+[33m73c2399[m Updated Card allignment and text allignment for desktop+mobile.
+[33m140d2cd[m Delayed fadeins and new animation CSS parameters.
+[33m94e8784[m Merge branch 'Jannik-Card-Branch' of https://github.com/StinnerMatjest/RCWorld2 into Jannik-Card-Branch
+[33m8074b8c[m Hover and more dynamic scaling on mobile. (WIP)
+[33mdc34a02[m Merge branch 'Jannik-Card-Branch' of https://github.com/StinnerMatjest/RCWorld2 into Jannik-Card-Branch
+[33m46bb3af[m Starting a new branch with frotend card changes.
+[33mee573cd[m Test
+[33m68ed933[m Merge pull request #1 from StinnerMatjest/FIX-FRONTEND-AFTER-VERSION-UPDATES
+[33m63523d1[m FIXED FRONTEND + small ui improvements
+[33m353c315[m faf
+[33mcf886a2[m module fix
+[33mbe41f4e[m new tailwind.config file
+[33m03cf985[m CHATGPT I SWEAR GOD
+[33m4bad303[m hello
+[33m79f35d2[m Rename
+[33m21dbafe[m Versions upgrade and postcss.config change
+[33m0ef78bc[m tailwindcss upgrade
+[33m5ac79e9[m Next upgrade
+[33mb57ae72[m revert
+[33md438b46[m Next.js upgrade
+[33med12abf[m I'm sorry - revert
+[33mef23926[m Merge branch 'main' of https://github.com/StinnerMatjest/RCWorld2
+[33m6373167[m Fix maybe
+[33m7643c45[m HELLO WORLD AGAIN!
+[33mfa85d43[m Update globals.css
+[33m456a5a2[m Changes: - Changed Other Rides to Ride Lineup in RatingCard - Fixed application title (browser tab)
+[33mf1f65e0[m image fix
+[33m45fb763[m New logo plus design changes
+[33mca0d5f0[m Fixed year input in CoasterCreationModal and new Navbar
+[33mdb8b19d[m BIG REVAMP (10 point scale, coaster edit, info page etc)
+[33mfe1f07e[m - Added functioning Searchbar - Added Navbar to Header - Added Datepicker and date text to RatingCard - Fixed submit button in modal - Some design tweaks
+[33md638426[m CoasterCreator, fixed rating-successmessage, ratingscards ordered after overall (park not found suppressed)
+[33mb4e4a24[m Park page overhaul (design, coasterview, coaster table, coaster endpoint)
+[33m0cf885f[m Changed background colors between cards
+[33me170bfc[m Fixes and visual update
+[33m45adc83[m MAJOR FRONTEND IMPROVEMENTS (structure, scalability, footer, ratings images)
+[33m3a54c3f[m Smile
+[33md588349[m Feeling Blessed
+[33m7f10468[m Praise be
+[33m7d38efd[m img element test
+[33m3d354f0[m huh
+[33mcf00819[m IMAGE WORK
+[33mc1f49cf[m Force uppercase
+[33m2a903a0[m Hardcoded credentials
+[33md41cb5a[m STARTED FROM THE BOTTOM
+[33m6b79510[m logging
+[33mf245f99[m .env.production
+[33m9bab1bc[m r2 changes
+[33mc014a09[m param - promise change
+[33m484cd7a[m park[id] GET params  change
+[33m15915b6[m tailwind.configure.mjs
+[33mceb5d08[m Fixing the frontend (reverted back to next 15 tho)
+[33md2eee9a[m backup before running npm audit fix --force
+[33m6847c20[m WORK
+[33m14ba2e5[m yup
+[33m1338c9d[m I don't Even Know at this point
+[33mfd318f9[m Changed to next version: 13.4.0
+[33m729197a[m plz work bruv
+[33m16311ce[m new fix
+[33m9a81968[m Park/Id FIX
+[33m26ccf06[m MASSIVE: Database & R2 IMPLEMENTED
+[33mcaec9b6[m Added API and database stuff
+[33m55167e1[m npm fix
+[33m39bb3be[m CHANGED FROM YARN TO NPM
+[33m404fa5f[m FULL RESET LETS GO AGAIN
+[33m79f062f[m GET LIT
+[33mc0c9d68[m PLZ I BEG YOU
+[33mf710b52[m Removed dynamic ID fetching fomr park.page.tsx
+[33m51c9dd5[m I'm just a boy
+[33m4fc72b1[m WORK
+[33m3dd83f7[m EXTREME SIMPLIFICATION
+[33mf719af1[m SIMPLIFY
+[33mef60428[m ChatGPT tried to sabotage me
+[33m2616e0f[m I CAN BE YOUR HERO BABY
+[33m16bef9a[m Removed API folder and changed Require to Import
+[33mb3f76b0[m WE THE BEST MUSIC
+[33m21f4c07[m And another one
+[33m0c659ea[m FIX MAYBE!?
+[33m337077f[m and again
+[33md915fee[m Dockerfile ENTRYPOINT change
+[33me3d19f6[m Docker-related-changes
+[33m0025ff7[m Initial Commit
+[33mad471f6[m Initial stuff
+[33m4f174d0[m Initial commit from Create Next App
+[33m5fd74ce[m Deleted folder
+[33medbe864[m Add files via upload
+[33me329f70[m Initial commit

@@ -124,10 +124,20 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
     }
   };
 
+  // CLICK HANDLER
   const handleImageClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (swipe.didDrag()) return;
-    if (isDesktop()) toggleFullscreen();
+
+    if (isDesktop()) {
+      // DESKTOP: Toggle Fullscreen
+      toggleFullscreen();
+    } else {
+      // MOBILE: Open in new tab
+      if (selected?.path) {
+        window.open(selected.path, '_blank');
+      }
+    }
   };
 
   useEffect(() => {
@@ -136,6 +146,7 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
         if (document.fullscreenElement) document.exitFullscreen();
         else setSelectedIndex(null);
       }
+      
       if (e.key === "ArrowLeft" && selectedIndex !== null && selectedIndex > 0) goPrev();
       if (e.key === "ArrowRight" && selectedIndex !== null && selectedIndex < images.length - 1) goNext();
     };
@@ -240,6 +251,7 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
           ref={modalContainerRef}
           className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex items-center justify-center"
           onClick={() => {
+            // Close if background clicked
             if (!swipe.didDrag()) {
               if (document.fullscreenElement) document.exitFullscreen();
               setSelectedIndex(null);

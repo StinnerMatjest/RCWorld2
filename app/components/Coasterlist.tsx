@@ -1,5 +1,6 @@
 // app/components/CoasterList.tsx
 import React from "react";
+import Link from "next/link";
 import type { RollerCoaster } from "@/app/types";
 import { getRatingColor } from "@/app/utils/design";
 import { AnimatePresence, motion } from "framer-motion";
@@ -28,7 +29,6 @@ function hasRidden(val: unknown): boolean {
   return false;
 }
 
-/** Always optional if Junior/Kiddie */
 function isOptionalByScale(scale: unknown): boolean {
   if (typeof scale !== "string") return false;
   const s = scale.trim().toLowerCase();
@@ -80,20 +80,14 @@ const CoasterList: React.FC<CoasterListProps> = ({
         <div className="grid grid-cols-[minmax(0,1.1fr)_3.9rem_minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_5.5rem_minmax(0,1fr)_auto] items-center gap-1.5 md:gap-2 py-2 md:py-0.5 text-[16px] md:text-[18px] md:hover:bg-gray-50 dark:md:hover:bg-white/5 transition-colors">
 
           {/* Name */}
-          <div className="min-w-0 flex items-center gap-2 cursor-pointer" onClick={toggleOpen} role="button" tabIndex={0}>
-            {c.rcdbpath ? (
-              <a
-                href={c.rcdbpath}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-blue-700 hover:underline truncate dark:text-blue-400"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {c.name}
-              </a>
-            ) : (
-              <span className="font-medium truncate">{c.name}</span>
-            )}
+          <div className="min-w-0 flex items-center gap-2 cursor-pointer">
+            <Link
+              href={`/coasters/${c.id}`}
+              className="font-medium text-blue-700 hover:underline truncate dark:text-blue-400"
+            >
+              {c.name}
+            </Link>
+
             {c.isbestcoaster && (
               <span className="hidden md:inline-flex rounded px-1.5 py-0.5 text-[12px] font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
                 Best
@@ -113,14 +107,31 @@ const CoasterList: React.FC<CoasterListProps> = ({
 
           {/* Ratings */}
           <div className="shrink-0 flex items-center justify-end gap-2">
-            {showRating && (
-              <span
-                className={`inline-block w-12 text-right font-semibold tabular-nums ${ratingClass}`}
-              >
-                {!riddenStatus ? "NR" : typeof r === "number" ? r.toFixed(1) : "—"}
-              </span>
-            )}
-            {isAdminMode && (
+            <span
+              className={`inline-block w-12 text-right font-semibold tabular-nums ${ratingClass}`}
+            >
+              {!riddenStatus
+                ? "NR"
+                : typeof r === "number"
+                  ? r.toFixed(1)
+                  : "—"}
+            </span>
+
+            {/* Expand arrow */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleOpen();
+              }}
+              className={`transition-transform duration-200 ${open ? "rotate-90" : "rotate-0"
+                } text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100 text-sm md:text-base`}
+            >
+              ▸
+            </button>
+
+            {/* Admin-only edit icon */}
+            {isAdminMode && showEdit && (
               <button
                 type="button"
                 onClick={(e) => {

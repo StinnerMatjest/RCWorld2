@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getRatingColor } from "@/app/utils/design";
 import { useSearch } from "@/app/context/SearchContext";
+import { usePathname, useSearchParams } from "next/navigation";
 
 // ——— Types ———
 type Coaster = {
@@ -95,8 +96,19 @@ export default function CoasterRatingsPage() {
   const [visibleCols, setVisibleCols] = useState<ColumnKey[]>(DEFAULT_VISIBLE);
 
   const searchCtx = useSearch() as { query: string; setQuery?: (q: string) => void };
-  const query = (searchCtx?.query ?? "").trim();
   const setQuery = searchCtx?.setQuery;
+
+  const searchParams = useSearchParams();
+  const qParam = searchParams?.get("q") ?? "";
+
+  // When navigating from CoasterRanking component
+  useEffect(() => {
+    if (setQuery && qParam) {
+      // Remove "park:" or "manufacturer:" prefix if present
+      const cleaned = qParam.replace(/^park:|^manufacturer:/, "");
+      setQuery(cleaned);
+    }
+  }, [qParam, setQuery]);
 
   // ——— Data fetch ———
   useEffect(() => {
@@ -123,8 +135,8 @@ export default function CoasterRatingsPage() {
               c.rating === null || c.rating === undefined
                 ? null
                 : typeof c.rating === "string"
-                ? parseFloat(c.rating)
-                : c.rating,
+                  ? parseFloat(c.rating)
+                  : c.rating,
             parkId: c.parkId,
             parkName: c.parkName,
             year: c.year ?? 0,
@@ -152,7 +164,7 @@ export default function CoasterRatingsPage() {
   }, []);
 
   // ——— Filtering ———
-  const q = query.toLowerCase();
+  const q = (searchCtx?.query ?? "").toLowerCase();
   const filteredCoasters = useMemo<Coaster[]>(
     () => {
       if (!q) return coasters;
@@ -235,10 +247,10 @@ export default function CoasterRatingsPage() {
         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-500 to-fuchsia-500">
           ParkRating's Coaster Library
         </h1>
-       <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-300">
-        Explore every coaster we’ve ridden with detailed ratings, ride counts, and insights, <br />
-        including average scores by park and manufacturer.
-</p>
+        <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-300">
+          Explore every coaster we’ve ridden with detailed ratings, ride counts, and insights, <br />
+          including average scores by park and manufacturer.
+        </p>
       </div>
 
       {/* Search */}
@@ -249,16 +261,17 @@ export default function CoasterRatingsPage() {
             <div className="relative rounded-2xl bg-white/80 dark:bg-neutral-950/70 backdrop-blur border border-gray-200 dark:border-neutral-700 shadow-sm">
               <div className="flex items-center gap-3 px-4 py-3">
                 <input
-                  value={query}
+                  value={searchCtx?.query ?? ""}
+
                   onChange={(e) => setQuery?.(e.target.value)}
                   placeholder="Search by name, park, manufacturer, rating, year…"
                   className="w-full bg-transparent outline-none text-base placeholder:text-gray-400"
                   aria-label="Search coasters"
                 />
-                {query && (
+                {searchCtx?.query && (
                   <button
                     onClick={() => setQuery?.("")}
-                    className="text-xs px-3 py-1 rounded-full border border-gray-300 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-900"
+                    className="text-xs px-3 py-1 rounded-full border border-gray-300 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-900 cursor-pointer"
                     aria-label="Clear search"
                   >
                     Clear
@@ -402,9 +415,8 @@ export default function CoasterRatingsPage() {
                       {/* Rating */}
                       {colIsVisible("rating") && (
                         <td
-                          className={`px-2 font-semibold whitespace-nowrap ${
-                            c.rating !== null ? getRatingColor(c.rating) : ""
-                          }`}
+                          className={`px-2 font-semibold whitespace-nowrap ${c.rating !== null ? getRatingColor(c.rating) : ""
+                            }`}
                           style={{ minWidth: COL_MIN_W_MOBILE.rating }}
                         >
                           <div className="flex items-center" style={{ height: ROW_H }}>
@@ -482,10 +494,10 @@ export default function CoasterRatingsPage() {
                             {key === "rideCount"
                               ? totalRideCount.toLocaleString()
                               : key === "rating"
-                              ? avgRating !== null
-                                ? avgRating.toFixed(2)
-                                : "—"
-                              : ""}
+                                ? avgRating !== null
+                                  ? avgRating.toFixed(2)
+                                  : "—"
+                                : ""}
                           </div>
                         </td>
                       ) : null
@@ -590,10 +602,10 @@ export default function CoasterRatingsPage() {
                       {key === "rideCount"
                         ? totalRideCount.toLocaleString()
                         : key === "rating"
-                        ? avgRating !== null
-                          ? avgRating.toFixed(2)
-                          : "—"
-                        : ""}
+                          ? avgRating !== null
+                            ? avgRating.toFixed(2)
+                            : "—"
+                          : ""}
                     </td>
                   ) : null
                 )}

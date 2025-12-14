@@ -17,6 +17,7 @@ export default function ImageUploaderModal({
 }: ImageUploaderModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState("");
+  const [isHeader, setIsHeader] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -34,25 +35,25 @@ export default function ImageUploaderModal({
       formData.append("file", file);
       formData.append("title", `${parkName} - ${description}`);
 
-      const r2Response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      if (!r2Response.ok) {
-        throw new Error("Image upload failed.");
-      }
+      // Upload to R2
+      const r2Response = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!r2Response.ok) throw new Error("Image upload failed.");
 
       const r2Result = await r2Response.json();
       const imagePath = r2Result.imagePath;
       const title = `${parkName} - ${description}`;
 
+      // Build backend title automatically
+      const backendTitle = `${parkName} - ${description || "untitled"}${isHeader ? " - HEADER" : ""}`;
+
       const galleryPayload = {
-        title: title,
+        title: backendTitle,
         description: description || "",
         path: imagePath,
         parkId,
       };
 
+      // Save to gallery
       const galleryResponse = await fetch(`/api/park/${parkId}/gallery`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -67,13 +68,8 @@ export default function ImageUploaderModal({
       if (onUploadSuccess) onUploadSuccess();
       onClose();
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        console.error(err);
-        setError(err.message || "Something went wrong.");
-      } else {
-        console.error("Unexpected error:", err);
-        setError("An unexpected error occurred");
-      }
+      if (err instanceof Error) setError(err.message || "Something went wrong.");
+      else setError("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
@@ -121,21 +117,29 @@ export default function ImageUploaderModal({
             />
           </div>
 
-          {error && (
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-          )}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="isHeader"
+              checked={isHeader}
+              onChange={(e) => setIsHeader(e.target.checked)}
+              className="w-4 h-4 accent-blue-600"
+            />
+            <label htmlFor="isHeader" className="text-gray-700 dark:text-gray-300 text-sm">
+              Header image
+            </label>
+          </div>
+
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="submit"
               disabled={loading}
               className={`px-4 py-2 rounded-md text-white transition cursor-pointer
-                          focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                          dark:focus-visible:ring-offset-gray-800
-                          ${loading
-                  ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
-                }`}
+                        focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                        dark:focus-visible:ring-offset-gray-800
+                        ${loading ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"}`}
             >
               {loading ? "Uploading..." : "Upload"}
             </button>

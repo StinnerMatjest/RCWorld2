@@ -1,3 +1,4 @@
+// /app/api/coasters/route.ts
 import { Pool } from "pg";
 import { NextResponse } from "next/server";
 
@@ -29,7 +30,9 @@ export async function GET() {
       FROM rollercoasters rc
       JOIN parks p ON rc.park_id = p.id
       LEFT JOIN ratings r ON r.park_id = p.id
-      GROUP BY rc.id, rc.name, rc.year, rc.manufacturer, rc.model, rc.scale, rc.haveridden, rc.isbestcoaster, rc.rcdbpath, rc.ridecount, rc.rating, rc.park_id, p.name
+      GROUP BY 
+        rc.id, rc.name, rc.year, rc.manufacturer, rc.model, rc.scale, rc.haveridden, 
+        rc.isbestcoaster, rc.rcdbpath, rc.ridecount, rc.rating, rc.park_id, p.name
       ORDER BY p.name, rc.name;
     `;
 
@@ -50,6 +53,7 @@ export async function GET() {
       parkId: row.park_id,
       parkName: row.park_name,
       lastVisitDate: row.last_visit_date,
+      specs: null,  // Set this to null for now
     }));
 
     return NextResponse.json({ coasters }, { status: 200 });
