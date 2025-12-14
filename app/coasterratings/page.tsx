@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getRatingColor } from "@/app/utils/design";
 import { useSearch } from "@/app/context/SearchContext";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";;
 
 // ——— Types ———
 type Coaster = {
@@ -95,20 +95,22 @@ export default function CoasterRatingsPage() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [visibleCols, setVisibleCols] = useState<ColumnKey[]>(DEFAULT_VISIBLE);
 
+  // Using Search context
   const searchCtx = useSearch() as { query: string; setQuery?: (q: string) => void };
   const setQuery = searchCtx?.setQuery;
 
+  // Using useSearchParams for query params from the URL
   const searchParams = useSearchParams();
   const qParam = searchParams?.get("q") ?? "";
 
-  // When navigating from CoasterRanking component
+  // When navigating from CoasterRanking component (runs once on mount)
   useEffect(() => {
     if (setQuery && qParam) {
       // Remove "park:" or "manufacturer:" prefix if present
       const cleaned = qParam.replace(/^park:|^manufacturer:/, "");
       setQuery(cleaned);
     }
-  }, [qParam, setQuery]);
+  }, [qParam, setQuery]); // Only runs when `qParam` changes
 
   // ——— Data fetch ———
   useEffect(() => {
@@ -120,8 +122,8 @@ export default function CoasterRatingsPage() {
           throw new Error("Unexpected data format from API");
 
         // Normalize first, then filter unridden: rating <= 0 means not ridden
-        const structured: Coaster[] = (data.coasters as Coaster[])
-          .map((c: Coaster): Coaster => ({
+        const structured: Coaster[] = (data.coasters as Coaster[]).map(
+          (c: Coaster): Coaster => ({
             id: c.id,
             name: c.name,
             manufacturer: c.manufacturer,
@@ -135,14 +137,14 @@ export default function CoasterRatingsPage() {
               c.rating === null || c.rating === undefined
                 ? null
                 : typeof c.rating === "string"
-                  ? parseFloat(c.rating)
-                  : c.rating,
+                ? parseFloat(c.rating)
+                : c.rating,
             parkId: c.parkId,
             parkName: c.parkName,
             year: c.year ?? 0,
             lastVisitDate: c.lastVisitDate,
-          }))
-          .filter((c: Coaster) => (c.rating ?? 0) > 0); // EXCLUDE rating 0.0 or null/undefined
+          })
+        ).filter((c: Coaster) => (c.rating ?? 0) > 0); // EXCLUDE rating 0.0 or null/undefined
 
         setCoasters(structured);
       } catch (err: any) {
