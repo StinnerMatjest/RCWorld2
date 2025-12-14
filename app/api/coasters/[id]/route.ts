@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 
 const pool = new Pool({
@@ -6,9 +6,12 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false },
 });
 
-export async function GET(req: Request, context: { params: { id: string } }) {
-    const { id } = await context.params;
-    const coasterId = Number(id);
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params; // <-- await like your working example
+  const coasterId = Number(id);
 
     try {
         const query = `

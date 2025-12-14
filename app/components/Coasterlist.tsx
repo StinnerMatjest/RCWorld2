@@ -131,7 +131,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
             </button>
 
             {/* Admin-only edit icon */}
-            {isAdminMode && showEdit && (
+            {isAdminMode && (
               <button
                 type="button"
                 onClick={(e) => {
