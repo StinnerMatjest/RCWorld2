@@ -53,7 +53,8 @@ const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters })
         <strong className="font-semibold text-gray-900 dark:text-white"></strong>{" "}
         {parkName ? (
           <Link
-            href={`/coasterratings?q=park:${encodeURIComponent(parkName)}`}
+            // FIX: Removed "park:" prefix so search works directly
+            href={`/coasterratings?q=${encodeURIComponent(parkName)}`}
             className="underline hover:text-blue-600"
           >
             {parkName}
@@ -68,7 +69,8 @@ const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters })
       <p className="text-gray-700 dark:text-gray-400">
         <strong className="font-semibold text-gray-900 dark:text-white"></strong>{" "}
         <Link
-          href={`/coasterratings?q=manufacturer:${encodeURIComponent(coaster.manufacturer)}`}
+          // FIX: Removed "manufacturer:" prefix so search works directly
+          href={`/coasterratings?q=${encodeURIComponent(coaster.manufacturer)}`}
           className="underline hover:text-blue-600"
         >
           {coaster.manufacturer}

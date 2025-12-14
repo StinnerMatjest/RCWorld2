@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { getRatingColor } from "@/app/utils/design";
 import { useSearch } from "@/app/context/SearchContext";
 
@@ -86,7 +87,8 @@ const COL_MIN_W_MOBILE: Record<ColumnKey, number> = {
   year: 80,
 };
 
-export default function CoasterRatingsPage() {
+// ——— Inner Component (Contains Logic) ———
+function CoasterRatingsContent() {
   const [coasters, setCoasters] = useState<Coaster[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -97,6 +99,17 @@ export default function CoasterRatingsPage() {
   const searchCtx = useSearch() as { query: string; setQuery?: (q: string) => void };
   const query = (searchCtx?.query ?? "").trim();
   const setQuery = searchCtx?.setQuery;
+  
+  // FIX: Read URL params safely
+  const searchParams = useSearchParams();
+
+  // FIX: Effect to populate search from URL
+  useEffect(() => {
+    const urlQuery = searchParams.get("q");
+    if (urlQuery && setQuery) {
+      setQuery(urlQuery);
+    }
+  }, [searchParams, setQuery]);
 
   // ——— Data fetch ———
   useEffect(() => {
@@ -235,7 +248,7 @@ export default function CoasterRatingsPage() {
         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-500 to-fuchsia-500">
           ParkRating's Coaster Library
         </h1>
-       <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-300">
+        <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-300">
         Explore every coaster we’ve ridden with detailed ratings, ride counts, and insights, <br />
         including average scores by park and manufacturer.
 </p>
@@ -608,6 +621,15 @@ export default function CoasterRatingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ——— WRAPPER EXPORT FOR RAILWAY BUILD ———
+export default function CoasterRatingsPage() {
+  return (
+    <Suspense fallback={<p className="p-10 text-center">Loading search...</p>}>
+      <CoasterRatingsContent />
+    </Suspense>
   );
 }
 
