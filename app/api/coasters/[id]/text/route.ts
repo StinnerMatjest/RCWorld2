@@ -37,9 +37,12 @@ export async function GET(
 }
 
 // POST & UPDATE
-export async function POST(req: Request, context: { params: { id: string } }) {
-    const { id } = context.params;
-    const coasterId = Number(id);
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
+  const coasterId = Number(id);
 
     try {
         const body = await req.json();
