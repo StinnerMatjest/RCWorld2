@@ -49,15 +49,19 @@ export default function CoastlePage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const isGameActive = guesses.length > 0 && gameState === 'playing';
+  const isGameActive = guesses.length > 0 && gameState === "playing";
   const showMenu = !isGameActive && !isFocused;
 
   // Header Animation
   useEffect(() => {
     const shouldHideHeader = !showMenu;
-    window.dispatchEvent(new CustomEvent('toggle-header', { detail: { visible: !shouldHideHeader } }));
+    window.dispatchEvent(
+      new CustomEvent("toggle-header", { detail: { visible: !shouldHideHeader } })
+    );
     return () => {
-      window.dispatchEvent(new CustomEvent('toggle-header', { detail: { visible: true } }));
+      window.dispatchEvent(
+        new CustomEvent("toggle-header", { detail: { visible: true } })
+      );
     };
   }, [showMenu]);
 
@@ -67,7 +71,8 @@ export default function CoastlePage() {
       try {
         const res = await fetch("/api/coasters");
         const data = await res.json();
-        if (!data || !Array.isArray(data.coasters)) throw new Error("Unexpected data format");
+        if (!data || !Array.isArray(data.coasters))
+          throw new Error("Unexpected data format");
 
         const mapped: CoastleCoaster[] = (data.coasters as ApiCoaster[])
           .map(mapApiToCoastle)
@@ -86,7 +91,7 @@ export default function CoastlePage() {
         // Daily Mode Logic (Default)
         if (mapped.length > 0) {
           const today = getTodayString();
-          const savedDaily = localStorage.getItem('coastle-daily-state');
+          const savedDaily = localStorage.getItem("coastle-daily-state");
           let restored = false;
 
           if (savedDaily) {
@@ -98,7 +103,7 @@ export default function CoastlePage() {
                 setGameState(parsed.status);
                 restored = true;
               }
-            } catch (e) { }
+            } catch (e) {}
           }
 
           if (!restored) {
@@ -119,7 +124,9 @@ export default function CoastlePage() {
 
     const saved = localStorage.getItem("coastle-stats");
     if (saved) {
-      try { setStats(JSON.parse(saved)); } catch (e) { }
+      try {
+        setStats(JSON.parse(saved));
+      } catch (e) {}
     }
   }, []);
 
@@ -133,9 +140,9 @@ export default function CoastlePage() {
     setIsFocused(false);
     setActiveIndex(-1);
 
-    if (mode === 'daily') {
+    if (mode === "daily") {
       const today = getTodayString();
-      const savedDaily = localStorage.getItem('coastle-daily-state');
+      const savedDaily = localStorage.getItem("coastle-daily-state");
       let restored = false;
 
       if (savedDaily && allCoasters.length > 0) {
@@ -164,10 +171,9 @@ export default function CoastlePage() {
     }
   }
 
-
   // Fuzzy Search
   const fuse = useMemo(() => {
-    const searchableCoasters = allCoasters.map(c => ({
+    const searchableCoasters = allCoasters.map((c) => ({
       ...c,
       cleanName: c.name
         .normalize("NFD")
@@ -185,7 +191,7 @@ export default function CoastlePage() {
   const suggestions = useMemo(() => {
     if (!input.trim() || !allCoasters.length) return [];
     const results = fuse.search(input.trim());
-    return results.map(r => r.item).slice(0, 50);
+    return results.map((r) => r.item).slice(0, 50);
   }, [input, fuse, allCoasters]);
 
   useEffect(() => setActiveIndex(-1), [input]);
@@ -206,8 +212,9 @@ export default function CoastlePage() {
     setIsFocused(false);
     setActiveIndex(-1);
 
-    if (gameMode === 'endless' && allCoasters.length > 0) {
-      const random = allCoasters[Math.floor(Math.random() * allCoasters.length)];
+    if (gameMode === "endless" && allCoasters.length > 0) {
+      const random =
+        allCoasters[Math.floor(Math.random() * allCoasters.length)];
       setAnswer(random);
     }
   }
@@ -237,8 +244,8 @@ export default function CoastlePage() {
         rating: getMatchStatus(coaster.rating, answer.rating),
         year: getMatchStatus(coaster.year, answer.year),
         country: getMatchStatus(coaster.countryName, answer.countryName),
-        rideCount: getMatchStatus(coaster.rideCount, answer.rideCount),
-      },
+        rideCount: getMatchStatus(coaster.rideCount, answer.rideCount)
+      }
     };
 
     const nextGuesses = [...guesses, guess];
@@ -263,7 +270,10 @@ export default function CoastlePage() {
       if (newStatus === "won") {
         nextStats.won += 1;
         nextStats.currentStreak += 1;
-        nextStats.maxStreak = Math.max(nextStats.currentStreak, nextStats.maxStreak);
+        nextStats.maxStreak = Math.max(
+          nextStats.currentStreak,
+          nextStats.maxStreak
+        );
         nextStats.guessDistribution[nextGuesses.length - 1] += 1;
       } else {
         nextStats.currentStreak = 0;
@@ -275,38 +285,54 @@ export default function CoastlePage() {
       setTimeout(() => setShowModal(true), 1500);
     }
 
-    if (gameMode === 'daily') {
+    if (gameMode === "daily") {
       const stateToSave = {
         date: getTodayString(),
         guesses: nextGuesses,
         status: newStatus
       };
-      localStorage.setItem('coastle-daily-state', JSON.stringify(stateToSave));
+      localStorage.setItem("coastle-daily-state", JSON.stringify(stateToSave));
     }
   }
 
-  async function handleShare() {
+  // Build the formatted result text used by both share + copy
+  function buildShareText() {
     // 1. ALIGNMENT & GRID
     const headers = "Rat\u2003Mfr\u2003Prk\u2003Cty\u2003Cnt\u2003Yr";
 
-    const grid = guesses.map(g => {
-      const m = g.matches;
-      const row = [m.rating, m.manufacturer, m.park, m.country, m.rideCount, m.year];
-      const emojiStr = row.map(status => status === 'correct' ? '🟩' : '🟥').join('\u2003\u200A');
+    const grid = guesses
+      .map((g) => {
+        const m = g.matches;
+        const row = [
+          m.rating,
+          m.manufacturer,
+          m.park,
+          m.country,
+          m.rideCount,
+          m.year
+        ];
+        const emojiStr = row
+          .map((status) => (status === "correct" ? "🟩" : "🟥"))
+          .join("\u2003\u200A");
 
-      const name = g.coaster.name;
-      const targetVisualLen = 22;
-      const needed = Math.max(0, Math.ceil((targetVisualLen - name.length) / 1.7));
-      const paddedName = name + "\u3000".repeat(needed);
+        const name = g.coaster.name;
+        const targetVisualLen = 22;
+        const needed = Math.max(
+          0,
+          Math.ceil((targetVisualLen - name.length) / 1.7)
+        );
+        const paddedName = name + "\u3000".repeat(needed);
 
-      return `${emojiStr}\u2003||${paddedName}||`;
-    }).join('\n');
+        return `${emojiStr}\u2003||${paddedName}||`;
+      })
+      .join("\n");
 
     // 2. SIMPLIFIED TEXT
-    const title = gameMode === 'daily' ? '**Daily Coastle**' : '**Endless Coastle**';
+    const title =
+      gameMode === "daily" ? "**Daily Coastle**" : "**Endless Coastle**";
 
     let status = "";
-    if (gameState === 'won') {
+    if (gameState === "won") {
       status = `I completed it in ${guesses.length} guesses.`;
     } else {
       status = "I did not complete it.";
@@ -315,18 +341,22 @@ export default function CoastlePage() {
     // 3. NO PREVIEW LINK
     let footer = "\n\nPlay at <https://parkrating.com/coastle>";
 
-    if (gameState === 'lost') {
+    if (gameState === "lost") {
       const ansName = answer?.name || "";
       const needed = Math.max(0, Math.ceil((22 - ansName.length) / 1.7));
       const paddedAns = ansName + "\u3000".repeat(needed);
       footer = `\nAnswer: ||${paddedAns}||${footer}`;
     }
 
-    const text = `${title}\n${status}\n\n${headers}\n${grid}${footer}`;
+    return `${title}\n${status}\n\n${headers}\n${grid}${footer}`;
+  }
+
+  async function handleShare() {
+    const text = buildShareText();
 
     try {
-      if (navigator.share) {
-        await navigator.share({ title: 'Coastle Results', text: text });
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share({ title: "Coastle Results", text });
       } else {
         throw new Error("Web Share not supported");
       }
@@ -337,10 +367,27 @@ export default function CoastlePage() {
     }
   }
 
+  async function handleCopy() {
+    const text = buildShareText();
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        showToast("copied");
+      } else {
+        throw new Error("Clipboard API not supported");
+      }
+    } catch (err) {
+      const success = await legacyCopy(text);
+      if (success) showToast("copied");
+      else showToast("Failed to copy");
+    }
+  }
+
   function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault();
     if (gameState !== "playing") {
-      if (gameMode === 'endless') resetGame();
+      if (gameMode === "endless") resetGame();
       return;
     }
 
@@ -352,7 +399,8 @@ export default function CoastlePage() {
     if (!input.trim() || !allCoasters.length) return;
 
     const q = input.trim().toLowerCase();
-    const exact = allCoasters.find((c) => c.name.toLowerCase() === q) ?? suggestions[0];
+    const exact =
+      allCoasters.find((c) => c.name.toLowerCase() === q) ?? suggestions[0];
 
     if (!exact) {
       showToast("Coaster not found in your ratings");
@@ -365,7 +413,9 @@ export default function CoastlePage() {
     if (!suggestions.length) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActiveIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : prev));
+      setActiveIndex((prev) =>
+        prev < suggestions.length - 1 ? prev + 1 : prev
+      );
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActiveIndex((prev) => (prev > 0 ? prev - 1 : -1));
@@ -386,17 +436,20 @@ export default function CoastlePage() {
   const handleInputFocus = () => {
     setIsFocused(true);
     setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }, 100);
   };
 
   if (!loading && (error || !answer)) {
-    return <div className="text-red-500 p-10 text-center font-bold">Failed to load game: {error || "No data"}</div>;
+    return (
+      <div className="text-red-500 p-10 text-center font-bold">
+        Failed to load game: {error || "No data"}
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-200 dark:from-neutral-950 dark:to-neutral-900 p-2 sm:p-6 flex flex-col items-center overflow-x-hidden">
-
       <style>{`
         @keyframes revealUp {
           0% { opacity: 0; transform: translateY(10px) scale(0.99); }
@@ -434,7 +487,11 @@ export default function CoastlePage() {
       )}
 
       {/* Header Container */}
-      <div className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${showMenu ? 'max-h-[200px] opacity-100' : 'max-h-0 opacity-0'} md:max-h-none md:opacity-100`}>
+      <div
+        className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${
+          showMenu ? "max-h-[200px] opacity-100" : "max-h-0 opacity-0"
+        } md:max-h-none md:opacity-100`}
+      >
         <header className="mb-2 text-center mt-2 space-y-2 px-4 animate-reveal">
           <h1 className="text-4xl sm:text-6xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 drop-shadow-sm italic transform -skew-x-6 pr-4">
             COASTLE
@@ -447,9 +504,9 @@ export default function CoastlePage() {
         {/* Tabs */}
         <div className="w-full max-w-sm grid grid-cols-3 gap-1 bg-slate-200 dark:bg-neutral-800 p-1 rounded-xl mb-4 mx-auto animate-reveal">
           {[
-            { id: 'play', label: 'Play', icon: PlayIcon },
-            { id: 'howto', label: 'How To', icon: BookOpenIcon },
-            { id: 'leaderboard', label: 'Stats', icon: ChartBarIcon }
+            { id: "play", label: "Play", icon: PlayIcon },
+            { id: "howto", label: "How To", icon: BookOpenIcon },
+            { id: "leaderboard", label: "Stats", icon: ChartBarIcon }
           ].map((tab) => {
             const isActive = activeTab === tab.id;
             const Icon = tab.icon;
@@ -457,32 +514,69 @@ export default function CoastlePage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex flex-col items-center justify-center py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${isActive ? 'bg-white dark:bg-neutral-700 text-blue-600 dark:text-blue-400 shadow-sm scale-100' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-300/50 dark:hover:bg-neutral-700/50 hover:scale-95'}`}
+                className={`flex flex-col items-center justify-center py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${
+                  isActive
+                    ? "bg-white dark:bg-neutral-700 text-blue-600 dark:text-blue-400 shadow-sm scale-100"
+                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-300/50 dark:hover:bg-neutral-700/50 hover:scale-95"
+                }`}
               >
                 <Icon className="w-5 h-5 mb-0.5" />
                 {tab.label}
               </button>
-            )
+            );
           })}
         </div>
       </div>
 
       {/* Main Content Area */}
-      {activeTab === 'play' && (
-        <div key="play-tab" className="w-full max-w-[1400px] flex flex-col items-center gap-4 sm:gap-6 animate-reveal">
-
+      {activeTab === "play" && (
+        <div
+          key="play-tab"
+          className="w-full max-w-[1400px] flex flex-col items-center gap-4 sm:gap-6 animate-reveal"
+        >
           {/* Mode Switcher */}
-          <div className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${showMenu ? 'max-h-[50px] opacity-100 mb-0' : 'max-h-0 opacity-0 mb-0'} md:max-h-none md:opacity-100 md:mb-0`}>
+          <div
+            className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${
+              showMenu
+                ? "max-h-[50px] opacity-100 mb-0"
+                : "max-h-0 opacity-0 mb-0"
+            } md:max-h-none md:opacity-100 md:mb-0`}
+          >
             <div className="bg-slate-200 dark:bg-neutral-800 p-1 rounded-full flex gap-1 relative z-10 items-center mx-auto w-fit">
-              <button onClick={() => switchMode('daily')} className={`px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${gameMode === 'daily' ? 'bg-white dark:bg-neutral-700 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Daily</button>
-              <button onClick={() => switchMode('endless')} className={`px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${gameMode === 'endless' ? 'bg-white dark:bg-neutral-700 text-fuchsia-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Endless</button>
+              <button
+                onClick={() => switchMode("daily")}
+                className={`px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  gameMode === "daily"
+                    ? "bg-white dark:bg-neutral-700 text-blue-600 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Daily
+              </button>
+              <button
+                onClick={() => switchMode("endless")}
+                className={`px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  gameMode === "endless"
+                    ? "bg-white dark:bg-neutral-700 text-fuchsia-600 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Endless
+              </button>
             </div>
           </div>
 
           {/* Sticky Search Bar */}
-          <div ref={containerRef} className={`w-full max-w-xl sticky top-0 z-40 py-2 px-2 sm:px-0 transition-all flex items-center gap-2 ${!showMenu ? 'bg-white dark:bg-neutral-950 md:bg-transparent' : ''}`}>
-            {gameMode === 'daily' && gameState !== 'playing' ? (
-              <div className="w-full"><Countdown /></div>
+          <div
+            ref={containerRef}
+            className={`w-full max-w-xl sticky top-0 z-40 py-2 px-2 sm:px-0 transition-all flex items-center gap-2 ${
+              !showMenu ? "bg-white dark:bg-neutral-950 md:bg-transparent" : ""
+            }`}
+          >
+            {gameMode === "daily" && gameState !== "playing" ? (
+              <div className="w-full">
+                <Countdown />
+              </div>
             ) : (
               <form onSubmit={handleSubmit} className="relative group w-full">
                 <div className="absolute -inset-[1.5px] rounded-2xl bg-gradient-to-r from-blue-500 via-cyan-400 to-fuchsia-500 opacity-40 blur-sm group-focus-within:opacity-70 transition duration-500" />
@@ -496,16 +590,29 @@ export default function CoastlePage() {
                       onKeyDown={handleKeyDown}
                       onFocus={handleInputFocus}
                       disabled={gameState !== "playing"}
-                      placeholder={gameState === "playing" ? "Search coaster..." : "Game Over"}
+                      placeholder={
+                        gameState === "playing" ? "Search coaster..." : "Game Over"
+                      }
                       className="w-full bg-transparent outline-none text-base sm:text-lg font-medium placeholder:text-gray-400 text-slate-900 dark:text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <button
                       type={gameState === "playing" ? "submit" : "button"}
                       onClick={gameState !== "playing" ? resetGame : undefined}
                       disabled={gameState === "playing" && !input.trim()}
-                      className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wide transition border border-transparent shadow-sm flex items-center gap-2 cursor-pointer ${gameState !== 'playing' ? 'bg-blue-600 text-white hover:bg-blue-700 w-auto whitespace-nowrap' : 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:opacity-80 disabled:opacity-30'}`}
+                      className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wide transition border border-transparent shadow-sm flex items-center gap-2 cursor-pointer ${
+                        gameState !== "playing"
+                          ? "bg-blue-600 text-white hover:bg-blue-700 w-auto whitespace-nowrap"
+                          : "bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:opacity-80 disabled:opacity-30"
+                      }`}
                     >
-                      {gameState === "playing" ? "Guess" : <><ArrowPathIcon className="w-4 h-4" />Play Again</>}
+                      {gameState === "playing" ? (
+                        "Guess"
+                      ) : (
+                        <>
+                          <ArrowPathIcon className="w-4 h-4" />
+                          Play Again
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -513,7 +620,11 @@ export default function CoastlePage() {
             )}
 
             {!showMenu && (
-              <button onClick={handleExitOrReset} className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300 dark:bg-neutral-800 dark:text-slate-400 dark:hover:bg-neutral-700 transition-all shadow-sm md:hidden" title="Exit Game / Show Menu">
+              <button
+                onClick={handleExitOrReset}
+                className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300 dark:bg-neutral-800 dark:text-slate-400 dark:hover:bg-neutral-700 transition-all shadow-sm md:hidden"
+                title="Exit Game / Show Menu"
+              >
                 <XMarkIcon className="w-5 h-5" />
               </button>
             )}
@@ -524,16 +635,30 @@ export default function CoastlePage() {
                   <button
                     key={s.id}
                     onClick={() => handleGuess(s)}
-                    className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors border-b border-slate-100 dark:border-neutral-800 last:border-0 group cursor-pointer ${index === activeIndex ? "bg-slate-100 dark:bg-neutral-800" : "hover:bg-slate-50 dark:hover:bg-neutral-800"}`}
+                    className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors border-b border-slate-100 dark:border-neutral-800 last:border-0 group cursor-pointer ${
+                      index === activeIndex
+                        ? "bg-slate-100 dark:bg-neutral-800"
+                        : "hover:bg-slate-50 dark:hover:bg-neutral-800"
+                    }`}
                   >
                     {s.countryName && (
                       <div className="relative w-8 h-5 shadow-sm rounded-sm overflow-hidden shrink-0 group-hover:scale-110 transition">
-                        <Image src={getParkFlag(s.countryName)} alt="flag" fill className="object-cover" unoptimized />
+                        <Image
+                          src={getParkFlag(s.countryName)}
+                          alt="flag"
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
                       </div>
                     )}
                     <div>
-                      <div className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100">{s.name}</div>
-                      <div className="text-xs text-slate-400 font-medium">{s.park}</div>
+                      <div className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100">
+                        {s.name}
+                      </div>
+                      <div className="text-xs text-slate-400 font-medium">
+                        {s.park}
+                      </div>
                     </div>
                   </button>
                 ))}
@@ -546,7 +671,9 @@ export default function CoastlePage() {
             <table className="w-full table-fixed border-separate border-spacing-x-1 sm:border-spacing-x-2 sm:border-spacing-y-2">
               <thead>
                 <tr className="text-[9px] sm:text-xs uppercase tracking-widest text-slate-400 font-bold">
-                  <th className="hidden md:table-cell pb-2 text-center w-[200px]">Coaster</th>
+                  <th className="hidden md:table-cell pb-2 text-center w-[200px]">
+                    Coaster
+                  </th>
                   <th className="pb-2 text-center">Rating</th>
                   <th className="pb-2 text-center">
                     <span className="md:hidden">Mfr</span>
@@ -562,14 +689,16 @@ export default function CoastlePage() {
                 {guesses.map((g, idx) => (
                   <GuessRow key={idx} guess={g} answer={answer} />
                 ))}
-                {Array.from({ length: Math.max(0, MAX_GUESSES - guesses.length) }).map((_, i) => (
+                {Array.from({
+                  length: Math.max(0, MAX_GUESSES - guesses.length)
+                }).map((_, i) => (
                   <tr key={`empty-${i}`} className="opacity-30">
                     <td className="hidden md:table-cell p-2 text-center align-middle">
                       <div className="h-16 w-full bg-slate-300 dark:bg-neutral-800 rounded-lg animate-pulse" />
                     </td>
                     {Array.from({ length: 6 }).map((_, cIdx) => (
                       <td key={cIdx} className="p-0.5 sm:p-2 align-middle">
-                        <div className={`h-12 sm:h-16 w-full rounded-lg border-2 border-dashed border-slate-300 dark:border-neutral-700`} />
+                        <div className="h-12 sm:h-16 w-full rounded-lg border-2 border-dashed border-slate-300 dark:border-neutral-700" />
                       </td>
                     ))}
                   </tr>
@@ -581,9 +710,17 @@ export default function CoastlePage() {
           {/* Mobile List */}
           <div className="w-full px-4 mb-2 md:hidden flex flex-col items-center">
             {guesses.map((g, i) => (
-              <div key={i} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 animate-reveal" style={{ animationDelay: `${i * 100}ms` }}>
-                <span className="text-slate-400 font-mono text-xs w-4">{i + 1}.</span>
-                <span className="font-bold truncate max-w-[250px]">{g.coaster.name}</span>
+              <div
+                key={i}
+                className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 animate-reveal"
+                style={{ animationDelay: `${i * 100}ms` }}
+              >
+                <span className="text-slate-400 font-mono text-xs w-4">
+                  {i + 1}.
+                </span>
+                <span className="font-bold truncate max-w-[250px]">
+                  {g.coaster.name}
+                </span>
               </div>
             ))}
           </div>
@@ -591,14 +728,10 @@ export default function CoastlePage() {
       )}
 
       {/* Tabs Content */}
-      {activeTab === 'howto' && <HowTo />}
+      {activeTab === "howto" && <HowTo />}
 
-      {activeTab === 'leaderboard' && (
-        <Leaderboard
-          stats={stats}
-          gameState={gameState}
-          onShare={handleShare}
-        />
+      {activeTab === "leaderboard" && (
+        <Leaderboard stats={stats} gameState={gameState} onShare={handleShare} />
       )}
 
       {/* Result Modal */}
@@ -609,10 +742,10 @@ export default function CoastlePage() {
         gameMode={gameMode}
         onClose={() => setShowModal(false)}
         onShare={handleShare}
+        onCopy={handleCopy}
         onReset={resetGame}
-        onShowStats={() => setActiveTab('leaderboard')}
+        onShowStats={() => setActiveTab("leaderboard")}
       />
-
     </div>
   );
 }

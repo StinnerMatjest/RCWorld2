@@ -42,12 +42,6 @@ const CoasterList: React.FC<CoasterListProps> = ({
   onAdd,
 }) => {
   const { isAdminMode } = useAdminMode();
-  const [showEdit, setShowEdit] = React.useState(false);
-
-  /** Automatically disable edit mode when leaving admin mode */
-  React.useEffect(() => {
-    if (!isAdminMode) setShowEdit(false);
-  }, [isAdminMode]);
 
   /** Sorting */
   const sorted = React.useMemo(() => {
@@ -73,7 +67,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
   const optionalCoasters = sorted.filter((c) => isOptionalByScale(c.scale));
 
   /** One row */
-  const Row: React.FC<{ c: RollerCoaster }> = ({ c }) => {
+  const Row: React.FC<{ c: RollerCoaster; showRating?: boolean }> = ({ c, showRating = true }) => {
     const [open, setOpen] = React.useState(false);
     const r = getRating(c.rating);
     const ratingClass = getRatingColor(r ?? "");
@@ -83,18 +77,8 @@ const CoasterList: React.FC<CoasterListProps> = ({
 
     return (
       <motion.li layout className="transition-colors duration-200">
-        {/* Row grid */}
-        <div
-          className="
-            grid
-            grid-cols-[minmax(0,1.1fr)_3.9rem_minmax(0,1fr)_auto]
-            md:grid-cols-[minmax(0,1fr)_5.5rem_minmax(0,1fr)_auto]
-            items-center gap-1.5 md:gap-2
-            py-2 md:py-0.5
-            text-[16px] md:text-[18px]
-            md:hover:bg-gray-50 dark:md:hover:bg-white/5 transition-colors
-          "
-        >
+        <div className="grid grid-cols-[minmax(0,1.1fr)_3.9rem_minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_5.5rem_minmax(0,1fr)_auto] items-center gap-1.5 md:gap-2 py-2 md:py-0.5 text-[16px] md:text-[18px] md:hover:bg-gray-50 dark:md:hover:bg-white/5 transition-colors">
+
           {/* Name */}
           <div className="min-w-0 flex items-center gap-2 cursor-pointer">
             <Link
@@ -112,29 +96,16 @@ const CoasterList: React.FC<CoasterListProps> = ({
           </div>
 
           {/* Year */}
-          <div
-            className="
-              tabular-nums text-gray-800 dark:text-gray-200
-              text-left cursor-pointer pl-1 md:pl-0
-              text-[15px] md:text-[17px]
-            "
-            onClick={toggleOpen}
-          >
+          <div className="tabular-nums text-gray-800 dark:text-gray-200 text-left cursor-pointer pl-1 md:pl-0 text-[15px] md:text-[17px]" onClick={toggleOpen}>
             {c.year ?? "—"}
           </div>
 
           {/* Manufacturer */}
-          <div
-            className="
-              text-gray-700 dark:text-gray-300 truncate cursor-pointer text-left
-              text-[15px] md:text-[17px]
-            "
-            onClick={toggleOpen}
-          >
+          <div className="text-gray-700 dark:text-gray-300 truncate cursor-pointer text-left text-[15px] md:text-[17px]" onClick={toggleOpen}>
             {c.manufacturer ?? "—"}
           </div>
 
-          {/* Rating + actions */}
+          {/* Ratings */}
           <div className="shrink-0 flex items-center justify-end gap-2">
             <span
               className={`inline-block w-12 text-right font-semibold tabular-nums ${ratingClass}`}
@@ -163,13 +134,21 @@ const CoasterList: React.FC<CoasterListProps> = ({
             {isAdminMode && showEdit && (
               <button
                 type="button"
-                onClick={() => onEdit(c)}
-                className="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100 text-[15px] cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(c);
+                }}
+                className="p-1 rounded text-gray-500 hover:text-gray-800 hover:bg-gray-200
+               dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10
+               text-[15px] cursor-pointer"
+                aria-label={`Edit ${c.name}`}
+                title="Edit coaster"
               >
                 🔧
               </button>
             )}
           </div>
+
         </div>
 
         {/* Expanded details */}
@@ -186,21 +165,15 @@ const CoasterList: React.FC<CoasterListProps> = ({
               <div className="mt-1 rounded-lg bg-gray-100 dark:bg-white/5">
                 <div className="border-t border-gray-100 dark:border-white/10 pt-2 pb-2 px-2 text-sm md:text-base text-gray-700 dark:text-gray-300 grid grid-cols-1 gap-y-1">
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">
-                      Type:{" "}
-                    </span>
+                    <span className="text-gray-500 dark:text-gray-400">Type: </span>
                     <span>{c.model ?? "—"}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">
-                      Scale:{" "}
-                    </span>
+                    <span className="text-gray-500 dark:text-gray-400">Scale: </span>
                     <span>{c.scale ?? "—"}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">
-                      Ride count:{" "}
-                    </span>
+                    <span className="text-gray-500 dark:text-gray-400">Ride count: </span>
                     <span className="tabular-nums">{c.ridecount ?? 0}</span>
                   </div>
                 </div>
@@ -225,17 +198,6 @@ const CoasterList: React.FC<CoasterListProps> = ({
         {/* Admin-only top buttons */}
         {isAdminMode && (
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowEdit((v) => !v)}
-              className={`px-3 py-1.5 rounded border text-sm md:text-base transition cursor-pointer ${showEdit
-                  ? "border-gray-400 bg-gray-100 dark:border-white/20 dark:bg-white/10"
-                  : "border-gray-300 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
-                }`}
-            >
-              {showEdit ? "Done" : "Edit"}
-            </button>
-
             <button
               type="button"
               onClick={onAdd}
@@ -264,7 +226,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
           {mainCoasters.length ? (
             <ul className="divide-y divide-gray-300 dark:divide-white/10">
               {mainCoasters.map((c) => (
-                <Row key={c.id} c={c} />
+                <Row key={c.id} c={c} showRating={true} />
               ))}
             </ul>
           ) : null}
@@ -279,13 +241,11 @@ const CoasterList: React.FC<CoasterListProps> = ({
           {optionalCoasters.length ? (
             <ul className="divide-y divide-gray-300 dark:divide-white/10">
               {optionalCoasters.map((c) => (
-                <Row key={c.id} c={c} />
+                <Row key={c.id} c={c} showRating={false} />
               ))}
             </ul>
           ) : (
-            <p className="text-base text-gray-600 dark:text-gray-400">
-              No other coasters found.
-            </p>
+            <p className="text-base text-gray-600 dark:text-gray-400">No other coasters found.</p>
           )}
         </>
       )}
