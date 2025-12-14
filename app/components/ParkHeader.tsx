@@ -25,7 +25,7 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park }) => {
         src={park.imagepath}
         alt={park.name}
         fill
-        className={`object-cover transition-all duration-750 group-hover:scale-103 ${
+        className={`object-cover transition-all duration-750 group-hover:scale-101 ${
           imageLoaded ? "opacity-100 blur-0" : "opacity-0 blur-lg"
         }`}
         priority

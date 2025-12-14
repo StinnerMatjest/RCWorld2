@@ -236,7 +236,14 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
               className="cursor-pointer overflow-hidden rounded-lg hover:scale-105 transition-transform duration-300"
             >
               {isVideo(img.path) ? (
-                <video src={img.path} muted loop playsInline preload="metadata" className="rounded-lg object-cover h-40 w-full bg-black" />
+                <video 
+                    src={img.path} 
+                    muted 
+                    autoPlay 
+                    loop 
+                    playsInline 
+                    className="rounded-lg object-cover h-40 w-full bg-black" 
+                />
               ) : (
                 <Image src={img.path} alt={img.title || "Gallery"} width={400} height={300} className="rounded-lg object-cover h-40 w-full" unoptimized />
               )}
@@ -312,6 +319,7 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
                     controls
                     autoPlay
                     muted
+                    loop
                     preload="metadata"
                     className="w-auto h-auto max-w-full max-h-[80vh] object-contain cursor-pointer shadow-2xl rounded-sm"
                   />
