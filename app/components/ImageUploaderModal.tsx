@@ -4,7 +4,7 @@ import React, { useState } from "react";
 
 type ImageUploaderModalProps = {
   parkId: number;
-  parkName: string; // Add this so we can build the backend title
+  parkName: string;
   onClose: () => void;
   onUploadSuccess?: () => void;
 };
@@ -33,6 +33,7 @@ export default function ImageUploaderModal({
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("title", `${parkName} - ${description}`);
 
       // Upload to R2
       const r2Response = await fetch("/api/upload", { method: "POST", body: formData });
@@ -40,6 +41,7 @@ export default function ImageUploaderModal({
 
       const r2Result = await r2Response.json();
       const imagePath = r2Result.imagePath;
+      const title = `${parkName} - ${description}`;
 
       // Build backend title automatically
       const backendTitle = `${parkName} - ${description || "untitled"}${isHeader ? " - HEADER" : ""}`;
@@ -92,7 +94,7 @@ export default function ImageUploaderModal({
             </label>
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,video/*"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               className="block w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-2
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white

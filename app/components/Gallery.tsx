@@ -4,6 +4,11 @@ import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import ImageUploaderModal from "@/app/components/ImageUploaderModal";
 import { useAdminMode } from "../context/AdminModeContext";
+import { 
+  TransformWrapper, 
+  TransformComponent, 
+  ReactZoomPanPinchRef 
+} from "react-zoom-pan-pinch";
 
 interface GalleryProps {
   parkId: number;
@@ -18,17 +23,27 @@ type GalleryImage = {
   description: string;
 };
 
+function isVideo(path: string) {
+  const videoExtensions = [".mp4", ".webm", ".ogg"];
+  return videoExtensions.some((ext) => path.toLowerCase().endsWith(ext)); 
+}
+
 /** STABLE SWIPE HOOK */
 function useSwipe(
   onSwipeLeft: () => void,
   onSwipeRight: () => void,
-  opts?: { threshold?: number; verticalRestraint?: number }
+  opts?: { threshold?: number; verticalRestraint?: number },
+  shouldAllowSwipe?: () => boolean 
 ) {
   const { threshold = 55, verticalRestraint = 120 } = opts || {};
   const start = useRef<{ x: number; y: number } | null>(null);
   const moved = useRef(false);
 
   const onPointerDown = (e: React.PointerEvent) => {
+    if (shouldAllowSwipe && !shouldAllowSwipe()) {
+      start.current = null;
+      return;
+    }
     start.current = { x: e.clientX, y: e.clientY };
     moved.current = false;
   };
@@ -73,11 +88,14 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
   const [loading, setLoading] = useState(true);
   const [direction, setDirection] = useState<"left" | "right" | null>(null);
 
+  // STATE: Track zoom to disable/enable panning props
+  const [isZoomed, setIsZoomed] = useState(false);
+  
+  // REF: To control zoom programmatically (Reset button)
+  const transformRef = useRef<ReactZoomPanPinchRef>(null);
+
   const modalContainerRef = useRef<HTMLDivElement>(null);
-
-  // Helper to detect Desktop vs Mobile
   const isDesktop = () => typeof window !== 'undefined' && window.innerWidth > 768;
-
   const selected = selectedIndex !== null ? images[selectedIndex] : null;
 
   const fetchGalleryImages = async () => {
@@ -95,7 +113,6 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
 
   useEffect(() => { fetchGalleryImages(); }, [parkId]);
 
-  // FULLSCREEN LOGIC (Desktop)
   const toggleFullscreen = () => {
     if (!document || !modalContainerRef.current) return;
     if (!document.fullscreenElement) {
@@ -129,13 +146,17 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
         if (document.fullscreenElement) document.exitFullscreen();
         else setSelectedIndex(null);
       }
-
+      
       if (e.key === "ArrowLeft" && selectedIndex !== null && selectedIndex > 0) goPrev();
       if (e.key === "ArrowRight" && selectedIndex !== null && selectedIndex < images.length - 1) goNext();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedIndex, images.length]);
+
+  useEffect(() => {
+    setIsZoomed(false);
+  }, [selectedIndex]);
 
   const goNext = () => {
     setDirection("right");
@@ -146,7 +167,21 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
     setSelectedIndex((p) => (p !== null && p > 0 ? p - 1 : p));
   };
 
-  const swipe = useSwipe(goNext, goPrev, { threshold: 55, verticalRestraint: 120 });
+  const swipe = useSwipe(goNext, goPrev, { threshold: 55, verticalRestraint: 120 }, () => !isZoomed);
+
+  const handleTransform = (ref: ReactZoomPanPinchRef) => {
+    const scale = ref.state.scale;
+    if (scale > 1.01 && !isZoomed) setIsZoomed(true);
+    if (scale <= 1.01 && isZoomed) setIsZoomed(false);
+  };
+
+  // RESET ZOOM HANDLER
+  const handleResetZoom = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (transformRef.current) {
+      transformRef.current.resetTransform(); // Resets to scale 1
+    }
+  };
 
   const animClass = direction === "right" ? "animate-slide-in-right" : direction === "left" ? "animate-slide-in-left" : "";
   const [scale, setScale] = useState(1);
@@ -200,7 +235,11 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
               onClick={() => { setDirection(null); setSelectedIndex(index); }}
               className="cursor-pointer overflow-hidden rounded-lg hover:scale-105 transition-transform duration-300"
             >
-              <Image src={img.path} alt={img.title || "Gallery"} width={400} height={300} className="rounded-lg object-cover h-40 w-full" unoptimized />
+              {isVideo(img.path) ? (
+                <video src={img.path} muted loop playsInline preload="metadata" className="rounded-lg object-cover h-40 w-full bg-black" />
+              ) : (
+                <Image src={img.path} alt={img.title || "Gallery"} width={400} height={300} className="rounded-lg object-cover h-40 w-full" unoptimized />
+              )}
             </div>
           ))}
         </div>
@@ -220,72 +259,92 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
           }}
         >
           <div
-            className="relative w-full h-full flex flex-col touch-pan-y select-none cursor-grab active:cursor-grabbing"
-            // SWIPE EVENTS
+            className="relative w-full h-full flex flex-col touch-pan-y select-none"
             onPointerDown={swipe.onPointerDown}
             onPointerMove={swipe.onPointerMove}
             onPointerUp={swipe.onPointerUp}
             onPointerCancel={swipe.onPointerCancel}
             onPointerLeave={swipe.onPointerLeave}
-            onClick={(e) => {
-              if (swipe.didDrag()) e.stopPropagation();
-            }}
+            onClick={(e) => { if (swipe.didDrag()) e.stopPropagation(); }}
           >
             {/* CONTROLS */}
             <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-[60] pointer-events-none">
-              {/* Left Side Actions */}
-              <div className="flex gap-2 pointer-events-auto">
-                <a
-                  href={selected.path}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="bg-black/50 hover:bg-black/70 text-white px-3 py-1.5 rounded-full text-xs font-bold transition backdrop-blur-md cursor-pointer"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Original ↗
-                </a>
+              
+              {/* LEFT SIDE: "RESET ZOOM" BUTTON (Only visible when zoomed) */}
+              <div className="pointer-events-auto min-h-[32px] flex items-center">
+                {isZoomed && (
+                  <button
+                    onClick={handleResetZoom}
+                    className="bg-black/50 hover:bg-black/70 text-white px-3 py-1.5 rounded-full text-xs font-bold transition backdrop-blur-md cursor-pointer animate-fadeIn"
+                  >
+                    Reset Zoom
+                  </button>
+                )}
               </div>
 
-              <button
-                onClick={(e) => { e.stopPropagation(); setSelectedIndex(null); }}
-                className="pointer-events-auto text-white/80 hover:text-white text-4xl leading-none font-bold transition cursor-pointer"
-              >
+              {/* RIGHT SIDE: CLOSE BUTTON */}
+              <button onClick={(e) => { e.stopPropagation(); setSelectedIndex(null); }} className="pointer-events-auto text-white/80 hover:text-white text-4xl leading-none font-bold transition cursor-pointer">
                 &times;
               </button>
             </div>
 
             {/* ARROWS */}
             {selectedIndex !== null && selectedIndex > 0 && (
-              <button
-                onClick={(e) => { e.stopPropagation(); goPrev(); }}
-                className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-4xl md:text-6xl z-[60] transition-all p-4 cursor-pointer hidden md:block"
-              >
+              <button onClick={(e) => { e.stopPropagation(); goPrev(); }} className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-4xl md:text-6xl z-[60] transition-all p-4 cursor-pointer hidden md:block">
                 &#8249;
               </button>
             )}
-
             {selectedIndex !== null && selectedIndex < images.length - 1 && (
-              <button
-                onClick={(e) => { e.stopPropagation(); goNext(); }}
-                className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-4xl md:text-6xl z-[60] transition-all p-4 cursor-pointer hidden md:block"
-              >
+              <button onClick={(e) => { e.stopPropagation(); goNext(); }} className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-4xl md:text-6xl z-[60] transition-all p-4 cursor-pointer hidden md:block">
                 &#8250;
               </button>
             )}
 
             {/* IMAGE AREA */}
             <div className="flex-1 flex items-center justify-center w-full h-full overflow-hidden">
-              <div className={`relative transition-all duration-200 ${animClass} w-full h-full flex items-center justify-center p-4`}>
-                <Image
-                  src={selected.path}
-                  alt={selected.title || "Full Image"}
-                  width={1920}
-                  height={1080}
-                  onClick={handleImageClick}
-                  className="w-auto h-auto max-w-full max-h-[80vh] object-contain cursor-pointer shadow-2xl rounded-sm"
-                  unoptimized
-                  draggable={false}
-                />
+              <div 
+                className={`relative transition-all duration-200 ${animClass} w-full h-full flex items-center justify-center`}
+                onClick={(e) => e.stopPropagation()} 
+              >
+                {isVideo(selected.path) ? (
+                  <video
+                    src={selected.path}
+                    controls
+                    autoPlay
+                    muted
+                    preload="metadata"
+                    className="w-auto h-auto max-w-full max-h-[80vh] object-contain cursor-pointer shadow-2xl rounded-sm"
+                  />
+                ) : (
+                  <TransformWrapper
+                    ref={transformRef}
+                    initialScale={1}
+                    minScale={1}
+                    maxScale={8}
+                    centerOnInit={true}
+                    wheel={{ step: 0.5 }}
+                    panning={{ disabled: !isZoomed }}
+                    onTransformed={handleTransform}
+                    doubleClick={{ disabled: false }}
+                  >
+                    <TransformComponent
+                      wrapperStyle={{ width: "100%", height: "100%" }}
+                      contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}
+                    >
+                      <Image
+                        src={selected.path}
+                        alt={selected.title || "Full Image"}
+                        width={1920}
+                        height={1080}
+                        onClick={handleImageClick}
+                        className="w-auto h-auto max-w-full max-h-[80vh] object-contain cursor-pointer shadow-2xl rounded-sm block mx-auto"
+                        unoptimized
+                        draggable={false}
+                        priority
+                      />
+                    </TransformComponent>
+                  </TransformWrapper>
+                )}
               </div>
             </div>
 
@@ -296,13 +355,8 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
                   {selected.description}
                 </p>
               )}
-
               <div className="w-full flex items-center justify-center pb-2" ref={dotsContainerRef}>
-                <div
-                  className="px-2.5 py-1 rounded-full bg-black/40 border border-white/10 backdrop-blur-md"
-                  style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}
-                  onClick={(e) => e.stopPropagation()}
-                >
+                <div className="px-2.5 py-1 rounded-full bg-black/40 border border-white/10 backdrop-blur-md" style={{ transform: `scale(${scale})`, transformOrigin: "center center" }} onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-1.5">
                     {images.map((_, i) => (
                       <button
@@ -320,12 +374,7 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
       )}
 
       {isAdminMode && showModal && (
-        <ImageUploaderModal
-          parkId={parkId}
-          parkName={parkName}
-          onClose={() => setShowModal(false)}
-          onUploadSuccess={fetchGalleryImages}
-        />
+        <ImageUploaderModal parkId={parkId} parkName={parkName} onClose={() => setShowModal(false)} onUploadSuccess={fetchGalleryImages} />
       )}
     </div>
   );
