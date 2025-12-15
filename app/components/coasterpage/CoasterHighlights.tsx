@@ -64,7 +64,7 @@ const CoasterHighlightsPanel: React.FC<CoasterHighlightsPanelProps> = ({ highlig
     if (!highlights || highlights.length === 0) {
         return (
             <div className="text-gray-500 dark:text-gray-500 text-sm italic py-2 border rounded-lg p-4 bg-gray-50 dark:bg-gray-900">
-                No highlights have been added for this coaster yet.
+                No strengths or Weaknesses have been added for this coaster yet.
             </div>
         );
     }
