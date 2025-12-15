@@ -8,6 +8,7 @@ import { getRatingColor } from "@/app/utils/design";
 import CoasterInfo from "@/app/components/coasterpage/CoasterInfo";
 import CoasterRanking, { StatBlock, SkeletonStatBlock } from "@/app/components/coasterpage/CoasterRanking";
 import CoasterSpecsPanel from "@/app/components/coasterpage/CoasterSpecsPanel";
+import CoasterHighlightsPanel from "@/app/components/coasterpage/CoasterHighlights";
 import CoasterGallery from "@/app/components/coasterpage/CoasterGallery";
 import CoasterText from "@/app/components/coasterpage/CoasterText";
 import Image from "next/image";
@@ -223,9 +224,16 @@ const CoasterPage: React.FC = () => {
                     </h4>
                     <CoasterSpecsPanel specs={coaster.specs} />
                 </div>
+                {coaster.highlights && (
+                    <div>
+                        <h4 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4 border-b border-gray-200 dark:border-gray-800 pb-2">
+                            {coaster.name} Strengths/Weaknesses
+                        </h4>
+                        <CoasterHighlightsPanel highlights={coaster.highlights} />
+                    </div>
+                )}
             </div>
           </div>
-
         </div>
 
         <div className="flex justify-center mt-12 md:mt-20 pt-8 md:pt-10 border-t border-gray-200 dark:border-gray-800">

@@ -45,6 +45,7 @@ export interface RollerCoaster {
   rating: number;
   parkId: number;
   specs?: RollerCoasterSpecs | null;
+  highlights?: RollerCoasterHighlights[] | null;
 }
 
 export interface RollerCoasterSpecs {
@@ -59,6 +60,11 @@ export interface RollerCoasterSpecs {
   gforce: number | null;
   duration: number | null;
   notes: string | null;
+}
+
+export interface RollerCoasterHighlights {
+  category: string;
+  severity: string;
 }
 
 
