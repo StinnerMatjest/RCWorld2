@@ -12,42 +12,64 @@ export async function GET(
 ) {
     const { id } = await context.params;
     const coasterId = Number(id);
+    
+    if (isNaN(coasterId) || coasterId <= 0) {
+        return NextResponse.json({ error: "Invalid coaster ID" }, { status: 400 });
+    }
+
     try {
-        const query = `
-      SELECT 
-        rc.id,
-        rc.name,
-        rc.year,
-        rc.manufacturer,
-        rc.model,
-        rc.scale,
-        rc.haveridden,
-        rc.isbestcoaster,
-        rc.rcdbpath,
-        rc.ridecount,
-        rc.rating,
-        rc.park_id,
-        rs.type,
-        rs.classification,
-        rs.length,
-        rs.height,
-        rs.drop,
-        rs.speed,
-        rs.inversions,
-        rs.vertical_angle,
-        rs.gforce,
-        rs.duration_sec AS duration,
-        rs.notes
-      FROM rollercoasters rc
-      LEFT JOIN rollercoasterspecs rs ON rs.coaster_id = rc.id
-      WHERE rc.id = $1
-    `;
+        // Fetch Coaster Details and Specs
+        const coasterQuery = `
+            SELECT 
+                rc.id,
+                rc.name,
+                rc.year,
+                rc.manufacturer,
+                rc.model,
+                rc.scale,
+                rc.haveridden,
+                rc.isbestcoaster,
+                rc.rcdbpath,
+                rc.ridecount,
+                rc.rating,
+                rc.park_id,
+                rs.type,
+                rs.classification,
+                rs.length,
+                rs.height,
+                rs.drop,
+                rs.speed,
+                rs.inversions,
+                rs.vertical_angle,
+                rs.gforce,
+                rs.duration_sec AS duration,
+                rs.notes
+            FROM rollercoasters rc
+            LEFT JOIN rollercoasterspecs rs ON rs.coaster_id = rc.id
+            WHERE rc.id = $1
+        `;
 
-        const result = await pool.query(query, [coasterId]);
-        const row = result.rows[0];
+        const coasterResult = await pool.query(coasterQuery, [coasterId]);
+        const row = coasterResult.rows[0];
 
-        if (!row) return NextResponse.json({ coaster: null }, { status: 404 });
+        if (!row) {
+            return NextResponse.json({ coaster: null }, { status: 404 });
+        }
 
+        // Fetch Coaster Highlights
+        const highlightsQuery = `
+            SELECT 
+                category,
+                severity
+            FROM rollercoasterhighlights
+            WHERE coaster_id = $1
+            ORDER BY severity, id -- Ordering by severity helps group Positives/Negatives
+        `;
+        
+        const highlightsResult = await pool.query(highlightsQuery, [coasterId]);
+        const highlights = highlightsResult.rows;
+
+        // --- Combine Results into Final Object ---
         const coaster = {
             id: row.id,
             name: row.name,
@@ -61,6 +83,10 @@ export async function GET(
             ridecount: row.ridecount,
             rating: row.rating,
             parkId: row.park_id,
+            highlights: highlights.map(h => ({
+                category: h.category,
+                severity: h.severity,
+            })),
             specs: {
                 type: row.type,
                 classification: row.classification,

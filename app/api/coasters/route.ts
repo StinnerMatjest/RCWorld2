@@ -53,7 +53,7 @@ export async function GET() {
       parkId: row.park_id,
       parkName: row.park_name,
       lastVisitDate: row.last_visit_date,
-      specs: null,  // Set this to null for now
+      specs: null,
     }));
 
     return NextResponse.json({ coasters }, { status: 200 });
