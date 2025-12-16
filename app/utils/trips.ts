@@ -63,16 +63,17 @@ export const trips: Trip[] = [
   },
   {
     country: ['Denmark', 'Germany'],
-    parks: ['Legoland','Hansa-Park','Heidepark'],
+    parks: ['Legoland','Hansa-Park','Heidepark','Serengeti-Park' ],
     rcdb: [
       'https://rcdb.com/4903.htm',
       'https://rcdb.com/4873.htm',
       'https://rcdb.com/4874.htm',
+      'https://rcdb.com/4890.htm',
     ],
-    startDate: '2026-09-10',
-    endDate: '2026-09-14',
-    status: 'planned',
-    notes: 'Dates have to be specified, but this is the general plan',
+    startDate: '2026-05-14',
+    endDate: '2026-05-18',
+    status: 'booked',
+    notes: 'Legoland -> Heide -> Serengeti -> Hansa roadtrip',
   },
   {
     country: ['Denmark','Sweden'],
