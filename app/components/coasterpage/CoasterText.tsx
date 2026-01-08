@@ -4,8 +4,6 @@ import React, { useEffect, useState } from "react";
 import { useAdminMode } from "../../context/AdminModeContext";
 import CoasterTextModal from "./CoasterTextModal";
 
-// Removed the import that caused the error
-
 interface CoasterTextEntry {
   id: number;
   coaster_id: number;
@@ -94,7 +92,7 @@ const CoasterText: React.FC<Props> = ({ coasterId }) => {
         <div className="flex justify-end mb-6">
           <button
             onClick={() => setModalOpen(true)}
-            className="px-4 py-2 text-sm font-medium rounded bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-colors"
+            className="px-4 py-2 text-sm font-medium rounded bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-colors cursor-pointer"
           >
             + Add Section
           </button>
@@ -118,7 +116,7 @@ const CoasterText: React.FC<Props> = ({ coasterId }) => {
                 relative group transition-all duration-200
                 ${isAdminMode 
                   ? "p-4 mb-4 border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-move rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800" 
-                  : "mb-8 last:mb-0" // Standard view spacing
+                  : "mb-8 last:mb-0"
                 }
               `}
             >
@@ -130,7 +128,6 @@ const CoasterText: React.FC<Props> = ({ coasterId }) => {
                     className="p-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-600"
                     onClick={() => setEditingText(entry)}
                   >
-                    {/* SVG Replacement for PencilSquareIcon */}
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                       <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                     </svg>

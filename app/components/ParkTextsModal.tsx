@@ -12,13 +12,13 @@ interface ParkTextsModalProps {
 const categories = [
   "description",
   "parkAppearance",
-  "parkPracticality",
   "bestCoaster",
   "coasterDepth",
   "waterRides",
   "flatridesAndDarkrides",
   "food",
   "snacksAndDrinks",
+  "parkPracticality",
   "rideOperations",
   "parkManagement",
 ];
@@ -49,7 +49,6 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
   const handleClose = () => {
     onSave?.(localExplanations);
     onClose();
-    // ❌ window.location.reload() removed to keep admin mode + state
   };
 
   const handleSave = async () => {
@@ -157,11 +156,10 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
             className={`px-4 py-2 rounded-md text-white cursor-pointer transition
                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
                         dark:focus-visible:ring-offset-gray-800
-                        ${
-                          isSaving
-                            ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed"
-                            : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
-                        }`}
+                        ${isSaving
+                ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
+              }`}
           >
             {isSaving ? "Saving..." : "Save"}
           </button>

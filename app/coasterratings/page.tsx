@@ -116,7 +116,7 @@ function CoasterRatingsContent() {
       if (setQuery) setQuery("");
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array is CRITICAL here to prevent accidental clearing
+  }, []); 
 
   // ——— Data fetch ———
   useEffect(() => {
@@ -165,7 +165,6 @@ function CoasterRatingsContent() {
 
   // ——— Defaults by viewport ———
   useEffect(() => {
-    // On desktop (≥ sm), preselect all 6; on mobile keep Rating + Manufacturer
     if (typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches) {
       setVisibleCols(ALL_COLUMNS.map((c) => c.key));
     }
@@ -182,7 +181,9 @@ function CoasterRatingsContent() {
           c.parkName,
           c.manufacturer,
           String(c.year),
+          // 🔴 UPDATED: Add both the raw string ("11") AND fixed decimal ("11.0")
           String(c.rating ?? ""),
+          c.rating !== null && c.rating !== undefined ? c.rating.toFixed(1) : "", 
           String(c.rideCount ?? ""),
           formatDate(c.lastVisitDate),
         ]
@@ -872,7 +873,7 @@ function SortControl({
   );
 }
 
-/* ——— Minimal inline icons (no extra deps) ——— */
+/* ——— Minimal inline icons ——— */
 function ChevronDown(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-gray-500" {...props}>

@@ -12,7 +12,7 @@ interface Props {
   coasterId: number;
   onClose: () => void;
   onSuccess?: () => void;
-  textEntry?: CoasterTextEntry; // optional: present if editing
+  textEntry?: CoasterTextEntry;
 }
 
 export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEntry }: Props) {
@@ -35,7 +35,7 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
 
     try {
       const body: any = { headline, text };
-      if (textEntry?.id) body.id = textEntry.id; // <-- add the text ID when editing
+      if (textEntry?.id) body.id = textEntry.id;
 
       const res = await fetch(`/api/coasters/${coasterId}/text`, {
         method: "POST",

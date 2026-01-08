@@ -1,4 +1,3 @@
-// /app/api/coasters/route.ts
 import { Pool } from "pg";
 import { NextResponse } from "next/server";
 

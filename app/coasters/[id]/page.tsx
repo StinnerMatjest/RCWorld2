@@ -2,17 +2,19 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import type { RollerCoaster } from "@/app/types";
 import MainPageButton from "@/app/components/MainPageButton";
 import { getRatingColor } from "@/app/utils/design";
 import CoasterInfo from "@/app/components/coasterpage/CoasterInfo";
 import CoasterRanking, { StatBlock, SkeletonStatBlock } from "@/app/components/coasterpage/CoasterRanking";
 import CoasterSpecsPanel from "@/app/components/coasterpage/CoasterSpecsPanel";
-// Make sure this path matches your file structure (e.g., CoasterHighlightsPanel.tsx)
-import CoasterHighlightsPanel from "@/app/components/coasterpage/CoasterHighlights"; 
+import CoasterHighlightsPanel from "@/app/components/coasterpage/CoasterHighlightsPanel"; 
 import CoasterGallery from "@/app/components/coasterpage/CoasterGallery";
 import CoasterText from "@/app/components/coasterpage/CoasterText";
 import Image from "next/image";
+import { useAdminMode } from "@/app/context/AdminModeContext";
+import { ArrowLeft } from "lucide-react";
 
 // --- Skeleton Loader ---
 const CoasterSkeleton = () => (
@@ -42,7 +44,6 @@ const CoasterSkeleton = () => (
 
 const CoasterPage: React.FC = () => {
   const { id: coasterId } = useParams();
-  
   const [coaster, setCoaster] = useState<RollerCoaster | null>(null);
   const [allCoasters, setAllCoasters] = useState<RollerCoaster[]>([]);
   const [headerImage, setHeaderImage] = useState<string | null>(null);
@@ -50,6 +51,7 @@ const CoasterPage: React.FC = () => {
   const [pageLoading, setPageLoading] = useState(true);
   const [imageVisualLoaded, setImageVisualLoaded] = useState(false);
   const [contentVisible, setContentVisible] = useState(false);
+  const { isAdminMode } = useAdminMode();
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -129,6 +131,17 @@ const CoasterPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 pb-20 font-sans transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
         
+        {/* BACK BUTTON (desktop only) */}
+        <div className="mb-6 hidden sm:block">
+            <Link 
+                href={coaster.parkId ? `/parks/${coaster.parkId}` : "/"} 
+                className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors group"
+            >
+                <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
+                Back to {parkName || "Park"}
+            </Link>
+        </div>
+
         {/* HEADER SECTION */}
         <div className="flex flex-col lg:flex-row justify-between items-center lg:items-end gap-6 lg:gap-8 mb-8 pb-6 border-b border-gray-200 dark:border-gray-800">
           
@@ -140,9 +153,9 @@ const CoasterPage: React.FC = () => {
 
              {/* Metadata Row */}
              <div className="flex flex-wrap justify-center lg:justify-start items-center gap-2 sm:gap-3 mt-1">
-                <span className="px-2 sm:px-3 py-1 bg-black text-white dark:bg-white dark:text-black rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest shadow-sm">
-                   {coaster.manufacturer}
-                </span>
+                    <span className="px-2 sm:px-3 py-1 bg-black text-white dark:bg-white dark:text-black rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest shadow-sm group-hover:bg-gray-800 dark:group-hover:bg-gray-200 transition-colors">
+                       {coaster.manufacturer}
+                    </span>
                 <span className="text-gray-300 dark:text-gray-700 hidden sm:inline">|</span>
                 <span className="text-xs sm:text-sm font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
                    {coaster.model || "Coaster Model"}
@@ -156,12 +169,20 @@ const CoasterPage: React.FC = () => {
 
              {coaster.rating && (
                 <div className={`${baseAnim} ${contentVisible ? visibleClass : hiddenClass} delay-300`}>
-                    <StatBlock 
-                       mainValue={coaster.rating}
-                       label="SCORE"
-                       subLabel={null}
-                       colorClass={getSafeColorClass(coaster.rating)}
-                    />
+                    {/* Clickable Score */}
+                    <Link 
+                        href={`/coasterratings?q=${coaster.rating}`} 
+                        title={`View coasters with score ${coaster.rating}`}
+                        className="group cursor-pointer"
+                    >
+                         <StatBlock 
+                            mainValue={coaster.rating}
+                            label="SCORE"
+                            subLabel={null}
+                            colorClass={getSafeColorClass(coaster.rating)}
+                            isLink={true} 
+                         />
+                    </Link>
                 </div>
              )}
           </div>
@@ -208,17 +229,20 @@ const CoasterPage: React.FC = () => {
           <div className="lg:col-span-4 order-1 lg:order-2">
             <div className="sticky top-8 flex flex-col gap-8 md:gap-12">
                 
-                {/* 1. HIGHLIGHTS (Moved to Top) */}
-                {coaster.highlights && coaster.highlights.length > 0 && (
+                {/* HIGHLIGHTS */}
+                {((coaster.highlights && coaster.highlights.length > 0) || isAdminMode) && (
                     <div>
                         <h4 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4 border-b border-gray-200 dark:border-gray-800 pb-2">
                              Strengths & Weaknesses
                         </h4>
-                        <CoasterHighlightsPanel highlights={coaster.highlights} />
+                        <CoasterHighlightsPanel 
+                            highlights={coaster.highlights || []} 
+                            coasterId={coaster.id} 
+                        />
                     </div>
                 )}
 
-                {/* 2. INFORMATION */}
+                {/* INFORMATION */}
                 <div>
                     <h4 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4 border-b border-gray-200 dark:border-gray-800 pb-2">
                         Information
@@ -226,12 +250,12 @@ const CoasterPage: React.FC = () => {
                     <CoasterInfo coaster={coaster} />
                 </div>
 
-                {/* 3. SPECS */}
+                {/* SPECS */}
                 <div>
                     <h4 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4 border-b border-gray-200 dark:border-gray-800 pb-2">
                         Technical Specs
                     </h4>
-                    <CoasterSpecsPanel specs={coaster.specs} />
+                    <CoasterSpecsPanel specs={coaster.specs} coasterId={coaster.id} />
                 </div>
 
             </div>
