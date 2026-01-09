@@ -4,7 +4,12 @@ import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import type { RollerCoaster } from "@/app/types";
 
-// --- 1. EXPORTED STATBLOCK ---
+type RankingCoaster = RollerCoaster & { 
+    lastVisitDate?: string | null; 
+    rideCount?: number;
+};
+
+// EXPORTED STATBLOCK
 export const StatBlock = ({ 
   mainValue, 
   subValue, 
@@ -49,7 +54,7 @@ export const StatBlock = ({
     </div>
 );
 
-// --- 2. EXPORTED SKELETON ---
+// EXPORTED SKELETON
 export const SkeletonStatBlock = () => (
   <div className="flex flex-col items-end animate-pulse">
     <div className="flex items-baseline mb-1">
@@ -71,14 +76,30 @@ interface CoasterRankingProps {
 const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, parkName }) => {
   const [showContent, setShowContent] = useState(false);
 
-  // 1. Calculate Ranks
   const stats = useMemo(() => {
     if (!coaster || !allCoasters.length) return null;
 
     const processList = (list: RollerCoaster[]) => {
-      const sorted = list
+      const castList = list as RankingCoaster[];
+
+      const sorted = castList
         .filter((c) => (c.rating ?? 0) > 0)
-        .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+        .sort((a, b) => {
+            // Primary Sort: Rating (Highest first)
+            const ratingDiff = (b.rating ?? 0) - (a.rating ?? 0);
+            if (ratingDiff !== 0) return ratingDiff;
+
+            // Tiebreaker 1: Ride Count (Highest first)
+            const countA = a.rideCount ?? a.ridecount ?? 0;
+            const countB = b.rideCount ?? b.ridecount ?? 0;
+            const rideDiff = countB - countA;
+            if (rideDiff !== 0) return rideDiff;
+
+            // Tiebreaker 2: Last Ridden Date (Newest first)
+            const dateA = a.lastVisitDate ? new Date(a.lastVisitDate).getTime() : 0;
+            const dateB = b.lastVisitDate ? new Date(b.lastVisitDate).getTime() : 0;
+            return dateB - dateA;
+        });
       
       const rankIndex = sorted.findIndex((c) => c.id === coaster.id);
       
@@ -95,7 +116,6 @@ const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, p
     };
   }, [coaster, allCoasters]);
 
-  // 2. Trigger Entry Animation
   useEffect(() => {
     const timer = setTimeout(() => setShowContent(true), 100);
     return () => clearTimeout(timer);
@@ -117,7 +137,7 @@ const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, p
   return (
     <div className="flex flex-wrap justify-end items-end gap-x-6 gap-y-4 sm:gap-8 md:gap-12 shrink-0">
       
-      {/* --- 1. PARK RANKING --- */}
+      {/* PARK RANKING */}
       {stats.park.rank !== null && parkName && (
         <div className={`${baseAnim} ${showContent ? visible : hidden}`}>
             <Link 
@@ -136,7 +156,7 @@ const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, p
         </div>
       )}
 
-      {/* --- 2. MANUFACTURER RANKING --- */}
+      {/* MANUFACTURER RANKING */}
       {stats.manuf.rank !== null && (
         <div className={`${baseAnim} ${showContent ? visible : hidden} delay-100`}>
             <Link 
@@ -155,7 +175,7 @@ const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, p
         </div>
       )}
 
-      {/* --- 3. WORLDWIDE RANKING --- */}
+      {/* WORLDWIDE RANKING */}
       {stats.overall.rank !== null && (
         <div className={`${baseAnim} ${showContent ? visible : hidden} delay-200`}>
             <Link 

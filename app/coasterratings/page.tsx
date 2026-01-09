@@ -17,11 +17,12 @@ type Coaster = {
   isBestCoaster: boolean;
   rcdbPath: string;
   rideCount: number;
+  visitCount: number;
   rating: number | null;
   parkId: number;
   parkName: string;
   year: number;
-  lastVisitDate: string | null; // ISO string
+  lastVisitDate: string | null;
 };
 
 // ——— Helpers ———
@@ -52,7 +53,7 @@ const compare = (a: unknown, b: unknown, dir: "asc" | "desc"): number => {
     : sb.localeCompare(sa, "en", { ignorePunctuation: true, sensitivity: "base" });
 };
 
-/** Toggleable columns (Name is always shown) */
+/** Toggleable columns */
 const ALL_COLUMNS = [
   { key: "rating", label: "Rating" },
   { key: "manufacturer", label: "Manufacturer" },
@@ -64,20 +65,15 @@ const ALL_COLUMNS = [
 
 type ColumnKey = (typeof ALL_COLUMNS)[number]["key"];
 
-/** Defaults: mobile shows Rating + Manufacturer; desktop will preselect all 6 via effect */
 const DEFAULT_VISIBLE: ColumnKey[] = ["rating", "manufacturer"];
 const DESC_BY_DEFAULT: ColumnKey[] = ["rating", "rideCount", "lastVisitDate"];
 
-/** Column widths (px) */
-const INDEX_COL_W_MOBILE = 48; // # column (mobile)
-const NAME_COL_W_MOBILE = 112; // mobile name width
+const INDEX_COL_W_MOBILE = 48;
+const NAME_COL_W_MOBILE = 112;
 const NAME_COL_W_SM = 200;
 const NAME_COL_W_LG = 300;
+const ROW_H = 44;
 
-/** Shared fixed row height on mobile to keep the two tables perfectly aligned */
-const ROW_H = 44; // px
-
-/** Mobile min-widths so added columns extend table width (scroll to see) */
 const COL_MIN_W_MOBILE: Record<ColumnKey, number> = {
   rating: 72,
   manufacturer: 120,
@@ -87,7 +83,7 @@ const COL_MIN_W_MOBILE: Record<ColumnKey, number> = {
   year: 80,
 };
 
-// ——— Inner Component (Contains Logic) ———
+// ——— Inner Component ———
 function CoasterRatingsContent() {
   const [coasters, setCoasters] = useState<Coaster[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,28 +93,25 @@ function CoasterRatingsContent() {
   const [visibleCols, setVisibleCols] = useState<ColumnKey[]>(DEFAULT_VISIBLE);
 
   const searchCtx = useSearch() as { query: string; setQuery?: (q: string) => void };
-  const query = (searchCtx?.query ?? "").trim();
+  const rawQuery = searchCtx?.query ?? "";
+  const q = rawQuery.trim().toLowerCase();
   const setQuery = searchCtx?.setQuery;
   const searchParams = useSearchParams();
 
-  // FIX 1: Sync URL Query -> Search State
+  // Sync URL query to state
   useEffect(() => {
     const urlQuery = searchParams.get("q");
-    if (urlQuery && setQuery) {
-      setQuery(urlQuery);
-    }
+    if (urlQuery && setQuery) setQuery(urlQuery);
   }, [searchParams, setQuery]);
 
-  // FIX 2: Clear Search State -> ONLY on Unmount (Leaving the page)
+  // Clear search on unmount
   useEffect(() => {
     return () => {
-      // This runs only when the component is destroyed (navigating away)
       if (setQuery) setQuery("");
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []);
 
-  // ——— Data fetch ———
+  // Fetch Data
   useEffect(() => {
     const fetchCoasters = async () => {
       try {
@@ -127,7 +120,6 @@ function CoasterRatingsContent() {
         if (!data || !Array.isArray(data.coasters))
           throw new Error("Unexpected data format from API");
 
-        // Normalize first, then filter unridden: rating <= 0 means not ridden
         const structured: Coaster[] = (data.coasters as Coaster[])
           .map((c: Coaster): Coaster => ({
             id: c.id,
@@ -139,6 +131,7 @@ function CoasterRatingsContent() {
             isBestCoaster: c.isBestCoaster,
             rcdbPath: c.rcdbPath,
             rideCount: c.rideCount ?? 0,
+            visitCount: (c as any).visitCount ?? 1,
             rating:
               c.rating === null || c.rating === undefined
                 ? null
@@ -163,15 +156,14 @@ function CoasterRatingsContent() {
     fetchCoasters();
   }, []);
 
-  // ——— Defaults by viewport ———
+  // Default columns based on screen size
   useEffect(() => {
     if (typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches) {
       setVisibleCols(ALL_COLUMNS.map((c) => c.key));
     }
   }, []);
 
-  // ——— Filtering ———
-  const q = query.toLowerCase();
+  // Filter Logic
   const filteredCoasters = useMemo<Coaster[]>(
     () => {
       if (!q) return coasters;
@@ -181,8 +173,8 @@ function CoasterRatingsContent() {
           c.parkName,
           c.manufacturer,
           String(c.year),
-          // 🔴 UPDATED: Add both the raw string ("11") AND fixed decimal ("11.0")
           String(c.rating ?? ""),
+          // Include formatted decimal so "11.0" works
           c.rating !== null && c.rating !== undefined ? c.rating.toFixed(1) : "", 
           String(c.rideCount ?? ""),
           formatDate(c.lastVisitDate),
@@ -196,21 +188,39 @@ function CoasterRatingsContent() {
     [coasters, q]
   );
 
-  // ——— Sorting ———
+  // Sorting Logic
   const sortedCoasters = useMemo<Coaster[]>(
     () => {
-      return [...filteredCoasters].sort((a: Coaster, b: Coaster) =>
-        compare(
+      return [...filteredCoasters].sort((a: Coaster, b: Coaster) => {
+        if (sortBy === "rating") {
+          const dirMult = sortDirection === "asc" ? 1 : -1;
+          
+          // Rating
+          const ratingA = a.rating ?? 0;
+          const ratingB = b.rating ?? 0;
+          if (ratingA !== ratingB) return (ratingA - ratingB) * dirMult;
+
+          // Tiebreaker 1: Ride Count
+          const countA = a.rideCount ?? 0;
+          const countB = b.rideCount ?? 0;
+          if (countA !== countB) return (countA - countB) * dirMult;
+
+          // Tiebreaker 2: Date
+          const dateA = a.lastVisitDate ? new Date(a.lastVisitDate).getTime() : 0;
+          const dateB = b.lastVisitDate ? new Date(b.lastVisitDate).getTime() : 0;
+          return (dateA - dateB) * dirMult;
+        }
+
+        return compare(
           a[sortBy as keyof Coaster] ?? (sortBy === "name" ? a.name : undefined),
           b[sortBy as keyof Coaster] ?? (sortBy === "name" ? b.name : undefined),
           sortDirection
-        )
-      );
+        );
+      });
     },
     [filteredCoasters, sortBy, sortDirection]
   );
 
-  // ——— Summary ———
   const totalRideCount = useMemo(
     () => sortedCoasters.reduce((sum: number, c: Coaster) => sum + (c.rideCount ?? 0), 0),
     [sortedCoasters]
@@ -223,7 +233,6 @@ function CoasterRatingsContent() {
     return vals.reduce((s: number, v: number) => s + v, 0) / vals.length;
   }, [sortedCoasters]);
 
-  // ——— Handlers ———
   function handleSort(column: ColumnKey | "name") {
     if (sortBy === column) {
       setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
@@ -243,7 +252,6 @@ function CoasterRatingsContent() {
     });
   }
 
-  // ——— UI ———
   if (loading) return <p className="p-4 text-gray-500">Loading coasters…</p>;
   if (error) return <p className="p-4 text-red-500">Error: {error}</p>;
 
@@ -257,9 +265,9 @@ function CoasterRatingsContent() {
           ParkRating's Coaster Library
         </h1>
         <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-300">
-        Explore every coaster we’ve ridden with detailed ratings, ride counts, and insights, <br />
-        including average scores by park and manufacturer.
-</p>
+          Explore every coaster we’ve ridden with detailed ratings, ride counts, and insights, <br />
+          including average scores by park and manufacturer.
+        </p>
       </div>
 
       {/* Search */}
@@ -270,16 +278,16 @@ function CoasterRatingsContent() {
             <div className="relative rounded-2xl bg-white/80 dark:bg-neutral-950/70 backdrop-blur border border-gray-200 dark:border-neutral-700 shadow-sm">
               <div className="flex items-center gap-3 px-4 py-3">
                 <input
-                  value={query}
+                  value={rawQuery}
                   onChange={(e) => setQuery?.(e.target.value)}
                   placeholder="Search by name, park, manufacturer, rating, year…"
                   className="w-full bg-transparent outline-none text-base placeholder:text-gray-400"
                   aria-label="Search coasters"
                 />
-                {query && (
+                {rawQuery && (
                   <button
                     onClick={() => setQuery?.("")}
-                    className="text-xs px-3 py-1 rounded-full border border-gray-300 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-900"
+                    className="text-xs px-3 py-1 rounded-full border border-gray-300 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-900 cursor-pointer"
                     aria-label="Clear search"
                   >
                     Clear
@@ -293,7 +301,6 @@ function CoasterRatingsContent() {
 
       {/* Controls row */}
       <div className="max-w-7xl mx-auto mb-3 sm:mb-4 flex flex-col gap-3">
-        {/* Column chips (no card; centered mobile & desktop) */}
         <div className="px-1">
           <ColumnChips
             columns={ALL_COLUMNS}
@@ -305,7 +312,6 @@ function CoasterRatingsContent() {
           </p>
         </div>
 
-        {/* Sort control */}
         <div className="flex items-center justify-center sm:justify-end">
           <SortControl
             sortBy={sortBy}
@@ -316,7 +322,7 @@ function CoasterRatingsContent() {
         </div>
       </div>
 
-      {/* ===== MOBILE (two-table, aligned) ===== */}
+      {/* ===== MOBILE ===== */}
       <div className="sm:hidden">
         <div className="relative max-w-7xl mx-auto rounded-2xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 shadow-sm">
           <div
@@ -366,14 +372,12 @@ function CoasterRatingsContent() {
                         style={{ width: NAME_COL_W_MOBILE }}
                       >
                         <div className="flex items-center" style={{ height: ROW_H }}>
-                          <a
-                            href={c.rcdbPath}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <Link
+                            href={`/coasters/${c.id}`}
                             className="text-blue-600 dark:text-blue-400 hover:underline"
                           >
                             {c.name}
-                          </a>
+                          </Link>
                         </div>
                       </td>
                     </tr>
@@ -442,7 +446,7 @@ function CoasterRatingsContent() {
                           <div className="flex items-center" style={{ height: ROW_H }}>
                             <button
                               onClick={() => setQuery?.(c.manufacturer)}
-                              className="underline text-blue-600 dark:text-blue-400 truncate"
+                              className="underline text-blue-600 dark:text-blue-400 truncate cursor-pointer"
                               style={{ maxWidth: 220 }}
                             >
                               {c.manufacturer}
@@ -470,8 +474,13 @@ function CoasterRatingsContent() {
                       {/* Ride Count */}
                       {colIsVisible("rideCount") && (
                         <td className="px-2 whitespace-nowrap" style={{ minWidth: COL_MIN_W_MOBILE.rideCount }}>
-                          <div className="flex items-center" style={{ height: ROW_H }}>
-                            {c.rideCount}
+                          <div className="flex items-baseline gap-1" style={{ height: ROW_H }}>
+                            <span>{c.rideCount}</span>
+                            {c.visitCount > 1 && (
+                              <span className="text-xs text-gray-400 font-normal">
+                                ({c.visitCount})
+                              </span>
+                            )}
                           </div>
                         </td>
                       )}
@@ -519,7 +528,7 @@ function CoasterRatingsContent() {
         </div>
 
         {/* Footer result count */}
-        <div className="max-w-7xl mx-auto flex justify-end text-xs text-gray-600 dark:text-gray-300 mt-3">
+        <div className="max-w-7xl mx-auto flex justify-end text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-3">
           {sortedCoasters.length} results
         </div>
       </div>
@@ -568,9 +577,9 @@ function CoasterRatingsContent() {
                     className="sticky z-[1] bg-white dark:bg-neutral-950 py-3 pr-4 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap overflow-hidden text-ellipsis"
                     style={{ left: 64, width: NAME_COL_W_SM }}
                   >
-                    <a href={c.rcdbPath} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
+                    <Link href={`/coasters/${c.id}`} className="text-blue-600 dark:text-blue-400 hover:underline">
                       {c.name}
-                    </a>
+                    </Link>
                   </td>
                   {colIsVisible("rating") && (
                     <td className={`px-4 py-3 font-semibold whitespace-nowrap ${c.rating !== null ? getRatingColor(c.rating) : ""}`}>
@@ -579,7 +588,7 @@ function CoasterRatingsContent() {
                   )}
                   {colIsVisible("manufacturer") && (
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <button onClick={() => setQuery?.(c.manufacturer)} className="underline text-blue-600 dark:text-blue-400">
+                      <button onClick={() => setQuery?.(c.manufacturer)} className="underline text-blue-600 dark:text-blue-400 cursor-pointer">
                         {c.manufacturer}
                       </button>
                     </td>
@@ -591,7 +600,19 @@ function CoasterRatingsContent() {
                       </Link>
                     </td>
                   )}
-                  {colIsVisible("rideCount") && <td className="px-4 py-3 whitespace-nowrap">{c.rideCount}</td>}
+                  {/* Ride Count (Desktop) */}
+                  {colIsVisible("rideCount") && (
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex items-baseline gap-1">
+                        <span>{c.rideCount}</span>
+                        {c.visitCount > 1 && (
+                          <span className="text-xs text-gray-400 font-normal">
+                            ({c.visitCount})
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  )}
                   {colIsVisible("lastVisitDate") && <td className="px-4 py-3 whitespace-nowrap">{formatDate(c.lastVisitDate)}</td>}
                   {colIsVisible("year") && <td className="px-4 py-3 whitespace-nowrap">{c.year || "—"}</td>}
                 </tr>
@@ -632,7 +653,8 @@ function CoasterRatingsContent() {
   );
 }
 
-// ——— WRAPPER EXPORT FOR RAILWAY BUILD ———
+// ——— Exported Components ———
+
 export default function CoasterRatingsPage() {
   return (
     <Suspense fallback={<p className="p-10 text-center">Loading search...</p>}>
@@ -641,17 +663,7 @@ export default function CoasterRatingsPage() {
   );
 }
 
-/* ——— Desktop header cell ——— */
-function ThSortableDesktop({
-  label,
-  active,
-  dir,
-  onClick,
-  sticky = false,
-  className = "",
-  style,
-  styleLg,
-}: {
+interface ThSortableProps {
   label: string;
   active: boolean;
   dir: "asc" | "desc";
@@ -660,54 +672,37 @@ function ThSortableDesktop({
   className?: string;
   style?: React.CSSProperties;
   styleLg?: React.CSSProperties;
-}) {
+}
+
+function ThSortableDesktop({ label, active, dir, onClick, sticky, className, style, styleLg }: ThSortableProps) {
   return (
     <th
       scope="col"
       onClick={onClick}
       aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
-      className={[
-        "px-4 py-3 select-none cursor-pointer font-semibold hover:underline text-gray-700 dark:text-gray-200",
-        sticky ? "sticky z-[2] bg-white dark:bg-neutral-950" : "",
-        className,
-      ].join(" ")}
+      className={["px-4 py-3 select-none font-semibold hover:underline text-gray-700 dark:text-gray-200 cursor-pointer", sticky ? "sticky z-[2] bg-white dark:bg-neutral-950" : "", className].join(" ")}
       style={style}
     >
       <div className="inline-flex items-center">
         {label}
         <span className={`ml-1 w-4 ${active ? "opacity-100" : "opacity-0"}`}>{dir === "asc" ? "▲" : "▼"}</span>
       </div>
-      <style jsx>{`
-        @media (min-width: 1024px) {
-          th[aria-sort] {
-            ${styleLg?.width !== undefined ? `width: ${Number(styleLg.width)}px !important;` : ""}
-          }
-        }
-      `}</style>
+      <style jsx>{`@media (min-width: 1024px) { th[aria-sort] { ${styleLg?.width !== undefined ? `width: ${Number(styleLg.width)}px !important;` : ""} } }`}</style>
     </th>
   );
 }
 
-/* ——— ColumnChips (centered mobile & desktop, improved dark mode) ——— */
-function ColumnChips({
-  columns,
-  visibleCols,
-  onToggle,
-}: {
+interface ColumnChipsProps {
   columns: readonly { key: ColumnKey; label: string }[];
   visibleCols: ColumnKey[];
   onToggle: (c: ColumnKey) => void;
-}) {
-  const isOn = (k: ColumnKey) => visibleCols.includes(k);
+}
 
+function ColumnChips({ columns, visibleCols, onToggle }: ColumnChipsProps) {
+  const isOn = (k: ColumnKey) => visibleCols.includes(k);
   return (
     <div className="w-full flex justify-center">
-      <div
-        className="
-          grid grid-cols-2 sm:grid-cols-3
-          gap-2 items-center justify-center
-        "
-      >
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 items-center justify-center">
         {columns.map(({ key, label }) => {
           const active = isOn(key);
           return (
@@ -715,28 +710,9 @@ function ColumnChips({
               key={key}
               onClick={() => onToggle(key)}
               aria-pressed={active}
-              className={[
-                // base
-                "group inline-flex items-center gap-2 rounded-full",
-                "px-3.5 py-1.5 text-xs sm:text-sm",
-                "border shadow-sm transition",
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60",
-                // surface colors
-                active
-                  ? "bg-neutral-900 text-white border-neutral-900 dark:bg-neutral-800 dark:text-white dark:border-neutral-600"
-                  : "bg-white/90 dark:bg-neutral-950/80 border-gray-300/80 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-900",
-              ].join(" ")}
+              className={["group inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs sm:text-sm border shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 cursor-pointer", active ? "bg-neutral-900 text-white border-neutral-900 dark:bg-neutral-800 dark:text-white dark:border-neutral-600" : "bg-white/90 dark:bg-neutral-950/80 border-gray-300/80 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-900"].join(" ")}
             >
-              {/* status dot */}
-              <span
-                className={[
-                  "inline-block h-2 w-2 rounded-full",
-                  active
-                    ? "bg-emerald-400 group-hover:bg-emerald-300"
-                    : "bg-gray-300 dark:bg-neutral-600 group-hover:bg-gray-400 dark:group-hover:bg-neutral-500",
-                ].join(" ")}
-                aria-hidden
-              />
+              <span className={["inline-block h-2 w-2 rounded-full", active ? "bg-emerald-400 group-hover:bg-emerald-300" : "bg-gray-300 dark:bg-neutral-600 group-hover:bg-gray-400 dark:group-hover:bg-neutral-500"].join(" ")} aria-hidden />
               <span className="whitespace-nowrap">{label}</span>
             </button>
           );
@@ -746,40 +722,24 @@ function ColumnChips({
   );
 }
 
-/* ——— SortControl ——— */
-function SortControl({
-  sortBy,
-  sortDirection,
-  onChangeField,
-  onToggleDir,
-}: {
+interface SortControlProps {
   sortBy: ColumnKey | "name";
   sortDirection: "asc" | "desc";
   onChangeField: (c: ColumnKey | "name") => void;
   onToggleDir: () => void;
-}) {
-  const [open, setOpen] = useState(false);
+}
 
-  // close on outside click / Escape
+function SortControl({ sortBy, sortDirection, onChangeField, onToggleDir }: SortControlProps) {
+  const [open, setOpen] = useState(false);
+  
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    function onClick(e: MouseEvent) {
-      const t = e.target as HTMLElement;
-      if (!t.closest?.("#sort-popover")) setOpen(false);
-    }
-    if (open) {
-      window.addEventListener("keydown", onKey);
-      window.addEventListener("click", onClick);
-    }
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("click", onClick);
-    };
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
+    function onClick(e: MouseEvent) { const t = e.target as HTMLElement; if (!t.closest?.("#sort-popover")) setOpen(false); }
+    if (open) { window.addEventListener("keydown", onKey); window.addEventListener("click", onClick); }
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("click", onClick); };
   }, [open]);
 
-  const OPTIONS: Array<{ key: ColumnKey | "name"; label: string }> = [
+  const OPTIONS: { key: ColumnKey | "name"; label: string }[] = [
     { key: "name", label: "Name" },
     { key: "rating", label: "Rating" },
     { key: "manufacturer", label: "Manufacturer" },
@@ -788,78 +748,27 @@ function SortControl({
     { key: "lastVisitDate", label: "Last Ridden" },
     { key: "year", label: "Year" },
   ];
-
+  
   const activeLabel = OPTIONS.find((o) => o.key === sortBy)?.label ?? "Sort";
 
   return (
     <div id="sort-popover" className="relative inline-flex items-center gap-2">
-      {/* Trigger */}
-      <button
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="
-          inline-flex items-center gap-2 rounded-xl
-          border border-gray-300 dark:border-neutral-700
-          bg-white/90 dark:bg-neutral-950/80 backdrop-blur
-          px-3.5 py-2 text-sm shadow-sm
-          hover:bg-gray-50 dark:hover:bg-neutral-900
-          focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60
-        "
-      >
+      <button onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open} className="inline-flex items-center gap-2 rounded-xl border border-gray-300 dark:border-neutral-700 bg-white/90 dark:bg-neutral-950/80 backdrop-blur px-3.5 py-2 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-neutral-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 cursor-pointer">
         <span className="font-medium">Sort</span>
         <span className="text-gray-600 dark:text-gray-300">{activeLabel}</span>
         <ChevronDown aria-hidden />
       </button>
-
-      {/* Direction toggle */}
-      <button
-        onClick={onToggleDir}
-        className="
-          inline-flex items-center justify-center rounded-xl
-          border border-gray-300 dark:border-neutral-700
-          bg-white/90 dark:bg-neutral-950/80 backdrop-blur
-          h-9 w-9 shadow-sm
-          hover:bg-gray-50 dark:hover:bg-neutral-900
-          focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60
-        "
-        aria-label="Toggle sort direction"
-        title={sortDirection === "asc" ? "Ascending" : "Descending"}
-      >
+      <button onClick={onToggleDir} className="inline-flex items-center justify-center rounded-xl border border-gray-300 dark:border-neutral-700 bg-white/90 dark:bg-neutral-950/80 backdrop-blur h-9 w-9 shadow-sm hover:bg-gray-50 dark:hover:bg-neutral-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 cursor-pointer" aria-label="Toggle sort direction" title={sortDirection === "asc" ? "Ascending" : "Descending"}>
         {sortDirection === "asc" ? <ArrowUp aria-hidden /> : <ArrowDown aria-hidden />}
       </button>
-
-      {/* Menu */}
       {open && (
-        <div
-          role="menu"
-          aria-label="Sort by"
-          className="
-            absolute right-0 top-[115%] z-40 min-w-[220px]
-            rounded-2xl border border-gray-200 dark:border-neutral-700
-            bg-white/95 dark:bg-neutral-950/95 backdrop-blur
-            shadow-lg overflow-hidden
-          "
-        >
+        <div role="menu" aria-label="Sort by" className="absolute right-0 top-[115%] z-40 min-w-[220px] rounded-2xl border border-gray-200 dark:border-neutral-700 bg-white/95 dark:bg-neutral-950/95 backdrop-blur shadow-lg overflow-hidden">
           <ul className="max-h-[320px] overflow-auto py-1">
             {OPTIONS.map((opt) => {
               const active = opt.key === sortBy;
               return (
                 <li key={opt.key}>
-                  <button
-                    role="menuitemradio"
-                    aria-checked={active}
-                    onClick={() => {
-                      onChangeField(opt.key);
-                      setOpen(false);
-                    }}
-                    className={[
-                      "w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left text-sm",
-                      active
-                        ? "bg-gray-100/70 dark:bg-neutral-900/70 text-gray-900 dark:text-gray-100"
-                        : "hover:bg-gray-50 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-200",
-                    ].join(" ")}
-                  >
+                  <button role="menuitemradio" aria-checked={active} onClick={() => { onChangeField(opt.key); setOpen(false); }} className={["w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left text-sm cursor-pointer", active ? "bg-gray-100/70 dark:bg-neutral-900/70 text-gray-900 dark:text-gray-100" : "hover:bg-gray-50 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-200"].join(" ")}>
                     <span>{opt.label}</span>
                     {active ? <Check aria-hidden /> : null}
                   </button>
@@ -873,36 +782,15 @@ function SortControl({
   );
 }
 
-/* ——— Minimal inline icons ——— */
 function ChevronDown(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-gray-500" {...props}>
-      <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.2l3.71-2.97a.75.75 0 011.04 1.08l-4.23 3.39a.75.75 0 01-.95 0L5.21 8.31a.75.75 0 01.02-1.1z" />
-    </svg>
-  );
+  return <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-gray-500" {...props}><path d="M5.23 7.21a.75.75 0 011.06.02L10 10.2l3.71-2.97a.75.75 0 011.04 1.08l-4.23 3.39a.75.75 0 01-.95 0L5.21 8.31a.75.75 0 01.02-1.1z" /></svg>;
 }
 function ArrowUp(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-gray-600 dark:text-gray-300" {...props}>
-      <path d="M10 4l5 6H5l5-6zm-5 8h10v2H5v-2z" />
-    </svg>
-  );
+  return <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-gray-600 dark:text-gray-300" {...props}><path d="M10 4l5 6H5l5-6zm-5 8h10v2H5v-2z" /></svg>;
 }
 function ArrowDown(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-gray-600 dark:text-gray-300" {...props}>
-      <path d="M5 8h10v2H5V8zm5 8l-5-6h10l-5 6z" />
-    </svg>
-  );
+  return <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-gray-600 dark:text-gray-300" {...props}><path d="M5 8h10v2H5V8zm5 8l-5-6h10l-5 6z" /></svg>;
 }
 function Check(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-emerald-500" {...props}>
-      <path
-        fillRule="evenodd"
-        d="M16.707 5.293a1 1 0 010 1.414l-7.364 7.364a1 1 0 01-1.414 0L3.293 9.435a1 1 0 111.414-1.414l3.222 3.222 6.657-6.657a1 1 0 011.414 0z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
+  return <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-emerald-500" {...props}><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.364 7.364a1 1 0 01-1.414 0L3.293 9.435a1 1 0 111.414-1.414l3.222 3.222 6.657-6.657a1 1 0 011.414 0z" clipRule="evenodd" /></svg>;
 }

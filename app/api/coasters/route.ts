@@ -25,7 +25,8 @@ export async function GET() {
         rc.rating,
         rc.park_id,
         p.name AS park_name,
-        MAX(r.date) AS last_visit_date
+        MAX(r.date) AS last_visit_date,
+        COUNT(DISTINCT r.id) AS visit_count
       FROM rollercoasters rc
       JOIN parks p ON rc.park_id = p.id
       LEFT JOIN ratings r ON r.park_id = p.id
@@ -52,6 +53,7 @@ export async function GET() {
       parkId: row.park_id,
       parkName: row.park_name,
       lastVisitDate: row.last_visit_date,
+      visitCount: Number(row.visit_count) || 0,
       specs: null,
     }));
 
