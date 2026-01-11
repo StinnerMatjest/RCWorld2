@@ -5,6 +5,7 @@ import { AdminModeProvider } from "./context/AdminModeContext";
 import { Inter, Roboto } from "next/font/google";
 import Header from "./components/Header";
 import AdminToggle from "./components/AdminToggle";
+import Footer from "./components/Footer";
 import Script from "next/script";
 
 export const metadata = {
@@ -44,13 +45,16 @@ export default function RootLayout({
           defer
         />
       </head>
-      <body className={`${inter.variable} ${roboto.variable} antialiased`}>
+      <body
+        className={`${inter.variable} ${roboto.variable} antialiased min-h-screen flex flex-col`}
+      >
         <AdminModeProvider>
           <ParksProvider>
             <SearchProvider>
               <Header />
               <AdminToggle />
-              <main>{children}</main>
+              <main className="flex-grow">{children}</main>
+              <Footer />
             </SearchProvider>
           </ParksProvider>
         </AdminModeProvider>
