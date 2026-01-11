@@ -133,7 +133,10 @@ const Home = () => {
   };
 
   return (
-    <main className="relative z-0 bg-gray-100 dark:bg-[#0f172a] min-h-screen overflow-visible">
+    <main
+      id="top"
+      className="relative z-0 bg-gray-100 dark:bg-[#0f172a] overflow-visible"
+    >
       {/* Mobile: horizontal swipe carousel */}
       <div className="md:hidden px-4 py-3 relative">
         <div
