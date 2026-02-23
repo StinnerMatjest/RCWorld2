@@ -85,7 +85,7 @@ const CoasterHighlightsPanel: React.FC<CoasterHighlightsPanelProps> = ({ highlig
 
     return (
         <div className="relative group">
-            {/* 3. Admin Edit Button */}
+            {/* Admin Edit Button */}
             {isAdminMode && (
                  <div className="absolute -top-10 right-0">
                     <button 

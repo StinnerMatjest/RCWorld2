@@ -11,6 +11,7 @@ import ParkInfo from "@/app/components/ParkInfo";
 import Gallery from "@/app/components/Gallery";
 import ArchivePanel from "@/app/components/ArchivePanel";
 import type { Park, Rating, RatingWarningType, RollerCoaster } from "@/app/types";
+import { useAdminMode } from "@/app/context/AdminModeContext";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 
 const ParkPage: React.FC = () => {
@@ -25,8 +26,8 @@ const ParkPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingCoaster, setEditingCoaster] = useState<RollerCoaster>();
   const [explanations, setExplanations] = useState<Record<string, string>>({});
+  const { isAdminMode } = useAdminMode();
 
-  // --- Scroll to top on mount ---
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -82,12 +83,21 @@ const ParkPage: React.FC = () => {
     setCoasters(await res.json());
   };
 
+  const fetchParkData = async () => {
+    const res = await fetch(`/api/park/${parkId}`);
+    const data = await res.json();
+    setPark(data);
+  };
+
   if (!park) return <LoadingSpinner />;
 
   return (
     <div className="w-full">
-      <ParkHeader park={park} />
-
+      <ParkHeader
+        park={park}
+        isAdminMode={isAdminMode}
+        onUpdate={fetchParkData}
+      />
       <div className="grid grid-cols-1 md:grid-cols-[20%_1fr_1fr] gap-6 w-full py-10 px-6 md:px-20 bg-base-200 dark:bg-gray-900">
         {/* Info Panel */}
         <div
@@ -159,7 +169,7 @@ const ParkPage: React.FC = () => {
           <Gallery parkId={park.id} parkName={park.name} />
         </div>
       </div>
-      
+
       <div className="flex justify-center py-10">
         <MainPageButton />
       </div>

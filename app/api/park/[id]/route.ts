@@ -36,3 +36,33 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     return NextResponse.json({ error: "Failed to fetch park" }, { status: 500 });
   }
 }
+
+export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { id: parkId } = await context.params;
+    const body = await req.json();
+    const { imagepath } = body;
+
+    if (!imagepath) {
+      return NextResponse.json({ error: "Image path is required" }, { status: 400 });
+    }
+
+    const query = `
+      UPDATE parks 
+      SET imagepath = $1 
+      WHERE id = $2 
+      RETURNING *;
+    `;
+    
+    const result = await pool.query(query, [imagepath, parkId]);
+
+    if (result.rowCount === 0) {
+      return NextResponse.json({ error: "Park not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(result.rows[0], { status: 200 });
+  } catch (error) {
+    console.error("Database update error:", error);
+    return NextResponse.json({ error: "Failed to update park image" }, { status: 500 });
+  }
+}

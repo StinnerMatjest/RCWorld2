@@ -18,8 +18,12 @@ export async function GET(
 
   try {
     const res = await pool.query(
-      `SELECT id, title, path, description FROM parkgallery WHERE park_id = $1 ORDER BY id ASC`,
-      [id]
+      `SELECT id, title, path, description 
+       FROM parkgallery 
+       WHERE park_id = $1 
+         AND title NOT ILIKE $2 
+       ORDER BY id ASC`,
+      [id, '%HEADER ONLY%']
     );
     console.log("Query result rows:", res.rows);
 
@@ -33,17 +37,17 @@ export async function GET(
 export async function POST(req: NextRequest) {
   const { title, path, description, parkId } = await req.json();
 
-if (
-  typeof title !== "string" ||
-  typeof path !== "string" ||
-  typeof description !== "string" ||
-  typeof parkId !== "number"
-) {
-  return NextResponse.json(
-    { error: "Missing or invalid required fields" },
-    { status: 400 }
-  );
-}
+  if (
+    typeof title !== "string" ||
+    typeof path !== "string" ||
+    typeof description !== "string" ||
+    typeof parkId !== "number"
+  ) {
+    return NextResponse.json(
+      { error: "Missing or invalid required fields" },
+      { status: 400 }
+    );
+  }
 
   try {
     const query = `
