@@ -731,21 +731,22 @@ export default function CoastlePage() {
       {activeTab === "howto" && <HowTo />}
 
       {activeTab === "leaderboard" && (
-        <Leaderboard stats={stats} gameState={gameState} onShare={handleShare} />
+        <Leaderboard stats={stats} gameState={gameState} onShare={handleCopy} />
       )}
 
       {/* Result Modal */}
-      <ResultModal
-        isOpen={showModal}
-        gameState={gameState}
-        answer={answer}
-        gameMode={gameMode}
-        onClose={() => setShowModal(false)}
-        onShare={handleShare}
-        onCopy={handleCopy}
-        onReset={resetGame}
-        onShowStats={() => setActiveTab("leaderboard")}
-      />
+<ResultModal
+  isOpen={showModal}
+  gameState={gameState}
+  answer={answer}
+  gameMode={gameMode}
+  guessesCount={guesses.length}
+  maxGuesses={MAX_GUESSES}
+  currentStreak={gameMode === "daily" ? stats.currentStreak : undefined}
+  onClose={() => setShowModal(false)}
+  onShare={handleCopy}   // ✅ Share = copy
+  onReset={resetGame}
+/>
     </div>
   );
 }
