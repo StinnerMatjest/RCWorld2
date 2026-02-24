@@ -168,10 +168,9 @@ const ParkPage: React.FC = () => {
           )}
           <Gallery parkId={park.id} parkName={park.name} />
         </div>
-      </div>
-
-      <div className="flex justify-center py-10">
-        <MainPageButton />
+            <div className="md:col-span-3 flex justify-center pt-6">
+          <MainPageButton />
+        </div>
       </div>
     </div>
   );

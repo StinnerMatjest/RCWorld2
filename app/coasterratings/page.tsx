@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { getRatingColor } from "@/app/utils/design";
 import { useSearch } from "@/app/context/SearchContext";
+import LoadingSpinner from "@/app/components/LoadingSpinner"; 
 
 type Coaster = {
   id: number;
@@ -254,13 +255,15 @@ function CoasterRatingsContent() {
     });
   }
 
-  if (loading) return <p className="p-4 text-gray-500">Loading coasters…</p>;
+if (loading) {
+  return <LoadingSpinner className="pt-24" />;
+}
   if (error) return <p className="p-4 text-red-500">Error: {error}</p>;
 
   const colIsVisible = (key: ColumnKey) => visibleCols.includes(key);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-10 bg-gradient-to-b from-white to-gray-50 dark:from-neutral-950 dark:to-neutral-900 min-h-[100dvh]">
+    <div className="p-4 sm:p-6 lg:p-10 bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-900 min-h-[100dvh]">
       {/* Intro */}
       <div className="max-w-4xl mx-auto text-center mb-6 sm:mb-8">
         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-500 to-fuchsia-500">
