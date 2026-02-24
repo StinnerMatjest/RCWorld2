@@ -16,50 +16,51 @@ const Header = () => {
     const handleToggle = (e: CustomEvent) => {
       setIsAnimating(true);
       setIsVisible(e.detail.visible);
-      setTimeout(() => setIsAnimating(false), 500); 
+      setTimeout(() => setIsAnimating(false), 500);
     };
 
-    window.addEventListener('toggle-header' as any, handleToggle as any);
+    window.addEventListener("toggle-header" as any, handleToggle as any);
     return () => {
-      window.removeEventListener('toggle-header' as any, handleToggle as any);
+      window.removeEventListener("toggle-header" as any, handleToggle as any);
     };
   }, []);
 
   return (
-    <div 
+    <div
       className={`
         transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] relative z-50
-        ${isVisible 
-            ? 'max-h-[300px] opacity-100' 
-            : 'max-h-0 opacity-0 md:max-h-[300px] md:opacity-100'
+        ${
+          isVisible
+            ? "max-h-[300px] opacity-100"
+            : "max-h-0 opacity-0 md:max-h-[300px] md:opacity-100"
         }
-        ${isAnimating || !isVisible ? 'overflow-hidden' : 'overflow-visible'}
+        ${isAnimating || !isVisible ? "overflow-hidden" : "overflow-visible"}
       `}
     >
-      <header className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-2 px-6 relative animate-fade-in">
+      <header className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-4 md:py-6 px-4 md:px-6 relative animate-fade-in">
         <div className="relative grid grid-cols-2 items-center gap-x-3 lg:flex lg:items-center lg:justify-between">
-          {/* Logo */}
-          <div className="relative h-16 w-40 sm:h-20 sm:w-48 md:h-24 lg:h-24 lg:w-64">
-            {/* Light mode logo */}
-            <Link href="/" aria-label="Go to homepage">
+          {/* Logo - slightly more left */}
+          <div className="relative -ml-2 md:ml-0 h-14 sm:h-16 md:h-20 lg:h-20 w-36 sm:w-44 md:w-52 lg:w-56">
+            <Link
+              href="/"
+              aria-label="Go to homepage"
+              className="block h-full w-full"
+            >
               <Image
-                src="https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/Parkrating.png"
+                src="/logos/logolight.svg"
                 alt="Parkrating Logo"
                 fill
-                className="object-contain cursor-pointer dark:hidden"
-                unoptimized
+                priority
+                className="object-contain dark:hidden"
+              />
+              <Image
+                src="/logos/logodark.svg"
+                alt="Parkrating Logo"
+                fill
+                priority
+                className="object-contain hidden dark:block"
               />
             </Link>
-            {/* Dark mode text logo */}
-            <div className="hidden dark:flex items-center h-full">
-              <Link
-                href="/"
-                aria-label="Go to homepage"
-                className="font-extrabold tracking-tight text-slate-100 hover:text-slate-300 transition-colors text-xl sm:text-2xl leading-none"
-              >
-                Parkrating
-              </Link>
-            </div>
           </div>
 
           {/* Navbar */}
@@ -67,21 +68,22 @@ const Header = () => {
             <Navbar />
           </div>
 
-          {/* Countdown */}
+          {/* Countdown - hidden on mobile */}
           <div
             className={`
-              col-span-2 mt-1 sm:mt-1 lg:mt-0 lg:order-2 lg:col-span-2 lg:flex lg:justify-center
+              hidden md:block
+              col-span-2 mt-4 lg:mt-2 lg:order-2 lg:col-span-2 lg:flex lg:justify-center
               xl:absolute xl:left-1/2 xl:top-1/2 xl:-translate-x-1/2 xl:-translate-y-1/2
               xl:z-0
             `}
           >
             <Link
               href="/about"
-              className={`
-                text-green-600 dark:text-green-400 font-semibold hover:underline whitespace-nowrap truncate px-2 leading-none
-                text-xs sm:text-sm lg:text-base xl:text-base
-                block text-center max-w-[90vw] lg:max-w-[50vw] xl:max-w-[60vw]
-              `}
+         className={`
+  text-[#e9820e] dark:text-[#e9820e] font-semibold hover:underline whitespace-nowrap truncate px-2 leading-none
+  text-xs sm:text-sm lg:text-base xl:text-base
+  block text-center max-w-[90vw] lg:max-w-[50vw] xl:max-w-[60vw]
+`}
               title={
                 nextTrip && days
                   ? `${days} days until next trip`

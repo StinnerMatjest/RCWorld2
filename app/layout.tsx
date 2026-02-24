@@ -12,8 +12,7 @@ export const metadata = {
   title: "Parkrating",
   description: "We rate themeparks all around the world!",
   icons: {
-    icon: "/images/Parkrating.png",
-    shortcut: "/images/Parkrating.png",
+    icon: [{ url: "logos/favicon.svg", type: "image/svg+xml" }],
   },
 };
 
