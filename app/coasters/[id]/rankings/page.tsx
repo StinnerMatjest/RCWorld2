@@ -139,7 +139,7 @@ export default function DetailedRankingsPage() {
                             router.push(`/coasters/${coasterId}`);
                         }
                     }}
-                    className="group flex items-center text-sm font-bold text-gray-500 hover:text-black dark:hover:text-white mb-8 transition-colors uppercase tracking-widest"
+                    className="group flex items-center text-sm font-bold text-gray-500 hover:text-black dark:hover:text-white mb-8 transition-colors uppercase tracking-widest cursor-pointer"
                 >
                     <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
                     {viewingCategory ? "Back to Overview" : `Back to ${coaster.name}`}
@@ -161,7 +161,7 @@ export default function DetailedRankingsPage() {
                                 <button
                                     key={idx}
                                     onClick={() => handleRankClick(res)}
-                                    className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-6 md:p-8 rounded-[2rem] flex justify-between items-center shadow-sm hover:border-blue-500 transition-all text-left group"
+                                    className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-6 md:p-8 rounded-[2rem] flex justify-between items-center shadow-sm hover:border-blue-500 transition-all text-left group cursor-pointer"
                                 >
                                     <div className="flex items-center gap-4">
                                         <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-2xl text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-colors">
@@ -211,7 +211,7 @@ export default function DetailedRankingsPage() {
                                 <Link
                                     href={`/coasters/${c.id}`}
                                     key={c.id}
-                                    className={`flex items-center justify-between p-4 md:p-6 rounded-2xl border transition-all ${String(c.id) === String(coasterId)
+                                    className={`flex items-center justify-between p-4 md:p-6 rounded-2xl border transition-all cursor-pointer ${String(c.id) === String(coasterId)
                                         ? "bg-blue-600 border-blue-600 text-white shadow-lg scale-[1.02] z-10"
                                         : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-blue-400"
                                         }`}
