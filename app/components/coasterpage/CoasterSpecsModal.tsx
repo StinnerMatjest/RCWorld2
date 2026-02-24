@@ -17,7 +17,7 @@ const TAG_CATEGORIES = {
         isSingleChoice: true 
     },
         "Type": {
-        tags: ["Spinning", "Shuttle", "Racing", "Powered"],
+        tags: ["Spinning", "Shuttle", "Racing", "Powered", "Bobsled"],
         isSingleChoice: false
     },
         "Height Class": {
