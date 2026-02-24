@@ -16,18 +16,22 @@ const TAG_CATEGORIES = {
         tags: ["Sit Down", "Inverted", "Wing", "Floorless", "Flying", "Suspended"],
         isSingleChoice: true 
     },
+        "Type": {
+        tags: ["Spinning", "Shuttle", "Racing", "Powered"],
+        isSingleChoice: false
+    },
+        "Height Class": {
+        tags: ["Mega", "Hyper", "Giga", "Strata", "Exa"],
+        isSingleChoice: true
+    },
     "Launch System": {
         tags: ["Launched", "Multi-Launched", "Swing Launch"],
         isSingleChoice: false
     },
-    "Height Class": {
-        tags: ["Mega", "Hyper", "Giga", "Strata", "Exa"],
-        isSingleChoice: true
-    },
-    "Layout & Style": {
-        tags: ["Enclosed", "Spinning", "Shuttle", "Racing", "Powered", "Zyklon", "Wild Mouse", "Jungle Mouse", "Möbius"],
+        "Misc & Layout": {
+        tags: ["Enclosed", "Zyklon", "Wild Mouse", "Jungle Mouse", "Möbius"],
         isSingleChoice: false
-    }
+    },
 };
 
 const MATERIAL_OPTIONS = ["Steel", "Wood", "Hybrid"];
