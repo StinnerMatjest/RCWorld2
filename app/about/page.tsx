@@ -44,14 +44,14 @@ export default function AboutPage() {
       <main className="max-w-5xl mx-auto px-6 py-12 space-y-20">
         {/* Intro */}
         <section className="text-center space-y-6 animate-fade-in-up delay-0">
-          <Image
-            src="https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/temp%20logo.jpg"
-            alt="The ParkRating Brothers"
-            width={350}
-            height={350}
-            className="rounded-xl mx-auto object-cover"
-            unoptimized
-          />
+                    <Image
+                src="/logos/parkrating.png"
+                alt="ParkRating Logo"
+                width={350}
+                height={350}
+                className="mx-auto"
+                priority
+              />
           <h1 className="text-4xl font-extrabold dark:text-white">About ParkRating</h1>
 
           {/* Body copy */}
