@@ -25,7 +25,7 @@ const TAG_CATEGORIES = {
         isSingleChoice: true
     },
     "Layout": {
-        tags: ["Spinning", "Shuttle", "Racing", "Möbius", "Quasi Möbius"],
+        tags: ["Spinning", "Shuttle", "Racing", "Powered", "Möbius", "Quasi Möbius"],
         isSingleChoice: false
     }
 };
