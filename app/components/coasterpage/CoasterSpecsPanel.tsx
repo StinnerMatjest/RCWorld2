@@ -10,7 +10,18 @@ interface CoasterSpecsPanelProps {
   coasterId: number;
 }
 
-// Helper to format numbers safely
+// Order of priority for tag display
+const TAG_ORDER = [
+  // Seating & Style
+  "Sit Down", "Inverted", "Wing", "Floorless", "Flying", "Suspended",
+  // Height Class
+  "Mega", "Hyper", "Giga", "Strata", "Exa",
+  // Launch System
+  "Launched", "Multi-Launched", "Swing Launch",
+  // Layout
+  "Spinning", "Racing", "Möbius", "Quasi Möbius"
+];
+
 const formatNumber = (value: number | null | undefined, decimals = 1) => {
   if (value === null || value === undefined) return null;
   return value.toFixed(decimals).replace(".", ",");
@@ -25,11 +36,7 @@ interface SpecRowProps {
 
 const SpecRow = ({ label, value, unit = "", isAdmin }: SpecRowProps) => {
   const isEmpty = value === null || value === undefined || value === "" || value === "-";
-
-  if (isEmpty && !isAdmin) {
-    return null;
-  }
-
+  if (isEmpty && !isAdmin) return null;
 
   const displayValue = isEmpty ? "-" : value;
   const displayUnit = isEmpty ? "" : unit;
@@ -57,43 +64,59 @@ const CoasterSpecsPanel: React.FC<CoasterSpecsPanelProps> = ({ specs: initialSpe
 
   const displaySpecs = specs || ({} as RollerCoasterSpecs);
 
-  const modalSpecs = specs ? {
-    ...specs,
-    verticalAngle: specs.verticalAngle ?? (specs as any).vertical_angle,
-    duration: specs.duration ?? (specs as any).duration_sec,
-  } : null;
+  // Parse and sort tags based on TAG_ORDER
+  const getSortedTags = () => {
+    if (!displaySpecs.classification) return [];
+    
+    const tags = displaySpecs.classification.split("|").map(t => t.trim()).filter(Boolean);
+    
+    return tags.sort((a, b) => {
+      const indexA = TAG_ORDER.indexOf(a);
+      const indexB = TAG_ORDER.indexOf(b);
+      
+      // If a tag isn't in our predefined order, move it to the end
+      const finalA = indexA === -1 ? 999 : indexA;
+      const finalB = indexB === -1 ? 999 : indexB;
+      
+      return finalA - finalB;
+    });
+  };
+
+  const sortedTags = getSortedTags();
 
   return (
     <>
       <div className="flex flex-col w-full relative group">
-
-        {/* Header with Edit Button */}
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Specifications</h3>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-tight">Specifications</h3>
           {isAdminMode && (
             <button
               onClick={() => setIsModalOpen(true)}
               className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-gray-800 rounded-md transition-colors cursor-pointer"
-              title="Edit Specs"
-              aria-label="Edit specifications"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className="w-5 h-5"
-              >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
               </svg>
             </button>
           )}
         </div>
 
-        {/* Rows */}
+        {/* TAGS DISPLAY */}
+        {sortedTags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {sortedTags.map((tag) => (
+              <span 
+                key={tag} 
+                className="px-3 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-widest rounded-full border border-blue-100 dark:border-blue-800/50"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* ROWS */}
         <SpecRow label="Type" value={displaySpecs.type} isAdmin={isAdminMode} />
-        <SpecRow label="Class" value={displaySpecs.classification} isAdmin={isAdminMode} />
         <SpecRow label="Length" value={formatNumber(displaySpecs.length)} unit="ft" isAdmin={isAdminMode} />
         <SpecRow label="Height" value={formatNumber(displaySpecs.height)} unit="ft" isAdmin={isAdminMode} />
         <SpecRow label="Drop" value={formatNumber(displaySpecs.drop)} unit="ft" isAdmin={isAdminMode} />
@@ -113,14 +136,13 @@ const CoasterSpecsPanel: React.FC<CoasterSpecsPanelProps> = ({ specs: initialSpe
             </p>
           </div>
         )}
-
       </div>
 
       <CoasterSpecsModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSave}
-        initialSpecs={modalSpecs}
+        initialSpecs={specs}
         coasterId={coasterId}
       />
     </>

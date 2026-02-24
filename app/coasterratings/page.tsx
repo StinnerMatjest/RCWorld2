@@ -6,7 +6,6 @@ import { useSearchParams } from "next/navigation";
 import { getRatingColor } from "@/app/utils/design";
 import { useSearch } from "@/app/context/SearchContext";
 
-// ——— Types ———
 type Coaster = {
   id: number;
   name: string;
@@ -23,6 +22,10 @@ type Coaster = {
   parkName: string;
   year: number;
   lastVisitDate: string | null;
+  specs?: {
+    type: string | null;
+    classification: string | null;
+  } | null;
 };
 
 // ——— Helpers ———
@@ -120,8 +123,8 @@ function CoasterRatingsContent() {
         if (!data || !Array.isArray(data.coasters))
           throw new Error("Unexpected data format from API");
 
-        const structured: Coaster[] = (data.coasters as Coaster[])
-          .map((c: Coaster): Coaster => ({
+        const structured: Coaster[] = (data.coasters as any[])
+          .map((c): Coaster => ({
             id: c.id,
             name: c.name,
             manufacturer: c.manufacturer,
@@ -131,17 +134,21 @@ function CoasterRatingsContent() {
             isBestCoaster: c.isBestCoaster,
             rcdbPath: c.rcdbPath,
             rideCount: c.rideCount ?? 0,
-            visitCount: (c as any).visitCount ?? 1,
+            visitCount: c.visitCount ?? 1,
             rating:
               c.rating === null || c.rating === undefined
                 ? null
                 : typeof c.rating === "string"
-                ? parseFloat(c.rating)
-                : c.rating,
+                  ? parseFloat(c.rating)
+                  : c.rating,
             parkId: c.parkId,
             parkName: c.parkName,
             year: c.year ?? 0,
             lastVisitDate: c.lastVisitDate,
+            specs: c.specs ? {
+              type: c.specs.type,
+              classification: c.specs.classification
+            } : null
           }))
           .filter((c: Coaster) => (c.rating ?? 0) > 0);
 
@@ -156,14 +163,6 @@ function CoasterRatingsContent() {
     fetchCoasters();
   }, []);
 
-  // Default columns based on screen size
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches) {
-      setVisibleCols(ALL_COLUMNS.map((c) => c.key));
-    }
-  }, []);
-
-  // Filter Logic
   const filteredCoasters = useMemo<Coaster[]>(
     () => {
       if (!q) return coasters;
@@ -172,16 +171,19 @@ function CoasterRatingsContent() {
           c.name,
           c.parkName,
           c.manufacturer,
+          c.model,
+          c.specs?.type,
+          c.specs?.classification?.replace(/\|/g, " "),
           String(c.year),
           String(c.rating ?? ""),
-          // Include formatted decimal so "11.0" works
-          c.rating !== null && c.rating !== undefined ? c.rating.toFixed(1) : "", 
+          c.rating !== null && c.rating !== undefined ? c.rating.toFixed(1) : "",
           String(c.rideCount ?? ""),
           formatDate(c.lastVisitDate),
         ]
           .filter(Boolean)
           .join(" ")
           .toLowerCase();
+
         return hay.includes(q);
       });
     },
@@ -194,7 +196,7 @@ function CoasterRatingsContent() {
       return [...filteredCoasters].sort((a: Coaster, b: Coaster) => {
         if (sortBy === "rating") {
           const dirMult = sortDirection === "asc" ? 1 : -1;
-          
+
           // Rating
           const ratingA = a.rating ?? 0;
           const ratingB = b.rating ?? 0;
@@ -427,9 +429,8 @@ function CoasterRatingsContent() {
                       {/* Rating */}
                       {colIsVisible("rating") && (
                         <td
-                          className={`px-2 font-semibold whitespace-nowrap ${
-                            c.rating !== null ? getRatingColor(c.rating) : ""
-                          }`}
+                          className={`px-2 font-semibold whitespace-nowrap ${c.rating !== null ? getRatingColor(c.rating) : ""
+                            }`}
                           style={{ minWidth: COL_MIN_W_MOBILE.rating }}
                         >
                           <div className="flex items-center" style={{ height: ROW_H }}>
@@ -512,10 +513,10 @@ function CoasterRatingsContent() {
                             {key === "rideCount"
                               ? totalRideCount.toLocaleString()
                               : key === "rating"
-                              ? avgRating !== null
-                                ? avgRating.toFixed(2)
-                                : "—"
-                              : ""}
+                                ? avgRating !== null
+                                  ? avgRating.toFixed(2)
+                                  : "—"
+                                : ""}
                           </div>
                         </td>
                       ) : null
@@ -632,10 +633,10 @@ function CoasterRatingsContent() {
                       {key === "rideCount"
                         ? totalRideCount.toLocaleString()
                         : key === "rating"
-                        ? avgRating !== null
-                          ? avgRating.toFixed(2)
-                          : "—"
-                        : ""}
+                          ? avgRating !== null
+                            ? avgRating.toFixed(2)
+                            : "—"
+                          : ""}
                     </td>
                   ) : null
                 )}
@@ -731,7 +732,7 @@ interface SortControlProps {
 
 function SortControl({ sortBy, sortDirection, onChangeField, onToggleDir }: SortControlProps) {
   const [open, setOpen] = useState(false);
-  
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
     function onClick(e: MouseEvent) { const t = e.target as HTMLElement; if (!t.closest?.("#sort-popover")) setOpen(false); }
@@ -748,7 +749,7 @@ function SortControl({ sortBy, sortDirection, onChangeField, onToggleDir }: Sort
     { key: "lastVisitDate", label: "Last Ridden" },
     { key: "year", label: "Year" },
   ];
-  
+
   const activeLabel = OPTIONS.find((o) => o.key === sortBy)?.label ?? "Sort";
 
   return (

@@ -165,6 +165,16 @@ const CoasterPage: React.FC = () => {
             </div>
           </div>
 
+          <Link
+            href={`/coasters/${coaster.id}/rankings`}
+            className="text-[10px] font-bold uppercase tracking-widest text-blue-500 hover:text-blue-600 transition-colors flex items-center gap-1"
+          >
+            View Detailed Rankings
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+
           {/* Right: RANKINGS SECTION */}
           <div className="flex flex-wrap items-end gap-x-6 gap-y-4 sm:gap-8 md:gap-12 shrink-0 w-full lg:w-auto justify-center lg:justify-end">
             <CoasterRanking coaster={coaster} allCoasters={allCoasters} parkName={parkName} />
