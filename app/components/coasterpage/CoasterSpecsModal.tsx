@@ -12,7 +12,7 @@ interface CoasterSpecsModalProps {
 }
 
 const TAG_CATEGORIES = {
-    "Seating & Style": {
+    "Seating": {
         tags: ["Sit Down", "Inverted", "Wing", "Floorless", "Flying", "Suspended"],
         isSingleChoice: true 
     },
@@ -24,8 +24,8 @@ const TAG_CATEGORIES = {
         tags: ["Mega", "Hyper", "Giga", "Strata", "Exa"],
         isSingleChoice: true
     },
-    "Layout": {
-        tags: ["Spinning", "Shuttle", "Racing", "Powered", "Möbius", "Quasi Möbius"],
+    "Layout & Style": {
+        tags: ["Enclosed", "Spinning", "Shuttle", "Racing", "Powered", "Zyklon", "Wild Mouse", "Jungle Mouse", "Möbius"],
         isSingleChoice: false
     }
 };
