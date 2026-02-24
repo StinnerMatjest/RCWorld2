@@ -449,7 +449,7 @@ export default function CoastlePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-200 dark:from-neutral-950 dark:to-neutral-900 p-2 sm:p-6 flex flex-col items-center overflow-x-hidden">
+    <div className="min-h-screen bg-white dark:bg-gradient-to-b dark:from-neutral-950 dark:to-neutral-900 p-2 sm:p-6 flex flex-col items-center overflow-x-hidden">
       <style>{`
         @keyframes revealUp {
           0% { opacity: 0; transform: translateY(10px) scale(0.99); }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 type Props = {
   messages?: string[];
@@ -24,25 +24,32 @@ const FALLBACKS = [
 
 const LoadingSpinner: React.FC<Props> = ({ messages, className }) => {
   const list = messages?.length ? messages : FALLBACKS;
-const [msg] = useState(() => {
-  const chosen = list[Math.floor(Math.random() * list.length)];
-  return chosen;
-});
+
+  const [msg] = useState(() => {
+    return list[Math.floor(Math.random() * list.length)];
+  });
 
   return (
     <div
-      className={`flex flex-col items-center justify-start min-h-screen pt-32 bg-gray-100 dark:bg-[#0f172a] ${
+      className={`flex flex-col items-center justify-start min-h-screen pt-32 bg-white dark:bg-[#0f172a] ${
         className ?? ""
       }`}
     >
-      {/* Bigger favicon-centered loader */}
       <div className="relative w-36 h-36">
-        {/* Center favicon (bigger) */}
+        {/* Center favicon (light/dark swap) */}
         <div className="absolute inset-0 flex items-center justify-center">
+          {/* Light mode */}
+          <img
+            src="/logos/favicon.svg"
+            alt="Loading"
+            className="w-20 h-20 drop-shadow-sm dark:hidden"
+            draggable={false}
+          />
+          {/* Dark mode */}
           <img
             src="/logos/faviconload.svg"
             alt="Loading"
-            className="w-20 h-20 drop-shadow-sm"
+            className="hidden w-20 h-20 drop-shadow-sm dark:block"
             draggable={false}
           />
         </div>
@@ -70,7 +77,6 @@ const [msg] = useState(() => {
         ))}
       </div>
 
-      {/* Loading text */}
       <p
         className="mt-7 text-gray-700 dark:text-gray-300 font-semibold tracking-wide text-lg"
         aria-live="polite"
