@@ -120,7 +120,7 @@ const CoasterHeaderModal: React.FC<ModalProps> = ({ coasterId, coasterName, park
         body: JSON.stringify({
           title: `${coasterName} - HEADER ONLY`,
           path: imagePath,
-          description: `${coasterName} Header Image`,
+          description: `${coasterName}`,
           parkId: Number(parkId),
         }),
       });
