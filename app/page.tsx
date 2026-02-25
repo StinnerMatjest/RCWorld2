@@ -1,4 +1,4 @@
-"use client"; // RAILWAY WAKE UP!
+"use client";
 
 import React, {
   useEffect,
