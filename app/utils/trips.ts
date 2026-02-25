@@ -41,10 +41,23 @@ export const trips: Trip[] = [
       'https://rcdb.com/5040.htm',
       'https://rcdb.com/5041.htm',
     ],
-    startDate: '2026-03-10',
-    endDate: '2026-03-30',
+    startDate: '2027-03-10',
+    endDate: '2027-03-30',
     status: 'planned',
     notes: 'South Korea roadtrip including every park on the peninsula',
+  },
+  {
+    country: 'Sweden',
+    parks: [
+      'Liseberg',
+    ],
+    rcdb: [
+      'https://parkrating.com/park/39'
+    ],
+    startDate: '2026-04-25',
+    endDate: '2026-04-25',
+    status: 'booked',
+    notes: 'Liseberg Opening day season 2026',
   },
   {
     country: 'Germany',
