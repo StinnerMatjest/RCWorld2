@@ -1,13 +1,13 @@
 import Image from "next/image";
 import { getParkFlag } from "@/app/utils/design";
-import { CoastleCoaster, Guess, Cell } from "@/app/types";
+import { CoastleCoaster, GuessInsider, Cell } from "@/app/types";
 import { getStatusStyles } from "@/app/utils/coastle";
 
 export function GuessRow({
   guess,
   answer,
 }: {
-  guess: Guess;
+  guess: GuessInsider;
   answer: CoastleCoaster | null;
 }) {
   if (!answer) return null;
@@ -18,7 +18,7 @@ export function GuessRow({
     {
       key: "rating",
       content: guess.coaster.rating.toFixed(1),
-      status: guess.matches.rating,
+      status: guess.matches.rating ?? "wrong",
       isArrow: true,
       diff: guess.coaster.rating - answer.rating,
       noColor: false,
@@ -26,13 +26,13 @@ export function GuessRow({
     {
       key: "manufacturer",
       content: guess.coaster.manufacturer,
-      status: guess.matches.manufacturer,
+      status: guess.matches.manufacturer ?? "wrong",
       noColor: false,
     },
     {
       key: "park",
       content: guess.coaster.park,
-      status: guess.matches.park,
+      status: guess.matches.park ?? "wrong",
       noColor: false,
     },
     {
@@ -57,21 +57,22 @@ export function GuessRow({
       ) : (
         "—"
       ),
-      status: guess.matches.country,
+      status: guess.matches.country ?? "wrong",
       noColor: false,
     },
     {
       key: "rideCount",
       content: guess.coaster.rideCount,
-      status: guess.matches.rideCount,
+      status: guess.matches.rideCount ?? "wrong",
       isArrow: true,
       diff: guess.coaster.rideCount - answer.rideCount,
       noColor: false,
     },
+    
     {
       key: "year",
       content: guess.coaster.year || "—",
-      status: guess.matches.year,
+      status: guess.matches.year ?? "wrong",
       isArrow: true,
       diff: guess.coaster.year - answer.year,
       noColor: false,
@@ -81,7 +82,7 @@ export function GuessRow({
   return (
     <tr className="border-b border-transparent">
       {/* Desktop Only: Coaster Name */}
-      <td className="hidden md:table-cell p-2 align-middle text-center overflow-hidden bg-slate-50 dark:bg-neutral-900 border-r border-slate-200 dark:border-neutral-800">
+      <td className="hidden md:table-cell p-2 align-middle text-center overflow-hidden bg-slate-50 dark:bg-slate-800/40 border-r border-slate-200 dark:border-neutral-800">
         <div className={`
           text-lg font-black leading-tight mx-auto max-w-[200px] whitespace-normal break-words
           ${isCorrect ? "text-emerald-500 dark:text-emerald-400" : "text-slate-800 dark:text-slate-200"}

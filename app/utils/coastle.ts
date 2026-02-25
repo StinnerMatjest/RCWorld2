@@ -49,18 +49,22 @@ export const INITIAL_STATS: GameStats = {
 // --- CORE FIX: High Variance Seeding ---
 // Instead of 20251001 -> 20251002 (linear +1), this creates wild jumps in the seed
 // while remaining 100% deterministic for everyone globally.
-function getSeedFromDate(d: Date) {
-  const str = d.toISOString().split('T')[0]; // "2025-12-03"
+// ✅ Updated: accepts optional salt to differentiate schedules (e.g. insider vs standard)
+function getSeedFromDate(d: Date, salt = "") {
+  const dateStr = d.toISOString().split("T")[0]; // "2025-12-03"
+  const str = salt ? `${dateStr}::${salt}` : dateStr;
+
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash) + str.charCodeAt(i);
-    hash |= 0; 
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
   }
   return Math.abs(hash);
 }
 
-export function getUTCTodaySeed() {
-  return getSeedFromDate(new Date());
+// ✅ Updated: accepts optional salt
+export function getUTCTodaySeed(salt = "") {
+  return getSeedFromDate(new Date(), salt);
 }
 
 export function seededRandom(seed: number) {
@@ -70,11 +74,15 @@ export function seededRandom(seed: number) {
   return (a * seed + c) % m;
 }
 
-export function getDailyCoaster(coasters: CoastleCoaster[]): CoastleCoaster | null {
+// ✅ Updated: accepts optional salt so each mode has its own daily schedule
+export function getDailyCoaster(
+  coasters: CoastleCoaster[],
+  salt = ""
+): CoastleCoaster | null {
   if (coasters.length === 0) return null;
 
   // 1. Calculate Today's Index
-  const todaySeed = getUTCTodaySeed();
+  const todaySeed = getUTCTodaySeed(salt);
   const randomInt = seededRandom(todaySeed);
   let index = Math.abs(randomInt) % coasters.length;
 
@@ -83,7 +91,7 @@ export function getDailyCoaster(coasters: CoastleCoaster[]): CoastleCoaster | nu
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1); // Go back 1 day
 
-    const yesterdaySeed = getSeedFromDate(yesterday);
+    const yesterdaySeed = getSeedFromDate(yesterday, salt);
     const yesterdayRandom = seededRandom(yesterdaySeed);
     const yesterdayIndex = Math.abs(yesterdayRandom) % coasters.length;
 
@@ -98,6 +106,8 @@ export function getDailyCoaster(coasters: CoastleCoaster[]): CoastleCoaster | nu
   return coasters[index];
 }
 
+// Keep this as the global "today id" used for saving daily state.
+// (Do NOT salt this; it should represent the actual day.)
 export function getTodayString() {
   const seed = getUTCTodaySeed();
   return String(seed);
@@ -112,6 +122,26 @@ export function getMatchStatus(
   return "wrong";
 }
 
+export function getNumericMatchStatus(
+  guess: number | null | undefined,
+  answer: number | null | undefined,
+  closeMargin: number
+): MatchStatus {
+  if (guess === null || guess === undefined || answer === null || answer === undefined) {
+    return "wrong";
+  }
+  if (guess === answer) return "correct";
+  if (Math.abs(guess - answer) <= closeMargin) return "close";
+  return "wrong";
+}
+
+export const STANDARD_CLOSE_MARGINS = {
+  lengthFt: 500,
+  heightFt: 30,
+  speedMph: 10,
+  inversions: 1,
+} as const;
+
 export function getStatusStyles(status: MatchStatus) {
   switch (status) {
     case "correct":
@@ -119,6 +149,8 @@ export function getStatusStyles(status: MatchStatus) {
     case "wrong":
     default:
       return "bg-red-800 text-white border-red-900 dark:bg-red-900 dark:border-red-950";
+      case "close":
+  return "bg-yellow-500 text-white border-yellow-600 shadow-[0_0_15px_rgba(234,179,8,0.35)]";
   }
 }
 
@@ -136,6 +168,14 @@ export function mapApiToCoastle(c: ApiCoaster): CoastleCoaster | null {
   const parkName = c.parkName;
   const countryName = PARK_COUNTRY_MAP[parkName];
 
+  // Standard fields (imperial). Safe even if API doesn't send them yet.
+  const anyC = c as any;
+  const toNumOrNull = (v: any): number | null => {
+    if (v === null || v === undefined || v === "") return null;
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
   return {
     id: String(c.id),
     name: c.name,
@@ -148,6 +188,12 @@ export function mapApiToCoastle(c: ApiCoaster): CoastleCoaster | null {
     parkId: c.parkId,
     rcdbPath: c.rcdbPath,
     countryName,
+
+    // ✅ Standard-ready fields
+    length: toNumOrNull(anyC.length),        // ft
+    height: toNumOrNull(anyC.height),        // ft
+    speed: toNumOrNull(anyC.speed),          // mph
+    inversions: toNumOrNull(anyC.inversions) // count
   };
 }
 
@@ -162,10 +208,10 @@ export async function legacyCopy(text: string) {
   textArea.focus();
   textArea.select();
   try {
-    document.execCommand('copy');
+    document.execCommand("copy");
     return true;
   } catch (err) {
-    console.error('Fallback copy failed', err);
+    console.error("Fallback copy failed", err);
     return false;
   } finally {
     document.body.removeChild(textArea);
@@ -173,41 +219,40 @@ export async function legacyCopy(text: string) {
 }
 
 // --- VERIFICATION TOOL ---
-// Call debugSchedule(allCoasters) in your app to verify the fix in the console.
-export function debugSchedule(coasters: CoastleCoaster[]) {
-  console.log("%c 🎢 PREDICTED SCHEDULE (Next 7 Days)", "background: #222; color: #bada55; font-size: 14px");
-  
+// Call debugSchedule(allCoasters, "insider") in your app to verify in console.
+export function debugSchedule(coasters: CoastleCoaster[], salt = "") {
+  console.log(
+    "%c 🎢 PREDICTED SCHEDULE (Next 7 Days)",
+    "background: #222; color: #bada55; font-size: 14px"
+  );
+
   const today = new Date();
-  
+
   for (let i = 0; i < 7; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() + i);
-    
+
     // Manually replicate logic to predict future
-    const seed = getSeedFromDate(d);
+    const seed = getSeedFromDate(d, salt);
     const randomInt = seededRandom(seed);
     let index = Math.abs(randomInt) % coasters.length;
-    
+
     // Check duplication logic
     if (i > 0) {
-        const prevD = new Date(d);
-        prevD.setDate(prevD.getDate() - 1);
-        const prevSeed = getSeedFromDate(prevD);
-        const prevRand = seededRandom(prevSeed);
-        const prevIndex = Math.abs(prevRand) % coasters.length;
-        if (index === prevIndex) index = (index + 17) % coasters.length;
+      const prevD = new Date(d);
+      prevD.setDate(prevD.getDate() - 1);
+      const prevSeed = getSeedFromDate(prevD, salt);
+      const prevRand = seededRandom(prevSeed);
+      const prevIndex = Math.abs(prevRand) % coasters.length;
+      if (index === prevIndex) index = (index + 17) % coasters.length;
     }
 
     const c = coasters[index];
     if (c) {
-      console.log(`Day +${i} (${d.toISOString().split('T')[0]}): ${c.name} @ ${c.park}`);
+      console.log(
+        `Day +${i} (${d.toISOString().split("T")[0]}): ${c.name} @ ${c.park}`
+      );
     }
   }
 }
 
-// OPTIONAL: Make it available in browser console immediately for debugging
-// Remove this line for production if you prefer
-if (typeof window !== 'undefined') {
-  // @ts-ignore
-  window.debugSchedule = debugSchedule;
-}
