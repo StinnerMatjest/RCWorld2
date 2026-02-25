@@ -97,20 +97,42 @@ export type CoastleCoaster = {
   parkId: number;
   rcdbPath: string;
   countryName?: string;
+
+  // ✅ Standard (API will return imperial; optional for now)
+  length?: number | null;      // ft
+  height?: number | null;      // ft
+  speed?: number | null;       // mph
+  inversions?: number | null;  // count
 };
 
-export type MatchStatus = "correct" | "wrong";
+export type MatchStatus = "correct" | "close" | "wrong";
 
-export type Guess = {
+export type GuessMatchesInsider = {
+  park: MatchStatus;
+  manufacturer: MatchStatus;
+  rating: MatchStatus;
+  year: MatchStatus;
+  country: MatchStatus;
+  rideCount: MatchStatus;
+};
+
+export type GuessMatchesStandard = {
+  manufacturer: MatchStatus;
+  country: MatchStatus;
+  length: MatchStatus;
+  height: MatchStatus;
+  speed: MatchStatus;
+  inversions: MatchStatus;
+};
+
+export type GuessInsider = {
   coaster: CoastleCoaster;
-  matches: {
-    park: MatchStatus;
-    manufacturer: MatchStatus;
-    rating: MatchStatus;
-    year: MatchStatus;
-    country: MatchStatus;
-    rideCount: MatchStatus;
-  };
+  matches: GuessMatchesInsider;
+};
+
+export type GuessStandard = {
+  coaster: CoastleCoaster;
+  matches: GuessMatchesStandard;
 };
 
 export type Cell = {
