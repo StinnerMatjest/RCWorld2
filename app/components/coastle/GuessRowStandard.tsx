@@ -3,11 +3,12 @@ import { getParkFlag } from "@/app/utils/design";
 import { CoastleCoaster, GuessStandard, Cell } from "@/app/types";
 import { getStatusStyles } from "@/app/utils/coastle";
 
-function formatNum(val: number | null | undefined): string {
+function formatNum(val: number | null | undefined, unit?: "ft" | "mph"): string {
   if (val === null || val === undefined) return "—";
   if (!Number.isFinite(val)) return "—";
-  // keep integers clean
-  return Number.isInteger(val) ? String(val) : String(val);
+
+  const rounded = Math.round(val);
+  return unit ? `${rounded} ${unit}` : String(rounded);
 }
 
 export function GuessRowStandard({
@@ -22,10 +23,10 @@ export function GuessRowStandard({
   const isCorrect = guess.coaster.id === answer.id;
 
   // NOTE: These values will be "—" until API/mapping populates them.
- const length = formatNum(guess.coaster.length);
-const height = formatNum(guess.coaster.height);
-const speed = formatNum(guess.coaster.speed);
-const inversions = formatNum(guess.coaster.inversions);
+const length = formatNum(guess.coaster.length, "ft");
+const height = formatNum(guess.coaster.height, "ft");
+const speed = formatNum(guess.coaster.speed, "mph");
+const inversions = formatNum(guess.coaster.inversions); // no unit
 
   const cells: Cell[] = [
     {
@@ -65,10 +66,10 @@ const inversions = formatNum(guess.coaster.inversions);
       content: length,
       status: guess.matches.length,
       isArrow: true,
-      diff:
-        (guess.coaster.length ?? null) !== null && (answer.length ?? null) !== null
-          ? (guess.coaster.length as number) - (answer.length as number)
-          : 0,
+     diff:
+  guess.coaster.length != null && answer.length != null
+    ? Math.round(guess.coaster.length) - Math.round(answer.length)
+    : 0,
       noColor: false,
     },
     {
@@ -76,10 +77,10 @@ const inversions = formatNum(guess.coaster.inversions);
       content: height,
       status: guess.matches.height,
       isArrow: true,
-      diff:
-        (guess.coaster.height ?? null) !== null && (answer.height ?? null) !== null
-          ? (guess.coaster.height as number) - (answer.height as number)
-          : 0,
+   diff:
+  guess.coaster.height != null && answer.height != null
+    ? Math.round(guess.coaster.height) - Math.round(answer.height)
+    : 0,
       noColor: false,
     },
     {
@@ -87,10 +88,10 @@ const inversions = formatNum(guess.coaster.inversions);
       content: speed,
       status: guess.matches.speed,
       isArrow: true,
-      diff:
-        (guess.coaster.speed ?? null) !== null && (answer.speed ?? null) !== null
-          ? (guess.coaster.speed as number) - (answer.speed as number)
-          : 0,
+    diff:
+  guess.coaster.speed != null && answer.speed != null
+    ? Math.round(guess.coaster.speed) - Math.round(answer.speed)
+    : 0,
       noColor: false,
     },
     {
@@ -98,11 +99,10 @@ const inversions = formatNum(guess.coaster.inversions);
       content: inversions,
       status: guess.matches.inversions,
       isArrow: true,
-      diff:
-        (guess.coaster.inversions ?? null) !== null &&
-        (answer.inversions ?? null) !== null
-          ? (guess.coaster.inversions as number) - (answer.inversions as number)
-          : 0,
+   diff:
+  guess.coaster.inversions != null && answer.inversions != null
+    ? Math.round(guess.coaster.inversions) - Math.round(answer.inversions)
+    : 0,
       noColor: false,
     },
   ];

@@ -202,7 +202,6 @@ function ModeButton({
           `}
         >
           <div className="flex items-center justify-center">
-            {/* ✅ slightly bigger mobile icon */}
             <ModeIcon lightSrc={iconLightSrc} darkSrc={iconDarkSrc} className="w-24 h-24" />
           </div>
 
@@ -272,10 +271,7 @@ export default function CoastleLauncherPage() {
     setInsiderDailyDone(insDaily ? insDaily.date === today && insDaily.status !== "playing" : false);
   }, []);
 
-  const gradient = useMemo(
-    () => "from-blue-600 via-indigo-600 to-fuchsia-600",
-    []
-  );
+  const gradient = useMemo(() => "from-blue-600 via-indigo-600 to-fuchsia-600", []);
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-900 px-4 py-6 sm:py-10 flex items-start justify-center">
@@ -287,6 +283,15 @@ export default function CoastleLauncherPage() {
           <p className="mt-2 text-xs sm:text-sm text-slate-500 dark:text-slate-300 font-bold uppercase tracking-widest">
             Choose a mode
           </p>
+
+         <div className="mt-4 text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium max-w-2xl mx-auto">
+  <span className="block sm:block">
+    <span className="font-bold text-slate-800 dark:text-slate-100">Standard</span> = Focus on the rollercoasters specs.
+  </span>
+  <span className="block sm:block">
+    <span className="font-bold text-slate-800 dark:text-slate-100">Insider</span> = Focus on ParkRating insider knowledge and ratings.
+  </span>
+</div>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">

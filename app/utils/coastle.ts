@@ -149,8 +149,9 @@ export function getStatusStyles(status: MatchStatus) {
     case "wrong":
     default:
       return "bg-red-800 text-white border-red-900 dark:bg-red-900 dark:border-red-950";
-      case "close":
-  return "bg-yellow-500 text-white border-yellow-600 shadow-[0_0_15px_rgba(234,179,8,0.35)]";
+   case "close":
+  return "bg-amber-500 text-white border-amber-600 shadow-[0_0_10px_rgba(217,119,6,0.18)] " +
+         "dark:bg-yellow-600 dark:border-yellow-700 dark:shadow-[0_0_12px_rgba(234,179,8,0.24)]";
   }
 }
 
@@ -168,8 +169,8 @@ export function mapApiToCoastle(c: ApiCoaster): CoastleCoaster | null {
   const parkName = c.parkName;
   const countryName = PARK_COUNTRY_MAP[parkName];
 
-  // Standard fields (imperial). Safe even if API doesn't send them yet.
   const anyC = c as any;
+  const specs = anyC?.specs ?? {};
   const toNumOrNull = (v: any): number | null => {
     if (v === null || v === undefined || v === "") return null;
     const n = typeof v === "number" ? v : Number(v);
@@ -189,11 +190,11 @@ export function mapApiToCoastle(c: ApiCoaster): CoastleCoaster | null {
     rcdbPath: c.rcdbPath,
     countryName,
 
-    // ✅ Standard-ready fields
-    length: toNumOrNull(anyC.length),        // ft
-    height: toNumOrNull(anyC.height),        // ft
-    speed: toNumOrNull(anyC.speed),          // mph
-    inversions: toNumOrNull(anyC.inversions) // count
+    // ✅ Standard fields (API returns feet + mph)
+    height: toNumOrNull(specs.height),       // ft
+    length: toNumOrNull(specs.length),       // ft
+    speed: toNumOrNull(specs.speed),         // mph
+    inversions: toNumOrNull(specs.inversions) // count
   };
 }
 

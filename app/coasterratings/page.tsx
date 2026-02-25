@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { getRatingColor } from "@/app/utils/design";
 import { useSearch } from "@/app/context/SearchContext";
-import LoadingSpinner from "@/app/components/LoadingSpinner"; 
+import LoadingSpinner from "@/app/components/LoadingSpinner";
+import type { RollerCoasterSpecs } from "@/app/types";
 
+// ——— Types ———
 type Coaster = {
   id: number;
   name: string;
@@ -23,10 +25,7 @@ type Coaster = {
   parkName: string;
   year: number;
   lastVisitDate: string | null;
-  specs?: {
-    type: string | null;
-    classification: string | null;
-  } | null;
+  specs?: RollerCoasterSpecs | null;
 };
 
 // ——— Helpers ———
@@ -148,7 +147,16 @@ function CoasterRatingsContent() {
             lastVisitDate: c.lastVisitDate,
             specs: c.specs ? {
               type: c.specs.type,
-              classification: c.specs.classification
+              classification: c.specs.classification,
+              length: c.specs.length,
+              height: c.specs.height,
+              drop: c.specs.drop,
+              speed: c.specs.speed,
+              inversions: c.specs.inversions,
+              verticalAngle: c.specs.verticalAngle,
+              gforce: c.specs.gforce,
+              duration: c.specs.duration,
+              notes: c.specs.notes,
             } : null
           }))
           .filter((c: Coaster) => (c.rating ?? 0) > 0);
@@ -255,9 +263,9 @@ function CoasterRatingsContent() {
     });
   }
 
-if (loading) {
-  return <LoadingSpinner className="pt-24" />;
-}
+  if (loading) {
+    return <LoadingSpinner className="pt-24" />;
+  }
   if (error) return <p className="p-4 text-red-500">Error: {error}</p>;
 
   const colIsVisible = (key: ColumnKey) => visibleCols.includes(key);
