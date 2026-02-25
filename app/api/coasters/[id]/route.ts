@@ -18,7 +18,6 @@ export async function GET(
     }
 
     try {
-        // Fetch Coaster Details and Specs
         const coasterQuery = `
             SELECT 
                 rc.id,

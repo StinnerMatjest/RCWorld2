@@ -26,6 +26,15 @@ export async function GET() {
         rc.park_id,
         rs.type,
         rs.classification,
+        rs.length,
+        rs.height,
+        rs.drop,
+        rs.speed,
+        rs.inversions,
+        rs.vertical_angle,
+        rs.gforce,
+        rs.duration_sec AS duration,
+        rs.notes,
         p.name AS park_name,
         MAX(r.date) AS last_visit_date,
         COUNT(DISTINCT r.id) AS visit_count
@@ -36,7 +45,8 @@ export async function GET() {
       GROUP BY 
         rc.id, rc.name, rc.year, rc.manufacturer, rc.model, rc.scale, rc.haveridden, 
         rc.isbestcoaster, rc.rcdbpath, rc.ridecount, rc.rating, rc.park_id, 
-        rs.type, rs.classification, p.name
+        rs.type, rs.classification, rs.length, rs.height, rs.drop, rs.speed, 
+        rs.inversions, rs.vertical_angle, rs.gforce, rs.duration_sec, rs.notes, p.name
       ORDER BY p.name, rc.name;
     `;
 
@@ -60,7 +70,16 @@ export async function GET() {
       visitCount: Number(row.visit_count) || 0,
       specs: {
         type: row.type,
-        classification: row.classification
+        classification: row.classification,
+        length: row.length,
+        height: row.height,
+        drop: row.drop,
+        speed: row.speed,
+        inversions: row.inversions,
+        verticalAngle: row.vertical_angle,
+        gforce: row.gforce,
+        duration: row.duration,
+        notes: row.notes,
       },
     }));
 
