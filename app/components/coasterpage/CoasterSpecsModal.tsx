@@ -14,22 +14,26 @@ interface CoasterSpecsModalProps {
 const TAG_CATEGORIES = {
     "Seating": {
         tags: ["Sit Down", "Inverted", "Wing", "Floorless", "Flying", "Suspended"],
-        isSingleChoice: true 
+        isSingleChoice: true
     },
-        "Type": {
-        tags: ["Spinning", "Shuttle", "Racing", "Powered", "Bobsled"],
+    "Type": {
+        tags: ["Looper", "Dive Machine", "Spinning", "Shuttle", "Racing", "Powered", "Scenic Railway", "Bobsled", "Möbius"],
         isSingleChoice: false
     },
-        "Height Class": {
+    "Height Class": {
         tags: ["Mega", "Hyper", "Giga", "Strata", "Exa"],
         isSingleChoice: true
     },
     "Launch System": {
-        tags: ["Launched", "Multi-Launched", "Swing Launch"],
+        tags: ["Launched", "Multi-Launched", "Swing Launch", "LSM", "LIM", "Hydralic", "Air Launch"],
         isSingleChoice: false
     },
-        "Misc & Layout": {
-        tags: ["Enclosed", "Zyklon", "Wild Mouse", "Jungle Mouse", "Möbius"],
+    "Layout": {
+        tags: ["Wild Mouse", "Zyklon", "Jungle Mouse", "Cyclone", "Wacky Worm", "Out-and-Back", "Twister", "L-Shape"],
+        isSingleChoice: false
+    },
+    "Miscellaneous": {
+        tags: ["Enclosed", "Virtual Reality", "Brakeman", "Onboard Sound"],
         isSingleChoice: false
     },
 };
@@ -47,23 +51,19 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
 
-    // Block scrolling on body when modal is open
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = "hidden";
         } else {
             document.body.style.overflow = "unset";
         }
-        // Cleanup on unmount
-        return () => {
-            document.body.style.overflow = "unset";
-        };
+        return () => { document.body.style.overflow = "unset"; };
     }, [isOpen]);
 
     useEffect(() => {
         if (isOpen) {
             setFormData(initialSpecs || {});
-            const existingTags = initialSpecs?.classification 
+            const existingTags = initialSpecs?.classification
                 ? initialSpecs.classification.split("|").map(t => t.trim()).filter(Boolean)
                 : [];
             setSelectedTags(existingTags);
@@ -81,7 +81,7 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
 
     const toggleTag = useCallback((tag: string, categoryKey: string) => {
         const category = TAG_CATEGORIES[categoryKey as keyof typeof TAG_CATEGORIES];
-        
+
         setSelectedTags(prev => {
             const isAlreadySelected = prev.includes(tag);
 
@@ -126,7 +126,7 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-hidden">
-            <div className="bg-white dark:bg-gray-950 rounded-none w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+            <div className="bg-white dark:bg-gray-950 rounded-none w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
                 <form onSubmit={handleSubmit} className="flex flex-col h-full">
                     <div className="p-8 md:p-10 overflow-y-auto flex-1 custom-scrollbar">
                         <header className="mb-10">
@@ -139,12 +139,12 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
                         </header>
 
                         {/* TAGS SECTION */}
-                        <div className="mb-12 space-y-6">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-4">
+                        <div className="mb-12">
+                            <div className="columns-1 sm:columns-2 gap-x-12">
                                 {Object.entries(TAG_CATEGORIES).map(([categoryName, data]) => (
-                                    <div key={categoryName} className="flex flex-col">
-                                        <div className="flex justify-between items-end border-b border-gray-100 dark:border-gray-800 pb-1 mb-2">
-                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">
+                                    <div key={categoryName} className="break-inside-avoid flex flex-col mb-8">
+                                        <div className="flex justify-between items-end border-b border-gray-200 dark:border-gray-800 pb-1 mb-2.5">
+                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] leading-none">
                                                 {categoryName}
                                             </h4>
                                             {data.isSingleChoice && (
@@ -153,22 +153,21 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="flex flex-wrap gap-2 pt-1">
+                                        <div className="flex flex-wrap gap-1.5 pt-0.5">
                                             {data.tags.map(tag => {
                                                 const isSelected = selectedTags.includes(tag);
                                                 return (
-                                                  <button
-                                                    key={tag}
-                                                    type="button"
-                                                    onClick={() => toggleTag(tag, categoryName)}
-                                                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all border-2 ${
-                                                      isSelected 
-                                                      ? "bg-blue-600 border-blue-600 text-white" 
-                                                      : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 hover:border-blue-500"
-                                                    }`}
-                                                  >
-                                                    {tag}
-                                                  </button>
+                                                    <button
+                                                        key={tag}
+                                                        type="button"
+                                                        onClick={() => toggleTag(tag, categoryName)}
+                                                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border ${isSelected
+                                                                ? "bg-blue-600 border-blue-600 text-white"
+                                                                : "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-blue-400 dark:hover:border-blue-500"
+                                                            }`}
+                                                    >
+                                                        {tag}
+                                                    </button>
                                                 );
                                             })}
                                         </div>
@@ -178,7 +177,7 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
                         </div>
 
                         {/* INPUT FIELDS */}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
                             <div className="flex flex-col">
                                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Type</label>
                                 <div className="relative">
@@ -186,15 +185,15 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
                                         name="type"
                                         value={formData.type || ""}
                                         onChange={handleChange}
-                                        className="w-full rounded-none border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-3 text-xs font-bold focus:border-blue-600 outline-none transition-all appearance-none cursor-pointer"
+                                        className="w-full rounded-none border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2.5 text-xs font-bold focus:border-blue-600 outline-none transition-all appearance-none cursor-pointer"
                                     >
-                                        <option value="">Select Type</option>
+                                        <option value="">Select</option>
                                         {MATERIAL_OPTIONS.map(opt => (
                                             <option key={opt} value={opt}>{opt}</option>
                                         ))}
                                     </select>
                                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                                        <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 7.343 8.172 5.929 9.586l3.364 3.364z"/></svg>
+                                        <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 7.343 8.172 5.929 9.586l3.364 3.364z" /></svg>
                                     </div>
                                 </div>
                             </div>
@@ -204,24 +203,24 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
                             <Input label="Drop (ft)" name="drop" value={formData.drop} onChange={handleChange} />
                             <Input label="Speed (mph)" name="speed" value={formData.speed} onChange={handleChange} />
                             <Input label="Inversions" name="inversions" value={formData.inversions} onChange={handleChange} />
-                            <Input label="Angle of descent (°)" name="verticalAngle" value={formData.verticalAngle} onChange={handleChange} />
+                            <Input label="Angle (°)" name="verticalAngle" value={formData.verticalAngle} onChange={handleChange} />
                             <Input label="G-Force" name="gforce" value={formData.gforce} onChange={handleChange} />
                             <Input label="Duration (s)" name="duration" value={formData.duration} onChange={handleChange} />
                         </div>
 
-                        <div className="mt-10">
+                        <div className="mt-8">
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Notes</label>
                             <textarea
                                 name="notes"
-                                rows={3}
-                                className="w-full rounded-none border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-4 text-sm font-medium focus:border-blue-600 outline-none transition-all resize-none"
+                                rows={2}
+                                className="w-full rounded-none border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-sm font-medium focus:border-blue-600 outline-none transition-all resize-none"
                                 value={formData.notes || ""}
                                 onChange={handleChange}
                             />
                         </div>
                     </div>
 
-                    <div className="p-8 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-6">
+                    <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex justify-end gap-6">
                         <button
                             type="button"
                             onClick={onClose}
@@ -232,7 +231,7 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
                         <button
                             type="submit"
                             disabled={loading}
-                            className="px-10 py-3 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all uppercase tracking-[0.2em] rounded-none cursor-pointer"
+                            className="px-8 py-3 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all uppercase tracking-[0.2em] rounded-none cursor-pointer"
                         >
                             {loading ? "Saving..." : "Save Changes"}
                         </button>
@@ -252,7 +251,7 @@ const Input = ({ label, name, value, onChange, type = "number", step = "0.1" }: 
             name={name}
             value={value ?? ""}
             onChange={onChange}
-            className="w-full rounded-none border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-3 text-xs font-bold focus:border-blue-600 outline-none transition-all"
+            className="w-full rounded-none border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2.5 text-xs font-bold focus:border-blue-600 outline-none transition-all"
         />
     </div>
 );
