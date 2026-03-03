@@ -13,11 +13,11 @@ interface CoasterSpecsModalProps {
 
 const TAG_CATEGORIES = {
     "Seating": {
-        tags: ["Sit Down", "Inverted", "Wing", "Floorless", "Flying", "Suspended"],
+        tags: ["Sit Down", "Inverted", "Wing", "Floorless", "Flying", "Suspended", "Straddle"],
         isSingleChoice: true
     },
     "Type": {
-        tags: ["Looper", "Dive Machine", "Spinning", "Shuttle", "Racing", "Powered", "Scenic Railway", "Bobsled", "Möbius"],
+        tags: ["Looper", "Dive Machine", "Spinning", "Shuttle", "Dueling", "Dual Track", "Powered", "Mine Train", "Scenic Railway", "Bobsled", "Möbius"],
         isSingleChoice: false
     },
     "Height Class": {
@@ -25,15 +25,23 @@ const TAG_CATEGORIES = {
         isSingleChoice: true
     },
     "Launch System": {
-        tags: ["Launched", "Multi-Launched", "Swing Launch", "LSM", "LIM", "Hydralic", "Air Launch"],
+        tags: ["Launched", "Boost Launch", "Swing Launch", "LSM", "LIM", "Hydraulic", "Air Launch", "Tire Launch"],
         isSingleChoice: false
     },
     "Layout": {
-        tags: ["Wild Mouse", "Zyklon", "Jungle Mouse", "Cyclone", "Wacky Worm", "Out-and-Back", "Twister", "L-Shape"],
+        tags: ["Wild Mouse", "Zyklon", "Jungle Mouse", "Cyclone", "Wacky Worm", "Out-and-Back", "Twister", "L-Shape", "Terrain Coaster"],
         isSingleChoice: false
     },
+    "Lift & Drop": {
+        tags: ["Double Lift", "Triple Lift", "Launched Lift", "Vertical Drop", "Beyond Vertical"],
+        isSingleChoice: false
+    },
+    "Model": {
+        tags: ["Clone", "Custom"],
+        isSingleChoice: true
+    },
     "Miscellaneous": {
-        tags: ["Enclosed", "Virtual Reality", "Brakeman", "Onboard Sound"],
+        tags: ["Enclosed", "Indoor", "Virtual Reality", "Brakeman", "Onboard Sound", "Station Fly-by"],
         isSingleChoice: false
     },
 };
@@ -85,12 +93,38 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
         setSelectedTags(prev => {
             const isAlreadySelected = prev.includes(tag);
 
-            if (category.isSingleChoice) {
-                const filtered = prev.filter(t => !category.tags.includes(t));
-                return isAlreadySelected ? filtered : [...filtered, tag];
-            } else {
-                return isAlreadySelected ? prev.filter(t => t !== tag) : [...prev, tag];
+            if (isAlreadySelected) {
+                return prev.filter(t => t !== tag);
             }
+
+            // RULE 1 Prevent picking Height Class if Shuttle is active
+            if (categoryKey === "Height Class" && prev.includes("Shuttle")) {
+                return prev;
+            }
+
+            let nextTags = [...prev];
+
+            if (category.isSingleChoice) {
+                // Remove all other tags in category
+                nextTags = nextTags.filter(t => !category.tags.includes(t));
+
+                // RULE 2: Allow "Sit Down" and "Straddle" to coexist
+                if (categoryKey === "Seating") {
+                    if (tag === "Sit Down" && prev.includes("Straddle")) {
+                        nextTags.push("Straddle");
+                    } else if (tag === "Straddle" && prev.includes("Sit Down")) {
+                        nextTags.push("Sit Down");
+                    }
+                }
+            }
+
+            nextTags.push(tag);
+
+            if (tag === "Shuttle") {
+                nextTags = nextTags.filter(t => !TAG_CATEGORIES["Height Class"].tags.includes(t));
+            }
+
+            return nextTags;
         });
     }, []);
 
@@ -125,10 +159,10 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-hidden">
-            <div className="bg-white dark:bg-gray-950 rounded-none w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
-                <form onSubmit={handleSubmit} className="flex flex-col h-full">
-                    <div className="p-8 md:p-10 overflow-y-auto flex-1 custom-scrollbar">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-gray-950 rounded-none w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+                <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+                    <div className="p-8 md:p-10 overflow-y-auto flex-1 min-h-0 custom-scrollbar">
                         <header className="mb-10">
                             <h2 className="text-4xl font-black text-gray-900 dark:text-white uppercase italic tracking-tighter leading-none">
                                 Edit Specs
@@ -156,14 +190,19 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
                                         <div className="flex flex-wrap gap-1.5 pt-0.5">
                                             {data.tags.map(tag => {
                                                 const isSelected = selectedTags.includes(tag);
+                                                const isDisabled = categoryName === "Height Class" && selectedTags.includes("Shuttle");
+
                                                 return (
                                                     <button
                                                         key={tag}
                                                         type="button"
                                                         onClick={() => toggleTag(tag, categoryName)}
-                                                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border ${isSelected
-                                                                ? "bg-blue-600 border-blue-600 text-white"
-                                                                : "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-blue-400 dark:hover:border-blue-500"
+                                                        disabled={isDisabled}
+                                                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border ${isDisabled
+                                                                ? "bg-gray-100 border-gray-100 text-gray-300 dark:bg-gray-800 dark:border-gray-800 dark:text-gray-600 cursor-not-allowed opacity-60"
+                                                                : isSelected
+                                                                    ? "bg-blue-600 border-blue-600 text-white"
+                                                                    : "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-blue-400 dark:hover:border-blue-500 cursor-pointer"
                                                             }`}
                                                     >
                                                         {tag}
@@ -220,7 +259,7 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
                         </div>
                     </div>
 
-                    <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex justify-end gap-6">
+                    <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex shrink-0 justify-end gap-6">
                         <button
                             type="button"
                             onClick={onClose}
