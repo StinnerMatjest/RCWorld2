@@ -81,6 +81,22 @@ export default function DetailedRankingsPage() {
                 <Hash />,
                 coaster.specs.type
             ) : null,
+
+            // Scale Ranking
+            coaster.scale ? generateResult(
+                (c) => c.scale === coaster.scale,
+                "Scale Ranking",
+                <Hash />,
+                coaster.scale
+            ) : null,
+
+            // Inversions Ranking
+            coaster.specs?.inversions != null ? generateResult(
+                (c) => c.specs?.inversions === coaster.specs?.inversions,
+                "Inversions Ranking",
+                <Hash />,
+                coaster.specs.inversions === 1 ? "1 Inversion" : `${coaster.specs.inversions} Inversions`
+            ) : null,
         ].filter(Boolean);
 
         // Tags Ranking

@@ -17,7 +17,7 @@ const TAG_CATEGORIES = {
         isSingleChoice: true
     },
     "Type": {
-        tags: ["Looper", "Dive Machine", "Spinning", "Shuttle", "Dueling", "Dual Track", "Powered", "Mine Train", "Scenic Railway", "Bobsled", "Möbius"],
+        tags: ["Spinning", "Shuttle", "Powered", "Mine Train", "Dive Machine", "Dueling", "Dual Track", "Scenic Railway", "Side Friction", "Bobsled", "Möbius"],
         isSingleChoice: false
     },
     "Height Class": {
@@ -29,19 +29,19 @@ const TAG_CATEGORIES = {
         isSingleChoice: false
     },
     "Layout": {
-        tags: ["Wild Mouse", "Zyklon", "Jungle Mouse", "Cyclone", "Wacky Worm", "Out-and-Back", "Twister", "L-Shape", "Terrain Coaster"],
+        tags: ["Wild Mouse", "Zyklon", "Jungle Mouse", "Cyclone", "Wacky Worm", "Figure 8", "Out-and-Back", "Twister", "L-Shape", "Terrain Coaster", "Switch Track"],
         isSingleChoice: false
     },
     "Lift & Drop": {
-        tags: ["Double Lift", "Triple Lift", "Launched Lift", "Vertical Drop", "Beyond Vertical"],
+        tags: ["Double Lift", "Triple Lift", "Launched Lift", "Vertical Lift", "Elevator Lift", "Spiral Lift", "Vertical Drop", "Beyond Vertical", "Station Drop"],
         isSingleChoice: false
     },
     "Model": {
-        tags: ["Clone", "Custom"],
+        tags: ["Cloned", "Custom"],
         isSingleChoice: true
     },
     "Miscellaneous": {
-        tags: ["Enclosed", "Indoor", "Virtual Reality", "Brakeman", "Onboard Sound", "Station Fly-by"],
+        tags: ["Fully Enclosed", "Semi Enclosed", "Indoor", "Virtual Reality", "Brakeman", "Onboard Sound", "Station Fly-by", "Special Backcar"],
         isSingleChoice: false
     },
 };
@@ -74,7 +74,14 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
             const existingTags = initialSpecs?.classification
                 ? initialSpecs.classification.split("|").map(t => t.trim()).filter(Boolean)
                 : [];
-            setSelectedTags(existingTags);
+
+            const migratedTags = existingTags.map(tag => {
+                if (tag === "Enclosed") return "Fully Enclosed";
+                if (tag === "Clone") return "Cloned";
+                return tag;
+            });
+
+            setSelectedTags(migratedTags);
         }
     }, [isOpen, initialSpecs]);
 
@@ -199,10 +206,10 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
                                                         onClick={() => toggleTag(tag, categoryName)}
                                                         disabled={isDisabled}
                                                         className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border ${isDisabled
-                                                                ? "bg-gray-100 border-gray-100 text-gray-300 dark:bg-gray-800 dark:border-gray-800 dark:text-gray-600 cursor-not-allowed opacity-60"
-                                                                : isSelected
-                                                                    ? "bg-blue-600 border-blue-600 text-white"
-                                                                    : "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-blue-400 dark:hover:border-blue-500 cursor-pointer"
+                                                            ? "bg-gray-100 border-gray-100 text-gray-300 dark:bg-gray-800 dark:border-gray-800 dark:text-gray-600 cursor-not-allowed opacity-60"
+                                                            : isSelected
+                                                                ? "bg-blue-600 border-blue-600 text-white"
+                                                                : "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-blue-400 dark:hover:border-blue-500 cursor-pointer"
                                                             }`}
                                                     >
                                                         {tag}

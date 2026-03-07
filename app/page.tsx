@@ -135,7 +135,7 @@ const Home = () => {
   return (
     <main
       id="top"
-      className="relative z-0 bg-gray-100 dark:bg-[#0f172a] overflow-visible"
+      className="relative z-0 bg-white dark:bg-[#0f172a] overflow-visible"
     >
       {/* Mobile: horizontal swipe carousel */}
       <div className="md:hidden px-4 py-3 relative">
@@ -197,7 +197,7 @@ const Home = () => {
         </div>
 
         {/* Right gradient hint */}
-        <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-gray-100 dark:from-[#0f172a] to-transparent" />
+        <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-white dark:from-[#0f172a] to-transparent" />
 
         {/* Pagination dots */}
         <div
@@ -213,18 +213,17 @@ const Home = () => {
           {filteredRatings.map((_, i) => (
             <span
               key={i}
-              className={`h-2 w-2 rounded-full transition-colors ${
-                i === currentIndex
-                  ? "bg-blue-600 dark:bg-blue-400"
-                  : "bg-gray-300 dark:bg-gray-600"
-              }`}
+              className={`h-2 w-2 rounded-full transition-colors ${i === currentIndex
+                ? "bg-blue-600 dark:bg-blue-400"
+                : "bg-gray-300 dark:bg-gray-600"
+                }`}
             />
           ))}
         </div>
       </div>
 
       {/* Tablet & up: normal grid */}
-      <div className="hidden md:grid relative z-10 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 px-6 flex-grow bg-white dark:bg-transparent py-2.5">
+      <div className="hidden md:grid relative z-10 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 px-6 flex-grow dark:bg-transparent py-2.5">
         {filteredRatings.map((rating, index) => {
           const park = parks.find((p) => p.id === rating.parkId);
           if (!park) return null;

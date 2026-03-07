@@ -67,7 +67,6 @@ export interface RollerCoasterHighlights {
   severity: string;
 }
 
-
 export type ApiCoaster = {
   id: number;
   name: string;
@@ -83,6 +82,7 @@ export type ApiCoaster = {
   parkName: string;
   year: number | null;
   lastVisitDate: string | null;
+  specs?: RollerCoasterSpecs | null;
 };
 
 export type CoastleCoaster = {
@@ -97,8 +97,6 @@ export type CoastleCoaster = {
   parkId: number;
   rcdbPath: string;
   countryName?: string;
-
-  // ✅ Standard (API will return imperial; optional for now)
   length?: number | null;      // ft
   height?: number | null;      // ft
   speed?: number | null;       // mph
