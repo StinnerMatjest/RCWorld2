@@ -440,18 +440,17 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
               className={`h-9 w-20 text-lg font-semibold text-white rounded-lg transition duration-300
                           focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
                           dark:focus-visible:ring-offset-gray-800
-                          ${
-                            loading
-                              ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed"
-                              : !name ||
-                                !isValidYear ||
-                                !manufacturer ||
-                                !model ||
-                                !scale ||
-                                !rcdbpath
-                              ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
-                              : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 cursor-pointer"
-                          }`}
+                          ${loading
+                  ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed"
+                  : !name ||
+                    !isValidYear ||
+                    !manufacturer ||
+                    !model ||
+                    !scale ||
+                    !rcdbpath
+                    ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 cursor-pointer"
+                }`}
               disabled={
                 loading ||
                 !name ||

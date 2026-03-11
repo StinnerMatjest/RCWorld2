@@ -150,3 +150,22 @@ export type GameStats = {
   maxStreak: number;
   guessDistribution: number[];
 };
+
+export interface RankingList {
+  id: number;
+  slug: string; // e.g., "top-15-waterrides-europe"
+  title: string;
+  introText: string;
+  items: RankingListItem[];
+}
+
+export interface RankingListItem {
+  id: number;
+  rank: number;
+  title: string;
+  subtitle: string; // e.g., "Urayasu, Japan"
+  textBlock1: string; // The first paragraph of text
+  image1: string;     // The first image URL
+  textBlock2?: string; // Optional second paragraph
+  image2?: string;     // Optional second image URL
+}
