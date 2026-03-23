@@ -4,13 +4,38 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Navbar from "./Navbar";
-import { getNextTrip, getDaysUntil } from "@/app/utils/trips";
+import { getDaysUntil } from "@/app/utils/trips";
 
 const Header = () => {
-  const nextTrip = getNextTrip();
-  const days = nextTrip ? getDaysUntil(nextTrip.startDate) : null;
+  const [days, setDays] = useState<number | null>(null);
+  const [isLoadingTrip, setIsLoadingTrip] = useState(true);
   const [isVisible, setIsVisible] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
+
+  useEffect(() => {
+    const fetchNextTrip = async () => {
+      try {
+        const res = await fetch("/api/trips");
+        if (!res.ok) throw new Error("Failed to fetch trips");
+        const data = await res.json();
+        
+        // Find the closest booked trip
+        const next = data.trips
+          .filter((t: any) => t.status === "booked" && getDaysUntil(t.startDate))
+          .sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())[0];
+
+        if (next) {
+          setDays(getDaysUntil(next.startDate));
+        }
+      } catch (error) {
+        console.error("Failed to fetch next trip for header:", error);
+      } finally {
+        setIsLoadingTrip(false);
+      }
+    };
+
+    fetchNextTrip();
+  }, []);
 
   useEffect(() => {
     const handleToggle = (e: CustomEvent) => {
@@ -39,7 +64,7 @@ const Header = () => {
     >
       <header className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-4 md:py-6 px-4 md:px-6 relative animate-fade-in">
         <div className="relative grid grid-cols-2 items-center gap-x-3 lg:flex lg:items-center lg:justify-between">
-          {/* Logo - slightly more left */}
+          {/* Logo */}
           <div className="relative -ml-2 md:ml-0 h-14 sm:h-16 md:h-20 lg:h-20 w-36 sm:w-44 md:w-52 lg:w-56">
             <Link
               href="/"
@@ -79,18 +104,19 @@ const Header = () => {
           >
             <Link
               href="/about"
-         className={`
-  text-[#e9820e] dark:text-[#e9820e] font-semibold hover:underline whitespace-nowrap truncate px-2 leading-none
-  text-xs sm:text-sm lg:text-base xl:text-base
-  block text-center max-w-[90vw] lg:max-w-[50vw] xl:max-w-[60vw]
-`}
+              className={`
+                text-[#e9820e] dark:text-[#e9820e] font-semibold hover:underline whitespace-nowrap truncate px-2 leading-none
+                text-xs sm:text-sm lg:text-base xl:text-base
+                block text-center max-w-[90vw] lg:max-w-[50vw] xl:max-w-[60vw]
+                ${isLoadingTrip ? "opacity-0" : "opacity-100 transition-opacity duration-300"}
+              `}
               title={
-                nextTrip && days
+                days
                   ? `${days} days until next trip`
                   : "No trip planned. Disappointed. Get going!"
               }
             >
-              {nextTrip && days
+              {days
                 ? `🎢 ${days} days until next trip`
                 : `🥲 No trip planned. Disappointed. Get going!`}
             </Link>

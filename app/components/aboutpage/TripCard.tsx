@@ -1,0 +1,234 @@
+"use client";
+
+import { useState } from "react";
+import Image from "next/image";
+import { getParkFlag } from "@/app/utils/design";
+
+export type Trip = {
+  id?: number;
+  country: string | string[];
+  parks: string[];
+  rcdb?: string[];
+  startDate: string;
+  endDate: string;
+  status: "booked" | "planned" | "past" | "backlog";
+  notes?: string;
+  mapLink?: string;
+  tripLog?: { date: string; activity: string }[];
+};
+
+const getCardStyle = (status: Trip["status"]) => {
+  if (status === "past" || !status)
+    return "bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-500 border";
+  if (status === "booked")
+    return "bg-green-50 border-green-300 dark:bg-green-950 dark:border-green-500 border";
+  if (status === "planned")
+    return "bg-yellow-50 border-yellow-300 dark:bg-yellow-950 dark:border-yellow-500 border";
+  if (status === "backlog")
+    return "bg-blue-50 border-blue-300 dark:bg-blue-950 dark:border-blue-500 border";
+};
+
+const getDateRangeLabel = (start: string, end: string) => {
+  if (start === "undecided" || end === "undecided") return "Dates TBD";
+
+  const locale = "da-DK";
+  const from = new Date(start).toLocaleDateString(locale, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const to = new Date(end).toLocaleDateString(locale, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  return `${from} – ${to}`;
+};
+
+const getDurationSummary = (start: string, end: string, parkCount: number) => {
+  if (start === "undecided" || end === "undecided") {
+    return `📍 ${parkCount} ${parkCount === 1 ? "park" : "parks"} · TBD`;
+  }
+  const dayMs = 1000 * 60 * 60 * 24;
+  const from = new Date(start);
+  const to = new Date(end);
+  const days = Math.round((to.getTime() - from.getTime()) / dayMs) + 1;
+  return `📍 ${parkCount} ${parkCount === 1 ? "park" : "parks"} · ${days} ${days === 1 ? "day" : "days"}`;
+};
+
+const formatTripLogDate = (value: string) => {
+  if (!value) return "";
+  const isDayLabel = /^day\s*\d+$/i.test(value.trim());
+  if (value === "undecided" || isDayLabel) return value;
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? value : d.toLocaleDateString("da-DK");
+};
+
+export default function TripCard({
+  trip,
+  isAdminMode,
+  onEdit,
+}: {
+  trip: Trip;
+  isAdminMode?: boolean;
+  onEdit?: (trip: Trip) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const parkCount = trip.parks.length;
+  const visibleParks = expanded ? trip.parks : trip.parks.slice(0, 2);
+
+  return (
+    <div
+      onClick={() => setExpanded((prev) => !prev)}
+      className={`relative rounded-xl p-5 cursor-pointer ${getCardStyle(
+        trip.status
+      )} transition-transform hover:scale-[1.01] hover:shadow-md dark:shadow w-full`}
+    >
+      {/* Edit Button (Admin Mode) */}
+      {isAdminMode && onEdit && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(trip);
+          }}
+          className="absolute -top-3 -right-3 bg-blue-500 text-white p-2 rounded-full shadow-md hover:bg-blue-600 transition z-10 cursor-pointer"
+          title="Edit Trip"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+          </svg>
+        </button>
+      )}
+
+      {/* Status Badge */}
+      <span
+        className={`absolute -top-3 -left-3 px-3 py-1 text-xs font-bold rounded-full shadow-md ${
+          trip.status === "past"
+            ? "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100"
+            : trip.status === "booked"
+            ? "bg-green-500 text-white dark:bg-green-600 dark:text-white"
+            : trip.status === "planned"
+            ? "bg-yellow-400 text-black dark:bg-yellow-500 dark:text-black"
+            : "bg-blue-500 text-white dark:bg-blue-600 dark:text-white"
+        }`}
+      >
+        {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
+      </span>
+
+      {/* Trip Summary Top Right */}
+      <div className="absolute top-4 right-5 text-sm text-gray-600 dark:text-gray-300 font-medium">
+        {getDurationSummary(trip.startDate, trip.endDate, parkCount)}
+      </div>
+
+      {/* Chevron */}
+      <div
+        className="absolute bottom-4 right-5 text-gray-700 dark:text-gray-300 text-sm transition-transform duration-300 ease-in-out"
+        style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
+      >
+        ▼
+      </div>
+
+      {/* Countries & Flags */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        {Array.isArray(trip.country) ? (
+          trip.country.map((c, idx) => (
+            <div key={idx} className="flex items-center gap-1 mt-2">
+              <Image
+                src={getParkFlag(c)}
+                alt={`${c} flag`}
+                width={24}
+                height={18}
+                className="rounded-sm object-cover"
+                unoptimized
+              />
+              <span className="text-2xl font-bold dark:text-white">{c}</span>
+              {idx < trip.country.length - 1 && (
+                <span className="text-xl font-bold dark:text-white">+</span>
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="flex items-center gap-2 mt-2">
+            <Image
+              src={getParkFlag(trip.country)}
+              alt={`${trip.country} flag`}
+              width={24}
+              height={18}
+              className="rounded-sm object-cover"
+              unoptimized
+            />
+            <h4 className="text-2xl font-bold dark:text-white">{trip.country}</h4>
+          </div>
+        )}
+      </div>
+
+      {/* Park Links */}
+      <ul className="list-disc list-inside text-gray-800 dark:text-gray-200 space-y-1 mb-3">
+        {visibleParks.map((park, idx) => {
+          const rcdbUrl = trip.rcdb?.[idx];
+          return (
+            <li key={idx}>
+              {rcdbUrl ? (
+                <a
+                  href={rcdbUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-600 dark:text-gray-300 hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {park}
+                </a>
+              ) : (
+                park
+              )}
+            </li>
+          );
+        })}
+        {!expanded && trip.parks.length > 2 && (
+          <li className="text-sm text-gray-600 dark:text-gray-400 italic">
+            ...and {trip.parks.length - 2} more park{trip.parks.length - 2 > 1 ? "s" : ""}
+          </li>
+        )}
+      </ul>
+
+      {/* Date Range */}
+      <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-1">
+        📅 {getDateRangeLabel(trip.startDate, trip.endDate)}
+      </p>
+
+      {/* Expandable Section */}
+      <div className={`expandable mt-4 ${expanded ? "expanded" : "collapsed"}`}>
+        <div className="space-y-3">
+          {trip.notes && (
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              📝 <span className="font-medium dark:text-white">Notes:</span>{" "}
+              <span className="whitespace-pre-line leading-relaxed">{trip.notes}</span>
+            </p>
+          )}
+          {trip.mapLink && (
+            <a
+              href={trip.mapLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-blue-600 dark:text-blue-300 text-sm hover:underline dark:hover:text-blue-200 inline-block"
+            >
+              🗺️ View on Google Maps
+            </a>
+          )}
+
+          {trip.tripLog?.length ? (
+            <div className="text-sm text-gray-800 dark:text-gray-200 space-y-1 pt-2">
+              <p className="font-medium dark:text-white">📅 Trip Log:</p>
+              {trip.tripLog.map((entry, i) => (
+                <div key={i} className="pl-2">
+                  - {formatTripLogDate(entry.date)}: {entry.activity}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
