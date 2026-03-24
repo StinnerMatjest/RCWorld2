@@ -47,12 +47,28 @@ export default function CoastlePage() {
   const [showModal, setShowModal] = useState(false);
   const [stats, setStats] = useState<GameStats>(INITIAL_STATS);
   const [gameMode, setGameMode] = useState<"daily" | "endless">("daily");
+  const [hasCompletedInsiderDaily, setHasCompletedInsiderDaily] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const isGameActive = guesses.length > 0 && gameState === "playing";
   const showMenu = !isGameActive && !isFocused;
+
+  function getHasCompletedOtherDaily(storageKey: string) {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return false;
+
+      const parsed = JSON.parse(raw);
+      const isToday = parsed?.date === getTodayString();
+      const isFinished = parsed?.status === "won" || parsed?.status === "lost";
+
+      return isToday && isFinished;
+    } catch {
+      return false;
+    }
+  }
 
   // Header Animation
   useEffect(() => {
@@ -76,16 +92,17 @@ export default function CoastlePage() {
         if (!data || !Array.isArray(data.coasters))
           throw new Error("Unexpected data format");
 
-       const mapped: CoastleCoaster[] = (data.coasters as ApiCoaster[])
-  .map(mapApiToCoastle)
-  .filter((c): c is CoastleCoaster => !!c && c.rating > 0)
-  .filter(
-    (c) =>
-      c.length !== null && c.length !== undefined &&
-      c.height !== null && c.height !== undefined &&
-      c.speed !== null && c.speed !== undefined &&
-      c.inversions !== null && c.inversions !== undefined
-  );
+        const mapped: CoastleCoaster[] = (data.coasters as ApiCoaster[])
+          .map(mapApiToCoastle)
+          .filter((c): c is CoastleCoaster => !!c && c.rating > 0)
+          .filter(
+            (c) =>
+              c.length !== null && c.length !== undefined &&
+              c.height !== null && c.height !== undefined &&
+              c.speed !== null && c.speed !== undefined &&
+              c.inversions !== null && c.inversions !== undefined
+          );
+
         // Sort by ID for consistency
         mapped.sort((a, b) => {
           const idA = parseInt(a.id, 10);
@@ -99,7 +116,7 @@ export default function CoastlePage() {
         // Daily Mode Logic (Default)
         if (mapped.length > 0) {
           const today = getTodayString();
-          const savedDaily = localStorage.getItem("coastle-standard-daily-state")
+          const savedDaily = localStorage.getItem("coastle-standard-daily-state");
           let restored = false;
 
           if (savedDaily) {
@@ -136,6 +153,10 @@ export default function CoastlePage() {
         setStats(JSON.parse(saved));
       } catch (e) {}
     }
+
+    setHasCompletedInsiderDaily(
+      getHasCompletedOtherDaily("coastle-insider-daily-state")
+    );
   }, []);
 
   // --- Game Logic ---
@@ -244,34 +265,34 @@ export default function CoastlePage() {
       return;
     }
 
-const guess: GuessStandard = {
-  coaster,
-  matches: {
-    manufacturer: getMatchStatus(coaster.manufacturer, answer.manufacturer),
-    country: getMatchStatus(coaster.countryName, answer.countryName),
+    const guess: GuessStandard = {
+      coaster,
+      matches: {
+        manufacturer: getMatchStatus(coaster.manufacturer, answer.manufacturer),
+        country: getMatchStatus(coaster.countryName, answer.countryName),
 
-    length: getNumericMatchStatus(
-      coaster.length,
-      answer.length,
-      STANDARD_CLOSE_MARGINS.lengthFt
-    ),
-    height: getNumericMatchStatus(
-      coaster.height,
-      answer.height,
-      STANDARD_CLOSE_MARGINS.heightFt
-    ),
-    speed: getNumericMatchStatus(
-      coaster.speed,
-      answer.speed,
-      STANDARD_CLOSE_MARGINS.speedMph
-    ),
-    inversions: getNumericMatchStatus(
-      coaster.inversions,
-      answer.inversions,
-      STANDARD_CLOSE_MARGINS.inversions
-    ),
-  },
-};
+        length: getNumericMatchStatus(
+          coaster.length,
+          answer.length,
+          STANDARD_CLOSE_MARGINS.lengthFt
+        ),
+        height: getNumericMatchStatus(
+          coaster.height,
+          answer.height,
+          STANDARD_CLOSE_MARGINS.heightFt
+        ),
+        speed: getNumericMatchStatus(
+          coaster.speed,
+          answer.speed,
+          STANDARD_CLOSE_MARGINS.speedMph
+        ),
+        inversions: getNumericMatchStatus(
+          coaster.inversions,
+          answer.inversions,
+          STANDARD_CLOSE_MARGINS.inversions
+        ),
+      },
+    };
 
     const nextGuesses = [...guesses, guess];
     setGuesses(nextGuesses);
@@ -317,30 +338,32 @@ const guess: GuessStandard = {
         status: newStatus
       };
       localStorage.setItem("coastle-standard-daily-state", JSON.stringify(stateToSave));
+      setHasCompletedInsiderDaily(
+        getHasCompletedOtherDaily("coastle-insider-daily-state")
+      );
     }
   }
 
   // Build the formatted result text used by both share + copy
   function buildShareText() {
-    // 1. ALIGNMENT & GRID
     const headers = "Mfr\u2003Cty\u2003Len\u2003Hgt\u2003Spd\u2003Inv";
 
     const grid = guesses
       .map((g) => {
         const m = g.matches;
-                const row = [
-            m.manufacturer,
-            m.country,
-            m.length,
-            m.height,
-            m.speed,
-            m.inversions
-            ];
-       const emojiStr = row
-  .map((status) =>
-    status === "correct" ? "🟩" : status === "close" ? "🟨" : "🟥"
-  )
-  .join("\u2003\u200A");
+        const row = [
+          m.manufacturer,
+          m.country,
+          m.length,
+          m.height,
+          m.speed,
+          m.inversions
+        ];
+        const emojiStr = row
+          .map((status) =>
+            status === "correct" ? "🟩" : status === "close" ? "🟨" : "🟥"
+          )
+          .join("\u2003\u200A");
 
         const name = g.coaster.name;
         const targetVisualLen = 22;
@@ -354,11 +377,10 @@ const guess: GuessStandard = {
       })
       .join("\n");
 
-    // 2. SIMPLIFIED TEXT
-  const title =
-  gameMode === "daily"
-    ? "**Daily Standard Coastle**"
-    : "**Endless Standard Coastle**";
+    const title =
+      gameMode === "daily"
+        ? "**Daily Standard Coastle**"
+        : "**Endless Standard Coastle**";
 
     let status = "";
     if (gameState === "won") {
@@ -367,7 +389,6 @@ const guess: GuessStandard = {
       status = "I did not complete it.";
     }
 
-    // 3. NO PREVIEW LINK
     let footer = "\n\nPlay at <https://parkrating.com/coastle>";
 
     if (gameState === "lost") {
@@ -508,14 +529,12 @@ const guess: GuessStandard = {
         }
       `}</style>
 
-      {/* Toast */}
       {toast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs font-bold px-4 py-3 rounded-full shadow-2xl whitespace-nowrap animate-bounce z-[200]">
           {toast}
         </div>
       )}
 
-      {/* Header Container */}
       <div
         className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${
           showMenu ? "max-h-[200px] opacity-100" : "max-h-0 opacity-0"
@@ -530,7 +549,6 @@ const guess: GuessStandard = {
           </p>
         </header>
 
-        {/* Tabs */}
         <div className="w-full max-w-sm grid grid-cols-3 gap-1 bg-slate-200 dark:bg-slate-800 p-1 rounded-xl mb-4 mx-auto animate-reveal">
           {[
             { id: "play", label: "Play", icon: PlayIcon },
@@ -557,13 +575,11 @@ const guess: GuessStandard = {
         </div>
       </div>
 
-      {/* Main Content Area */}
       {activeTab === "play" && (
         <div
           key="play-tab"
           className="w-full max-w-[1400px] flex flex-col items-center gap-4 sm:gap-6 animate-reveal"
         >
-          {/* Mode Switcher */}
           <div
             className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${
               showMenu
@@ -595,7 +611,6 @@ const guess: GuessStandard = {
             </div>
           </div>
 
-          {/* Sticky Search Bar */}
           <div
             ref={containerRef}
             className={`w-full max-w-xl sticky top-0 z-40 py-2 px-2 sm:px-0 transition-all flex items-center gap-2 ${
@@ -695,56 +710,43 @@ const guess: GuessStandard = {
             )}
           </div>
 
-          {/* Results Table */}
           <div className="w-full flex justify-center pb-12 px-1">
             <table className="w-full table-fixed border-separate border-spacing-x-1 sm:border-spacing-x-2 sm:border-spacing-y-2">
-       <thead>
-  <tr className="text-[9px] sm:text-xs uppercase tracking-widest text-slate-400 font-bold">
-    <th className="hidden md:table-cell pb-2 text-center w-[200px]">Coaster</th>
+              <thead>
+                <tr className="text-[9px] sm:text-xs uppercase tracking-widest text-slate-400 font-bold">
+                  <th className="hidden md:table-cell pb-2 text-center w-[200px]">Coaster</th>
 
-    <th className="pb-2 text-center">
-      {/* mobile */}
-      <span className="md:hidden">Mfr</span>
-      {/* desktop */}
-      <span className="hidden md:inline">Manufacturer</span>
-    </th>
+                  <th className="pb-2 text-center">
+                    <span className="md:hidden">Mfr</span>
+                    <span className="hidden md:inline">Manufacturer</span>
+                  </th>
 
-    <th className="pb-2 text-center">
-      {/* mobile */}
-      <span className="md:hidden">Country</span>
-      {/* desktop */}
-      <span className="hidden md:inline">Country</span>
-    </th>
+                  <th className="pb-2 text-center">
+                    <span className="md:hidden">Country</span>
+                    <span className="hidden md:inline">Country</span>
+                  </th>
 
-    <th className="pb-2 text-center">
-      {/* mobile */}
-      <span className="md:hidden">Length</span>
-      {/* desktop */}
-      <span className="hidden md:inline">Length</span>
-    </th>
+                  <th className="pb-2 text-center">
+                    <span className="md:hidden">Length</span>
+                    <span className="hidden md:inline">Length</span>
+                  </th>
 
-    <th className="pb-2 text-center">
-      {/* mobile */}
-      <span className="md:hidden">Height</span>
-      {/* desktop */}
-      <span className="hidden md:inline">Height</span>
-    </th>
+                  <th className="pb-2 text-center">
+                    <span className="md:hidden">Height</span>
+                    <span className="hidden md:inline">Height</span>
+                  </th>
 
-    <th className="pb-2 text-center">
-      {/* mobile */}
-      <span className="md:hidden">Speed</span>
-      {/* desktop */}
-      <span className="hidden md:inline">Speed</span>
-    </th>
+                  <th className="pb-2 text-center">
+                    <span className="md:hidden">Speed</span>
+                    <span className="hidden md:inline">Speed</span>
+                  </th>
 
-    <th className="pb-2 text-center">
-      {/* mobile */}
-      <span className="md:hidden">Inv</span>
-      {/* desktop */}
-      <span className="hidden md:inline">Inversions</span>
-    </th>
-  </tr>
-</thead>
+                  <th className="pb-2 text-center">
+                    <span className="md:hidden">Inv</span>
+                    <span className="hidden md:inline">Inversions</span>
+                  </th>
+                </tr>
+              </thead>
               <tbody className="space-y-2">
                 {guesses.map((g, idx) => (
                   <GuessRow key={idx} guess={g} answer={answer} />
@@ -767,7 +769,6 @@ const guess: GuessStandard = {
             </table>
           </div>
 
-          {/* Mobile List */}
           <div className="w-full px-4 mb-2 md:hidden flex flex-col items-center">
             {guesses.map((g, i) => (
               <div
@@ -787,26 +788,26 @@ const guess: GuessStandard = {
         </div>
       )}
 
-      {/* Tabs Content */}
       {activeTab === "howto" && <HowTo />}
 
       {activeTab === "leaderboard" && (
         <Leaderboard stats={stats} gameState={gameState} onShare={handleCopy} />
       )}
 
-      {/* Result Modal */}
-<ResultModal
-  isOpen={showModal}
-  gameState={gameState}
-  answer={answer}
-  gameMode={gameMode}
-  guessesCount={guesses.length}
-  maxGuesses={MAX_GUESSES}
-  currentStreak={gameMode === "daily" ? stats.currentStreak : undefined}
-  onClose={() => setShowModal(false)}
-  onShare={handleCopy}   // ✅ Share = copy
-  onReset={resetGame}
-/>
+      <ResultModal
+        isOpen={showModal}
+        gameState={gameState}
+        answer={answer}
+        gameMode={gameMode}
+        guessesCount={guesses.length}
+        maxGuesses={MAX_GUESSES}
+        currentStreak={gameMode === "daily" ? stats.currentStreak : undefined}
+        onClose={() => setShowModal(false)}
+        onShare={handleCopy}
+        onReset={resetGame}
+        experience="standard"
+        hasPlayedOtherDaily={hasCompletedInsiderDaily}
+      />
     </div>
   );
 }

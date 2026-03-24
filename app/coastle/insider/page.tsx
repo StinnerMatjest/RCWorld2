@@ -45,12 +45,28 @@ export default function CoastlePage() {
   const [showModal, setShowModal] = useState(false);
   const [stats, setStats] = useState<GameStats>(INITIAL_STATS);
   const [gameMode, setGameMode] = useState<"daily" | "endless">("daily");
+  const [hasCompletedStandardDaily, setHasCompletedStandardDaily] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const isGameActive = guesses.length > 0 && gameState === "playing";
   const showMenu = !isGameActive && !isFocused;
+
+  function getHasCompletedOtherDaily(storageKey: string) {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return false;
+
+      const parsed = JSON.parse(raw);
+      const isToday = parsed?.date === getTodayString();
+      const isFinished = parsed?.status === "won" || parsed?.status === "lost";
+
+      return isToday && isFinished;
+    } catch {
+      return false;
+    }
+  }
 
   // Header Animation
   useEffect(() => {
@@ -91,7 +107,7 @@ export default function CoastlePage() {
         // Daily Mode Logic (Default)
         if (mapped.length > 0) {
           const today = getTodayString();
-          const savedDaily = localStorage.getItem("coastle-insider-daily-state")
+          const savedDaily = localStorage.getItem("coastle-insider-daily-state");
           let restored = false;
 
           if (savedDaily) {
@@ -128,6 +144,10 @@ export default function CoastlePage() {
         setStats(JSON.parse(saved));
       } catch (e) {}
     }
+
+    setHasCompletedStandardDaily(
+      getHasCompletedOtherDaily("coastle-standard-daily-state")
+    );
   }, []);
 
   // --- Game Logic ---
@@ -292,12 +312,14 @@ export default function CoastlePage() {
         status: newStatus
       };
       localStorage.setItem("coastle-insider-daily-state", JSON.stringify(stateToSave));
+      setHasCompletedStandardDaily(
+        getHasCompletedOtherDaily("coastle-standard-daily-state")
+      );
     }
   }
 
   // Build the formatted result text used by both share + copy
   function buildShareText() {
-    // 1. ALIGNMENT & GRID
     const headers = "Rat\u2003Mfr\u2003Prk\u2003Cty\u2003Cnt\u2003Yr";
 
     const grid = guesses
@@ -327,11 +349,10 @@ export default function CoastlePage() {
       })
       .join("\n");
 
-    // 2. SIMPLIFIED TEXT
- const title =
-  gameMode === "daily"
-    ? "**Daily Insider Coastle**"
-    : "**Endless Insider Coastle**";
+    const title =
+      gameMode === "daily"
+        ? "**Daily Insider Coastle**"
+        : "**Endless Insider Coastle**";
 
     let status = "";
     if (gameState === "won") {
@@ -340,7 +361,6 @@ export default function CoastlePage() {
       status = "I did not complete it.";
     }
 
-    // 3. NO PREVIEW LINK
     let footer = "\n\nPlay at <https://parkrating.com/coastle>";
 
     if (gameState === "lost") {
@@ -481,14 +501,12 @@ export default function CoastlePage() {
         }
       `}</style>
 
-      {/* Toast */}
       {toast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs font-bold px-4 py-3 rounded-full shadow-2xl whitespace-nowrap animate-bounce z-[200]">
           {toast}
         </div>
       )}
 
-      {/* Header Container */}
       <div
         className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${
           showMenu ? "max-h-[200px] opacity-100" : "max-h-0 opacity-0"
@@ -503,7 +521,6 @@ export default function CoastlePage() {
           </p>
         </header>
 
-        {/* Tabs */}
         <div className="w-full max-w-sm grid grid-cols-3 gap-1 bg-slate-200 dark:bg-slate-800 p-1 rounded-xl mb-4 mx-auto animate-reveal">
           {[
             { id: "play", label: "Play", icon: PlayIcon },
@@ -530,13 +547,11 @@ export default function CoastlePage() {
         </div>
       </div>
 
-      {/* Main Content Area */}
       {activeTab === "play" && (
         <div
           key="play-tab"
           className="w-full max-w-[1400px] flex flex-col items-center gap-4 sm:gap-6 animate-reveal"
         >
-          {/* Mode Switcher */}
           <div
             className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${
               showMenu
@@ -568,7 +583,6 @@ export default function CoastlePage() {
             </div>
           </div>
 
-          {/* Sticky Search Bar */}
           <div
             ref={containerRef}
             className={`w-full max-w-xl sticky top-0 z-40 py-2 px-2 sm:px-0 transition-all flex items-center gap-2 ${
@@ -668,7 +682,6 @@ export default function CoastlePage() {
             )}
           </div>
 
-          {/* Results Table */}
           <div className="w-full flex justify-center pb-12 px-1">
             <table className="w-full table-fixed border-separate border-spacing-x-1 sm:border-spacing-x-2 sm:border-spacing-y-2">
               <thead>
@@ -709,7 +722,6 @@ export default function CoastlePage() {
             </table>
           </div>
 
-          {/* Mobile List */}
           <div className="w-full px-4 mb-2 md:hidden flex flex-col items-center">
             {guesses.map((g, i) => (
               <div
@@ -729,26 +741,26 @@ export default function CoastlePage() {
         </div>
       )}
 
-      {/* Tabs Content */}
       {activeTab === "howto" && <HowTo />}
 
       {activeTab === "leaderboard" && (
         <Leaderboard stats={stats} gameState={gameState} onShare={handleCopy} />
       )}
 
-      {/* Result Modal */}
-<ResultModal
-  isOpen={showModal}
-  gameState={gameState}
-  answer={answer}
-  gameMode={gameMode}
-  guessesCount={guesses.length}
-  maxGuesses={MAX_GUESSES}
-  currentStreak={gameMode === "daily" ? stats.currentStreak : undefined}
-  onClose={() => setShowModal(false)}
-  onShare={handleCopy}   // ✅ Share = copy
-  onReset={resetGame}
-/>
+      <ResultModal
+        isOpen={showModal}
+        gameState={gameState}
+        answer={answer}
+        gameMode={gameMode}
+        guessesCount={guesses.length}
+        maxGuesses={MAX_GUESSES}
+        currentStreak={gameMode === "daily" ? stats.currentStreak : undefined}
+        onClose={() => setShowModal(false)}
+        onShare={handleCopy}
+        onReset={resetGame}
+        experience="insider"
+        hasPlayedOtherDaily={hasCompletedStandardDaily}
+      />
     </div>
   );
 }
