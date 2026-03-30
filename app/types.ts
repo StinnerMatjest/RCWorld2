@@ -5,6 +5,7 @@ export interface Park {
   country: string;
   city: string;
   imagepath: string;
+  slug: string;
 }
 
 export interface Rating {
@@ -12,6 +13,7 @@ export interface Rating {
   date: string;
   parkAppearance: number;
   bestCoaster: number;
+  coasterDepth: number;
   waterRides: number;
   flatridesAndDarkrides: number;
   food: number;
@@ -25,10 +27,12 @@ export interface Rating {
 }
 
 export interface RatingWarningType {
+  id: number;
   ratingId: number;
   ride: string;
   note: string;
   category: string;
+  severity: "Minor" | "Moderate" | "Major";
 }
 
 export interface RollerCoaster {
@@ -44,6 +48,8 @@ export interface RollerCoaster {
   ridecount: number;
   rating: number;
   parkId: number;
+  slug: string;
+  parkSlug?: string;
   specs?: RollerCoasterSpecs | null;
   highlights?: RollerCoasterHighlights[] | null;
 }
@@ -82,6 +88,8 @@ export type ApiCoaster = {
   parkName: string;
   year: number | null;
   lastVisitDate: string | null;
+  slug: string;
+  parkSlug?: string;
   specs?: RollerCoasterSpecs | null;
 };
 
@@ -96,6 +104,7 @@ export type CoastleCoaster = {
   year: number;
   parkId: number;
   rcdbPath: string;
+  slug: string;
   countryName?: string;
   length?: number | null;      // ft
   height?: number | null;      // ft

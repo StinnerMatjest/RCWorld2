@@ -38,7 +38,8 @@ export async function GET() {
             'ratingId', ratingwarning.ratingid,
             'ride', ratingwarning.ride,
             'note', ratingwarning.note,
-            'category', ratingwarning.category
+            'category', ratingwarning.category,
+            'severity', ratingwarning.severity
             )
           ) FILTER (WHERE ratingwarning.id IS NOT NULL),
           '[]'

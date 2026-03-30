@@ -4,14 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { getTodayString } from "@/app/utils/coastle";
-
-type GameStats = {
-  played: number;
-  won: number;
-  currentStreak: number;
-  maxStreak: number;
-  guessDistribution: number[];
-};
+import type { GameStats } from "@/app/types";
 
 type DailyState = {
   date: string;
@@ -30,7 +23,7 @@ function safeParseStats(raw: string | null): GameStats | null {
     ) {
       return s as GameStats;
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -41,7 +34,7 @@ function safeParseDaily(raw: string | null): DailyState | null {
     if (typeof s?.date === "string" && typeof s?.status === "string") {
       return s as DailyState;
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -51,7 +44,7 @@ function ModeIcon({
   className,
 }: {
   lightSrc?: string;
-  darkSrc: string; // if lightSrc omitted, this is used always
+  darkSrc: string;
   className: string;
 }) {
   return (
@@ -253,11 +246,11 @@ export default function CoastleLauncherPage() {
   useEffect(() => {
     setStandardStats(
       safeParseStats(localStorage.getItem("coastle-standard-stats")) ??
-        safeParseStats(localStorage.getItem("coastle-stats"))
+      safeParseStats(localStorage.getItem("coastle-stats"))
     );
     setInsiderStats(
       safeParseStats(localStorage.getItem("coastle-insider-stats")) ??
-        safeParseStats(localStorage.getItem("coastle-stats"))
+      safeParseStats(localStorage.getItem("coastle-stats"))
     );
 
     const today = getTodayString();
@@ -284,14 +277,14 @@ export default function CoastleLauncherPage() {
             Choose a mode
           </p>
 
-         <div className="mt-4 text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium max-w-2xl mx-auto">
-  <span className="block sm:block">
-    <span className="font-bold text-slate-800 dark:text-slate-100">Standard</span> = Focus on the rollercoasters specs.
-  </span>
-  <span className="block sm:block">
-    <span className="font-bold text-slate-800 dark:text-slate-100">Insider</span> = Focus on ParkRating insider knowledge and ratings.
-  </span>
-</div>
+          <div className="mt-4 text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium max-w-2xl mx-auto">
+            <span className="block sm:block">
+              <span className="font-bold text-slate-800 dark:text-slate-100">Standard</span> = Focus on the rollercoaster specs.
+            </span>
+            <span className="block sm:block">
+              <span className="font-bold text-slate-800 dark:text-slate-100">Insider</span> = Focus on ParkRating insider knowledge and ratings.
+            </span>
+          </div>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">

@@ -5,16 +5,18 @@ import type { Rating, RatingWarningType } from "@/app/types";
 import ParkRatingsModal from "./ParkTextsModal";
 import { getRatingColor } from "@/app/utils/design";
 import { ratingCategories } from "@/app/utils/ratings";
-import RatingWarning from "./RatingWarning";
+import RatingWarning from "./warnings/RatingWarning";
+import WarningCreatorModal from "./warnings/WarningCreatorModal";
 import { useAdminMode } from "../context/AdminModeContext";
 
 interface RatingExplanationsProps {
   rating: Rating;
   explanations: Record<string, string>;
   parkId: number;
+  onWarningsUpdate: () => void;
+  coasters: import("@/app/types").RollerCoaster[];
 }
 
-// helper to turn e.g. "parkAppearance" → "Park Appearance"
 function humanizeLabel(key: string) {
   return key
     .replace(/([A-Z])/g, " $1")
@@ -26,19 +28,22 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
   rating,
   explanations,
   parkId,
+  onWarningsUpdate,
+  coasters,
 }) => {
   const { isAdminMode } = useAdminMode();
   const [showModal, setShowModal] = useState(false);
+  const [showWarningManager, setShowWarningManager] = useState(false);
   const [localExplanations, setLocalExplanations] = useState(explanations);
 
   useEffect(() => {
     setLocalExplanations(explanations);
   }, [explanations]);
 
-  // Auto-close modal if we leave admin mode
   useEffect(() => {
     if (!isAdminMode) {
       setShowModal(false);
+      setShowWarningManager(false);
     }
   }, [isAdminMode]);
 
@@ -46,7 +51,6 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
 
   const categoryWarningsMap: Record<string, RatingWarningType[]> = {};
 
-  // Build the map
   rating.warnings?.forEach((warning) => {
     const normalizedCategory = warning.category.toLowerCase();
     if (!categoryWarningsMap[normalizedCategory]) {
@@ -57,31 +61,34 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
         <h2 className="text-3xl font-semibold dark:text-white">
           Rating Explanations
         </h2>
 
+        {/* Admin Buttons */}
         {isAdminMode && (
-          <button
-            onClick={() => setShowModal(true)}
-            className="
-      inline-flex items-center justify-center
-      p-1
-      text-gray-500 hover:text-gray-700
-      dark:text-gray-400 dark:hover:text-gray-100
-      hover:bg-gray-100 dark:hover:bg-white/10
-      rounded
-      transition-colors
-      text-[15px] lg:text-[20px]
-      leading-none
-      cursor-pointer
-    "
-            aria-label="Edit Rating Explanations"
-            title="Edit"
-          >
-            🔧
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowModal(true)}
+              className="
+                inline-flex items-center justify-center p-1
+                text-gray-500 hover:text-gray-700
+                dark:text-gray-400 dark:hover:text-gray-100
+                hover:bg-gray-100 dark:hover:bg-white/10
+                rounded transition-colors text-[20px] leading-none cursor-pointer
+              "
+              title="Edit Explanations"
+            >
+              🔧
+            </button>
+            <button
+              onClick={() => setShowWarningManager(true)}
+              className="bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800 px-3 py-1 rounded text-sm font-semibold transition-colors cursor-pointer"
+            >
+              Warnings
+            </button>
+          </div>
         )}
       </div>
 
@@ -103,7 +110,13 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
                   {value}
                 </span>
                 {categoryWarnings.length > 0 && (
-                  <RatingWarning warning={categoryWarnings} />
+                  <RatingWarning
+                    warning={categoryWarnings}
+                    isAdminMode={isAdminMode}
+                    ratingId={rating.id}
+                    onUpdate={onWarningsUpdate}
+                    coasters={coasters}
+                  />
                 )}
               </div>
               <p className="text-gray-700 dark:text-gray-400">{text}</p>
@@ -111,12 +124,25 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
           );
         })}
 
+      {/* Rating Explanations Modal */}
       {isAdminMode && showModal && (
         <ParkRatingsModal
           explanations={localExplanations}
           parkId={Number(parkId)}
+          ratingId={rating.id}
           onClose={() => setShowModal(false)}
           onSave={(updated) => setLocalExplanations(updated)}
+        />
+      )}
+
+      {/* Warning Creator Modal */}
+      {isAdminMode && showWarningManager && (
+        <WarningCreatorModal
+          ratingId={rating.id}
+          existingWarnings={rating.warnings || []}
+          onClose={() => setShowWarningManager(false)}
+          onSaved={onWarningsUpdate}
+          coasters={coasters}
         />
       )}
     </div>

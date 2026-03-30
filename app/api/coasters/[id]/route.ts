@@ -10,11 +10,10 @@ export async function GET(
     req: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
-    const { id } = await context.params;
-    const coasterId = Number(id);
-    
-    if (isNaN(coasterId) || coasterId <= 0) {
-        return NextResponse.json({ error: "Invalid coaster ID" }, { status: 400 });
+    const { id: coasterSlug } = await context.params;
+
+    if (!coasterSlug || coasterSlug === "undefined" || coasterSlug === "null") {
+        return NextResponse.json({ error: "Invalid coaster slug" }, { status: 400 });
     }
 
     try {
@@ -32,6 +31,8 @@ export async function GET(
                 rc.ridecount,
                 rc.rating,
                 rc.park_id,
+                rc.slug,
+                p.slug AS park_slug,
                 rs.type,
                 rs.classification,
                 rs.length,
@@ -44,31 +45,31 @@ export async function GET(
                 rs.duration_sec AS duration,
                 rs.notes
             FROM rollercoasters rc
+            JOIN parks p ON rc.park_id = p.id
             LEFT JOIN rollercoasterspecs rs ON rs.coaster_id = rc.id
-            WHERE rc.id = $1
+            WHERE rc.slug = $1
         `;
 
-        const coasterResult = await pool.query(coasterQuery, [coasterId]);
+        const coasterResult = await pool.query(coasterQuery, [coasterSlug]);
         const row = coasterResult.rows[0];
 
         if (!row) {
             return NextResponse.json({ coaster: null }, { status: 404 });
         }
 
-        // Fetch Coaster Highlights
+        const numericCoasterId = row.id;
         const highlightsQuery = `
             SELECT 
                 category,
                 severity
             FROM rollercoasterhighlights
             WHERE coaster_id = $1
-            ORDER BY severity, id -- Ordering by severity helps group Positives/Negatives
+            ORDER BY severity, id
         `;
-        
-        const highlightsResult = await pool.query(highlightsQuery, [coasterId]);
+
+        const highlightsResult = await pool.query(highlightsQuery, [numericCoasterId]);
         const highlights = highlightsResult.rows;
 
-        // --- Combine Results into Final Object ---
         const coaster = {
             id: row.id,
             name: row.name,
@@ -82,6 +83,8 @@ export async function GET(
             ridecount: row.ridecount,
             rating: row.rating,
             parkId: row.park_id,
+            slug: row.slug,
+            parkSlug: row.park_slug,
             highlights: highlights.map(h => ({
                 category: h.category,
                 severity: h.severity,

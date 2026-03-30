@@ -11,15 +11,20 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: parkId } = await context.params; // Await the params promise
+    const searchParams = req.nextUrl.searchParams;
+    const ratingId = searchParams.get("ratingId");
+
+    if (!ratingId) {
+      return NextResponse.json({ error: "ratingId is required" }, { status: 400 });
+    }
 
     const result = await pool.query(
       `
-      SELECT category, text
+      SELECT category, text, rating_id AS "ratingId"
       FROM parktexts
-      WHERE park_id = $1
+      WHERE rating_id = $1
       `,
-      [parkId]
+      [ratingId]
     );
 
     return NextResponse.json(result.rows, { status: 200 });
@@ -33,24 +38,20 @@ export async function GET(
 }
 
 export async function POST(req: NextRequest) {
-  const url = new URL(req.url);
-  const segments = url.pathname.split("/");
-  const parkId = parseInt(segments[segments.length - 2], 10);
+  const { category, text, ratingId } = await req.json();
 
-  const { category, text } = await req.json();
-
-  if (!category || !text || isNaN(parkId)) {
+  if (!category || !text || !ratingId) {
     return NextResponse.json({ error: "Missing or invalid data" }, { status: 400 });
   }
 
   try {
     const result = await pool.query(
       `
-      INSERT INTO parktexts (park_id, category, text)
+      INSERT INTO parktexts (rating_id, category, text)
       VALUES ($1, $2, $3)
       RETURNING *;
       `,
-      [parkId, category, text]
+      [ratingId, category, text]
     );
 
     return NextResponse.json(result.rows[0], { status: 201 });
@@ -64,15 +65,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
-
 export async function PUT(req: NextRequest) {
-  const url = new URL(req.url);
-  const segments = url.pathname.split("/");
-  const parkId = parseInt(segments[segments.length - 2], 10);
+  const { category, text, ratingId } = await req.json();
 
-  const { category, text } = await req.json();
-
-  if (!category || !text || isNaN(parkId)) {
+  if (!category || !text || !ratingId) {
     return NextResponse.json({ error: "Missing data" }, { status: 400 });
   }
 
@@ -81,15 +77,15 @@ export async function PUT(req: NextRequest) {
       `
       UPDATE parktexts
       SET text = $1
-      WHERE park_id = $2 AND category = $3
+      WHERE rating_id = $2 AND category = $3
       RETURNING *;
       `,
-      [text, parkId, category]
+      [text, ratingId, category]
     );
 
     if (result.rowCount === 0) {
       return NextResponse.json(
-        { error: "Text entry not found" },
+        { error: "Text entry not found for this specific visit" },
         { status: 404 }
       );
     }
@@ -103,5 +99,3 @@ export async function PUT(req: NextRequest) {
     );
   }
 }
-
-

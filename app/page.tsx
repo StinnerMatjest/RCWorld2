@@ -8,40 +8,13 @@ import React, {
   UIEvent,
   useLayoutEffect,
 } from "react";
-import { RatingWarningType } from "@/app/types";
+import { RatingWarningType, Rating, Park } from "@/app/types";
 import RatingCard from "./components/RatingCard";
 import RatingModal from "./components/RatingModal";
 import { useRouter } from "next/navigation";
 import { useSearch } from "./context/SearchContext";
 import LoadingSpinner from "./components/LoadingSpinner";
 
-export interface Rating {
-  id: number;
-  park: string;
-  date: Date;
-  parkAppearance: number;
-  bestCoaster: number;
-  coasterDepth: number;
-  waterRides: number;
-  flatridesAndDarkrides: number;
-  food: number;
-  snacksAndDrinks: number;
-  parkPracticality: number;
-  rideOperations: number;
-  parkManagement: number;
-  overall: number;
-  parkId: number;
-  warnings?: { ride: string; note: string }[];
-}
-
-export interface Park {
-  id: number;
-  name: string;
-  continent: string;
-  country: string;
-  city: string;
-  imagePath: string;
-}
 const DOTS_OFFSET = 10;
 
 const Home = () => {
@@ -188,6 +161,7 @@ const Home = () => {
                       category: w.category ?? "",
                       ride: w.ride,
                       note: w.note,
+                      severity: w.severity || "Moderate",
                     })) as RatingWarningType[]
                   }
                 />
@@ -195,11 +169,8 @@ const Home = () => {
             );
           })}
         </div>
-
-        {/* Right gradient hint */}
+        
         <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-white dark:from-[#0f172a] to-transparent" />
-
-        {/* Pagination dots */}
         <div
           className="
             pointer-events-none absolute left-1/2 -translate-x-1/2
@@ -240,6 +211,7 @@ const Home = () => {
                   category: w.category ?? "",
                   ride: w.ride,
                   note: w.note,
+                  severity: w.severity || "Moderate",
                 })) as RatingWarningType[]
               }
             />

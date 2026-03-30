@@ -4,20 +4,20 @@ import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import type { RollerCoaster } from "@/app/types";
 
-type RankingCoaster = RollerCoaster & { 
-    lastVisitDate?: string | null; 
-    rideCount?: number;
+type RankingCoaster = RollerCoaster & {
+  lastVisitDate?: string | null;
+  rideCount?: number;
 };
 
 // EXPORTED STATBLOCK
-export const StatBlock = ({ 
-  mainValue, 
-  subValue, 
-  label, 
-  subLabel, 
+export const StatBlock = ({
+  mainValue,
+  subValue,
+  label,
+  subLabel,
   colorClass = "text-gray-900 dark:text-white",
   isLink = false
-}: { 
+}: {
   mainValue: string | number | null;
   subValue?: string | number | null;
   label?: string | null;
@@ -25,33 +25,33 @@ export const StatBlock = ({
   colorClass?: string;
   isLink?: boolean;
 }) => (
-    <div className="flex flex-col items-end">
-      {/* Numbers Row */}
-      <div className="flex items-baseline leading-none mb-1">
-        <span className={`text-4xl sm:text-5xl md:text-6xl font-black tracking-tighter ${colorClass}`}>
-          {mainValue}
+  <div className="flex flex-col items-end">
+    {/* Numbers Row */}
+    <div className="flex items-baseline leading-none mb-1">
+      <span className={`text-4xl sm:text-5xl md:text-6xl font-black tracking-tighter ${colorClass}`}>
+        {mainValue}
+      </span>
+      {subValue && (
+        <span className="text-lg sm:text-xl md:text-2xl font-bold text-gray-400 dark:text-gray-600 ml-0.5">
+          /{subValue}
         </span>
-        {subValue && (
-          <span className="text-lg sm:text-xl md:text-2xl font-bold text-gray-400 dark:text-gray-600 ml-0.5">
-            /{subValue}
-          </span>
-        )}
-      </div>
-      
-      <div className="flex flex-col items-end">
-          {label && (
-            <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-gray-400 text-right">
-                {label}
-            </span>
-          )}
-          
-          {subLabel && (
-            <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 text-right ${isLink ? 'group-hover:text-blue-500 transition-colors' : ''}`}>
-                {subLabel}
-            </span>
-          )}
-      </div>
+      )}
     </div>
+
+    <div className="flex flex-col items-end">
+      {label && (
+        <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-gray-400 text-right">
+          {label}
+        </span>
+      )}
+
+      {subLabel && (
+        <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 text-right ${isLink ? 'group-hover:text-blue-500 transition-colors' : ''}`}>
+          {subLabel}
+        </span>
+      )}
+    </div>
+  </div>
 );
 
 // EXPORTED SKELETON
@@ -73,36 +73,38 @@ interface CoasterRankingProps {
   parkName: string | null;
 }
 
-const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, parkName }) => {
+const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, parkName: propParkName }) => {
   const [showContent, setShowContent] = useState(false);
+  const resolvedParkName = useMemo(() => {
+    if (propParkName && propParkName !== "Unknown Park") return propParkName;
+    const match = allCoasters.find(c => String(c.parkId) === String(coaster.parkId));
+    return (match as any)?.parkName || propParkName || "Park";
+  }, [propParkName, allCoasters, coaster.parkId]);
 
   const stats = useMemo(() => {
     if (!coaster || !allCoasters.length) return null;
 
     const processList = (list: RollerCoaster[]) => {
-      const castList = list as RankingCoaster[];
-
-      const sorted = castList
-        .filter((c) => (c.rating ?? 0) > 0)
+      const sorted = [...list]
+        .filter((c) => (Number(c.rating) || 0) > 0)
         .sort((a, b) => {
-            // Primary Sort: Rating (Highest first)
-            const ratingDiff = (b.rating ?? 0) - (a.rating ?? 0);
-            if (ratingDiff !== 0) return ratingDiff;
+          // Primary Sort: Rating
+          const ratingDiff = (Number(b.rating) || 0) - (Number(a.rating) || 0);
+          if (ratingDiff !== 0) return ratingDiff;
 
-            // Tiebreaker 1: Ride Count (Highest first)
-            const countA = a.rideCount ?? a.ridecount ?? 0;
-            const countB = b.rideCount ?? b.ridecount ?? 0;
-            const rideDiff = countB - countA;
-            if (rideDiff !== 0) return rideDiff;
+          // Tiebreaker 1: Ride Count
+          const countA = a.ridecount ?? (a as any).rideCount ?? 0;
+          const countB = b.ridecount ?? (b as any).rideCount ?? 0;
+          if (countB !== countA) return countB - countA;
 
-            // Tiebreaker 2: Last Ridden Date (Newest first)
-            const dateA = a.lastVisitDate ? new Date(a.lastVisitDate).getTime() : 0;
-            const dateB = b.lastVisitDate ? new Date(b.lastVisitDate).getTime() : 0;
-            return dateB - dateA;
+          // Tiebreaker 2: Last Ridden Date
+          const dateA = (a as any).lastVisitDate ? new Date((a as any).lastVisitDate).getTime() : 0;
+          const dateB = (b as any).lastVisitDate ? new Date((b as any).lastVisitDate).getTime() : 0;
+          return dateB - dateA;
         });
-      
-      const rankIndex = sorted.findIndex((c) => c.id === coaster.id);
-      
+
+      const rankIndex = sorted.findIndex((c) => String(c.id) === String(coaster.id));
+
       return {
         total: sorted.length,
         rank: rankIndex !== -1 ? rankIndex + 1 : null,
@@ -110,7 +112,7 @@ const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, p
     };
 
     return {
-      park: processList(allCoasters.filter((c) => c.parkId === coaster.parkId)),
+      park: processList(allCoasters.filter((c) => String(c.parkId) === String(coaster.parkId))),
       manuf: processList(allCoasters.filter((c) => c.manufacturer === coaster.manufacturer)),
       overall: processList(allCoasters),
     };
@@ -136,61 +138,62 @@ const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, p
 
   return (
     <div className="flex flex-wrap justify-end items-end gap-x-6 gap-y-4 sm:gap-8 md:gap-12 shrink-0">
-      
+
       {/* PARK RANKING */}
-      {stats.park.rank !== null && parkName && (
+      {stats.park.rank !== null && resolvedParkName && (
         <div className={`${baseAnim} ${showContent ? visible : hidden}`}>
-            <Link 
-            href={`/coasterratings?q=${encodeURIComponent(parkName)}`}
+          <Link
+            // Use the resolved name for the filter
+            href={`/coasterratings?q=${encodeURIComponent(resolvedParkName)}`}
             className="group cursor-pointer"
-            >
-            <StatBlock 
-                mainValue={stats.park.rank}
-                subValue={stats.park.total}
-                label={null}
-                subLabel={parkName} 
-                colorClass={getRankColor(stats.park.rank)}
-                isLink={true}
+          >
+            <StatBlock
+              mainValue={stats.park.rank}
+              subValue={stats.park.total}
+              label={null}
+              subLabel={resolvedParkName} // Use resolved name here
+              colorClass={getRankColor(stats.park.rank)}
+              isLink={true}
             />
-            </Link>
+          </Link>
         </div>
       )}
 
       {/* MANUFACTURER RANKING */}
       {stats.manuf.rank !== null && (
         <div className={`${baseAnim} ${showContent ? visible : hidden} delay-100`}>
-            <Link 
+          <Link
             href={`/coasterratings?q=${encodeURIComponent(coaster.manufacturer)}`}
             className="group cursor-pointer"
-            >
-            <StatBlock 
-                mainValue={stats.manuf.rank}
-                subValue={stats.manuf.total}
-                label={null}
-                subLabel={coaster.manufacturer}
-                colorClass={getRankColor(stats.manuf.rank)}
-                isLink={true}
+          >
+            <StatBlock
+              mainValue={stats.manuf.rank}
+              subValue={stats.manuf.total}
+              label={null}
+              subLabel={coaster.manufacturer}
+              colorClass={getRankColor(stats.manuf.rank)}
+              isLink={true}
             />
-            </Link>
+          </Link>
         </div>
       )}
 
       {/* WORLDWIDE RANKING */}
       {stats.overall.rank !== null && (
         <div className={`${baseAnim} ${showContent ? visible : hidden} delay-200`}>
-            <Link 
+          <Link
             href="/coasterratings"
             className="group cursor-pointer"
-            >
-            <StatBlock 
-                mainValue={stats.overall.rank}
-                subValue={stats.overall.total}
-                label={null}
-                subLabel="Worldwide"
-                colorClass={getRankColor(stats.overall.rank)}
-                isLink={true}
+          >
+            <StatBlock
+              mainValue={stats.overall.rank}
+              subValue={stats.overall.total}
+              label={null}
+              subLabel="Worldwide"
+              colorClass={getRankColor(stats.overall.rank)}
+              isLink={true}
             />
-            </Link>
+          </Link>
         </div>
       )}
     </div>

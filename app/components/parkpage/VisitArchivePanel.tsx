@@ -1,18 +1,23 @@
 "use client";
 
-import { Rating } from "@/app/types";
+import { Rating, RollerCoaster } from "@/app/types";
 import { useRouter } from "next/navigation";
 import React from "react";
+import { getRatingColor } from "@/app/utils/design";
+import RatingWarning from "../warnings/RatingWarning";
 
 interface ArchivePanelProps {
   ratings: Rating[];
-  parkId: number;
+  parkSlug: string;
   currentRatingId?: number;
+  coasters: RollerCoaster[];
 }
 
 const ArchivePanel: React.FC<ArchivePanelProps> = ({
   ratings,
+  parkSlug,
   currentRatingId,
+  coasters,
 }) => {
   const router = useRouter();
 
@@ -21,7 +26,7 @@ const ArchivePanel: React.FC<ArchivePanelProps> = ({
   );
 
   const go = (rating: Rating) => {
-    router.push(`/park/${rating.parkId}?visit=${rating.id}`);
+    router.push(`/park/${parkSlug}?visit=${rating.id}`);
   };
 
   return (
@@ -78,12 +83,26 @@ const ArchivePanel: React.FC<ArchivePanelProps> = ({
                 <div className="font-medium dark:text-white">
                   {new Date(rating.date).toLocaleDateString()}
                 </div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Overall Score: {rating.overall}/5
+
+                {/* Overall Score Section */}
+                <div className="mt-1 flex items-center text-base text-gray-800 dark:text-gray-200 font-medium">
+                  <span>Overall Score: </span>
+                  <span className={`ml-1.5 text-lg font-bold ${getRatingColor(rating.overall)}`}>
+                    {rating.overall}
+                  </span>
+                  <span className="text-sm ml-0.5 text-gray-500 dark:text-gray-400">/10</span>
+
+                  {rating.warnings && rating.warnings.length > 0 && (
+                    <div className="ml-1 flex items-center">
+                      <RatingWarning
+                        warning={rating.warnings}
+                        coasters={coasters}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Chevron affordance */}
               {!isCurrent && (
                 <svg
                   className="w-4 h-4 flex-shrink-0 text-gray-400 dark:text-gray-300 opacity-80 translate-x-0 group-hover:translate-x-0.5 transition-transform"

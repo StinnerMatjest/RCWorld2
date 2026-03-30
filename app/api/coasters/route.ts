@@ -24,6 +24,7 @@ export async function GET() {
         rc.ridecount,
         rc.rating,
         rc.park_id,
+        rc.slug,
         rs.type,
         rs.classification,
         rs.length,
@@ -36,6 +37,7 @@ export async function GET() {
         rs.duration_sec AS duration,
         rs.notes,
         p.name AS park_name,
+        p.slug AS park_slug,
         MAX(r.date) AS last_visit_date,
         COUNT(DISTINCT r.id) AS visit_count
       FROM rollercoasters rc
@@ -44,9 +46,9 @@ export async function GET() {
       LEFT JOIN ratings r ON r.park_id = p.id
       GROUP BY 
         rc.id, rc.name, rc.year, rc.manufacturer, rc.model, rc.scale, rc.haveridden, 
-        rc.isbestcoaster, rc.rcdbpath, rc.ridecount, rc.rating, rc.park_id, 
+        rc.isbestcoaster, rc.rcdbpath, rc.ridecount, rc.rating, rc.park_id, rc.slug,
         rs.type, rs.classification, rs.length, rs.height, rs.drop, rs.speed, 
-        rs.inversions, rs.vertical_angle, rs.gforce, rs.duration_sec, rs.notes, p.name
+        rs.inversions, rs.vertical_angle, rs.gforce, rs.duration_sec, rs.notes, p.name, p.slug
       ORDER BY p.name, rc.name;
     `;
 
@@ -59,12 +61,14 @@ export async function GET() {
       manufacturer: row.manufacturer,
       model: row.model,
       scale: row.scale,
-      haveRidden: row.haveridden,
-      isBestCoaster: row.isbestcoaster,
-      rcdbPath: row.rcdbpath,
-      rideCount: row.ridecount,
+      haveridden: row.haveridden,
+      isbestcoaster: row.isbestcoaster,
+      rcdbpath: row.rcdbpath,
+      ridecount: row.ridecount,
       rating: row.rating,
       parkId: row.park_id,
+      slug: row.slug,
+      parkSlug: row.park_slug,
       parkName: row.park_name,
       lastVisitDate: row.last_visit_date,
       visitCount: Number(row.visit_count) || 0,

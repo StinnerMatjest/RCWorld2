@@ -5,6 +5,7 @@ import React, { useState, useEffect } from "react";
 interface ParkTextsModalProps {
   explanations: Record<string, string>;
   parkId: number;
+  ratingId: number;
   onClose: () => void;
   onSave?: (updated: Record<string, string>) => void;
 }
@@ -32,6 +33,7 @@ const humanizeLabel = (key: string) =>
 const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
   explanations,
   parkId,
+  ratingId,
   onClose,
   onSave,
 }) => {
@@ -61,7 +63,7 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
       const res = await fetch(`/api/park/${parkId}/parkTexts`, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: selectedCategory, text }),
+        body: JSON.stringify({ category: selectedCategory, text, ratingId }),
       });
 
       if (!res.ok) {

@@ -1,4 +1,3 @@
-// app/components/CoasterList.tsx
 import React from "react";
 import Link from "next/link";
 import type { RollerCoaster } from "@/app/types";
@@ -82,7 +81,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
           {/* Name */}
           <div className="min-w-0 flex items-center gap-2 cursor-pointer">
             <Link
-              href={`/coasters/${c.id}`}
+              href={`/coasters/${c.slug}`}
               className="font-medium text-blue-700 hover:underline truncate dark:text-blue-400"
             >
               {c.name}

@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import ListItem from "@/app/components/listpage/ListItem";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
-import MainPageButton from "@/app/components/MainPageButton";
+import MainPageButton from "@/app/components/buttons/MainPageButton";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import type { RankingList } from "@/app/types";
 

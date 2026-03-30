@@ -1,4 +1,3 @@
-// app/api/gallery/route.ts
 import { NextResponse } from "next/server";
 import { Pool } from "pg";
 
@@ -14,7 +13,8 @@ export async function GET() {
         pg.id, 
         pg.path, 
         pg.title, 
-        p.name AS park_name
+        p.name AS park_name,
+        p.slug AS park_slug
       FROM parkgallery pg
       LEFT JOIN parks p ON pg.park_id = p.id
       ORDER BY pg.id DESC

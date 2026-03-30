@@ -2,23 +2,24 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import MainPageButton from "@/app/components/MainPageButton";
+import MainPageButton from "@/app/components/buttons/MainPageButton";
 import CoasterCreatorModal from "@/app/components/CoasterCreatorModal";
 import RatingExplanations from "@/app/components/RatingExplanations";
 import Coasterlist from "@/app/components/Coasterlist";
 import ParkHeader from "@/app/components/ParkHeader";
 import ParkInfo from "@/app/components/ParkInfo";
 import Gallery from "@/app/components/Gallery";
-import ArchivePanel from "@/app/components/ArchivePanel";
+import ArchivePanel from "@/app/components/parkpage/VisitArchivePanel";
 import type { Park, Rating, RatingWarningType, RollerCoaster } from "@/app/types";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 
 const ParkPage: React.FC = () => {
-  const { id: parkId } = useParams();
+  const { id: parkSlug } = useParams();
   const searchParams = useSearchParams();
   const visitId = searchParams.get("visit");
   const selectedRatingId = visitId ? Number(visitId) : undefined;
+
   const [park, setPark] = useState<Park | null>(null);
   const [coasters, setCoasters] = useState<RollerCoaster[]>([]);
   const [ratings, setRatings] = useState<Rating[]>([]);
@@ -28,65 +29,152 @@ const ParkPage: React.FC = () => {
   const [explanations, setExplanations] = useState<Record<string, string>>({});
   const { isAdminMode } = useAdminMode();
 
+  // Dynamic Browser Tab Title
+  useEffect(() => {
+    if (park?.name) {
+      document.title = `${park.name} | Parkrating`;
+    }
+    // Fallback
+    else if (parkSlug && parkSlug !== "undefined") {
+      const placeholder = String(parkSlug)
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+      document.title = `${placeholder} | Parkrating`;
+    }
+    // Default
+    else {
+      document.title = "Parkrating";
+    }
+  }, [park, parkSlug, visitId]);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
   useEffect(() => {
-    if (!parkId) return;
+    if (!parkSlug || parkSlug === "undefined" || parkSlug === "null") return;
+    
     (async () => {
-      const [parkRes, coastersRes, ratingsRes, explanationsRes] =
-        await Promise.all([
-          fetch(`/api/park/${parkId}`),
-          fetch(`/api/park/${parkId}/coasters`),
-          fetch(`/api/park/${parkId}/ratings`),
-          fetch(`/api/park/${parkId}/parkTexts`),
+      try {
+        const parkRes = await fetch(`/api/park/${parkSlug}`);
+        const parkData = await parkRes.json();
+
+        if (!parkRes.ok || parkData.error) {
+          console.error("Park not found or API error:", parkData.error);
+          return;
+        }
+
+        setPark(parkData);
+        const numericParkId = parkData.id;
+        const [coastersRes, ratingsRes] = await Promise.all([
+          fetch(`/api/park/${numericParkId}/coasters`, {
+            cache: "no-store",
+            headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" }
+          }),
+          fetch(`/api/park/${numericParkId}/ratings`, {
+            cache: "no-store",
+            headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" }
+          }),
         ]);
 
-      setPark(await parkRes.json());
-      setCoasters(await coastersRes.json());
-      setLoadingCoasters(false);
+        const coastersData = await coastersRes.json();
+        setCoasters(Array.isArray(coastersData) ? coastersData : []);
+        setLoadingCoasters(false);
 
-      const ratingsData = await ratingsRes.json();
-      setRatings(
-        ratingsData.ratings
-          .filter((r: Rating) => r.parkId === Number(parkId))
-          .map((r: Rating) => ({
-            ...r,
-            warnings: (r.warnings ?? []).map((w: any) => ({
-              ratingId: w.ratingId,
-              category: w.category,
-              ride: w.ride,
-              note: w.note,
-            })) as RatingWarningType[],
-          }))
-          .sort((a: Rating, b: Rating) =>
-            new Date(b.date).getTime() - new Date(a.date).getTime()
-          )
-      );
-
-      const explanationsData: { category: string; text: string }[] =
-        await explanationsRes.json();
-      const explanationMap: Record<string, string> = {};
-      for (const item of explanationsData) {
-        explanationMap[item.category] = item.text;
+        const ratingsData = await ratingsRes.json();
+        setRatings(
+          (Array.isArray(ratingsData?.ratings) ? ratingsData.ratings : [])
+            .filter((r: Rating) => r.parkId === numericParkId)
+            .map((r: Rating) => ({
+              ...r,
+              warnings: (r.warnings ?? []).map((w: any) => ({
+                id: w.id,
+                ratingId: w.ratingId,
+                category: w.category,
+                ride: w.ride,
+                note: w.note,
+                severity: w.severity || "Moderate",
+              })) as RatingWarningType[],
+            }))
+            .sort((a: Rating, b: Rating) =>
+              new Date(b.date).getTime() - new Date(a.date).getTime()
+            )
+        );
+      } catch (error) {
+        console.error("Failed to fetch park data:", error);
       }
-      setExplanations(explanationMap);
-
     })();
-  }, [parkId]);
+  }, [parkSlug]);
 
   const selectedRating = ratings.find((r) => r.id.toString() === visitId);
+  const activeRatingId = selectedRating?.id ?? ratings[0]?.id;
+
+  useEffect(() => {
+    if (!park?.id || !activeRatingId) return;
+
+    const fetchExplanations = async () => {
+      try {
+        const res = await fetch(`/api/park/${park.id}/parkTexts?ratingId=${activeRatingId}`);
+        const explanationsData = await res.json();
+
+        const explanationMap: Record<string, string> = {};
+        for (const item of explanationsData) {
+          if (!item.ratingId || item.ratingId === activeRatingId) {
+            explanationMap[item.category] = item.text;
+          }
+        }
+        setExplanations(explanationMap);
+      } catch (error) {
+        console.error("Failed to fetch explanations:", error);
+      }
+    };
+
+    fetchExplanations();
+  }, [park?.id, activeRatingId]);
 
   const refreshCoasters = async () => {
-    const res = await fetch(`/api/park/${parkId}/coasters`);
+    if (!park?.id) return;
+    const res = await fetch(`/api/park/${park.id}/coasters`);
     setCoasters(await res.json());
   };
 
   const fetchParkData = async () => {
-    const res = await fetch(`/api/park/${parkId}`);
+    if (!parkSlug || parkSlug === "undefined" || parkSlug === "null") return;
+    const res = await fetch(`/api/park/${parkSlug}`);
     const data = await res.json();
     setPark(data);
+  };
+
+  const refreshRatings = async () => {
+    if (!park?.id) return;
+    const res = await fetch(`/api/park/${park.id}/ratings`, {
+      cache: "no-store",
+      headers: {
+        "Pragma": "no-cache",
+        "Cache-Control": "no-cache",
+      },
+    });
+
+    const ratingsData = await res.json();
+    setRatings(
+      ratingsData.ratings
+        .filter((r: Rating) => r.parkId === park.id)
+        .map((r: Rating) => ({
+          ...r,
+          warnings: (r.warnings ?? []).map((w: any) => ({
+            id: w.id,
+            ratingId: w.ratingId,
+            category: w.category,
+            ride: w.ride,
+            note: w.note,
+            severity: w.severity || "Moderate",
+          })) as RatingWarningType[],
+        }))
+        .sort((a: Rating, b: Rating) =>
+          new Date(b.date).getTime() - new Date(a.date).getTime()
+        )
+    );
   };
 
   if (!park) return <LoadingSpinner />;
@@ -99,7 +187,6 @@ const ParkPage: React.FC = () => {
         onUpdate={fetchParkData}
       />
       <div className="grid grid-cols-1 md:grid-cols-[20%_1fr_1fr] gap-6 w-full py-10 px-6 md:px-20 bg-base-200 dark:bg-gray-900">
-        {/* Info Panel */}
         <div
           className="
             bg-blue-50 dark:bg-gray-800
@@ -117,13 +204,13 @@ const ParkPage: React.FC = () => {
             <div className="border-t border-gray-300 dark:border-white/10 my-3" />
             <ArchivePanel
               ratings={ratings}
-              parkId={Number(parkId)}
+              parkSlug={park.slug}
               currentRatingId={selectedRatingId}
+              coasters={coasters}
             />
           </div>
         </div>
 
-        {/* Introduction and Rating Explanations */}
         <div className="space-y-6">
           <div>
             <h2 className="text-3xl font-semibold dark:text-white">Introduction</h2>
@@ -136,11 +223,12 @@ const ParkPage: React.FC = () => {
           <RatingExplanations
             rating={selectedRating ?? ratings[0]}
             explanations={explanations}
-            parkId={Number(parkId)}
+            parkId={park.id}
+            onWarningsUpdate={refreshRatings}
+            coasters={coasters}
           />
         </div>
 
-        {/* Coasters */}
         <div className="space-y-6">
           <Coasterlist
             coasters={coasters}
@@ -156,7 +244,7 @@ const ParkPage: React.FC = () => {
           />
           {showModal && (
             <CoasterCreatorModal
-              parkId={Number(parkId)}
+              parkId={park.id}
               coaster={editingCoaster}
               onClose={() => {
                 setShowModal(false);
@@ -168,7 +256,7 @@ const ParkPage: React.FC = () => {
           )}
           <Gallery parkId={park.id} parkName={park.name} />
         </div>
-            <div className="md:col-span-3 flex justify-center pt-6">
+        <div className="md:col-span-3 flex justify-center pt-6">
           <MainPageButton />
         </div>
       </div>

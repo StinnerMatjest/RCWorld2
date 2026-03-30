@@ -1,6 +1,6 @@
 import { Pool } from "pg";
 import { NextResponse } from "next/server";
-import { Park } from "@/app/page";
+import { Park } from "@/app/types";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -13,26 +13,27 @@ export async function GET() {
   try {
     const query = `
       SELECT 
-        parks.id,
-        parks.name,
-        parks.continent,
-        parks.country,
-        parks.city,
-        parks.imagepath
+        id,
+        name,
+        continent,
+        country,
+        city,
+        imagepath,
+        slug
       FROM parks
     `;
     const result = await pool.query(query);
     console.log("Database result:", result.rows);
 
     const parks: Park[] = result.rows.map((row) => {
-
       return {
         id: row.id,
         name: row.name,
         continent: row.continent,
         country: row.country,
         city: row.city,
-        imagePath: row.imagepath,
+        imagepath: row.imagepath,
+        slug: row.slug,
       };
     });
 
@@ -50,9 +51,12 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, continent, country, city, imagepath } = body;
+    const { name, continent, country, city, imagepath, slug } = body;
 
-    if (!name || !continent || !country || !city || !imagepath) {
+    // Autogenerate a URL-friendly slug if one isn't explicitly provided
+    const finalSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+    if (!name || !continent || !country || !city || !imagepath || !finalSlug) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -61,8 +65,8 @@ export async function POST(request: Request) {
 
     console.log("Incoming park data:", body);
 
-    const checkQuery = "SELECT id FROM parks WHERE name = $1";
-    const checkResult = await pool.query(checkQuery, [name]);
+    const checkQuery = "SELECT id FROM parks WHERE name = $1 OR slug = $2";
+    const checkResult = await pool.query(checkQuery, [name, finalSlug]);
 
     if (checkResult.rows.length > 0) {
       const existingParkId = checkResult.rows[0].id;
@@ -77,12 +81,13 @@ export async function POST(request: Request) {
         continent,
         country,
         city,
-        imagepath
-      ) VALUES ($1, $2, $3, $4, $5)
+        imagepath,
+        slug
+      ) VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING id
     `;
 
-    const values = [name, continent, country, city, imagepath];
+    const values = [name, continent, country, city, imagepath, finalSlug];
     const result = await pool.query(query, values);
     const newParkId = result.rows[0].id;
 

@@ -149,9 +149,9 @@ export function getStatusStyles(status: MatchStatus) {
     case "wrong":
     default:
       return "bg-red-800 text-white border-red-900 dark:bg-red-900 dark:border-red-950";
-   case "close":
-  return "bg-amber-500 text-white border-amber-600 shadow-[0_0_10px_rgba(217,119,6,0.18)] " +
-         "dark:bg-yellow-600 dark:border-yellow-700 dark:shadow-[0_0_12px_rgba(234,179,8,0.24)]";
+    case "close":
+      return "bg-amber-500 text-white border-amber-600 shadow-[0_0_10px_rgba(217,119,6,0.18)] " +
+        "dark:bg-yellow-600 dark:border-yellow-700 dark:shadow-[0_0_12px_rgba(234,179,8,0.24)]";
   }
 }
 
@@ -188,9 +188,9 @@ export function mapApiToCoastle(c: ApiCoaster): CoastleCoaster | null {
     year: c.year ?? 0,
     parkId: c.parkId,
     rcdbPath: c.rcdbPath,
+    slug: c.slug,
     countryName,
 
-    // ✅ Standard fields (API returns feet + mph)
     height: toNumOrNull(specs.height),       // ft
     length: toNumOrNull(specs.length),       // ft
     speed: toNumOrNull(specs.speed),         // mph
@@ -220,7 +220,6 @@ export async function legacyCopy(text: string) {
 }
 
 // --- VERIFICATION TOOL ---
-// Call debugSchedule(allCoasters, "insider") in your app to verify in console.
 export function debugSchedule(coasters: CoastleCoaster[], salt = "") {
   console.log(
     "%c 🎢 PREDICTED SCHEDULE (Next 7 Days)",

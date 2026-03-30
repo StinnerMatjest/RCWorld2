@@ -25,6 +25,7 @@ type Coaster = {
   parkName: string;
   year: number;
   lastVisitDate: string | null;
+  slug: string;
   specs?: RollerCoasterSpecs | null;
 };
 
@@ -145,6 +146,7 @@ function CoasterRatingsContent() {
             parkName: c.parkName,
             year: c.year ?? 0,
             lastVisitDate: c.lastVisitDate,
+            slug: c.slug,
             specs: c.specs ? {
               type: c.specs.type,
               classification: c.specs.classification,
@@ -386,7 +388,7 @@ function CoasterRatingsContent() {
                       >
                         <div className="flex items-center" style={{ height: ROW_H }}>
                           <Link
-                            href={`/coasters/${c.id}`}
+                            href={`/coasters/${c.slug}`}
                             className="text-blue-600 dark:text-blue-400 hover:underline"
                           >
                             {c.name}
@@ -589,7 +591,7 @@ function CoasterRatingsContent() {
                     className="sticky z-[1] bg-white dark:bg-neutral-950 py-3 pr-4 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap overflow-hidden text-ellipsis"
                     style={{ left: 64, width: NAME_COL_W_SM }}
                   >
-                    <Link href={`/coasters/${c.id}`} className="text-blue-600 dark:text-blue-400 hover:underline">
+                    <Link href={`/coasters/${c.slug}`} className="text-blue-600 dark:text-blue-400 hover:underline">
                       {c.name}
                     </Link>
                   </td>

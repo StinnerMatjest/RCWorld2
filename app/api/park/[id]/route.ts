@@ -10,7 +10,7 @@ const pool = new Pool({
 
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const { id: parkId } = await context.params;  // Wait for the params promise to resolve - NEEDED FOR NEXT 15
+    const { id: parkSlug } = await context.params;
 
     const query = `
       SELECT
@@ -19,11 +19,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         continent,
         country,
         city,
-        imagepath
+        imagepath,
+        slug
       FROM parks
-      WHERE id = $1
+      WHERE slug = $1
     `;
-    const result = await pool.query(query, [parkId]);
+    const result = await pool.query(query, [parkSlug]);
 
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "Park not found" }, { status: 404 });
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
 export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const { id: parkId } = await context.params;
+    const { id: parkSlug } = await context.params;
     const body = await req.json();
     const { imagepath } = body;
 
@@ -50,11 +51,11 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     const query = `
       UPDATE parks 
       SET imagepath = $1 
-      WHERE id = $2 
+      WHERE slug = $2 
       RETURNING *;
     `;
-    
-    const result = await pool.query(query, [imagepath, parkId]);
+
+    const result = await pool.query(query, [imagepath, parkSlug]);
 
     if (result.rowCount === 0) {
       return NextResponse.json({ error: "Park not found" }, { status: 404 });

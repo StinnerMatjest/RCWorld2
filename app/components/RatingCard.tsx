@@ -2,11 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { AlertTriangle } from "lucide-react";
-import { Rating } from "../page";
-import { Park } from "../page";
 import { getParkFlag, getRatingColor } from "@/app/utils/design";
 import { fieldToGroupLabel } from "@/app/utils/ratings";
-import { RatingWarningType } from "@/app/types";
+import { RatingWarningType, Park, Rating } from "@/app/types";
 
 interface RatingCardProps {
   rating: Rating;
@@ -65,6 +63,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
     {
       emoji: "🎢",
       label: "Coasters",
+      keys: ["bestCoaster", "coasterDepth", "Best Coaster", "Coaster Depth"],
       average: avg([rating.bestCoaster, rating.coasterDepth]),
       details: [
         { label: "Best Coaster", value: rating.bestCoaster },
@@ -74,6 +73,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
     {
       emoji: "🎡",
       label: "Rides",
+      keys: ["waterRides", "flatridesAndDarkrides", "Water Rides", "Flatrides And Darkrides"],
       average: avg([rating.waterRides, rating.flatridesAndDarkrides]),
       details: [
         { label: "Water Rides", value: rating.waterRides },
@@ -86,6 +86,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
     {
       emoji: "🏞️",
       label: "Park",
+      keys: ["parkAppearance", "parkPracticality", "Park Appearance", "Park Practicality"],
       average: avg([rating.parkAppearance, rating.parkPracticality]),
       details: [
         { label: "Appearance", value: rating.parkAppearance },
@@ -95,6 +96,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
     {
       emoji: "🍔",
       label: "Food",
+      keys: ["food", "snacksAndDrinks", "Food", "Snacks And Drinks"],
       average: avg([rating.food, rating.snacksAndDrinks]),
       details: [
         { label: "Food", value: rating.food },
@@ -104,6 +106,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
     {
       emoji: "📋",
       label: "Management",
+      keys: ["rideOperations", "parkManagement", "Ride Operations", "Park Management"],
       average: avg([rating.rideOperations, rating.parkManagement]),
       details: [
         { label: "Operations", value: rating.rideOperations },
@@ -113,14 +116,12 @@ const RatingCard: React.FC<RatingCardProps> = ({
   ];
 
   return (
-    <Link href={`/park/${rating.parkId}`}>
+    <Link href={`/park/${park.slug}`}>
       <div
         ref={cardRef}
-        className={`mx-auto flex flex-col justify-between w-full max-w-[400px] ${
-          isMobile ? "py-3" : "py-4"
-        } animate-fade-in-up ${
-          delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""
-        }`}
+        className={`mx-auto flex flex-col justify-between w-full max-w-[400px] ${isMobile ? "py-3" : "py-4"
+          } animate-fade-in-up ${delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""
+          }`}
       >
         <div className="flex flex-col items-center justify-between 
     bg-blue-50 dark:bg-[#1e293b] rounded-2xl overflow-hidden 
@@ -129,17 +130,15 @@ const RatingCard: React.FC<RatingCardProps> = ({
 
           {/* Park Name */}
           <div
-            className={`flex flex-col items-center justify-center w-full ${
-              isMobile ? "min-h-[56px] px-2" : "min-h-[80px]"
-            }`}
+            className={`flex flex-col items-center justify-center w-full ${isMobile ? "min-h-[56px] px-2" : "min-h-[80px]"
+              }`}
           >
             <div className="flex items-center justify-center text-center min-w-0">
               <h1
-                className={`${
-                  isMobile
-                    ? "text-[clamp(1.15rem,4vw,1.75rem)] truncate"
-                    : "text-[1.75rem]"
-                } font-bold text-gray-900 dark:text-white flex items-center gap-2`}
+                className={`${isMobile
+                  ? "text-[clamp(1.15rem,4vw,1.75rem)] truncate"
+                  : "text-[1.75rem]"
+                  } font-bold text-gray-900 dark:text-white flex items-center gap-2`}
               >
                 <Image
                   src={getParkFlag(park.country)}
@@ -165,7 +164,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
             }}
           >
             <Image
-              src={park.imagePath || "/images/error.PNG"}
+              src={park.imagepath || "/images/error.PNG"}
               alt={park.name}
               height={500}
               width={500}
@@ -182,60 +181,74 @@ const RatingCard: React.FC<RatingCardProps> = ({
 
           {/* Overall Score */}
           <p
-            className={`${
-              isMobile
-                ? "font-extrabold py-1 tabular-nums leading-none text-[clamp(2.25rem,7.5vw,3.25rem)]"
-                : "text-5xl font-bold py-2"
-            } ${getRatingColor(rating.overall)}`}
+            className={`${isMobile
+              ? "font-extrabold py-1 tabular-nums leading-none text-[clamp(2.25rem,7.5vw,3.25rem)]"
+              : "text-5xl font-bold py-2"
+              } ${getRatingColor(rating.overall)}`}
           >
             {rating.overall.toFixed(2)}
           </p>
 
           {/* Separator */}
           <div
-            className={`${
-              isMobile ? "w-10/12 my-1.5" : "w-3/4 my-2"
-            } border-t border-gray-300 dark:border-gray-600`}
+            className={`${isMobile ? "w-10/12 my-1.5" : "w-3/4 my-2"
+              } border-t border-gray-300 dark:border-gray-600`}
           />
 
           {/* Grouped Ratings */}
           <div
-            className={`w-full max-w-[360px] flex flex-col ${
-              isMobile ? "px-3 pb-3 space-y-1" : "px-4 pb-4"
-            }`}
+            className={`w-full max-w-[360px] flex flex-col ${isMobile ? "px-3 pb-3 space-y-1" : "px-4 pb-4"
+              }`}
           >
             {[...groupedRow1, ...groupedRow2].map((group, idx) => {
               const isActive = activeIdx === idx;
 
               const warningsForGroup: RatingWarningType[] =
-                ratingWarnings?.filter(
-                  (w: RatingWarningType) =>
-                    fieldToGroupLabel[w.category] === group.label
-                ) ?? [];
+                ratingWarnings?.filter((w: RatingWarningType) => {
+                  const normalizedWarningCat = w.category.toLowerCase().replace(/\s+/g, '');
+                  return group.keys?.some(k => k.toLowerCase().replace(/\s+/g, '') === normalizedWarningCat);
+                }) ?? [];
 
               const hasWarnings = warningsForGroup.length > 0;
-              const multipleWarnings = warningsForGroup.length > 1;
+
+              // --- ADDED SEVERITY COLOR LOGIC ---
+              let highestSeverityLevel = 0;
+              warningsForGroup.forEach((w) => {
+                const sev = w.severity || "Moderate";
+                if (sev === "Major") highestSeverityLevel = Math.max(highestSeverityLevel, 2);
+                else if (sev === "Moderate") highestSeverityLevel = Math.max(highestSeverityLevel, 1);
+              });
+
+              let warningColorClass = "";
+              if (warningsForGroup.length === 1) {
+                if (highestSeverityLevel === 2) warningColorClass = "text-red-600 dark:text-red-400";
+                else if (highestSeverityLevel === 1) warningColorClass = "text-yellow-500 dark:text-yellow-400";
+                else warningColorClass = "text-gray-400 dark:text-gray-500";
+              } else if (warningsForGroup.length >= 2) {
+                if (highestSeverityLevel === 2) warningColorClass = "text-slate-900 dark:text-white drop-shadow-sm";
+                else if (highestSeverityLevel === 1) warningColorClass = "text-red-600 dark:text-red-400";
+                else warningColorClass = "text-yellow-500 dark:text-yellow-400";
+              }
+              // -----------------------------------
 
               return (
                 <React.Fragment key={idx}>
                   {idx !== 0 && (
                     <hr
-                      className={`${
-                        isMobile ? "my-1" : "my-2"
-                      } border-t border-gray-300 dark:border-gray-600`}
+                      className={`${isMobile ? "my-1" : "my-2"
+                        } border-t border-gray-300 dark:border-gray-600`}
                     />
                   )}
 
                   <div
-                    className={`relative group cursor-pointer rounded-md ${
-                      isMobile
-                        ? "p-1 hover:bg-blue-100/60 dark:hover:bg-white/10"
-                        : "p-2 hover:bg-blue-100 dark:hover:bg-white/10"
-                    } transition duration-200 ease-in-out hover:shadow-md`}
+                    className={`relative group cursor-pointer rounded-md ${isMobile
+                      ? "p-1 hover:bg-blue-100/60 dark:hover:bg-white/10"
+                      : "p-2 hover:bg-blue-100 dark:hover:bg-white/10"
+                      } transition duration-200 ease-in-out hover:shadow-md`}
                     onClick={(e) => {
                       if (isMobile) {
                         e.preventDefault();
-                        e.stopPropagation(); // important: don't bubble to Link
+                        e.stopPropagation();
                         setActiveIdx(isActive ? null : idx);
                       }
                     }}
@@ -264,36 +277,26 @@ const RatingCard: React.FC<RatingCardProps> = ({
                         {hasWarnings && (
                           <div className="mt-3 space-y-2 text-sm text-gray-700 dark:text-gray-300">
                             <div className="text-gray-800 dark:text-gray-200 font-semibold">
-                              Rating warning
-                              {warningsForGroup.length > 1 ? "s" : ""}
+                              Rating warning{warningsForGroup.length > 1 ? "s" : ""}
                             </div>
 
-                            {warningsForGroup.map((w, i) => (
-                              <div
-                                key={i}
-                                className="space-y-0.5 whitespace-pre-line"
-                              >
-                                <div className="flex items-center gap-1">
-                                  <p
-                                    className={`font-semibold ${
-                                      multipleWarnings
-                                        ? "text-red-600 dark:text-red-400"
-                                        : "text-yellow-500 dark:text-yellow-400"
-                                    }`}
-                                  >
-                                    {w.ride}
-                                  </p>
-                                  <AlertTriangle
-                                    className={`ml-1 w-3.5 h-3.5 ${
-                                      multipleWarnings
-                                        ? "text-red-600 dark:text-red-400"
-                                        : "text-yellow-500 dark:text-yellow-400"
-                                    }`}
-                                  />
+                            {warningsForGroup.map((w, i) => {
+                              // Calculate individual color for the tooltip list
+                              const indColor = w.severity === "Major" ? "text-red-600 dark:text-red-400" :
+                                w.severity === "Minor" ? "text-gray-500 dark:text-gray-400" :
+                                  "text-yellow-500 dark:text-yellow-400";
+                              return (
+                                <div key={i} className="space-y-0.5 whitespace-pre-line">
+                                  <div className="flex items-center gap-1">
+                                    <p className={`font-semibold ${indColor}`}>
+                                      {w.ride}
+                                    </p>
+                                    <AlertTriangle className={`ml-1 w-3.5 h-3.5 ${indColor}`} />
+                                  </div>
+                                  <p className="opacity-90">{w.note}</p>
                                 </div>
-                                <p className="opacity-90">{w.note}</p>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -323,36 +326,26 @@ const RatingCard: React.FC<RatingCardProps> = ({
                         {hasWarnings && (
                           <div className="mt-3 space-y-2 text-sm text-gray-700 dark:text-gray-300">
                             <div className="text-gray-800 dark:text-gray-200 font-semibold">
-                              Rating warning
-                              {warningsForGroup.length > 1 ? "s" : ""}
+                              Rating warning{warningsForGroup.length > 1 ? "s" : ""}
                             </div>
 
-                            {warningsForGroup.map((w, i) => (
-                              <div
-                                key={i}
-                                className="space-y-0.5 whitespace-pre-line"
-                              >
-                                <div className="flex items-center gap-1">
-                                  <p
-                                    className={`font-semibold ${
-                                      multipleWarnings
-                                        ? "text-red-600 dark:text-red-400"
-                                        : "text-yellow-500 dark:text-yellow-400"
-                                    }`}
-                                  >
-                                    {w.ride}
-                                  </p>
-                                  <AlertTriangle
-                                    className={`ml-1 w-3.5 h-3.5 ${
-                                      multipleWarnings
-                                        ? "text-red-600 dark:text-red-400"
-                                        : "text-yellow-500 dark:text-yellow-400"
-                                    }`}
-                                  />
+                            {warningsForGroup.map((w, i) => {
+                              // Calculate individual color for the tooltip list
+                              const indColor = w.severity === "Major" ? "text-red-600 dark:text-red-400" :
+                                w.severity === "Minor" ? "text-gray-500 dark:text-gray-400" :
+                                  "text-yellow-500 dark:text-yellow-400";
+                              return (
+                                <div key={i} className="space-y-0.5 whitespace-pre-line">
+                                  <div className="flex items-center gap-1">
+                                    <p className={`font-semibold ${indColor}`}>
+                                      {w.ride}
+                                    </p>
+                                    <AlertTriangle className={`ml-1 w-3.5 h-3.5 ${indColor}`} />
+                                  </div>
+                                  <p className="opacity-90">{w.note}</p>
                                 </div>
-                                <p className="opacity-90">{w.note}</p>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -364,46 +357,24 @@ const RatingCard: React.FC<RatingCardProps> = ({
                         <span className="text-[1.05rem] font-semibold truncate flex items-center gap-1">
                           {group.emoji} {group.label}
                           {hasWarnings && (
-                            <AlertTriangle
-                              className={`ml-1 w-4 h-4 ${
-                                multipleWarnings
-                                  ? "text-red-600 dark:text-red-400"
-                                  : "text-yellow-500 dark:text-yellow-400"
-                              }`}
-                            />
+                            <AlertTriangle className={`ml-1 w-4 h-4 ${warningColorClass}`} />
                           )}
                         </span>
-                        <span
-                          className={`text-[1.1rem] font-bold tabular-nums ${getRatingColor(
-                            group.average
-                          )}`}
-                        >
+                        <span className={`text-[1.1rem] font-bold tabular-nums ${getRatingColor(group.average)}`}>
                           {group.average.toFixed(2)}
                         </span>
                       </div>
                     ) : (
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-gray-800 dark:text-gray-200">
-                        <span className="text-3xl hidden sm:inline">
-                          {group.emoji}
-                        </span>
+                        <span className="text-3xl hidden sm:inline">{group.emoji}</span>
                         <div className="flex items-center gap-6 w-full justify-between">
                           <span className="text-lg font-semibold flex items-center gap-1">
                             {group.label}
                             {hasWarnings && (
-                              <AlertTriangle
-                                className={`ml-2 w-4 h-4 ${
-                                  multipleWarnings
-                                    ? "text-red-600 dark:text-red-400"
-                                    : "text-yellow-500 dark:text-yellow-400"
-                                }`}
-                              />
+                              <AlertTriangle className={`ml-2 w-4 h-4 ${warningColorClass}`} />
                             )}
                           </span>
-                          <span
-                            className={`text-2xl font-bold ${getRatingColor(
-                              group.average
-                            )}`}
-                          >
+                          <span className={`text-2xl font-bold ${getRatingColor(group.average)}`}>
                             {group.average.toFixed(2)}
                           </span>
                         </div>

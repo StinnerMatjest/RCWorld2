@@ -4,7 +4,7 @@ import { SearchProvider } from "./context/SearchContext";
 import { AdminModeProvider } from "./context/AdminModeContext";
 import { Inter, Roboto } from "next/font/google";
 import Header from "./components/Header";
-import AdminToggle from "./components/AdminToggle";
+import AdminToggle from "./components/admin/AdminToggle";
 import Footer from "./components/Footer";
 import Script from "next/script";
 
@@ -12,7 +12,9 @@ export const metadata = {
   title: "Parkrating",
   description: "We rate themeparks all around the world!",
   icons: {
-    icon: [{ url: "logos/favicon.svg", type: "image/svg+xml" }],
+    icon: [{ url: "/logos/favicon.svg", type: "image/svg+xml" }],
+    shortcut: ["/logos/favicon.svg"],
+    apple: ["/logos/favicon.svg"],
   },
 };
 

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import type { RollerCoaster } from "@/app/types";
-import MainPageButton from "@/app/components/MainPageButton";
+import MainPageButton from "@/app/components/buttons/MainPageButton";
 import { getRatingColor } from "@/app/utils/design";
 import CoasterInfo from "@/app/components/coasterpage/CoasterInfo";
 import CoasterRanking, { StatBlock, SkeletonStatBlock } from "@/app/components/coasterpage/CoasterRanking";
@@ -55,6 +55,15 @@ const CoasterPage: React.FC = () => {
   const { isAdminMode } = useAdminMode();
   const [isHeaderModalOpen, setIsHeaderModalOpen] = useState(false);
 
+  // Browser Tab Title
+  useEffect(() => {
+    if (coaster?.name) {
+      document.title = `${coaster.name} | Parkrating`;
+    } else {
+      document.title = "Parkrating";
+    }
+  }, [coaster]);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -81,9 +90,12 @@ const CoasterPage: React.FC = () => {
         const coasterData = await coasterRes.json();
         const allCoastersData = await allCoastersRes.json();
         const coasterObj = coasterData.coaster;
+        const allList = allCoastersData.coasters || [];
 
         let galleryPromise = Promise.resolve(null);
-        let parkPromise = Promise.resolve("Unknown Park");
+
+        const coasterInList = allList.find((c: any) => String(c.id) === String(coasterObj.id));
+        const fetchedParkName = coasterInList?.parkName || "Unknown Park";
 
         if (coasterObj?.name && coasterObj?.parkId) {
           galleryPromise = fetch(
@@ -91,17 +103,10 @@ const CoasterPage: React.FC = () => {
           ).then(res => res.ok ? res.json().then(d => d.headerImage) : null)
             .catch(() => null);
         }
-
-        if (coasterObj?.parkId) {
-          parkPromise = fetch(`/api/park/${coasterObj.parkId}`)
-            .then(res => res.ok ? res.json().then(d => d.name) : "Unknown Park")
-            .catch(() => "Unknown Park");
-        }
-
-        const [galleryImg, fetchedParkName] = await Promise.all([galleryPromise, parkPromise]);
+        const [galleryImg] = await Promise.all([galleryPromise]);
 
         setCoaster(coasterObj);
-        setAllCoasters(allCoastersData.coasters || []);
+        setAllCoasters(allList);
         setHeaderImage(galleryImg);
         setParkName(fetchedParkName);
 
@@ -166,7 +171,7 @@ const CoasterPage: React.FC = () => {
           </div>
 
           <Link
-            href={`/coasters/${coaster.id}/rankings`}
+            href={`/coasters/${coaster.slug}/rankings`}
             className="text-[10px] font-bold uppercase tracking-widest text-blue-500 hover:text-blue-600 transition-colors flex items-center gap-1"
           >
             View Detailed Rankings
@@ -198,7 +203,6 @@ const CoasterPage: React.FC = () => {
               </div>
             )}
           </div>
-
         </div>
 
         {/* IMAGE BANNER */}
@@ -242,7 +246,6 @@ const CoasterPage: React.FC = () => {
             parkId={coaster.parkId}
             onClose={() => setIsHeaderModalOpen(false)}
             onUpdate={() => {
-              // Re-fetch gallery info to get new headerImage
               fetch(`/api/coasters/${coaster.id}/gallery?name=${encodeURIComponent(coaster.name)}&parkId=${coaster.parkId}`)
                 .then(res => res.json())
                 .then(data => setHeaderImage(data.headerImage));

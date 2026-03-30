@@ -55,8 +55,8 @@ function ConfettiBurst({ enabled }: { enabled: boolean }) {
               p.key % 3 === 0
                 ? "linear-gradient(180deg, #60a5fa, #a78bfa)"
                 : p.key % 3 === 1
-                ? "linear-gradient(180deg, #34d399, #fbbf24)"
-                : "linear-gradient(180deg, #fb7185, #f97316)",
+                  ? "linear-gradient(180deg, #34d399, #fbbf24)"
+                  : "linear-gradient(180deg, #fb7185, #f97316)",
             ["--rot" as any]: `${p.rotate}deg`,
             ["--drift" as any]: `${p.drift}px`,
           }}
@@ -83,6 +83,7 @@ export function ResultModal({
   const isWon = gameState === "won";
   const isLost = gameState === "lost";
   const answerId = answer?.id ?? null;
+  const answerSlug = (answer as any)?.slug ?? answerId;
 
   const [headerImage, setHeaderImage] = useState<string | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -105,7 +106,6 @@ export function ResultModal({
     };
   }, [isOpen, onClose]);
 
-  // Old gallery contract: needs parkId
   useEffect(() => {
     if (!isOpen || !answerId || !answer?.name) return;
 
@@ -117,7 +117,7 @@ export function ResultModal({
         setHeaderImage(null);
         setImageLoaded(false);
 
-        const coasterRes = await fetch(`/api/coasters/${answerId}`, { cache: "no-store" });
+        const coasterRes = await fetch(`/api/coasters/${answerSlug}`, { cache: "no-store" });
         if (!coasterRes.ok) return;
 
         const coasterData = await coasterRes.json();
@@ -136,7 +136,6 @@ export function ResultModal({
 
         if (!cancelled) setHeaderImage(img);
       } catch {
-        // silent fail
       }
     }
 
@@ -144,7 +143,7 @@ export function ResultModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, answerId, answer?.name]);
+  }, [isOpen, answerId, answerSlug, answer?.name]);
 
   if (!isOpen) return null;
 
@@ -247,9 +246,8 @@ export function ResultModal({
                 fill
                 unoptimized
                 priority
-                className={`object-cover transition-all duration-700 ${
-                  imageLoaded ? "opacity-100 blur-0" : "opacity-0 blur-md"
-                }`}
+                className={`object-cover transition-all duration-700 ${imageLoaded ? "opacity-100 blur-0" : "opacity-0 blur-md"
+                  }`}
                 onLoad={() => setImageLoaded(true)}
               />
             </button>
@@ -314,15 +312,14 @@ export function ResultModal({
                 Share Result
               </button>
 
-              {answerId && (
+              {answerSlug && (
                 <Link
-                  href={`/coasters/${answerId}`}
+                  href={`/coasters/${answerSlug}`}
                   onClick={onClose}
                   className={`shrink-0 w-12 sm:w-14 rounded-2xl grid place-items-center font-black transition cursor-pointer ${secondaryBtn}`}
                   title="Read more about this coaster"
                   aria-label="Open coaster page"
                 >
-                  {/* better looking chevron + nudge animation */}
                   <svg
                     viewBox="0 0 24 24"
                     className="w-6 h-6 animate-arrowNudge"

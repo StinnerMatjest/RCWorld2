@@ -9,7 +9,7 @@ import { getCoasterRankInList, sortCoastersByRank } from "@/app/utils/ranking";
 import Link from "next/link";
 
 export default function DetailedRankingsPage() {
-    const { id: coasterId } = useParams();
+    const { id: coasterSlug } = useParams();
     const router = useRouter();
     const [coaster, setCoaster] = useState<RollerCoaster | null>(null);
     const [allCoasters, setAllCoasters] = useState<ApiCoaster[]>([]);
@@ -20,10 +20,12 @@ export default function DetailedRankingsPage() {
     const SIZE_THRESHOLD = 30;
 
     useEffect(() => {
+        if (!coasterSlug) return;
+
         (async () => {
             try {
                 const [cRes, allRes] = await Promise.all([
-                    fetch(`/api/coasters/${coasterId}`),
+                    fetch(`/api/coasters/${coasterSlug}`),
                     fetch("/api/coasters")
                 ]);
                 const cData = await cRes.json();
@@ -43,14 +45,14 @@ export default function DetailedRankingsPage() {
                 setLoading(false);
             }
         })();
-    }, [coasterId]);
+    }, [coasterSlug]);
 
     const rankingResults = useMemo(() => {
-        if (!coaster || !allCoasters.length || !coasterId) return [];
+        if (!coaster || !allCoasters.length || !coaster.id) return [];
 
         const generateResult = (filterFn: (c: ApiCoaster) => boolean, label: string, icon: any, subLabel: string, queryValue?: string) => {
             const filteredList = allCoasters.filter(filterFn);
-            const { rank, total } = getCoasterRankInList(filteredList, coasterId as string);
+            const { rank, total } = getCoasterRankInList(filteredList, String(coaster.id));
 
             if (rank === null) return null;
 
@@ -117,7 +119,7 @@ export default function DetailedRankingsPage() {
         }).filter(Boolean);
 
         return [...baseResults, ...tagResults];
-    }, [coaster, allCoasters, coasterId, park]);
+    }, [coaster, allCoasters, park]);
 
     const handleRankClick = (res: any) => {
         if (res.isLarge) {
@@ -152,7 +154,7 @@ export default function DetailedRankingsPage() {
                         if (viewingCategory) {
                             setViewingCategory(null);
                         } else {
-                            router.push(`/coasters/${coasterId}`);
+                            router.push(`/coasters/${coasterSlug}`);
                         }
                     }}
                     className="group flex items-center text-sm font-bold text-gray-500 hover:text-black dark:hover:text-white mb-8 transition-colors uppercase tracking-widest cursor-pointer"
@@ -225,15 +227,15 @@ export default function DetailedRankingsPage() {
                         <div className="space-y-3">
                             {viewingCategory.list.map((c: ApiCoaster, i: number) => (
                                 <Link
-                                    href={`/coasters/${c.id}`}
+                                    href={`/coasters/${(c as any).slug}`}
                                     key={c.id}
-                                    className={`flex items-center justify-between p-4 md:p-6 rounded-2xl border transition-all cursor-pointer ${String(c.id) === String(coasterId)
+                                    className={`flex items-center justify-between p-4 md:p-6 rounded-2xl border transition-all cursor-pointer ${String(c.id) === String(coaster.id)
                                         ? "bg-blue-600 border-blue-600 text-white shadow-lg scale-[1.02] z-10"
                                         : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-blue-400"
                                         }`}
                                 >
                                     <div className="flex items-center gap-4">
-                                        <span className={`text-xl md:text-2xl font-black italic w-10 ${String(c.id) === String(coasterId) ? "text-blue-200" : "text-gray-300"
+                                        <span className={`text-xl md:text-2xl font-black italic w-10 ${String(c.id) === String(coaster.id) ? "text-blue-200" : "text-gray-300"
                                             }`}>
                                             #{i + 1}
                                         </span>
@@ -241,14 +243,14 @@ export default function DetailedRankingsPage() {
                                             <p className="font-bold uppercase tracking-tight text-sm md:text-base">
                                                 {c.name}
                                             </p>
-                                            <p className={`text-[10px] md:text-xs uppercase font-bold tracking-widest ${String(c.id) === String(coasterId) ? "text-blue-100" : "text-gray-500"
+                                            <p className={`text-[10px] md:text-xs uppercase font-bold tracking-widest ${String(c.id) === String(coaster.id) ? "text-blue-100" : "text-gray-500"
                                                 }`}>
                                                 {c.manufacturer} • {c.year}
                                             </p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        {String(c.id) === String(coasterId) && (
+                                        {String(c.id) === String(coaster.id) && (
                                             <span className="bg-white text-blue-600 text-[9px] font-black px-2 py-1 rounded-full uppercase tracking-tighter shadow-sm">
                                                 Current
                                             </span>

@@ -28,7 +28,8 @@ export async function GET(
     isbestcoaster,
     rcdbpath,
     rating,
-    ridecount
+    ridecount,
+    slug
   FROM rollercoasters
   WHERE id = $1 AND park_id = $2;
   `,
@@ -93,6 +94,15 @@ export async function PUT(
       ? Number.isNaN(Number(rideCount)) ? 0 : Number(rideCount)
       : 0;
 
+    let generatedSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+    // Check if the slug exists on a another coaster
+    const slugCheck = await pool.query("SELECT id FROM rollercoasters WHERE slug = $1 AND id != $2", [generatedSlug, coasterId]);
+    if (slugCheck.rowCount && slugCheck.rowCount > 0) {
+      const parkRes = await pool.query("SELECT slug FROM parks WHERE id = $1", [parkId]);
+      const pSlug = parkRes.rows[0]?.slug || parkId;
+      generatedSlug = `${generatedSlug}-${pSlug}`;
+    }
 
     const query = `
 UPDATE rollercoasters
@@ -105,10 +115,10 @@ SET name = $1,
     isbestcoaster = $7,
     rcdbpath = $8,
     rating = $9,
-    ridecount = CASE WHEN $6 THEN ridecount + $10 ELSE ridecount END
+    ridecount = CASE WHEN $6 THEN ridecount + $10 ELSE ridecount END,
+    slug = $13
 WHERE id = $11 AND park_id = $12
 RETURNING *;
-
 `;
 
     const result = await pool.query(query, [
@@ -124,8 +134,8 @@ RETURNING *;
       rideCountInitial,
       coasterId,
       parkId,
+      generatedSlug
     ]);
-
 
     console.log("Database Update Result:", result);
     console.log("Row Count:", result.rowCount);

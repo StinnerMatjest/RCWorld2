@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useAdminMode } from "../context/AdminModeContext";
+import { useAdminMode } from "../../context/AdminModeContext";
 import AuthenticationModal from "./AuthenticationModal";
 
 const AdminToggle = () => {
