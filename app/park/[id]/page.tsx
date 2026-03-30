@@ -54,7 +54,7 @@ const ParkPage: React.FC = () => {
 
   useEffect(() => {
     if (!parkSlug || parkSlug === "undefined" || parkSlug === "null") return;
-    
+
     (async () => {
       try {
         const parkRes = await fetch(`/api/park/${parkSlug}`);
@@ -65,7 +65,6 @@ const ParkPage: React.FC = () => {
           return;
         }
 
-        setPark(parkData);
         const numericParkId = parkData.id;
         const [coastersRes, ratingsRes] = await Promise.all([
           fetch(`/api/park/${numericParkId}/coasters`, {
@@ -79,10 +78,9 @@ const ParkPage: React.FC = () => {
         ]);
 
         const coastersData = await coastersRes.json();
-        setCoasters(Array.isArray(coastersData) ? coastersData : []);
-        setLoadingCoasters(false);
-
         const ratingsData = await ratingsRes.json();
+
+        setCoasters(Array.isArray(coastersData) ? coastersData : []);
         setRatings(
           (Array.isArray(ratingsData?.ratings) ? ratingsData.ratings : [])
             .filter((r: Rating) => r.parkId === numericParkId)
@@ -101,6 +99,10 @@ const ParkPage: React.FC = () => {
               new Date(b.date).getTime() - new Date(a.date).getTime()
             )
         );
+
+        setPark(parkData);
+        setLoadingCoasters(false);
+
       } catch (error) {
         console.error("Failed to fetch park data:", error);
       }
@@ -177,7 +179,7 @@ const ParkPage: React.FC = () => {
     );
   };
 
-  if (!park) return <LoadingSpinner />;
+  if (!park || loadingCoasters) return <LoadingSpinner />;
 
   return (
     <div className="w-full">

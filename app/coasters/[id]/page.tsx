@@ -141,7 +141,7 @@ const CoasterPage: React.FC = () => {
         {/* BACK BUTTON (desktop only) */}
         <div className="mb-6 hidden sm:block">
           <Link
-            href={coaster.parkId ? `/park/${coaster.parkId}` : "/"}
+            href={coaster.parkSlug ? `/park/${coaster.parkSlug}` : "/"}
             className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors group"
           >
             <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />

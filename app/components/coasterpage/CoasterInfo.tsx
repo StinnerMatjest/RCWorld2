@@ -7,8 +7,6 @@ import type { RollerCoaster } from "@/app/types";
 interface CoasterInfoProps {
   coaster: RollerCoaster;
 }
-
-// Reusable row component for consistent styling
 const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div className="flex justify-between items-baseline py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
     <span className="text-sm font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide">
@@ -24,32 +22,32 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster }) => {
   const [parkName, setParkName] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!coaster.parkId) return;
+    const identifier = coaster.parkSlug || coaster.parkId;
+    if (!identifier) return;
 
-    // Fetch the park name
     (async () => {
       try {
-        const res = await fetch(`/api/park/${coaster.parkId}`);
+        const res = await fetch(`/api/park/${identifier}`);
         const data = await res.json();
         setParkName(data?.name ?? "Unknown Park");
       } catch {
         setParkName("Unknown Park");
       }
     })();
-  }, [coaster.parkId]);
+  }, [coaster.parkSlug, coaster.parkId]);
 
   return (
     <div className="flex flex-col w-full">
       <InfoRow label="Name" value={coaster.name} />
-      
+
       <InfoRow label="Year" value={coaster.year} />
-      
-      <InfoRow 
-        label="Park" 
+
+      <InfoRow
+        label="Park"
         value={
           parkName ? (
             <Link
-              href={`/park/${coaster.parkId}`}
+              href={`/park/${coaster.parkSlug || coaster.parkId}`}
               className="text-blue-600 hover:underline dark:text-blue-400"
             >
               {parkName}
@@ -57,23 +55,23 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster }) => {
           ) : (
             <span className="text-gray-400 italic text-sm">Loading...</span>
           )
-        } 
+        }
       />
-      
+
       <InfoRow label="Manufacturer" value={coaster.manufacturer} />
-      
+
       <InfoRow label="Model" value={coaster.model} />
-      
+
       <InfoRow label="Scale" value={coaster.scale} />
-      
-      <InfoRow 
-        label="Database" 
+
+      <InfoRow
+        label="Database"
         value={
           coaster.rcdbpath ? (
-            <a 
-              href={coaster.rcdbpath} 
-              target="_blank" 
-              rel="noopener noreferrer" 
+            <a
+              href={coaster.rcdbpath}
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-blue-600 hover:underline dark:text-blue-400"
             >
               RCDB Entry
@@ -81,12 +79,12 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster }) => {
           ) : (
             "N/A"
           )
-        } 
+        }
       />
-      
-      <InfoRow 
-        label="Ride Count" 
-        value={coaster.ridecount ?? "0"} 
+
+      <InfoRow
+        label="Ride Count"
+        value={coaster.ridecount ?? "0"}
       />
     </div>
   );
