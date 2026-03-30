@@ -1,7 +1,6 @@
 import { Pool } from "pg";
 import { NextResponse } from "next/server";
-import { Rating } from "@/app/page";
-import { RatingWarningType } from "@/app/types";
+import { Rating, RatingWarningType } from "@/app/types";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,

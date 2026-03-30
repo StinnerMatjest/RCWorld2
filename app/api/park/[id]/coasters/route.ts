@@ -33,9 +33,6 @@ export async function GET(
     `;
 
         const result = await pool.query(query, [parkId]);
-
-        // Explicitly mapping raw database results to the typed model.
-        // Raw SQL keys like 'park_id' must be converted to 'parkId' here
         const coasters = result.rows.map((row) => ({
             id: row.id,
             name: row.name,
@@ -48,7 +45,7 @@ export async function GET(
             rcdbpath: row.rcdbpath,
             ridecount: row.ridecount,
             rating: row.rating,
-            parkId: row.park_id, // Fix raw SQLunderscore
+            parkId: row.park_id,
             slug: row.slug,
             specs: {
                 type: row.type,
