@@ -17,6 +17,8 @@ interface ResultModalProps {
   onClose: () => void;
   onShare: () => void;
   onReset: () => void;
+  experience: "standard" | "insider";
+  hasPlayedOtherDaily?: boolean;
 }
 
 function formatRating(val: unknown): string {
@@ -77,6 +79,8 @@ export function ResultModal({
   onClose,
   onShare,
   onReset,
+  experience,
+  hasPlayedOtherDaily = false,
 }: ResultModalProps) {
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -166,6 +170,22 @@ export function ResultModal({
   const secondaryBtn =
     "bg-slate-200 text-slate-900 hover:bg-slate-300 dark:bg-neutral-800 dark:text-slate-100 dark:hover:bg-neutral-700";
 
+  const isStandard = experience === "standard";
+
+  const otherDailyHref = isStandard
+    ? "/coastle/insider"
+    : "/coastle/standard";
+
+  const otherDailyLabel = isStandard
+    ? "Go to daily insider"
+    : "Go to daily standard";
+
+  const completedOtherDailyLabel = isStandard
+    ? "Daily Insider Coastle already completed"
+    : "Daily Standard Coastle already completed";
+
+  const shouldRenderOtherDailyAction = gameMode === "daily";
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
@@ -182,7 +202,6 @@ export function ResultModal({
           100% { transform: translate3d(calc(var(--drift) * 0.2), 190px, 0) rotate(calc(var(--rot) + 220deg)); opacity: 0; }
         }
 
-        /* subtle, professional nudge */
         @keyframes arrowNudge {
           0%, 72%, 100% { transform: translateX(0); }
           82% { transform: translateX(4px); }
@@ -216,7 +235,6 @@ export function ResultModal({
             <XMarkIcon className="w-5 h-5" />
           </button>
 
-          {/* Title */}
           <div className="text-center mt-1">
             <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
               {title}
@@ -232,7 +250,6 @@ export function ResultModal({
             )}
           </div>
 
-          {/* Banner */}
           {headerImage && (
             <button
               type="button"
@@ -253,7 +270,6 @@ export function ResultModal({
             </button>
           )}
 
-          {/* Answer */}
           <div className="mt-4 sm:mt-5 md:mt-6 text-center">
             <div className="text-[11px] sm:text-xs font-black uppercase tracking-[0.22em] text-slate-600 dark:text-slate-300">
               {isLost ? "THE CORRECT ANSWER WAS" : "THE ANSWER WAS"}
@@ -268,7 +284,6 @@ export function ResultModal({
             </div>
           </div>
 
-          {/* Stats */}
           <div className="mt-4 sm:mt-5 md:mt-6 grid grid-cols-2 gap-2.5 sm:gap-3.5">
             <div className="rounded-2xl bg-slate-100/80 dark:bg-neutral-800/60 p-3.5 sm:p-4">
               <div className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
@@ -301,7 +316,6 @@ export function ResultModal({
             </div>
           </div>
 
-          {/* Actions */}
           <div className="mt-4 sm:mt-5 md:mt-6 flex flex-col gap-2.5 sm:gap-3">
             <div className="flex gap-2.5">
               <button
@@ -334,6 +348,21 @@ export function ResultModal({
                 </Link>
               )}
             </div>
+
+            {shouldRenderOtherDailyAction &&
+              (hasPlayedOtherDaily ? (
+                <div className="w-full py-2 sm:py-3 md:py-3.5 rounded-2xl font-black text-sm sm:text-base text-center bg-slate-200 text-slate-500 dark:bg-neutral-800 dark:text-slate-400 cursor-not-allowed select-none">
+                  {completedOtherDailyLabel}
+                </div>
+              ) : (
+                <Link
+                  href={otherDailyHref}
+                  onClick={onClose}
+                  className="w-full py-2 sm:py-3 md:py-3.5 rounded-2xl font-black text-sm sm:text-base text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 transition cursor-pointer text-center"
+                >
+                  {otherDailyLabel}
+                </Link>
+              ))}
 
             {gameMode === "endless" && (
               <button
