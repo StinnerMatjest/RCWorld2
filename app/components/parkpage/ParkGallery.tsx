@@ -3,19 +3,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import ImageUploaderModal from "@/app/components/ImageUploaderModal";
-import { useAdminMode } from "../context/AdminModeContext";
-import { 
-  TransformWrapper, 
-  TransformComponent, 
-  ReactZoomPanPinchRef 
+import { useAdminMode } from "../../context/AdminModeContext";
+import {
+  TransformWrapper,
+  TransformComponent,
+  ReactZoomPanPinchRef
 } from "react-zoom-pan-pinch";
 
-interface GalleryProps {
-  parkId: number;
-  parkName: string;
-}
-
-type GalleryImage = {
+// EXPORT THIS SO THE PARENT CAN USE IT
+export type GalleryImage = {
   id: number;
   parkId: number;
   title: string;
@@ -23,9 +19,16 @@ type GalleryImage = {
   description: string;
 };
 
+interface GalleryProps {
+  parkId: number;
+  parkName: string;
+  initialImages: GalleryImage[];
+  refreshImages: () => void;
+}
+
 function isVideo(path: string) {
   const videoExtensions = [".mp4", ".webm", ".ogg"];
-  return videoExtensions.some((ext) => path.toLowerCase().endsWith(ext)); 
+  return videoExtensions.some((ext) => path.toLowerCase().endsWith(ext));
 }
 
 /** STABLE SWIPE HOOK */
@@ -33,7 +36,7 @@ function useSwipe(
   onSwipeLeft: () => void,
   onSwipeRight: () => void,
   opts?: { threshold?: number; verticalRestraint?: number },
-  shouldAllowSwipe?: () => boolean 
+  shouldAllowSwipe?: () => boolean
 ) {
   const { threshold = 55, verticalRestraint = 120 } = opts || {};
   const start = useRef<{ x: number; y: number } | null>(null);
@@ -79,39 +82,28 @@ function useSwipe(
   return { onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onPointerLeave, didDrag };
 }
 
-const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
+const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, refreshImages }) => {
   const { isAdminMode } = useAdminMode();
 
-  const [images, setImages] = useState<GalleryImage[]>([]);
+  const [images, setImages] = useState<GalleryImage[]>(initialImages);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [direction, setDirection] = useState<"left" | "right" | null>(null);
+
+  // Sync state if the parent updates the images
+  useEffect(() => {
+    setImages(initialImages);
+  }, [initialImages]);
 
   // STATE: Track zoom to disable/enable panning props
   const [isZoomed, setIsZoomed] = useState(false);
-  
+
   // REF: To control zoom programmatically (Reset button)
   const transformRef = useRef<ReactZoomPanPinchRef>(null);
 
   const modalContainerRef = useRef<HTMLDivElement>(null);
   const isDesktop = () => typeof window !== 'undefined' && window.innerWidth > 768;
   const selected = selectedIndex !== null ? images[selectedIndex] : null;
-
-  const fetchGalleryImages = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/park/${parkId}/gallery`);
-      const data = await res.json();
-      setImages(data.gallery);
-    } catch (err) {
-      console.error("Failed to fetch gallery images", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchGalleryImages(); }, [parkId]);
 
   const toggleFullscreen = () => {
     if (!document || !modalContainerRef.current) return;
@@ -146,7 +138,7 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
         if (document.fullscreenElement) document.exitFullscreen();
         else setSelectedIndex(null);
       }
-      
+
       if (e.key === "ArrowLeft" && selectedIndex !== null && selectedIndex > 0) goPrev();
       if (e.key === "ArrowRight" && selectedIndex !== null && selectedIndex < images.length - 1) goNext();
     };
@@ -225,8 +217,8 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
       </div>
 
       {/* Grid */}
-      {loading ? (
-        <p className="text-center py-4 italic text-gray-600">Loading images...</p>
+      {!images.length ? (
+        <p className="text-center py-4 italic text-gray-600">No images available yet.</p>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {images.map((img, index) => (
@@ -236,13 +228,13 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
               className="cursor-pointer overflow-hidden rounded-lg hover:scale-105 transition-transform duration-300"
             >
               {isVideo(img.path) ? (
-                <video 
-                    src={img.path} 
-                    muted 
-                    autoPlay 
-                    loop 
-                    playsInline 
-                    className="rounded-lg object-cover h-40 w-full bg-black" 
+                <video
+                  src={img.path}
+                  muted
+                  autoPlay
+                  loop
+                  playsInline
+                  className="rounded-lg object-cover h-40 w-full bg-black"
                 />
               ) : (
                 <Image src={img.path} alt={img.title || "Gallery"} width={400} height={300} className="rounded-lg object-cover h-40 w-full" unoptimized />
@@ -258,13 +250,13 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
           ref={modalContainerRef}
           className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex items-center justify-center"
           onClick={() => {
-            // Close if background clicked
             if (!swipe.didDrag()) {
               if (document.fullscreenElement) document.exitFullscreen();
               setSelectedIndex(null);
             }
           }}
         >
+          {/* ... Modal content remains identical ... */}
           <div
             className="relative w-full h-full flex flex-col touch-pan-y select-none"
             onPointerDown={swipe.onPointerDown}
@@ -274,10 +266,7 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
             onPointerLeave={swipe.onPointerLeave}
             onClick={(e) => { if (swipe.didDrag()) e.stopPropagation(); }}
           >
-            {/* CONTROLS */}
             <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-[60] pointer-events-none">
-              
-              {/* LEFT SIDE: "RESET ZOOM" BUTTON (Only visible when zoomed) */}
               <div className="pointer-events-auto min-h-[32px] flex items-center">
                 {isZoomed && (
                   <button
@@ -288,14 +277,11 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
                   </button>
                 )}
               </div>
-
-              {/* RIGHT SIDE: CLOSE BUTTON */}
               <button onClick={(e) => { e.stopPropagation(); setSelectedIndex(null); }} className="pointer-events-auto text-white/80 hover:text-white text-4xl leading-none font-bold transition cursor-pointer">
                 &times;
               </button>
             </div>
 
-            {/* ARROWS */}
             {selectedIndex !== null && selectedIndex > 0 && (
               <button onClick={(e) => { e.stopPropagation(); goPrev(); }} className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-4xl md:text-6xl z-[60] transition-all p-4 cursor-pointer hidden md:block">
                 &#8249;
@@ -307,11 +293,10 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
               </button>
             )}
 
-            {/* IMAGE AREA */}
             <div className="flex-1 flex items-center justify-center w-full h-full overflow-hidden">
-              <div 
+              <div
                 className={`relative transition-all duration-200 ${animClass} w-full h-full flex items-center justify-center`}
-                onClick={(e) => e.stopPropagation()} 
+                onClick={(e) => e.stopPropagation()}
               >
                 {isVideo(selected.path) ? (
                   <video
@@ -356,7 +341,6 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
               </div>
             </div>
 
-            {/* FOOTER */}
             <div className="p-4 bg-gradient-to-t from-black/80 to-transparent z-50">
               {selected.description && (
                 <p className="text-white text-center text-sm md:text-base font-medium drop-shadow-md mb-4 max-w-2xl mx-auto" onClick={(e) => e.stopPropagation()}>
@@ -382,10 +366,10 @@ const Gallery: React.FC<GalleryProps> = ({ parkId, parkName }) => {
       )}
 
       {isAdminMode && showModal && (
-        <ImageUploaderModal parkId={parkId} parkName={parkName} onClose={() => setShowModal(false)} onUploadSuccess={fetchGalleryImages} />
+        <ImageUploaderModal parkId={parkId} parkName={parkName} onClose={() => setShowModal(false)} onUploadSuccess={refreshImages} />
       )}
     </div>
   );
 };
 
-export default Gallery;
+export default ParkGallery;

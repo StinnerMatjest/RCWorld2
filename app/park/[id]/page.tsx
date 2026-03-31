@@ -8,7 +8,7 @@ import RatingExplanations from "@/app/components/RatingExplanations";
 import Coasterlist from "@/app/components/Coasterlist";
 import ParkHeader from "@/app/components/ParkHeader";
 import ParkInfo from "@/app/components/ParkInfo";
-import Gallery from "@/app/components/Gallery";
+import ParkGallery, { type GalleryImage } from "@/app/components/parkpage/ParkGallery";
 import ArchivePanel from "@/app/components/parkpage/VisitArchivePanel";
 import type { Park, Rating, RatingWarningType, RollerCoaster } from "@/app/types";
 import { useAdminMode } from "@/app/context/AdminModeContext";
@@ -19,10 +19,10 @@ const ParkPage: React.FC = () => {
   const searchParams = useSearchParams();
   const visitId = searchParams.get("visit");
   const selectedRatingId = visitId ? Number(visitId) : undefined;
-
   const [park, setPark] = useState<Park | null>(null);
   const [coasters, setCoasters] = useState<RollerCoaster[]>([]);
   const [ratings, setRatings] = useState<Rating[]>([]);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [loadingCoasters, setLoadingCoasters] = useState(true);
   const [loadingExplanations, setLoadingExplanations] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -67,7 +67,7 @@ const ParkPage: React.FC = () => {
         }
 
         const numericParkId = parkData.id;
-        const [coastersRes, ratingsRes] = await Promise.all([
+        const [coastersRes, ratingsRes, galleryRes] = await Promise.all([
           fetch(`/api/park/${numericParkId}/coasters`, {
             cache: "no-store",
             headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" }
@@ -76,12 +76,20 @@ const ParkPage: React.FC = () => {
             cache: "no-store",
             headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" }
           }),
+          fetch(`/api/park/${numericParkId}/gallery`, {
+            cache: "no-store",
+            headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" }
+          }),
         ]);
 
         const coastersData = await coastersRes.json();
         const ratingsData = await ratingsRes.json();
+        const galleryData = await galleryRes.json();
 
         setCoasters(Array.isArray(coastersData) ? coastersData : []);
+        setGalleryImages(galleryData.gallery || []);
+        setCoasters(Array.isArray(coastersData) ? coastersData : []);
+
         setRatings(
           (Array.isArray(ratingsData?.ratings) ? ratingsData.ratings : [])
             .filter((r: Rating) => r.parkId === numericParkId)
@@ -143,6 +151,13 @@ const ParkPage: React.FC = () => {
 
     fetchExplanations();
   }, [park, loadingCoasters, ratings.length, activeRatingId]);
+
+  const refreshGallery = async () => {
+    if (!park?.id) return;
+    const res = await fetch(`/api/park/${park.id}/gallery`);
+    const data = await res.json();
+    setGalleryImages(data.gallery || []);
+  };
 
   const refreshCoasters = async () => {
     if (!park?.id) return;
@@ -265,7 +280,12 @@ const ParkPage: React.FC = () => {
               onCoasterAdded={refreshCoasters}
             />
           )}
-          <Gallery parkId={park.id} parkName={park.name} />
+          <ParkGallery
+            parkId={park.id}
+            parkName={park.name}
+            initialImages={galleryImages}
+            refreshImages={refreshGallery}
+          />
         </div>
         <div className="md:col-span-3 flex justify-center pt-6">
           <MainPageButton />

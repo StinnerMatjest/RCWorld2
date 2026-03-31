@@ -6,12 +6,31 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false },
 });
 
+// Helper function to resolve slug OR id to a numeric coaster ID
+async function resolveCoasterId(identifier: string): Promise<number | null> {
+    const numId = Number(identifier);
+    if (!Number.isNaN(numId)) {
+        return numId;
+    }
+
+    // It's a slug! Look it up in the DB.
+    const res = await pool.query("SELECT id FROM rollercoasters WHERE slug = $1", [identifier]);
+    if (res.rowCount && res.rowCount > 0) {
+        return res.rows[0].id;
+    }
+    return null;
+}
+
 export async function GET(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+    req: NextRequest,
+    context: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await context.params;
-  const coasterId = Number(id);
+    const { id } = await context.params;
+    const coasterId = await resolveCoasterId(id);
+
+    if (!coasterId) {
+        return NextResponse.json({ texts: [] });
+    }
 
     try {
         const query = `
@@ -38,11 +57,15 @@ export async function GET(
 
 // POST & UPDATE
 export async function POST(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+    req: NextRequest,
+    context: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await context.params;
-  const coasterId = Number(id);
+    const { id } = await context.params;
+    const coasterId = await resolveCoasterId(id);
+
+    if (!coasterId) {
+        return NextResponse.json({ error: "Invalid coaster ID or slug" }, { status: 400 });
+    }
 
     try {
         const body = await req.json();
@@ -103,10 +126,14 @@ export async function POST(
 
 // DELETE
 export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
-    const { id } = await context.params;  // Must await here
-    const coasterId = Number(id);
+    const { id } = await context.params;
+    const coasterId = await resolveCoasterId(id);
     const body = await req.json();
     const { textId } = body;
+
+    if (!coasterId) {
+        return NextResponse.json({ error: "Invalid coaster ID or slug" }, { status: 400 });
+    }
 
     if (!textId) {
         return NextResponse.json({ error: "Missing textId" }, { status: 400 });
