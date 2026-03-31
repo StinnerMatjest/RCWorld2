@@ -11,7 +11,7 @@ import CoasterRanking, { StatBlock, SkeletonStatBlock } from "@/app/components/c
 import CoasterSpecsPanel from "@/app/components/coasterpage/CoasterSpecsPanel";
 import CoasterHighlightsPanel from "@/app/components/coasterpage/CoasterHighlightsPanel";
 import CoasterGallery from "@/app/components/coasterpage/CoasterGallery";
-import CoasterText from "@/app/components/coasterpage/CoasterText";
+import CoasterText, { CoasterTextEntry } from "@/app/components/coasterpage/CoasterText";
 import CoasterHeaderModal from "@/app/components/coasterpage/CoasterHeaderModal";
 import Image from "next/image";
 import { useAdminMode } from "@/app/context/AdminModeContext";
@@ -49,9 +49,9 @@ const CoasterPage: React.FC = () => {
   const [allCoasters, setAllCoasters] = useState<RollerCoaster[]>([]);
   const [headerImage, setHeaderImage] = useState<string | null>(null);
   const [parkName, setParkName] = useState<string | null>(null);
+  const [coasterText, setCoasterText] = useState<CoasterTextEntry[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [imageVisualLoaded, setImageVisualLoaded] = useState(false);
-  const [contentVisible, setContentVisible] = useState(false);
   const { isAdminMode } = useAdminMode();
   const [isHeaderModalOpen, setIsHeaderModalOpen] = useState(false);
 
@@ -69,28 +69,25 @@ const CoasterPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!pageLoading) {
-      const timer = setTimeout(() => setContentVisible(true), 100);
-      return () => clearTimeout(timer);
-    }
-  }, [pageLoading]);
-
-  useEffect(() => {
     if (!coasterId) return;
 
     (async () => {
       try {
-        const [coasterRes, allCoastersRes] = await Promise.all([
+        const [coasterRes, allCoastersRes, textRes] = await Promise.all([
           fetch(`/api/coasters/${coasterId}`),
-          fetch("/api/coasters")
+          fetch("/api/coasters"),
+          fetch(`/api/coasters/${coasterId}/text`)
         ]);
 
         if (!coasterRes.ok) throw new Error("Failed to load coaster");
 
         const coasterData = await coasterRes.json();
         const allCoastersData = await allCoastersRes.json();
+        const textData = await textRes.json();
+
         const coasterObj = coasterData.coaster;
         const allList = allCoastersData.coasters || [];
+        const sortedTexts = (textData.texts || []).sort((a: CoasterTextEntry, b: CoasterTextEntry) => a.order - b.order);
 
         let galleryPromise = Promise.resolve(null);
 
@@ -109,6 +106,7 @@ const CoasterPage: React.FC = () => {
         setAllCoasters(allList);
         setHeaderImage(galleryImg);
         setParkName(fetchedParkName);
+        setCoasterText(sortedTexts);
 
       } catch (err) {
         console.error("Error loading page data:", err);
@@ -117,6 +115,13 @@ const CoasterPage: React.FC = () => {
       }
     })();
   }, [coasterId]);
+
+  const refreshText = async () => {
+    if (!coasterId) return;
+    const res = await fetch(`/api/coasters/${coasterId}/text`);
+    const data = await res.json();
+    setCoasterText((data.texts || []).sort((a: CoasterTextEntry, b: CoasterTextEntry) => a.order - b.order));
+  };
 
   const getSafeColorClass = (rating: number | null) => {
     try {
@@ -132,10 +137,9 @@ const CoasterPage: React.FC = () => {
 
   const baseAnim = "transition-all duration-700 ease-out transform";
   const visibleClass = "opacity-100 translate-y-0";
-  const hiddenClass = "opacity-0 translate-y-4";
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 pb-20 font-sans transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 pb-20 font-sans">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
 
         {/* BACK BUTTON (desktop only) */}
@@ -185,7 +189,7 @@ const CoasterPage: React.FC = () => {
             <CoasterRanking coaster={coaster} allCoasters={allCoasters} parkName={parkName} />
 
             {coaster.rating && (
-              <div className={`${baseAnim} ${contentVisible ? visibleClass : hiddenClass} delay-300`}>
+              <div className={`${baseAnim} ${visibleClass} delay-300`}>
                 {/* Clickable Score */}
                 <Link
                   href={`/coasterratings?q=${coaster.rating}`}
@@ -260,7 +264,7 @@ const CoasterPage: React.FC = () => {
           <div className="lg:col-span-8 flex flex-col gap-8 md:gap-12 order-2 lg:order-1">
             <section>
               <h3 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-gray-900 dark:text-white border-l-4 border-blue-600 pl-4">The Experience</h3>
-              <CoasterText coasterId={coaster.id} />
+              <CoasterText coasterId={coaster.id} initialTexts={coasterText} refreshTexts={refreshText} />
             </section>
 
             <section>

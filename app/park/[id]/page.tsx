@@ -24,6 +24,7 @@ const ParkPage: React.FC = () => {
   const [coasters, setCoasters] = useState<RollerCoaster[]>([]);
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [loadingCoasters, setLoadingCoasters] = useState(true);
+  const [loadingExplanations, setLoadingExplanations] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingCoaster, setEditingCoaster] = useState<RollerCoaster>();
   const [explanations, setExplanations] = useState<Record<string, string>>({});
@@ -113,6 +114,12 @@ const ParkPage: React.FC = () => {
   const activeRatingId = selectedRating?.id ?? ratings[0]?.id;
 
   useEffect(() => {
+    // Safety check: If the park has loaded but has 0 ratings, we must drop the spinner anyway
+    if (park && !loadingCoasters && ratings.length === 0) {
+      setLoadingExplanations(false);
+      return;
+    }
+
     if (!park?.id || !activeRatingId) return;
 
     const fetchExplanations = async () => {
@@ -129,11 +136,13 @@ const ParkPage: React.FC = () => {
         setExplanations(explanationMap);
       } catch (error) {
         console.error("Failed to fetch explanations:", error);
+      } finally {
+        setLoadingExplanations(false); // Drop the spinner when text is ready
       }
     };
 
     fetchExplanations();
-  }, [park?.id, activeRatingId]);
+  }, [park, loadingCoasters, ratings.length, activeRatingId]);
 
   const refreshCoasters = async () => {
     if (!park?.id) return;
@@ -179,7 +188,7 @@ const ParkPage: React.FC = () => {
     );
   };
 
-  if (!park || loadingCoasters) return <LoadingSpinner />;
+  if (!park || loadingCoasters || loadingExplanations) return <LoadingSpinner />;
 
   return (
     <div className="w-full">

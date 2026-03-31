@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useAdminMode } from "../../context/AdminModeContext";
 import CoasterTextModal from "./CoasterTextModal";
 
-interface CoasterTextEntry {
+export interface CoasterTextEntry {
   id: number;
   coaster_id: number;
   headline: string | null;
@@ -14,32 +14,21 @@ interface CoasterTextEntry {
 
 interface Props {
   coasterId: number;
+  initialTexts: CoasterTextEntry[];
+  refreshTexts: () => void;
 }
 
-const CoasterText: React.FC<Props> = ({ coasterId }) => {
+const CoasterText: React.FC<Props> = ({ coasterId, initialTexts, refreshTexts }) => {
   const { isAdminMode } = useAdminMode();
-  const [texts, setTexts] = useState<CoasterTextEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [texts, setTexts] = useState<CoasterTextEntry[]>(initialTexts);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingText, setEditingText] = useState<CoasterTextEntry | null>(null);
   const [draggingId, setDraggingId] = useState<number | null>(null);
 
-  const fetchTexts = async () => {
-    try {
-      const res = await fetch(`/api/coasters/${coasterId}/text`);
-      const data = await res.json();
-      const sortedTexts = (data.texts || []).sort((a: CoasterTextEntry, b: CoasterTextEntry) => a.order - b.order);
-      setTexts(sortedTexts);
-    } catch (err) {
-      console.error("Failed to fetch coaster text:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Sync local state when parent fetches new data
   useEffect(() => {
-    if (coasterId) fetchTexts();
-  }, [coasterId]);
+    setTexts(initialTexts);
+  }, [initialTexts]);
 
   const onDragStart = (id: number) => {
     setDraggingId(id);
@@ -67,23 +56,11 @@ const CoasterText: React.FC<Props> = ({ coasterId }) => {
           texts.map((t, i) => ({ id: t.id, order: i }))
         ),
       });
+      refreshTexts(); // Notify parent of the new order
     } catch (err) {
       console.error("Failed to update text order:", err);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="space-y-8 pt-4 animate-pulse">
-        <div className="space-y-3">
-            <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded w-1/4"></div>
-            <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-full"></div>
-            <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-full"></div>
-            <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-2/3"></div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full">
@@ -114,8 +91,8 @@ const CoasterText: React.FC<Props> = ({ coasterId }) => {
               onDragEnd={onDragEnd}
               className={`
                 relative group transition-all duration-200
-                ${isAdminMode 
-                  ? "p-4 mb-4 border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-move rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800" 
+                ${isAdminMode
+                  ? "p-4 mb-4 border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-move rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
                   : "mb-8 last:mb-0"
                 }
               `}
@@ -151,7 +128,7 @@ const CoasterText: React.FC<Props> = ({ coasterId }) => {
 
               {/* Separator Line (Visible only in public mode, and not on the last item) */}
               {!isAdminMode && index !== texts.length - 1 && (
-                  <div className="mt-8 border-b border-gray-200 dark:border-gray-800 w-full" />
+                <div className="mt-8 border-b border-gray-200 dark:border-gray-800 w-full" />
               )}
             </div>
           ))}
@@ -167,7 +144,7 @@ const CoasterText: React.FC<Props> = ({ coasterId }) => {
             setModalOpen(false);
             setEditingText(null);
           }}
-          onSuccess={fetchTexts}
+          onSuccess={refreshTexts}
         />
       ) : null}
     </div>
