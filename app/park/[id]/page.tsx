@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import MainPageButton from "@/app/components/buttons/MainPageButton";
 import CoasterCreatorModal from "@/app/components/CoasterCreatorModal";
 import RatingExplanations from "@/app/components/RatingExplanations";
-import Coasterlist from "@/app/components/Coasterlist";
+import Coasterlist from "@/app/components/parkpage/Coasterlist";
 import ParkHeader from "@/app/components/ParkHeader";
 import ParkInfo from "@/app/components/ParkInfo";
 import ParkGallery, { type GalleryImage } from "@/app/components/parkpage/ParkGallery";

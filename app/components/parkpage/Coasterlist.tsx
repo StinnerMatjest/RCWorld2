@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { RollerCoaster } from "@/app/types";
 import { getRatingColor } from "@/app/utils/design";
 import { AnimatePresence, motion } from "framer-motion";
-import { useAdminMode } from "../context/AdminModeContext";
+import { useAdminMode } from "../../context/AdminModeContext";
 
 interface CoasterListProps {
   coasters: RollerCoaster[];
@@ -128,26 +128,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
             >
               ▸
             </button>
-
-            {/* Admin-only edit icon */}
-            {isAdminMode && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(c);
-                }}
-                className="p-1 rounded text-gray-500 hover:text-gray-800 hover:bg-gray-200
-               dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10
-               text-[15px] cursor-pointer"
-                aria-label={`Edit ${c.name}`}
-                title="Edit coaster"
-              >
-                🔧
-              </button>
-            )}
           </div>
-
         </div>
 
         {/* Expanded details */}

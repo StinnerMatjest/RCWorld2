@@ -30,11 +30,13 @@ const Home = () => {
   const [parallaxByIndex, setParallaxByIndex] = useState<number[]>([]);
   const carouselRef = useRef<HTMLDivElement>(null);
 
-  const sortedRatings = [...ratings].sort((a, b) => b.overall - a.overall);
-  const filteredRatings = sortedRatings.filter((rating) => {
-    const park = parks.find((p) => p.id === rating.parkId);
-    return park && park.name.toLowerCase().includes(query.toLowerCase());
-  });
+  const filteredRatings = React.useMemo(() => {
+    const sorted = [...ratings].sort((a, b) => b.overall - a.overall);
+    return sorted.filter((rating) => {
+      const park = parks.find((p) => p.id === rating.parkId);
+      return park && park.name.toLowerCase().includes(query.toLowerCase());
+    });
+  }, [ratings, parks, query]);
 
   const fetchRatingsAndParks = async () => {
     try {
@@ -169,7 +171,7 @@ const Home = () => {
             );
           })}
         </div>
-        
+
         <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-white dark:from-[#0f172a] to-transparent" />
         <div
           className="

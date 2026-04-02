@@ -123,6 +123,24 @@ const CoasterPage: React.FC = () => {
     setCoasterText((data.texts || []).sort((a: CoasterTextEntry, b: CoasterTextEntry) => a.order - b.order));
   };
 
+  const refreshCoasterData = async () => {
+    try {
+      const res = await fetch("/api/coasters");
+      const data = await res.json();
+      const updatedCoaster = (data.coasters || []).find((c: RollerCoaster) => c.id === coaster?.id);
+
+      if (updatedCoaster) {
+        if (updatedCoaster.slug !== coaster?.slug) {
+          window.location.href = `/coasters/${updatedCoaster.slug}`;
+        } else {
+          setCoaster(updatedCoaster);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to refresh coaster:", err);
+    }
+  };
+
   const getSafeColorClass = (rating: number | null) => {
     try {
       if (!rating) return "text-gray-900 dark:text-white";
@@ -295,7 +313,8 @@ const CoasterPage: React.FC = () => {
                 <h4 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4 border-b border-gray-200 dark:border-gray-800 pb-2">
                   Information
                 </h4>
-                <CoasterInfo coaster={coaster} />
+                {/* Add the onUpdate prop here */}
+                <CoasterInfo coaster={coaster} onUpdate={refreshCoasterData} />
               </div>
 
               {/* SPECS */}

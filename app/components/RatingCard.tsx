@@ -156,7 +156,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
 
           {/* Park Image */}
           <figure
-            className={`w-full aspect-[16/9] md:aspect-video overflow-hidden bg-gray-100 will-change-transform transition-transform duration-350 ease-[cubic-bezier(0.33,1,0.68,1)]`}
+            className={`w-full aspect-[16/9] md:aspect-video overflow-hidden bg-gray-200 dark:bg-gray-800 will-change-transform transition-transform duration-350 ease-[cubic-bezier(0.33,1,0.68,1)]`}
             style={{
               transform: isMobile
                 ? "translateX(calc(var(--px, 0px) / 1))"
@@ -168,7 +168,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
               alt={park.name}
               height={500}
               width={500}
-              loading="lazy"
+              priority={typeof delayIndex === 'number' && delayIndex < 6}
               className="w-full h-full object-cover"
               unoptimized
             />
@@ -391,4 +391,4 @@ const RatingCard: React.FC<RatingCardProps> = ({
   );
 };
 
-export default RatingCard;
+export default React.memo(RatingCard);

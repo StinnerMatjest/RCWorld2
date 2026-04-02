@@ -87,8 +87,8 @@ const CoasterSpecsPanel: React.FC<CoasterSpecsPanelProps> = ({ specs: initialSpe
   return (
     <>
       <div className="flex flex-col w-full relative group">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-tight">Specifications</h3>
+        <div className="flex justify-between items-center px-2 mb-2">
+          <h3 className="text-m text-gray-900 dark:text-white uppercase tracking-tight">Specifications</h3>
           {isAdminMode && (
             <button
               onClick={() => setIsModalOpen(true)}

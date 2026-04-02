@@ -13,7 +13,7 @@ export async function GET(
     context: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = await context.params; 
+        const { id } = await context.params;
         const parkId = Number(id);
 
         if (isNaN(parkId)) {
@@ -43,7 +43,8 @@ export async function GET(
             haveridden: row.haveridden,
             isbestcoaster: row.isbestcoaster,
             rcdbpath: row.rcdbpath,
-            ridecount: row.ridecount,
+            rideCount: Number(row.ridecount) || 0,
+            ridecount: Number(row.ridecount) || 0,
             rating: row.rating,
             parkId: row.park_id,
             slug: row.slug,
@@ -126,7 +127,7 @@ export async function POST(
 
         // --- Slug generation and committed duplicate handling ---
         let generatedSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-        
+
         const slugCheck = await pool.query("SELECT id FROM rollercoasters WHERE slug = $1", [generatedSlug]);
         if (slugCheck.rowCount && slugCheck.rowCount > 0) {
             // Append Park ID for explicit duplicate worldwide

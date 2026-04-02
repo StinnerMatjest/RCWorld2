@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { getRatingColor } from "@/app/utils/design";
 
+interface CoasterCreatorModalProps {
+  parkId: number;
+  coaster?: Coaster;
+  onClose: () => void;
+  onCoasterAdded: () => void;
+  onDelete?: () => void;
+}
+
 interface Coaster {
   id: number;
   name: string;
@@ -89,11 +97,12 @@ const scales = [
   "Kiddie",
 ];
 
-const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
+const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
   parkId,
   coaster,
   onClose,
   onCoasterAdded,
+  onDelete,
 }) => {
   const [name, setName] = useState(coaster?.name ?? "");
   const [year, setYear] = useState(coaster ? String(coaster.year) : "");
@@ -181,11 +190,9 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
     if (!coaster) return;
 
     const confirmDelete = confirm(
-      `Are you sure you want to delete"${coaster.name}" ?`
+      `Are you sure you want to delete "${coaster.name}"?`
     );
     if (!confirmDelete) return;
-
-    console.log(`${parkId} ${coaster.id}`);
 
     setLoading(true);
     try {
@@ -196,13 +203,18 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
         }
       );
 
-      if (!response.ok) throw new Error("Failed to delete coaster");
+      if (!response.ok) {
+        throw new Error("Failed to delete coaster");
+      }
 
-      onCoasterAdded();
-      onClose();
+      if (onDelete) {
+        onDelete(); // leaves page
+      } else {
+        onCoasterAdded(); // Refreshes the list (stays on page)
+        onClose();
+      }
     } catch (error) {
       console.error("Error deleting coaster:", error);
-    } finally {
       setLoading(false);
     }
   };
@@ -410,7 +422,7 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
           </div>
 
           {/* Buttons */}
-          <div className="flex justify-between mt-4">
+          <div className="flex items-center justify-between mt-6">
             <button
               onClick={onClose}
               className="h-9 w-20 text-lg font-semibold text-white rounded-lg transition duration-300 cursor-pointer
@@ -422,17 +434,15 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
             </button>
 
             {coaster && (
-              <div className="flex justify-center mt-4">
-                <button
-                  onClick={handleDelete}
-                  className="h-8 w-24 text-sm font-semibold text-white rounded-lg transition duration-300 cursor-pointer
-                             bg-red-600 hover:bg-red-700
-                             focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                             dark:bg-red-500 dark:hover:bg-red-400 dark:focus-visible:ring-offset-gray-800"
-                >
-                  Delete
-                </button>
-              </div>
+              <button
+                onClick={handleDelete}
+                className="h-9 w-24 text-sm font-semibold text-white rounded-lg transition duration-300 cursor-pointer
+                           bg-red-600 hover:bg-red-700
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
+                           dark:bg-red-500 dark:hover:bg-red-400 dark:focus-visible:ring-offset-gray-800"
+              >
+                Delete
+              </button>
             )}
 
             <button
@@ -470,4 +480,4 @@ const AddCoasterModal: React.FC<AddCoasterModalProps> = ({
   );
 };
 
-export default AddCoasterModal;
+export default CoasterCreatorModal;
