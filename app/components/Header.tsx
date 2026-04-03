@@ -18,11 +18,13 @@ const Header = () => {
         const res = await fetch("/api/trips");
         if (!res.ok) throw new Error("Failed to fetch trips");
         const data = await res.json();
-        
-        // Find the closest booked trip
+
         const next = data.trips
           .filter((t: any) => t.status === "booked" && getDaysUntil(t.startDate))
-          .sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())[0];
+          .sort(
+            (a: any, b: any) =>
+              new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+          )[0];
 
         if (next) {
           setDays(getDaysUntil(next.startDate));
@@ -64,7 +66,6 @@ const Header = () => {
     >
       <header className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-4 md:py-6 px-4 md:px-6 relative animate-fade-in">
         <div className="relative grid grid-cols-2 items-center gap-x-3 lg:flex lg:items-center lg:justify-between">
-          {/* Logo */}
           <div className="relative -ml-2 md:ml-0 h-14 sm:h-16 md:h-20 lg:h-20 w-36 sm:w-44 md:w-52 lg:w-56">
             <Link
               href="/"
@@ -88,12 +89,10 @@ const Header = () => {
             </Link>
           </div>
 
-          {/* Navbar */}
           <div className="justify-self-end lg:order-3 z-50">
             <Navbar />
           </div>
 
-          {/* Countdown - hidden on mobile */}
           <div
             className={`
               hidden md:block
@@ -110,15 +109,9 @@ const Header = () => {
                 block text-center max-w-[90vw] lg:max-w-[50vw] xl:max-w-[60vw]
                 ${isLoadingTrip ? "opacity-0" : "opacity-100 transition-opacity duration-300"}
               `}
-              title={
-                days
-                  ? `${days} days until next trip`
-                  : "No trip planned. Disappointed. Get going!"
-              }
+              title={days ? `${days} days until next trip` : "Next trip countdown"}
             >
-              {days
-                ? `🎢 ${days} days until next trip`
-                : `🥲 No trip planned. Disappointed. Get going!`}
+              {days ? `🎢 ${days} days until next trip` : `No trip planned yet this season`}
             </Link>
           </div>
         </div>
