@@ -8,44 +8,74 @@ const pool = new Pool({
   },
 });
 
-export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id: parkSlug } = await context.params;
+    const { id } = await context.params;
+    const isNumeric = /^\d+$/.test(id);
 
-    const query = `
-      SELECT
-        id,
-        name,
-        continent,
-        country,
-        city,
-        imagepath,
-        slug
-      FROM parks
-      WHERE slug = $1
-    `;
-    const result = await pool.query(query, [parkSlug]);
+    let query = "";
+    let values: (string | number)[] = [];
+
+    if (isNumeric) {
+      query = `
+        SELECT
+          id,
+          name,
+          continent,
+          country,
+          city,
+          imagepath,
+          slug
+        FROM parks
+        WHERE id = $1
+      `;
+      values = [Number(id)];
+    } else {
+      query = `
+        SELECT
+          id,
+          name,
+          continent,
+          country,
+          city,
+          imagepath,
+          slug
+        FROM parks
+        WHERE slug = $1
+      `;
+      values = [id];
+    }
+
+    const result = await pool.query(query, values);
 
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "Park not found" }, { status: 404 });
     }
 
-    const park = result.rows[0];
-    return NextResponse.json(park, { status: 200 });
+    return NextResponse.json(result.rows[0], { status: 200 });
   } catch (error) {
     console.error("Database query error:", error);
     return NextResponse.json({ error: "Failed to fetch park" }, { status: 500 });
   }
 }
 
-export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     const { id: parkSlug } = await context.params;
     const body = await req.json();
     const { imagepath } = body;
 
     if (!imagepath) {
-      return NextResponse.json({ error: "Image path is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Image path is required" },
+        { status: 400 }
+      );
     }
 
     const query = `
@@ -64,6 +94,9 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     return NextResponse.json(result.rows[0], { status: 200 });
   } catch (error) {
     console.error("Database update error:", error);
-    return NextResponse.json({ error: "Failed to update park image" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to update park image" },
+      { status: 500 }
+    );
   }
 }
