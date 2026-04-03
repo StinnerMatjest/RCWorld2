@@ -16,40 +16,37 @@ export async function GET(
     const { id } = await context.params;
     const isNumeric = /^\d+$/.test(id);
 
-    let query = "";
-    let values: (string | number)[] = [];
-
-    if (isNumeric) {
-      query = `
-        SELECT
-          id,
-          name,
-          continent,
-          country,
-          city,
-          imagepath,
-          slug
-        FROM parks
-        WHERE id = $1
-      `;
-      values = [Number(id)];
-    } else {
-      query = `
-        SELECT
-          id,
-          name,
-          continent,
-          country,
-          city,
-          imagepath,
-          slug
-        FROM parks
-        WHERE slug = $1
-      `;
-      values = [id];
-    }
-
-    const result = await pool.query(query, values);
+    const result = isNumeric
+      ? await pool.query(
+          `
+          SELECT
+            id,
+            name,
+            continent,
+            country,
+            city,
+            imagepath,
+            slug
+          FROM parks
+          WHERE id = $1
+          `,
+          [Number(id)]
+        )
+      : await pool.query(
+          `
+          SELECT
+            id,
+            name,
+            continent,
+            country,
+            city,
+            imagepath,
+            slug
+          FROM parks
+          WHERE slug = $1
+          `,
+          [id]
+        );
 
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "Park not found" }, { status: 404 });
@@ -58,7 +55,10 @@ export async function GET(
     return NextResponse.json(result.rows[0], { status: 200 });
   } catch (error) {
     console.error("Database query error:", error);
-    return NextResponse.json({ error: "Failed to fetch park" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch park" },
+      { status: 500 }
+    );
   }
 }
 
@@ -67,9 +67,9 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: parkSlug } = await context.params;
-    const body = await req.json();
-    const { imagepath } = body;
+    const { id } = await context.params;
+    const { imagepath } = await req.json();
+    const isNumeric = /^\d+$/.test(id);
 
     if (!imagepath) {
       return NextResponse.json(
@@ -78,14 +78,25 @@ export async function PATCH(
       );
     }
 
-    const query = `
-      UPDATE parks 
-      SET imagepath = $1 
-      WHERE slug = $2 
-      RETURNING *;
-    `;
-
-    const result = await pool.query(query, [imagepath, parkSlug]);
+    const result = isNumeric
+      ? await pool.query(
+          `
+          UPDATE parks
+          SET imagepath = $1
+          WHERE id = $2
+          RETURNING *;
+          `,
+          [imagepath, Number(id)]
+        )
+      : await pool.query(
+          `
+          UPDATE parks
+          SET imagepath = $1
+          WHERE slug = $2
+          RETURNING *;
+          `,
+          [imagepath, id]
+        );
 
     if (result.rowCount === 0) {
       return NextResponse.json({ error: "Park not found" }, { status: 404 });
