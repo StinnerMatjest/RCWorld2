@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import MainPageButton from "@/app/components/buttons/MainPageButton";
 import CoasterCreatorModal from "@/app/components/CoasterCreatorModal";
 import RatingExplanations from "@/app/components/RatingExplanations";
@@ -29,6 +29,7 @@ const ParkPage: React.FC = () => {
   const [editingCoaster, setEditingCoaster] = useState<RollerCoaster>();
   const [explanations, setExplanations] = useState<Record<string, string>>({});
   const { isAdminMode } = useAdminMode();
+  const router = useRouter();
 
   // Dynamic Browser Tab Title
   useEffect(() => {
@@ -65,6 +66,11 @@ const ParkPage: React.FC = () => {
           console.error("Park not found or API error:", parkData.error);
           return;
         }
+
+        if (parkData.slug && String(parkSlug) !== parkData.slug) {
+          router.replace(`/park/${parkData.slug}`);
+          return;
+}
 
         const numericParkId = parkData.id;
         const [coastersRes, ratingsRes, galleryRes] = await Promise.all([
