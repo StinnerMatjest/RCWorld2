@@ -28,8 +28,11 @@ export async function generateMetadata({ params }: PageProps) {
 
   if (!data) return {};
 
-  return {
+return {
     title: `${data.name} | Parkrating`,
+    description: data.rating
+      ? `${data.name} in ${data.country} scores ${data.rating.toFixed(1)} out of 10. Read our theme park review, ratings and coaster rankings from our visit.`
+      : `${data.name} in ${data.country}. Read our theme park review, ratings and coaster rankings from our visit.`,
     alternates: {
       canonical: `https://parkrating.com/park/${data.slug}`,
     },

@@ -9,8 +9,9 @@ import Footer from "./components/Footer";
 import Script from "next/script";
 
 export const metadata = {
-  title: "Parkrating",
-  description: "We rate themeparks all around the world!",
+  title: "ParkRating – ThemePark Reviews",
+  description:
+    "Explore theme park reviews and coaster rankings from dedicated enthusiasts 🎢 Discover top rides and plan your next visit with ParkRating.",
   icons: {
     icon: [{ url: "/logos/favicon.svg", type: "image/svg+xml" }],
     shortcut: ["/logos/favicon.svg"],
