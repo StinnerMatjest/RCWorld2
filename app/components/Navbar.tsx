@@ -46,7 +46,7 @@ const Navbar: React.FC = () => {
           <Link href="/info" className="hover:text-blue-500">Rating Evaluation</Link>
           <Link href="/coasterratings" className="hover:text-blue-500">Coaster Ratings</Link>
           <Link href="/lists" className="hover:text-blue-500">Lists</Link>
-          <Link href="/coastle" className="hover:text-blue-500 font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-fuchsia-600">Coastle</Link>
+          <Link href="/games" className="hover:text-blue-500 font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-fuchsia-600">Games</Link>
 
           {/* Admin-only links */}
           {isAdminMode && (
@@ -88,7 +88,7 @@ const Navbar: React.FC = () => {
             <li><Link href="/info" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Rating Evaluation</Link></li>
             <li><Link href="/coasterratings" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Coaster Ratings</Link></li>
             <li><Link href="/lists" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Lists</Link></li>
-            <li><Link href="/coastle" className="block px-4 py-2 font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-fuchsia-600 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Coastle</Link></li>
+            <li><Link href="/games" className="block px-4 py-2 font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-fuchsia-600 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>games</Link></li>
             {isAdminMode && (
               <>
                 <li><Link href="/?modal=true" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Rate a Park</Link></li>
