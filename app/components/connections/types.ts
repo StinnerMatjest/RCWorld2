@@ -60,3 +60,11 @@ export type DailyPuzzle = {
   seed: string
   groups: PuzzleGroup[]
 }
+
+export type ConnectionsStats = {
+  played: number;
+  won: number;
+  currentStreak: number;
+  maxStreak: number;
+  guessDistribution: [number, number, number, number, number];
+};
