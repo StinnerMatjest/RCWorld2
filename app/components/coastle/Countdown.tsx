@@ -26,9 +26,26 @@ export function Countdown() {
   }, []);
 
   return (
-    <div className="w-full h-[42px] sm:h-[46px] flex items-center justify-center gap-2 bg-slate-100 dark:bg-neutral-800 rounded-2xl text-slate-500 dark:text-slate-400 font-bold text-sm sm:text-base animate-reveal shadow-inner border border-slate-200 dark:border-neutral-700">
-      <ClockIcon className="w-5 h-5" />
-      <span>Next Coastle: {timeLeft}</span>
+    <div
+      className="
+        w-full h-[40px]
+        flex items-center justify-center gap-2
+        rounded-2xl border shadow-sm
+        bg-gradient-to-r from-blue-50 via-indigo-50 to-fuchsia-50
+        border-slate-200
+        text-slate-700
+        dark:from-slate-800 dark:via-slate-800 dark:to-slate-700
+        dark:border-slate-600
+        dark:text-slate-200
+      "
+    >
+      <ClockIcon className="w-4 h-4 text-indigo-500 dark:text-indigo-300" />
+      <span className="text-xs sm:text-sm font-bold tracking-wide">
+        New Daily Game in{" "}
+        <span className="text-indigo-600 dark:text-indigo-300">
+          {timeLeft}
+        </span>
+      </span>
     </div>
   );
 }

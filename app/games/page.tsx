@@ -12,6 +12,11 @@ type DailyState = {
   guesses?: any[];
 };
 
+type ConnectionsSavedState = {
+  solved?: string[];
+  mistakes?: number;
+};
+
 function safeParseStats(raw: string | null): GameStats | null {
   if (!raw) return null;
   try {
@@ -23,7 +28,7 @@ function safeParseStats(raw: string | null): GameStats | null {
     ) {
       return s as GameStats;
     }
-  } catch { }
+  } catch {}
   return null;
 }
 
@@ -34,7 +39,18 @@ function safeParseDaily(raw: string | null): DailyState | null {
     if (typeof s?.date === "string" && typeof s?.status === "string") {
       return s as DailyState;
     }
-  } catch { }
+  } catch {}
+  return null;
+}
+
+function safeParseConnectionsState(raw: string | null): ConnectionsSavedState | null {
+  if (!raw) return null;
+  try {
+    const s = JSON.parse(raw);
+    if (Array.isArray(s?.solved) || typeof s?.mistakes === "number") {
+      return s as ConnectionsSavedState;
+    }
+  } catch {}
   return null;
 }
 
@@ -239,19 +255,25 @@ function ModeButton({
 export default function CoastleLauncherPage() {
   const [standardStats, setStandardStats] = useState<GameStats | null>(null);
   const [insiderStats, setInsiderStats] = useState<GameStats | null>(null);
+  const [connectionsStats, setConnectionsStats] = useState<GameStats | null>(null);
 
   const [standardDailyDone, setStandardDailyDone] = useState<boolean | null>(null);
   const [insiderDailyDone, setInsiderDailyDone] = useState<boolean | null>(null);
+  const [connectionsDailyDone, setConnectionsDailyDone] = useState<boolean | null>(null);
 
   useEffect(() => {
     setStandardStats(
       safeParseStats(localStorage.getItem("coastle-standard-stats")) ??
       safeParseStats(localStorage.getItem("coastle-stats"))
     );
+
     setInsiderStats(
       safeParseStats(localStorage.getItem("coastle-insider-stats")) ??
       safeParseStats(localStorage.getItem("coastle-stats"))
     );
+
+    // Placeholder until/if you add dedicated connections stats
+    setConnectionsStats(safeParseStats(localStorage.getItem("connections-stats")));
 
     const today = getTodayString();
 
@@ -260,34 +282,52 @@ export default function CoastleLauncherPage() {
       safeParseDaily(localStorage.getItem("coastle-insider-daily-state")) ??
       safeParseDaily(localStorage.getItem("coastle-daily-state"));
 
-    setStandardDailyDone(stdDaily ? stdDaily.date === today && stdDaily.status !== "playing" : false);
-    setInsiderDailyDone(insDaily ? insDaily.date === today && insDaily.status !== "playing" : false);
+    const connectionsDaily = safeParseConnectionsState(
+      localStorage.getItem(`connections-${today}`)
+    );
+
+    setStandardDailyDone(
+      stdDaily ? stdDaily.date === today && stdDaily.status !== "playing" : false
+    );
+
+    setInsiderDailyDone(
+      insDaily ? insDaily.date === today && insDaily.status !== "playing" : false
+    );
+
+    setConnectionsDailyDone(
+      connectionsDaily
+        ? (connectionsDaily.solved?.length ?? 0) >= 4 || (connectionsDaily.mistakes ?? 0) >= 4
+        : false
+    );
   }, []);
 
   const gradient = useMemo(() => "from-blue-600 via-indigo-600 to-fuchsia-600", []);
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-900 px-4 py-6 sm:py-10 flex items-start justify-center">
-      <div className="w-full max-w-6xl">
+      <div className="w-full max-w-7xl">
         <header className="text-center mt-2 md:mt-0 mb-8 sm:mb-12">
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 drop-shadow-sm italic transform -skew-x-6">
-            COASTLE
+            Games
           </h1>
           <p className="mt-2 text-xs sm:text-sm text-slate-500 dark:text-slate-300 font-bold uppercase tracking-widest">
-            Choose a mode
+            Choose a game below.
           </p>
 
-          <div className="mt-4 text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium max-w-2xl mx-auto">
-            <span className="block sm:block">
-              <span className="font-bold text-slate-800 dark:text-slate-100">Standard</span> = Focus on the rollercoaster specs.
+          <div className="mt-4 text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium max-w-3xl mx-auto space-y-1">
+            <span className="block">
+              <span className="font-bold text-slate-800 dark:text-slate-100">Standard</span> = Focus on general coaster knowledge.
             </span>
-            <span className="block sm:block">
-              <span className="font-bold text-slate-800 dark:text-slate-100">Insider</span> = Focus on ParkRating insider knowledge and ratings.
+            <span className="block">
+              <span className="font-bold text-slate-800 dark:text-slate-100">Insider</span> = Focus on  insider knowledge and ratings.
+            </span>
+            <span className="block">
+              <span className="font-bold text-slate-800 dark:text-slate-100">Connections</span> = Group four coasters by 4 categories.
             </span>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8">
           <ModeButton
             href="/coastle/standard"
             label="Standard"
@@ -297,12 +337,23 @@ export default function CoastleLauncherPage() {
             iconLightSrc="/logos/favicon.svg"
             iconDarkSrc="/logos/faviconload.svg"
           />
+
           <ModeButton
             href="/coastle/insider"
             label="Insider"
             gradient={gradient}
             stats={insiderStats}
             dailyDone={insiderDailyDone}
+            iconDarkSrc="/logos/faviconbw.svg"
+          />
+
+          <ModeButton
+            href="/connections"
+            label="Connections"
+            gradient={gradient}
+            stats={connectionsStats}
+            dailyDone={connectionsDailyDone}
+            iconLightSrc="/logos/favicon.svg"
             iconDarkSrc="/logos/faviconbw.svg"
           />
         </div>
