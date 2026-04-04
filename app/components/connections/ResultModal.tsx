@@ -95,7 +95,7 @@ export function buildConnectionsShareText({
     "",
     grid,
     "",
-    "Play at <https://parkrating.com/coastle/connections>",
+    "Play at <https://parkrating.com/connections>",
   ].join("\n");
 }
 

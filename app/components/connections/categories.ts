@@ -103,6 +103,8 @@ function uniqueValues(values: Array<string | number | null | undefined>) {
 }
 
 function buildDynamicCategories(coasters: ConnectionsCoaster[]): CategoryDefinition[] {
+      const riddenCoasters = coasters.filter((coaster) => coaster.haveridden);
+  const allCoasters = coasters;
   const categories: CategoryDefinition[] = []
 
   const push = (category: CategoryDefinition) => {
@@ -110,30 +112,30 @@ function buildDynamicCategories(coasters: ConnectionsCoaster[]): CategoryDefinit
     categories.push(category)
   }
 
-  // status
-  push(
-    createCategoryDefinition(
-      "ridden",
-      "Ridden coasters",
-      true,
-      "safe",
-      "yellow",
-      "status",
-      (items) => items.filter((coaster) => coaster.haveridden === true)
-    )
+// status
+push(
+  createCategoryDefinition(
+    "ridden",
+    "Ridden coasters",
+    true,
+    "safe",
+    "yellow",
+    "status",
+    (items) => items.filter((coaster) => coaster.haveridden === true)
   )
+)
 
-  push(
-    createCategoryDefinition(
-      "not-ridden",
-      "Not ridden coasters",
-      true,
-      "safe",
-      "yellow",
-      "status",
-      (items) => items.filter((coaster) => coaster.haveridden === false)
-    )
+push(
+  createCategoryDefinition(
+    "not-ridden",
+    "Not ridden coasters",
+    true,
+    "safe",
+    "yellow",
+    "status",
+    (items) => items.filter((coaster) => coaster.haveridden === false)
   )
+)
 
   // manufacturers
   for (const manufacturer of uniqueValues(
@@ -893,7 +895,19 @@ function buildDynamicCategories(coasters: ConnectionsCoaster[]): CategoryDefinit
     )
   }
 
-  return categories
+ return categories.map((category) => {
+  // allow these to behave normally
+  if (category.id === "ridden" || category.id === "not-ridden") {
+    return category;
+  }
+
+  // force ALL other categories to only use ridden coasters
+  return {
+    ...category,
+    filter: (items) =>
+      category.filter(items.filter((coaster) => coaster.haveridden)),
+  };
+});
 }
 
 export function getAllCategories(

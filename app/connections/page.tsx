@@ -14,6 +14,9 @@ import {
 import { fetchConnectionsData } from "@/app/components/connections/utils";
 import { getUsableCategories } from "@/app/components/connections/categories";
 import { buildDailyPuzzleGroups } from "@/app/components/connections/generator";
+import { ConnectionsStatsView } from "@/app/components/connections/ConnectionsStats";
+import { ConnectionsStats } from "@/app/components/connections/types";
+import { getTodayString } from "@/app/utils/coastle";
 
 type Group = {
   id: string;
@@ -27,18 +30,12 @@ const MAX_MISTAKES = 4;
 const TILE_ROW_HEIGHT = "h-16 md:h-24";
 const TILE_TEXT = "text-[11px] md:text-[15px]";
 
-type ConnectionsStats = {
-  played: number;
-  won: number;
-  currentStreak: number;
-  maxStreak: number;
-};
-
 const INITIAL_CONNECTIONS_STATS: ConnectionsStats = {
   played: 0,
   won: 0,
   currentStreak: 0,
   maxStreak: 0,
+  guessDistribution: [0, 0, 0, 0, 0],
 };
 
 const GROUP_COLOR_CLASS_MAP: Record<ConnectionsColor, string> = {
@@ -58,12 +55,10 @@ const shuffle = <T,>(items: T[]) => {
 };
 
 function getTodaySeed() {
-  // DEV MODE: always new puzzle
   if (process.env.NODE_ENV === "development") {
     return `${new Date().toISOString()}-${Math.random()}`;
   }
 
-  // PROD: real daily seed
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -72,7 +67,11 @@ function getTodaySeed() {
 }
 
 function getStorageKey() {
-  return `connections-${getTodaySeed()}`;
+  if (process.env.NODE_ENV === "development") {
+    return `connections-dev`;
+  }
+
+  return `connections-${getTodayString()}`;
 }
 
 export default function ConnectionsPage() {
@@ -145,9 +144,12 @@ export default function ConnectionsPage() {
           coasters: group.coasters.map((coaster) => coaster.name),
         }));
 
-setGroups(mappedGroups);
+        setGroups(mappedGroups);
 
-const saved = localStorage.getItem(getStorageKey());
+        const saved =
+  process.env.NODE_ENV === "development"
+    ? null
+    : localStorage.getItem(getStorageKey());
 
 if (saved) {
   try {
@@ -159,15 +161,13 @@ if (saved) {
     setFailedGuesses(parsed.failedGuesses || []);
     setGuessHistory(parsed.guessHistory || []);
     setTiles(parsed.tiles || shuffle(mappedGroups.flatMap((g) => g.coasters)));
-
     return;
   } catch {
     // ignore corrupted save
   }
 }
 
-// fallback if no save
-setTiles(shuffle(mappedGroups.flatMap((group) => group.coasters)));
+        setTiles(shuffle(mappedGroups.flatMap((group) => group.coasters)));
       } catch (err) {
         console.error(err);
         setError(err instanceof Error ? err.message : "Failed to load puzzle");
@@ -185,39 +185,41 @@ setTiles(shuffle(mappedGroups.flatMap((group) => group.coasters)));
   }, []);
 
   useEffect(() => {
-  try {
-    const raw = localStorage.getItem("connections-stats");
-    if (!raw) return;
+    try {
+      const raw = localStorage.getItem("connections-stats");
+      if (!raw) return;
 
-    const parsed = JSON.parse(raw);
-    if (
-      typeof parsed?.played === "number" &&
-      typeof parsed?.won === "number" &&
-      typeof parsed?.currentStreak === "number" &&
-      typeof parsed?.maxStreak === "number"
-    ) {
-      setStats(parsed);
+      const parsed = JSON.parse(raw);
+      if (
+        typeof parsed?.played === "number" &&
+        typeof parsed?.won === "number" &&
+        typeof parsed?.currentStreak === "number" &&
+        typeof parsed?.maxStreak === "number" &&
+        Array.isArray(parsed?.guessDistribution)
+      ) {
+        setStats(parsed);
+      }
+    } catch {
+      // ignore bad local storage
     }
-  } catch {
-    // ignore bad local storage
-  }
-}, []);
-  
-    useEffect(() => {
+  }, []);
+
+  useEffect(() => {
     if (!mounted || groups.length === 0) return;
 
-  const data = {
-  solved,
-  playerSolvedCount,
-  mistakes,
-  failedGuesses,
-  guessHistory,
-  tiles,
-};
+    const data = {
+      solved,
+      playerSolvedCount,
+      mistakes,
+      failedGuesses,
+      guessHistory,
+      tiles,
+    };
 
-    localStorage.setItem(getStorageKey(), JSON.stringify(data));
+    if (process.env.NODE_ENV !== "development") {
+  localStorage.setItem(getStorageKey(), JSON.stringify(data));
+}
   }, [
-    selected,
     solved,
     playerSolvedCount,
     mistakes,
@@ -256,28 +258,35 @@ setTiles(shuffle(mappedGroups.flatMap((group) => group.coasters)));
         setSolved((prev) => [...prev, group.id]);
         setTiles((prev) => prev.filter((tile) => !group.coasters.includes(tile)));
 
-if (groupIndex === remaining.length - 1) {
-  setTimeout(() => {
-    setAnimState("idle");
+        if (groupIndex === remaining.length - 1) {
+          setTimeout(() => {
+            setAnimState("idle");
 
-    setStats((prev) => {
-      const next = {
-        played: prev.played + 1,
-        won: prev.won,
-        currentStreak: 0,
-        maxStreak: prev.maxStreak,
-      };
+            setStats((prev) => {
+              const nextDistribution: [number, number, number, number, number] = [
+                ...prev.guessDistribution,
+              ] as [number, number, number, number, number];
 
-      localStorage.setItem("connections-stats", JSON.stringify(next));
-      return next;
-    });
+              nextDistribution[4] += 1;
 
-    if (!modalOpenedRef.current) {
-      modalOpenedRef.current = true;
-      setShowModal(true);
-    }
-  }, 350);
-}
+              const next = {
+                played: prev.played + 1,
+                won: prev.won,
+                currentStreak: 0,
+                maxStreak: prev.maxStreak,
+                guessDistribution: nextDistribution,
+              };
+
+              localStorage.setItem("connections-stats", JSON.stringify(next));
+              return next;
+            });
+
+            if (!modalOpenedRef.current) {
+              modalOpenedRef.current = true;
+              setTimeout(() => setShowModal(true), 900);
+            }
+          }, 350);
+        }
       }, groupIndex * 1250 + 650);
 
       revealTimersRef.current.push(reorderTimer, solveTimer);
@@ -343,22 +352,30 @@ if (groupIndex === remaining.length - 1) {
         setSelected([]);
         setAnimState("idle");
 
-   if (nextSolved.length === groups.length && !modalOpenedRef.current) {
-  setStats((prev) => {
-    const next = {
-      played: prev.played + 1,
-      won: prev.won + 1,
-      currentStreak: prev.currentStreak + 1,
-      maxStreak: Math.max(prev.maxStreak, prev.currentStreak + 1),
-    };
+        if (nextSolved.length === groups.length && !modalOpenedRef.current) {
+          setStats((prev) => {
+            const nextDistribution: [number, number, number, number, number] = [
+              ...prev.guessDistribution,
+            ] as [number, number, number, number, number];
 
-    localStorage.setItem("connections-stats", JSON.stringify(next));
-    return next;
-  });
+            const guessIndex = Math.max(0, Math.min(3, mistakes));
+            nextDistribution[guessIndex] += 1;
 
-  modalOpenedRef.current = true;
-  setTimeout(() => setShowModal(true), 250);
-}
+            const next = {
+              played: prev.played + 1,
+              won: prev.won + 1,
+              currentStreak: prev.currentStreak + 1,
+              maxStreak: Math.max(prev.maxStreak, prev.currentStreak + 1),
+              guessDistribution: nextDistribution,
+            };
+
+            localStorage.setItem("connections-stats", JSON.stringify(next));
+            return next;
+          });
+
+          modalOpenedRef.current = true;
+          setTimeout(() => setShowModal(true), 900);
+        }
       }, 650);
       return;
     }
@@ -411,13 +428,13 @@ if (groupIndex === remaining.length - 1) {
     setActiveTab("play");
   };
 
-if (!mounted) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-900">
-      <LoadingSpinner />
-    </div>
-  );
-}
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-900">
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   if (error || groups.length !== 4) {
     return (
@@ -477,6 +494,7 @@ if (!mounted) {
           Find the four coaster groups
         </p>
       </div>
+
       <div className="w-full max-w-[280px] sm:max-w-xs grid grid-cols-3 gap-1 bg-slate-200 dark:bg-slate-800 p-1 rounded-lg mb-3 mx-auto animate-reveal">
         {[
           { id: "play", label: "Play", icon: PlayIcon },
@@ -506,16 +524,16 @@ if (!mounted) {
 
       {activeTab === "play" && (
         <div className="w-full max-w-3xl flex flex-col items-center animate-reveal">
-            {(mistakes >= MAX_MISTAKES || solved.length === groups.length) && (
-  <div className="w-full max-w-md mb-4">
-    <Countdown />
-  </div>
-)}
+          {(mistakes >= MAX_MISTAKES || solved.length === groups.length) && (
+            <div className="w-full max-w-md mb-4">
+              <Countdown />
+            </div>
+          )}
+
           <header className="mb-6 flex w-full flex-col items-center gap-4">
             <div className="flex items-center gap-4">
               <span className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400 md:text-xs">
                 Mistakes
-  
               </span>
               <div className="flex gap-2.5">
                 {[...Array(MAX_MISTAKES)].map((_, i) => {
@@ -540,36 +558,36 @@ if (!mounted) {
               <div className="flex flex-col gap-3">
                 <AnimatePresence initial={false} mode="popLayout">
                   {solvedGroups.map((group) => (
-                 <motion.div
-  layout
-  key={group.id}
-  initial={{ opacity: 0, scale: 0.94 }}
-  animate={{ opacity: 1, scale: 1 }}
-  transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                    <motion.div
+                      layout
+                      key={group.id}
+                      initial={{ opacity: 0, scale: 0.94 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ type: "spring", stiffness: 260, damping: 20 }}
                       exit={{ opacity: 0 }}
                       className={`${TILE_ROW_HEIGHT} ${group.color} flex w-full items-center justify-center rounded-2xl border border-black/10 px-4 md:px-5 text-center shadow-sm shadow-inner`}
                     >
-<div className="min-w-0 text-center">
-  <p
-    className={`text-base md:text-xl font-semibold tracking-tight ${
-      group.difficulty === "yellow"
-        ? "text-slate-900"
-        : "text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]"
-    }`}
-  >
-    {group.label}
-  </p>
+                      <div className="min-w-0 text-center">
+                        <p
+                          className={`text-base md:text-xl font-semibold tracking-tight ${
+                            group.difficulty === "yellow"
+                              ? "text-slate-900"
+                              : "text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]"
+                          }`}
+                        >
+                          {group.label}
+                        </p>
 
-  <p
-    className={`mt-1 text-[12px] md:text-sm font-semibold leading-snug px-2 md:px-3 max-w-full break-words normal-case ${
-      group.difficulty === "yellow"
-        ? "text-slate-800"
-        : "text-white/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]"
-    }`}
-  >
-    {group.coasters.join(" • ")}
-  </p>
-</div>
+                        <p
+                          className={`mt-1 text-[12px] md:text-sm font-semibold leading-snug px-2 md:px-3 max-w-full break-words normal-case ${
+                            group.difficulty === "yellow"
+                              ? "text-slate-800"
+                              : "text-white/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]"
+                          }`}
+                        >
+                          {group.coasters.join(" • ")}
+                        </p>
+                      </div>
                     </motion.div>
                   ))}
                 </AnimatePresence>
@@ -666,12 +684,17 @@ if (!mounted) {
       )}
 
       {activeTab === "leaderboard" && (
-        <div className="w-full max-w-xl animate-reveal rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
-          <h2 className="text-xl font-black uppercase tracking-wide">Stats</h2>
-          <p className="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-6">
-            Stats panel placeholder. Hook this up when the API is ready.
-          </p>
-        </div>
+        <ConnectionsStatsView
+          stats={stats}
+          gameState={
+            mistakes >= MAX_MISTAKES
+              ? "lost"
+              : solved.length === groups.length
+                ? "won"
+                : "playing"
+          }
+          onShare={handleShare}
+        />
       )}
 
       <ResultModal
