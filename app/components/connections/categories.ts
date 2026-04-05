@@ -21,20 +21,20 @@ export type CategoryKind =
 export type CategoryDefinition = {
   id: string
   label: string
-  enabled: boolean
   risk: CategoryRisk
   difficulty: CategoryDifficulty
   kind: CategoryKind
+  adminOnly: boolean
   filter: (coasters: ConnectionsCoaster[]) => ConnectionsCoaster[]
 }
 
 export type ResolvedConnectionsCategory = {
   id: string
   label: string
-  enabled: boolean
   risk: CategoryRisk
   difficulty: CategoryDifficulty
   kind: CategoryKind
+  adminOnly: boolean
   matches: ConnectionsCoaster[]
 }
 
@@ -75,19 +75,19 @@ function getWordCount(name: string): number {
 function createCategoryDefinition(
   id: string,
   label: string,
-  enabled: boolean,
   risk: CategoryRisk,
   difficulty: CategoryDifficulty,
   kind: CategoryKind,
-  filter: (coasters: ConnectionsCoaster[]) => ConnectionsCoaster[]
+  filter: (coasters: ConnectionsCoaster[]) => ConnectionsCoaster[],
+  adminOnly: boolean = false
 ): CategoryDefinition {
   return {
     id,
     label,
-    enabled,
     risk,
     difficulty,
     kind,
+    adminOnly,
     filter,
   }
 }
@@ -103,8 +103,6 @@ function uniqueValues(values: Array<string | number | null | undefined>) {
 }
 
 function buildDynamicCategories(coasters: ConnectionsCoaster[]): CategoryDefinition[] {
-      const riddenCoasters = coasters.filter((coaster) => coaster.haveridden);
-  const allCoasters = coasters;
   const categories: CategoryDefinition[] = []
 
   const push = (category: CategoryDefinition) => {
@@ -112,30 +110,28 @@ function buildDynamicCategories(coasters: ConnectionsCoaster[]): CategoryDefinit
     categories.push(category)
   }
 
-// status
-push(
-  createCategoryDefinition(
-    "ridden",
-    "Ridden coasters",
-    true,
-    "safe",
-    "yellow",
-    "status",
-    (items) => items.filter((coaster) => coaster.haveridden === true)
+  // status
+  push(
+    createCategoryDefinition(
+      "ridden",
+      "Ridden coasters",
+      "safe",
+      "yellow",
+      "status",
+      (items) => items.filter((coaster) => coaster.haveridden === true)
+    )
   )
-)
 
-push(
-  createCategoryDefinition(
-    "not-ridden",
-    "Not ridden coasters",
-    true,
-    "safe",
-    "yellow",
-    "status",
-    (items) => items.filter((coaster) => coaster.haveridden === false)
+  push(
+    createCategoryDefinition(
+      "not-ridden",
+      "Not ridden coasters",
+      "safe",
+      "yellow",
+      "status",
+      (items) => items.filter((coaster) => coaster.haveridden === false)
+    )
   )
-)
 
   // manufacturers
   for (const manufacturer of uniqueValues(
@@ -146,7 +142,6 @@ push(
       createCategoryDefinition(
         `manufacturer-${slugify(value)}`,
         `${value} coasters`,
-        true,
         "safe",
         "yellow",
         "manufacturer",
@@ -162,7 +157,6 @@ push(
       createCategoryDefinition(
         `country-${slugify(value)}`,
         `Coasters in ${value}`,
-        true,
         "safe",
         "yellow",
         "country",
@@ -178,7 +172,6 @@ push(
       createCategoryDefinition(
         `park-${slugify(value)}`,
         `${value} coasters`,
-        true,
         "safe",
         "green",
         "park",
@@ -198,7 +191,6 @@ push(
         value === 1
           ? "Coasters with 1 inversion"
           : `Coasters with ${value} inversions`,
-        true,
         "safe",
         value <= 1 ? "yellow" : value <= 3 ? "green" : "blue",
         "inversions",
@@ -216,7 +208,6 @@ push(
       createCategoryDefinition(
         `track-type-${slugify(value)}`,
         `${value} coasters`,
-        true,
         "safe",
         "green",
         "track_type",
@@ -232,7 +223,6 @@ push(
       createCategoryDefinition(
         `scale-${slugify(value)}`,
         `${value} scale coasters`,
-        true,
         "medium",
         "green",
         "scale",
@@ -248,11 +238,11 @@ push(
       createCategoryDefinition(
         `rating-${String(value).replace(".", "-")}`,
         `Rated ${value}`,
-        false,
         "medium",
         "blue",
         "rating",
-        (items) => items.filter((coaster) => coaster.rating === value)
+        (items) => items.filter((coaster) => coaster.rating === value),
+        true
       )
     )
   }
@@ -264,75 +254,39 @@ push(
     difficulty: CategoryDifficulty
     test: (rating: number) => boolean
   }> = [
-    {
-      id: "rating-lte-3",
-      label: "Rated 3.0 or below",
-      difficulty: "yellow",
-      test: (rating) => rating <= 3,
-    },
-    {
-      id: "rating-lte-3-5",
-      label: "Rated 3.5 or below",
-      difficulty: "green",
-      test: (rating) => rating <= 3.5,
-    },
-    {
-      id: "rating-gte-4-5",
-      label: "Rated 4.5 or above",
-      difficulty: "green",
-      test: (rating) => rating >= 4.5,
-    },
-    {
-      id: "rating-gte-5",
-      label: "Rated 5.0 or above",
-      difficulty: "green",
-      test: (rating) => rating >= 5,
-    },
-    {
-      id: "rating-gte-6",
-      label: "Rated 6.0 or above",
-      difficulty: "blue",
-      test: (rating) => rating >= 6,
-    },
-    {
-      id: "rating-gte-7",
-      label: "Rated 7.0 or above",
-      difficulty: "blue",
-      test: (rating) => rating >= 7,
-    },
-    {
-      id: "rating-gte-8",
-      label: "Rated 8.0 or above",
-      difficulty: "blue",
-      test: (rating) => rating >= 8,
-    },
-    {
-      id: "rating-gte-9",
-      label: "Rated 9.0 or above",
-      difficulty: "purple",
-      test: (rating) => rating >= 9,
-    },
-    {
-      id: "rating-gte-10",
-      label: "Rated 10.0 or above",
-      difficulty: "purple",
-      test: (rating) => rating >= 10,
-    },
-  ]
+      {
+        id: "rating-lte-4",
+        label: "Rated 4.0 or below",
+        difficulty: "yellow",
+        test: (rating) => rating <= 4,
+      },
+      {
+        id: "rating-gte-8",
+        label: "Rated 8.0 or above",
+        difficulty: "blue",
+        test: (rating) => rating >= 8,
+      },
+      {
+        id: "rating-golden",
+        label: "Golden Rating (11.0)",
+        difficulty: "purple",
+        test: (rating) => rating === 11,
+      },
+    ]
 
   for (const bucket of ratingBuckets) {
     push(
       createCategoryDefinition(
         bucket.id,
         bucket.label,
-        true,
         "safe",
         bucket.difficulty,
         "rating",
         (items) =>
           items.filter(
             (coaster) => coaster.rating !== null && bucket.test(coaster.rating)
-          )
+          ),
+        true
       )
     )
   }
@@ -350,7 +304,6 @@ push(
       createCategoryDefinition(
         `decade-${slugify(value)}`,
         `Coasters from the ${value}`,
-        true,
         "safe",
         "green",
         "decade",
@@ -363,200 +316,187 @@ push(
     )
   }
 
-  // exact year
-  for (const year of uniqueValues(coasters.map((coaster) => coaster.year))) {
-    const value = Number(year)
-    push(
-      createCategoryDefinition(
-        `year-${value}`,
-        `Coasters from ${value}`,
-        false,
-        "medium",
-        "blue",
-        "year",
-        (items) => items.filter((coaster) => coaster.year === value)
-      )
-    )
-  }
-
   // ride / model / classification
   const classificationRules: Array<{
     id: string
     label: string
     keywords: string[]
-    enabled: boolean
+    checkModel?: boolean // optional
     risk: CategoryRisk
     difficulty: CategoryDifficulty
   }> = [
-    {
-      id: "launched",
-      label: "Launched coasters",
-      keywords: ["launched"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "green",
-    },
-    {
-      id: "multi-launched",
-      label: "Multi-launched coasters",
-      keywords: ["multi-launched"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "blue",
-    },
-    {
-      id: "spinning",
-      label: "Spinning coasters",
-      keywords: ["spinning"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "green",
-    },
-    {
-      id: "inverted",
-      label: "Inverted coasters",
-      keywords: ["inverted"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "green",
-    },
-    {
-      id: "flying",
-      label: "Flying coasters",
-      keywords: ["flying"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "blue",
-    },
-    {
-      id: "wing",
-      label: "Wing coasters",
-      keywords: ["wing"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "blue",
-    },
-    {
-      id: "floorless",
-      label: "Floorless coasters",
-      keywords: ["floorless"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "blue",
-    },
-    {
-      id: "dive",
-      label: "Dive coasters",
-      keywords: ["dive machine"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "blue",
-    },
-    {
-      id: "vertical-drop",
-      label: "Vertical drop coasters",
-      keywords: ["vertical drop"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "blue",
-    },
-    {
-      id: "wild-mouse",
-      label: "Wild Mouse coasters",
-      keywords: ["wild mouse"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "green",
-    },
-    {
-      id: "mine-train",
-      label: "Mine train coasters",
-      keywords: ["mine train"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "green",
-    },
-    {
-      id: "hyper",
-      label: "Hyper coasters",
-      keywords: ["hyper"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "green",
-    },
-    {
-      id: "mega",
-      label: "Mega coasters",
-      keywords: ["mega"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "blue",
-    },
-    {
-      id: "shuttle",
-      label: "Shuttle coasters",
-      keywords: ["shuttle"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "green",
-    },
-    {
-      id: "powered",
-      label: "Powered coasters",
-      keywords: ["powered"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "green",
-    },
-    {
-      id: "bobsled",
-      label: "Bobsled coasters",
-      keywords: ["bobsled"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "blue",
-    },
-    {
-      id: "lsm",
-      label: "LSM coasters",
-      keywords: ["lsm"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "blue",
-    },
-    {
-      id: "lim",
-      label: "LIM coasters",
-      keywords: ["lim"],
-      enabled: false,
-      risk: "medium",
-      difficulty: "purple",
-    },
-    {
-      id: "boost-launch",
-      label: "Boost launch coasters",
-      keywords: ["boost launch"],
-      enabled: true,
-      risk: "medium",
-      difficulty: "purple",
-    },
-  ]
+      {
+        id: "spinning",
+        label: "Spinning coasters",
+        keywords: ["spinning"],
+        risk: "medium",
+        difficulty: "green",
+      },
+      {
+        id: "inverted",
+        label: "Inverted coasters",
+        keywords: ["inverted"],
+        risk: "medium",
+        difficulty: "green",
+      },
+      {
+        id: "flying",
+        label: "Flying coasters",
+        keywords: ["flying"],
+        risk: "medium",
+        difficulty: "blue",
+      },
+      {
+        id: "wing",
+        label: "Wing coasters",
+        keywords: ["wing"],
+        risk: "medium",
+        difficulty: "blue",
+      },
+      {
+        id: "floorless",
+        label: "Floorless coasters",
+        keywords: ["floorless"],
+        risk: "medium",
+        difficulty: "blue",
+      },
+      {
+        id: "dive",
+        label: "Dive coasters",
+        keywords: ["dive machine"],
+        risk: "medium",
+        difficulty: "blue",
+      },
+      {
+        id: "vertical-drop",
+        label: "Vertical drop coasters",
+        keywords: ["vertical drop"],
+        risk: "medium",
+        difficulty: "blue",
+      },
+      {
+        id: "wild-mouse",
+        label: "Wild Mouse coasters",
+        keywords: ["wild mouse"],
+        risk: "medium",
+        difficulty: "green",
+      },
+      {
+        id: "mine-train",
+        label: "Mine train coasters",
+        keywords: ["mine train"],
+        risk: "medium",
+        difficulty: "green",
+      },
+      {
+        id: "giga",
+        label: "Giga coasters",
+        keywords: ["giga"],
+        risk: "medium",
+        difficulty: "green",
+      },
+      {
+        id: "hyper",
+        label: "Hyper coasters",
+        keywords: ["hyper"],
+        risk: "medium",
+        difficulty: "green",
+      },
+      {
+        id: "mega",
+        label: "Mega coasters",
+        keywords: ["mega"],
+        risk: "medium",
+        difficulty: "blue",
+      },
+      {
+        id: "shuttle",
+        label: "Shuttle coasters",
+        keywords: ["shuttle"],
+        risk: "medium",
+        difficulty: "green",
+      },
+      {
+        id: "powered",
+        label: "Powered coasters",
+        keywords: ["powered"],
+        risk: "medium",
+        difficulty: "green",
+      },
+      {
+        id: "bobsled",
+        label: "Bobsled coasters",
+        keywords: ["bobsled"],
+        checkModel: false, // Don't check model
+        risk: "medium",
+        difficulty: "blue",
+      },
+      {
+        id: "launched",
+        label: "Launched coasters",
+        keywords: ["launched"],
+        risk: "medium",
+        difficulty: "green",
+      },
+      {
+        id: "multi-launched",
+        label: "Multi-launched coasters",
+        keywords: ["multi-launched"],
+        risk: "medium",
+        difficulty: "blue",
+      },
+      {
+        id: "lsm",
+        label: "LSM coasters",
+        keywords: ["lsm"],
+        risk: "medium",
+        difficulty: "blue",
+      },
+      {
+        id: "lim",
+        label: "LIM coasters",
+        keywords: ["lim"],
+        risk: "medium",
+        difficulty: "purple",
+      },
+      {
+        id: "tire-launch",
+        label: "Tire-launched coasters",
+        keywords: ["tire launch"],
+        risk: "medium",
+        difficulty: "purple",
+      },
+      {
+        id: "custom",
+        label: "Custom Coasters",
+        keywords: ["custom"],
+        risk: "medium",
+        difficulty: "blue",
+      },
+      {
+        id: "clone",
+        label: "Cloned coasters",
+        keywords: ["clone"],
+        risk: "medium",
+        difficulty: "blue",
+      },
+    ]
 
   for (const rule of classificationRules) {
     push(
       createCategoryDefinition(
         rule.id,
         rule.label,
-        rule.enabled,
         rule.risk,
         rule.difficulty,
         "ride_type",
         (items) =>
-          items.filter(
-            (coaster) =>
-              hasAny(getClassification(coaster), rule.keywords) ||
-              hasAny(coaster.model, rule.keywords)
-          )
+          items.filter((coaster) => {
+            const matchesClass = hasAny(getClassification(coaster), rule.keywords);
+            const matchesModel = rule.checkModel !== false ? hasAny(coaster.model, rule.keywords) : false;
+
+            return matchesClass || matchesModel;
+          })
       )
     )
   }
@@ -566,7 +506,6 @@ push(
     createCategoryDefinition(
       "one-word-name",
       "One-word coaster names",
-      true,
       "risky",
       "purple",
       "name_structure",
@@ -578,7 +517,6 @@ push(
     createCategoryDefinition(
       "two-word-name",
       "Two-word coaster names",
-      false,
       "risky",
       "purple",
       "name_structure",
@@ -590,7 +528,6 @@ push(
     createCategoryDefinition(
       "three-plus-word-name",
       "Three-or-more-word coaster names",
-      false,
       "risky",
       "purple",
       "name_structure",
@@ -602,7 +539,6 @@ push(
     createCategoryDefinition(
       "hyphenated-names",
       "Hyphenated coaster names",
-      true,
       "risky",
       "purple",
       "name_structure",
@@ -614,7 +550,6 @@ push(
     createCategoryDefinition(
       "apostrophe-names",
       "Coaster names with apostrophes",
-      true,
       "risky",
       "purple",
       "name_structure",
@@ -626,7 +561,6 @@ push(
     createCategoryDefinition(
       "punctuation-names",
       "Coaster names with punctuation",
-      true,
       "risky",
       "purple",
       "name_structure",
@@ -634,11 +568,10 @@ push(
     )
   )
 
-    push(
+  push(
     createCategoryDefinition(
       "long-names",
       "Long coaster names (10+ characters)",
-      true,
       "risky",
       "purple",
       "name_structure",
@@ -650,7 +583,6 @@ push(
     createCategoryDefinition(
       "short-names",
       "Short coaster names (5 letters or fewer)",
-      true,
       "risky",
       "purple",
       "name_structure",
@@ -662,7 +594,6 @@ push(
     createCategoryDefinition(
       "double-letter-names",
       "Names with double letters",
-      true,
       "risky",
       "purple",
       "name_structure",
@@ -676,7 +607,6 @@ push(
     createCategoryDefinition(
       "ends-with-n",
       'Names ending with "n"',
-      true,
       "risky",
       "purple",
       "name_structure",
@@ -691,7 +621,6 @@ push(
     createCategoryDefinition(
       "number-names",
       "Names containing numbers",
-      true,
       "risky",
       "purple",
       "name_structure",
@@ -703,7 +632,6 @@ push(
     createCategoryDefinition(
       "repeated-pattern-names",
       "Names with repeated patterns",
-      true,
       "risky",
       "purple",
       "name_structure",
@@ -725,7 +653,6 @@ push(
       createCategoryDefinition(
         `starts-with-${slugify(value)}`,
         `Coaster names starting with "${value}"`,
-        true,
         "risky",
         "purple",
         "name_structure",
@@ -738,155 +665,202 @@ push(
     )
   }
 
+  // Ride Count (admin only)
+  push(
+    createCategoryDefinition(
+      "ones-and-dones",
+      'The "One & Done" club (Ridden exactly once)',
+      "medium",
+      "purple",
+      "status",
+      (items) => items.filter((coaster) => coaster.ridecount === 1),
+      true
+    )
+  )
+
+  push(
+    createCategoryDefinition(
+      "comfort-coasters",
+      "Comfort Coasters (Ridden 5+ times)",
+      "medium",
+      "purple",
+      "status",
+      (items) => items.filter((coaster) => coaster.ridecount >= 5),
+      true
+    )
+  )
+
+  // Last time ridden (admin only)
+  const now = new Date();
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(now.getFullYear() - 1);
+
+  const threeYearsAgo = new Date();
+  threeYearsAgo.setFullYear(now.getFullYear() - 3);
+
+  push(
+    createCategoryDefinition(
+      "recent-coasters",
+      "Recent rides (Ridden within the last year)",
+      "risky",
+      "purple",
+      "status",
+      (items) => items.filter((coaster) => {
+        if (!coaster.lastVisitDate) return false;
+        const visitDate = new Date(coaster.lastVisitDate);
+        return visitDate >= oneYearAgo;
+      }),
+      true
+    )
+  )
+
+  push(
+    createCategoryDefinition(
+      "forgotten-coasters",
+      "Forgotten coasters (Not ridden in 3+ years)",
+      "risky",
+      "purple",
+      "status",
+      (items) => items.filter((coaster) => {
+        if (!coaster.lastVisitDate) return false;
+        const visitDate = new Date(coaster.lastVisitDate);
+        return visitDate <= threeYearsAgo;
+      }),
+      true
+    )
+  )
+
   // name themes
   const nameRules: Array<{
     id: string
     label: string
     keywords: string[]
-    enabled: boolean
     difficulty: CategoryDifficulty
   }> = [
-    {
-      id: "dragon-names",
-      label: "Dragon-related coaster names",
-      keywords: ["dragon", "drage", "dragen", "draken"],
-      enabled: true,
-      difficulty: "purple",
-    },
-    {
-      id: "weather-names",
-      label: "Weather-related coaster names",
-      keywords: ["storm", "tornado", "orkan", "tyfon", "lynet", "thunder", "lightning"],
-      enabled: true,
-      difficulty: "purple",
-    },
-    {
-      id: "animal-names",
-      label: "Animal-related coaster names",
-      keywords: [
-        "wolf",
-        "ulven",
-        "kat",
-        "cat",
-        "dog",
-        "hunde",
-        "camel",
-        "kamel",
-        "bat",
-        "flagermus",
-        "boar",
-        "svin",
-        "falcon",
-        "falk",
-        "hedgehog",
-        "pindsvin",
-        "mamba",
-        "vampire",
-        "bee",
-        "dragon",
-      ],
-      enabled: true,
-      difficulty: "purple",
-    },
-    {
-      id: "mythic-names",
-      label: "Mythical / legendary names",
-      keywords: ["hyperion", "valkyria", "pegasus", "thor", "wodan", "fønix", "fēnix", "phoenix"],
-      enabled: true,
-      difficulty: "purple",
-    },
-    {
-      id: "space-names",
-      label: "Space-related coaster names",
-      keywords: ["mars", "luna", "eurosat", "mælkevejen", "milky way"],
-      enabled: true,
-      difficulty: "purple",
-    },
-    {
-      id: "fear-names",
-      label: "Fear / danger-themed coaster names",
-      keywords: ["devil", "demon", "monster", "psyké", "vampire"],
-      enabled: true,
-      difficulty: "purple",
-    },
-    {
-      id: "speed-names",
-      label: "Speed / force-themed coaster names",
-      keywords: ["speed", "formula", "force", "boost", "lynet"],
-      enabled: true,
-      difficulty: "purple",
-    },
-    {
-      id: "royal-names",
-      label: "Royal / ruler-themed coaster names",
-      keywords: ["king", "queen", "kongen"],
-      enabled: true,
-      difficulty: "purple",
-    },
-    {
-      id: "contains-coaster",
-      label: 'Names containing "coaster"',
-      keywords: ["coaster"],
-      enabled: true,
-      difficulty: "purple",
-    },
-    {
-      id: "contains-express",
-      label: 'Names containing "express"',
-      keywords: ["express"],
-      enabled: true,
-      difficulty: "purple",
-    },
-    {
-      id: "contains-loop",
-      label: 'Names containing "loop"',
-      keywords: ["loop"],
-      enabled: true,
-      difficulty: "purple",
-    },
-    {
-      id: "contains-fire",
-      label: 'Names containing "fire"',
-      keywords: ["fire"],
-      enabled: true,
-      difficulty: "purple",
-    },
-    {
-      id: "contains-light",
-      label: 'Names containing "light"',
-      keywords: ["light"],
-      enabled: true,
-      difficulty: "purple",
-    },
-    {
-      id: "contains-blue",
-      label: 'Names containing "blue"',
-      keywords: ["blue"],
-      enabled: true,
-      difficulty: "purple",
-    },
-    {
-      id: "contains-star",
-      label: 'Names containing "star"',
-      keywords: ["star"],
-      enabled: true,
-      difficulty: "purple",
-    },
-    {
-      id: "contains-family",
-      label: 'Names containing "family"',
-      keywords: ["family"],
-      enabled: true,
-      difficulty: "purple",
-    },
-  ]
+      {
+        id: "dragon-names",
+        label: "Dragon-related coaster names",
+        keywords: ["dragon", "drage", "dragen", "draken"],
+        difficulty: "purple",
+      },
+      {
+        id: "weather-names",
+        label: "Weather-related coaster names",
+        keywords: ["storm", "tornado", "orkan", "tyfon", "lynet", "thunder", "lightning"],
+        difficulty: "purple",
+      },
+      {
+        id: "animal-names",
+        label: "Animal-related coaster names",
+        keywords: [
+          "wolf",
+          "ulven",
+          "kat",
+          "cat",
+          "dog",
+          "hunde",
+          "camel",
+          "kamel",
+          "bat",
+          "flagermus",
+          "boar",
+          "svin",
+          "falcon",
+          "falk",
+          "hedgehog",
+          "pindsvin",
+          "mamba",
+          "vampire",
+          "bee",
+          "dragon",
+        ],
+        difficulty: "purple",
+      },
+      {
+        id: "mythic-names",
+        label: "Mythical / legendary names",
+        keywords: ["hyperion", "valkyria", "pegasus", "thor", "wodan", "fønix", "fēnix", "phoenix"],
+        difficulty: "purple",
+      },
+      {
+        id: "space-names",
+        label: "Space-related coaster names",
+        keywords: ["mars", "luna", "eurosat", "mælkevejen", "milky way"],
+        difficulty: "purple",
+      },
+      {
+        id: "fear-names",
+        label: "Fear / danger-themed coaster names",
+        keywords: ["devil", "demon", "monster", "psyké", "vampire"],
+        difficulty: "purple",
+      },
+      {
+        id: "speed-names",
+        label: "Speed / force-themed coaster names",
+        keywords: ["speed", "formula", "force", "boost", "lynet"],
+        difficulty: "purple",
+      },
+      {
+        id: "royal-names",
+        label: "Royal / ruler-themed coaster names",
+        keywords: ["king", "queen", "kongen"],
+        difficulty: "purple",
+      },
+      {
+        id: "contains-coaster",
+        label: 'Names containing "coaster"',
+        keywords: ["coaster"],
+        difficulty: "purple",
+      },
+      {
+        id: "contains-express",
+        label: 'Names containing "express"',
+        keywords: ["express"],
+        difficulty: "purple",
+      },
+      {
+        id: "contains-loop",
+        label: 'Names containing "loop"',
+        keywords: ["loop"],
+        difficulty: "purple",
+      },
+      {
+        id: "contains-fire",
+        label: 'Names containing "fire"',
+        keywords: ["fire"],
+        difficulty: "purple",
+      },
+      {
+        id: "contains-light",
+        label: 'Names containing "light"',
+        keywords: ["light"],
+        difficulty: "purple",
+      },
+      {
+        id: "contains-blue",
+        label: 'Names containing "blue"',
+        keywords: ["blue"],
+        difficulty: "purple",
+      },
+      {
+        id: "contains-star",
+        label: 'Names containing "star"',
+        keywords: ["star"],
+        difficulty: "purple",
+      },
+      {
+        id: "contains-family",
+        label: 'Names containing "family"',
+        keywords: ["family"],
+        difficulty: "purple",
+      },
+    ]
 
   for (const rule of nameRules) {
     push(
       createCategoryDefinition(
         rule.id,
         rule.label,
-        rule.enabled,
         "risky",
         rule.difficulty,
         "name_theme",
@@ -895,19 +869,18 @@ push(
     )
   }
 
- return categories.map((category) => {
-  // allow these to behave normally
-  if (category.id === "ridden" || category.id === "not-ridden") {
-    return category;
-  }
+  return categories.map((category) => {
+    if (category.id === "ridden" || category.id === "not-ridden") {
+      return category;
+    }
 
-  // force ALL other categories to only use ridden coasters
-  return {
-    ...category,
-    filter: (items) =>
-      category.filter(items.filter((coaster) => coaster.haveridden)),
-  };
-});
+    // force ALL other categories to only use ridden coasters
+    return {
+      ...category,
+      filter: (items) =>
+        category.filter(items.filter((coaster) => coaster.haveridden)),
+    };
+  });
 }
 
 export function getAllCategories(
@@ -940,19 +913,22 @@ export function getAllCategories(
 }
 
 export function getUsableCategories(
-  coasters: ConnectionsCoaster[]
+  coasters: ConnectionsCoaster[],
+  disabledIds: Set<string>,
+  isAdmin: boolean = false //
 ): ResolvedConnectionsCategory[] {
   return getAllCategories(coasters)
     .map((category) => ({
       id: category.id,
       label: category.label,
-      enabled: category.enabled,
       risk: category.risk,
       difficulty: category.difficulty,
       kind: category.kind,
+      adminOnly: category.adminOnly,
       matches: category.filter(coasters),
     }))
-    .filter((category) => category.enabled && category.matches.length >= 4)
+    .filter((category) => category.matches.length >= 4 && !disabledIds.has(category.id))
+    .filter((category) => isAdmin || !category.adminOnly);
 }
 
 export const ALL_CATEGORIES: CategoryDefinition[] = []

@@ -13,6 +13,15 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  async redirects() {
+    return [
+      {
+        source: '/ConnectionsData',
+        destination: '/games/connections/ConnectionsData',
+        permanent: false,
+      },
+    ]
+  },
 };
 
 export default nextConfig;

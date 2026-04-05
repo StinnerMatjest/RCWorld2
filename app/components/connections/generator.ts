@@ -37,7 +37,7 @@ function shuffleWithSeed<T>(array: T[], seed: string): T[] {
 
   for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1))
-    ;[result[i], result[j]] = [result[j], result[i]]
+      ;[result[i], result[j]] = [result[j], result[i]]
   }
 
   return result
@@ -150,13 +150,19 @@ function pickByDifficulty(
   seed: string
 ): CandidateGroup[] {
   const usedKinds = new Set(chosen.map((group) => group.kind))
+  // Keep track of the Category IDs we've already picked
+  const usedCategoryIds = new Set(chosen.map((group) => group.categoryId))
 
   const matchingDifficulty = candidates.filter(
     (group) => group.difficulty === difficulty
   )
 
   const noOverlap = matchingDifficulty.filter(
-    (group) => !chosen.some((picked) => groupsOverlap(picked, group))
+    (group) =>
+      // Reject the group immediately if its Category ID was already used
+      !usedCategoryIds.has(group.categoryId) &&
+      // Reject if any coasters overlap
+      !chosen.some((picked) => groupsOverlap(picked, group))
   )
 
   const preferred = noOverlap.filter((group) => !usedKinds.has(group.kind))

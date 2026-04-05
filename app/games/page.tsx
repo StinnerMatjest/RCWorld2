@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { getTodayString } from "@/app/utils/coastle";
 import type { GameStats } from "@/app/types";
+import { useAdminMode } from "@/app/context/AdminModeContext";
 
 type DailyState = {
   date: string;
@@ -28,7 +29,7 @@ function safeParseStats(raw: string | null): GameStats | null {
     ) {
       return s as GameStats;
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -39,7 +40,7 @@ function safeParseDaily(raw: string | null): DailyState | null {
     if (typeof s?.date === "string" && typeof s?.status === "string") {
       return s as DailyState;
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -50,7 +51,7 @@ function safeParseConnectionsState(raw: string | null): ConnectionsSavedState | 
     if (Array.isArray(s?.solved) || typeof s?.mistakes === "number") {
       return s as ConnectionsSavedState;
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -252,11 +253,11 @@ function ModeButton({
   );
 }
 
-export default function CoastleLauncherPage() {
+export default function GamesLauncherPage() {
+  const { isAdminMode } = useAdminMode();
   const [standardStats, setStandardStats] = useState<GameStats | null>(null);
   const [insiderStats, setInsiderStats] = useState<GameStats | null>(null);
   const [connectionsStats, setConnectionsStats] = useState<GameStats | null>(null);
-
   const [standardDailyDone, setStandardDailyDone] = useState<boolean | null>(null);
   const [insiderDailyDone, setInsiderDailyDone] = useState<boolean | null>(null);
   const [connectionsDailyDone, setConnectionsDailyDone] = useState<boolean | null>(null);
@@ -271,8 +272,6 @@ export default function CoastleLauncherPage() {
       safeParseStats(localStorage.getItem("coastle-insider-stats")) ??
       safeParseStats(localStorage.getItem("coastle-stats"))
     );
-
-    // Placeholder until/if you add dedicated connections stats
     setConnectionsStats(safeParseStats(localStorage.getItem("connections-stats")));
 
     const today = getTodayString();
@@ -329,7 +328,7 @@ export default function CoastleLauncherPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8">
           <ModeButton
-            href="/coastle/standard"
+            href="/games/coastle/standard"
             label="Standard"
             gradient={gradient}
             stats={standardStats}
@@ -339,7 +338,7 @@ export default function CoastleLauncherPage() {
           />
 
           <ModeButton
-            href="/coastle/insider"
+            href="/games/coastle/insider"
             label="Insider"
             gradient={gradient}
             stats={insiderStats}
@@ -347,15 +346,29 @@ export default function CoastleLauncherPage() {
             iconDarkSrc="/logos/faviconbw.svg"
           />
 
-          <ModeButton
-            href="/connections"
-            label="Connections"
-            gradient={gradient}
-            stats={connectionsStats}
-            dailyDone={connectionsDailyDone}
-            iconLightSrc="/logos/favicon.svg"
-            iconDarkSrc="/logos/faviconbw.svg"
-          />
+          <div className="flex flex-col h-full relative">
+            <ModeButton
+              href="/games/connections"
+              label="Connections"
+              gradient={gradient}
+              stats={connectionsStats}
+              dailyDone={connectionsDailyDone}
+              iconLightSrc="/logos/favicon.svg"
+              iconDarkSrc="/logos/faviconbw.svg"
+            />
+
+            {/* Categories Button */}
+            {isAdminMode && (
+              <div className="absolute -bottom-8 left-0 right-0 flex justify-center">
+                <Link
+                  href="/ConnectionsData"
+                  className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:bg-blue-100 hover:text-blue-600 dark:hover:bg-slate-700 dark:hover:text-white transition-all shadow-sm cursor-pointer"
+                >
+                  ⚙️ Manage Categories
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

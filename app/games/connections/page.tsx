@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Countdown } from "@/app/components/coastle/Countdown";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { PlayIcon, BookOpenIcon, ChartBarIcon } from "@/app/components/coastle/Icons";
+import { useAdminMode } from "@/app/context/AdminModeContext";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
+import Link from "next/link";
 import {
   ResultModal,
   buildConnectionsShareText,
@@ -75,11 +77,11 @@ function getStorageKey() {
 }
 
 export default function ConnectionsPage() {
+  const { isAdminMode } = useAdminMode();
   const [groups, setGroups] = useState<Group[]>([]);
   const [tiles, setTiles] = useState<string[]>([]);
   const [mounted, setMounted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [selected, setSelected] = useState<string[]>([]);
   const [solved, setSolved] = useState<string[]>([]);
   const [playerSolvedCount, setPlayerSolvedCount] = useState(0);
@@ -127,13 +129,20 @@ export default function ConnectionsPage() {
   useEffect(() => {
     async function loadDailyPuzzle() {
       try {
-        const allCoasters = await fetchConnectionsData();
-        const usableCategories = getUsableCategories(allCoasters);
+        const [allCoasters, disabledRes] = await Promise.all([
+          fetchConnectionsData(),
+          fetch("/api/connections/categories")
+        ]);
+
+        const disabledData = await disabledRes.json();
+        const disabledCategories = new Set<string>(disabledData.disabledCategories || []);
+        const usableCategories = getUsableCategories(allCoasters, disabledCategories, isAdminMode);
         const seed = getTodaySeed();
         const dailyGroups = buildDailyPuzzleGroups(usableCategories, seed);
 
         if (dailyGroups.length !== 4) {
-          throw new Error("Could not generate a valid daily puzzle");
+          setError(usableCategories.length < 4 ? "NOT_ENOUGH_CATEGORIES" : "GENERATION_FAILED");
+          return;
         }
 
         const mappedGroups: Group[] = dailyGroups.map((group) => ({
@@ -147,25 +156,24 @@ export default function ConnectionsPage() {
         setGroups(mappedGroups);
 
         const saved =
-  process.env.NODE_ENV === "development"
-    ? null
-    : localStorage.getItem(getStorageKey());
+          process.env.NODE_ENV === "development"
+            ? null
+            : localStorage.getItem(getStorageKey());
 
-if (saved) {
-  try {
-    const parsed = JSON.parse(saved);
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
 
-    setSolved(parsed.solved || []);
-    setPlayerSolvedCount(parsed.playerSolvedCount || 0);
-    setMistakes(parsed.mistakes || 0);
-    setFailedGuesses(parsed.failedGuesses || []);
-    setGuessHistory(parsed.guessHistory || []);
-    setTiles(parsed.tiles || shuffle(mappedGroups.flatMap((g) => g.coasters)));
-    return;
-  } catch {
-    // ignore corrupted save
-  }
-}
+            setSolved(parsed.solved || []);
+            setPlayerSolvedCount(parsed.playerSolvedCount || 0);
+            setMistakes(parsed.mistakes || 0);
+            setFailedGuesses(parsed.failedGuesses || []);
+            setGuessHistory(parsed.guessHistory || []);
+            setTiles(parsed.tiles || shuffle(mappedGroups.flatMap((g) => g.coasters)));
+            return;
+          } catch {
+          }
+        }
 
         setTiles(shuffle(mappedGroups.flatMap((group) => group.coasters)));
       } catch (err) {
@@ -200,7 +208,6 @@ if (saved) {
         setStats(parsed);
       }
     } catch {
-      // ignore bad local storage
     }
   }, []);
 
@@ -217,8 +224,8 @@ if (saved) {
     };
 
     if (process.env.NODE_ENV !== "development") {
-  localStorage.setItem(getStorageKey(), JSON.stringify(data));
-}
+      localStorage.setItem(getStorageKey(), JSON.stringify(data));
+    }
   }, [
     solved,
     playerSolvedCount,
@@ -437,15 +444,40 @@ if (saved) {
   }
 
   if (error || groups.length !== 4) {
+    // Translate the error code into the correct string based on real-time Admin status
+    let displayError = error || "Failed to load today's puzzle.";
+
+    if (error === "NOT_ENOUGH_CATEGORIES") {
+      displayError = isAdminMode
+        ? "Not enough categories. You have fewer than 4 usable categories enabled."
+        : "Today's puzzle is currently under maintenance. Please check back shortly!";
+    } else if (error === "GENERATION_FAILED") {
+      displayError = isAdminMode
+        ? "The algorithm couldn't find a valid, non-overlapping 4-group puzzle. Please enable a few more categories to give the generator more options."
+        : "Today's puzzle is currently under maintenance. Please check back shortly!";
+    }
+
     return (
-      <div className="min-h-screen bg-white dark:bg-slate-900 p-6 flex items-center justify-center text-center">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-white">
-            Connections
-          </h1>
-          <p className="mt-3 text-sm text-red-500">
-            {error || "Failed to load today’s puzzle"}
+      <div className="min-h-screen bg-white dark:bg-slate-900 p-6 flex flex-col items-center justify-center text-center">
+        <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-slate-900 dark:text-white mb-6 uppercase italic">
+          Connections
+        </h1>
+
+        <div className="max-w-md w-full p-6 sm:p-8 bg-slate-100 dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700">
+          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+            {displayError}
           </p>
+
+          {isAdminMode && (
+            <div className="mt-8">
+              <Link
+                href="/ConnectionsData"
+                className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold uppercase tracking-widest rounded-full transition-all hover:scale-105 shadow-md"
+              >
+                ⚙️ Manage Categories
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -509,11 +541,10 @@ if (saved) {
               onClick={() => {
                 setActiveTab(tab.id as "play" | "howto" | "leaderboard");
               }}
-              className={`flex flex-col items-center justify-center py-1.5 sm:py-2 rounded-md text-[10px] sm:text-xs font-bold transition-all duration-200 cursor-pointer ${
-                isActive
-                  ? "bg-white dark:bg-neutral-700 text-blue-600 dark:text-blue-400 shadow-sm scale-100"
-                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-300/50 dark:hover:bg-neutral-700/50 hover:scale-95"
-              }`}
+              className={`flex flex-col items-center justify-center py-1.5 sm:py-2 rounded-md text-[10px] sm:text-xs font-bold transition-all duration-200 cursor-pointer ${isActive
+                ? "bg-white dark:bg-neutral-700 text-blue-600 dark:text-blue-400 shadow-sm scale-100"
+                : "text-slate-500 dark:text-slate-400 hover:bg-slate-300/50 dark:hover:bg-neutral-700/50 hover:scale-95"
+                }`}
             >
               <Icon className="w-4 h-4 sm:w-5 sm:h-5 mb-0.5" />
               {tab.label}
@@ -541,11 +572,10 @@ if (saved) {
                   return (
                     <div
                       key={i}
-                      className={`h-3.5 w-3.5 rounded-full transition-all duration-500 md:h-4 md:w-4 ${
-                        active
-                          ? "bg-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.35)]"
-                          : "bg-slate-300 dark:bg-slate-800"
-                      }`}
+                      className={`h-3.5 w-3.5 rounded-full transition-all duration-500 md:h-4 md:w-4 ${active
+                        ? "bg-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.35)]"
+                        : "bg-slate-300 dark:bg-slate-800"
+                        }`}
                     />
                   );
                 })}
@@ -569,21 +599,19 @@ if (saved) {
                     >
                       <div className="min-w-0 text-center">
                         <p
-                          className={`text-base md:text-xl font-semibold tracking-tight ${
-                            group.difficulty === "yellow"
-                              ? "text-slate-900"
-                              : "text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]"
-                          }`}
+                          className={`text-base md:text-xl font-semibold tracking-tight ${group.difficulty === "yellow"
+                            ? "text-slate-900"
+                            : "text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]"
+                            }`}
                         >
                           {group.label}
                         </p>
 
                         <p
-                          className={`mt-1 text-[12px] md:text-sm font-semibold leading-snug px-2 md:px-3 max-w-full break-words normal-case ${
-                            group.difficulty === "yellow"
-                              ? "text-slate-800"
-                              : "text-white/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]"
-                          }`}
+                          className={`mt-1 text-[12px] md:text-sm font-semibold leading-snug px-2 md:px-3 max-w-full break-words normal-case ${group.difficulty === "yellow"
+                            ? "text-slate-800"
+                            : "text-white/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]"
+                            }`}
                         >
                           {group.coasters.join(" • ")}
                         </p>
@@ -616,16 +644,14 @@ if (saved) {
                           className={`
                             ${TILE_ROW_HEIGHT} ${TILE_TEXT}
                             flex w-full items-center justify-center rounded-2xl border-2 px-2 text-center font-black leading-tight transition-colors duration-200
-                            ${
-                              isSelected
-                                ? `z-10 border-transparent bg-gradient-to-br from-blue-600 via-indigo-600 to-fuchsia-600 text-white shadow-[0_12px_30px_rgba(79,70,229,0.28)] ${
-                                    animState === "bouncing"
-                                      ? "animate-bounce-seq"
-                                      : animState === "shaking"
-                                        ? "animate-shake-custom"
-                                        : ""
-                                  }`
-                                : "border-slate-300 bg-white text-slate-800 shadow-md hover:border-slate-400 hover:bg-slate-50 hover:scale-[1.02] hover:shadow-md active:scale-[0.98] hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-700 dark:hover:text-white"
+                            ${isSelected
+                              ? `z-10 border-transparent bg-gradient-to-br from-blue-600 via-indigo-600 to-fuchsia-600 text-white shadow-[0_12px_30px_rgba(79,70,229,0.28)] ${animState === "bouncing"
+                                ? "animate-bounce-seq"
+                                : animState === "shaking"
+                                  ? "animate-shake-custom"
+                                  : ""
+                              }`
+                              : "border-slate-300 bg-white text-slate-800 shadow-md hover:border-slate-400 hover:bg-slate-50 hover:scale-[1.02] hover:shadow-md active:scale-[0.98] hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-700 dark:hover:text-white"
                             }
                           `}
                         >
@@ -647,14 +673,14 @@ if (saved) {
               onClick={() => {
                 setSelected([]);
               }}
-              className="rounded-3xl border-2 border-slate-200 dark:border-slate-800 py-4 md:py-5 text-[12px] md:text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-white"
+              className="rounded-3xl border-2 border-slate-200 dark:border-slate-800 py-4 md:py-5 text-[12px] md:text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-white cursor-pointer"
             >
               Clear
             </button>
             <button
               type="button"
               onClick={shuffleCurrentTiles}
-              className="rounded-3xl border-2 border-slate-200 dark:border-slate-800 py-4 md:py-5 text-[12px] md:text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 transition-colors hover:text-slate-900 dark:hover:text-white"
+              className="rounded-3xl border-2 border-slate-200 dark:border-slate-800 py-4 md:py-5 text-[12px] md:text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 transition-colors hover:text-slate-900 dark:hover:text-white cursor-pointer"
             >
               Shuffle
             </button>
@@ -662,11 +688,10 @@ if (saved) {
               type="button"
               onClick={submit}
               disabled={selected.length !== 4 || animState !== "idle"}
-              className={`rounded-3xl py-4 md:py-5 text-[12px] md:text-[11px] font-black uppercase tracking-[0.18em] shadow-xl transition-all duration-300 ${
-                selected.length === 4 && animState === "idle"
-                  ? "scale-[1.03] bg-slate-900 text-white dark:bg-white dark:text-slate-950"
-                  : "bg-slate-200 dark:bg-slate-800 text-slate-500 opacity-60"
-              }`}
+              className={`rounded-3xl py-4 md:py-5 text-[12px] md:text-[11px] font-black uppercase tracking-[0.18em] shadow-xl transition-all duration-300 cursor-pointer ${selected.length === 4 && animState === "idle"
+                ? "scale-[1.03] bg-slate-900 text-white dark:bg-white dark:text-slate-950"
+                : "bg-slate-200 dark:bg-slate-800 text-slate-500 opacity-60"
+                }`}
             >
               Submit
             </button>
