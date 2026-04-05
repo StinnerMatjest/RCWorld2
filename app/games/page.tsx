@@ -353,8 +353,8 @@ export default function CoastleLauncherPage() {
             gradient={gradient}
             stats={connectionsStats}
             dailyDone={connectionsDailyDone}
-            iconLightSrc="/logos/favicon.svg"
-            iconDarkSrc="/logos/faviconbw.svg"
+            iconLightSrc="/logos/faviconblackorange.svg"
+            iconDarkSrc="/logos/faviconblackorange.svg"
           />
         </div>
       </div>
