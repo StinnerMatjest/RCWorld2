@@ -159,7 +159,7 @@ export default function ConnectionsTestPage() {
   // Sort the category groups alphabetically
   const sortedKinds = Object.keys(categoriesByKind).sort();
 
-    if (isLoading) {
+  if (isLoading) {
     return (
       <LoadingSpinner
         messages={["Fetching categories from the database...", "Aligning the coaster tracks..."]}
@@ -183,43 +183,54 @@ export default function ConnectionsTestPage() {
           <p className="mb-2 text-green-600 dark:text-green-400 font-bold">Enabled categories: {actuallyEnabledCount}</p>
           <p className="mb-2 text-red-600 dark:text-red-400 font-bold">Disabled categories: {actuallyDisabledCount}</p>
           <p className="mb-2">Candidate groups: {candidateGroups.length}</p>
-          <p className="mb-6">Daily puzzle groups: {isGenerating ? <span className="animate-pulse text-amber-500 font-bold">Calculating...</span> : dailyPuzzleGroups.length}</p>
+          {isAdminMode && (
+            <p className="mb-6">
+              Daily puzzle groups: {isGenerating ?
+                <span className="animate-pulse text-amber-500 font-bold">Calculating...</span> :
+                dailyPuzzleGroups.length
+              }
+            </p>
+          )}
 
-          <h2 className="text-lg font-bold mb-3">Daily puzzle groups</h2>
+          {isAdminMode && (
+            <>
+              <h2 className="text-lg font-bold mb-3">Daily puzzle groups</h2>
 
-          <div className="space-y-4">
-            {isGenerating ? (
-              <div className="p-5 border-2 border-dashed border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 rounded-lg flex items-center justify-center">
-                <span className="animate-pulse font-bold tracking-wider uppercase text-sm">
-                  Calculating daily puzzle...
-                </span>
+              <div className="space-y-4">
+                {isGenerating ? (
+                  <div className="p-5 border-2 border-dashed border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 rounded-lg flex items-center justify-center">
+                    <span className="animate-pulse font-bold tracking-wider uppercase text-sm">
+                      Calculating daily puzzle...
+                    </span>
+                  </div>
+                ) : dailyPuzzleGroups.length === 0 ? (
+                  <div className="p-5 border border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/20 text-red-600 dark:text-red-400 rounded-lg">
+                    <p className="font-bold">Generation Failed</p>
+                    <p className="text-sm opacity-80 mt-1">
+                      Could not find a valid 4-group puzzle without overlapping coasters. Try enabling more categories.
+                    </p>
+                  </div>
+                ) : (
+                  dailyPuzzleGroups.map((group, index) => (
+                    <div
+                      key={`${group.categoryId}-${index}`}
+                      className="border border-slate-300 dark:border-slate-700 p-3 rounded"
+                    >
+                      <p className="font-bold">{group.label}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
+                        {group.difficulty} • {group.kind}
+                      </p>
+                      <ul className="list-disc pl-6 text-slate-700 dark:text-slate-300">
+                        {group.coasters.map((coaster) => (
+                          <li key={coaster.id}>{coaster.name}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))
+                )}
               </div>
-            ) : dailyPuzzleGroups.length === 0 ? (
-              <div className="p-5 border border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/20 text-red-600 dark:text-red-400 rounded-lg">
-                <p className="font-bold">Generation Failed</p>
-                <p className="text-sm opacity-80 mt-1">
-                  Could not find a valid 4-group puzzle without overlapping coasters. Try enabling more categories.
-                </p>
-              </div>
-            ) : (
-              dailyPuzzleGroups.map((group, index) => (
-                <div
-                  key={`${group.categoryId}-${index}`}
-                  className="border border-slate-300 dark:border-slate-700 p-3 rounded"
-                >
-                  <p className="font-bold">{group.label}</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
-                    {group.difficulty} • {group.kind}
-                  </p>
-                  <ul className="list-disc pl-6 text-slate-700 dark:text-slate-300">
-                    {group.coasters.map((coaster) => (
-                      <li key={coaster.id}>{coaster.name}</li>
-                    ))}
-                  </ul>
-                </div>
-              ))
-            )}
-          </div>
+            </>
+          )}
 
           <div className="flex justify-between items-end mt-10 mb-3">
             <h2 className="text-lg font-bold">All categories (debug)</h2>
