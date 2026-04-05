@@ -80,17 +80,18 @@ export function ResultModal({
   onShare,
   onReset,
   experience,
-  hasPlayedOtherDaily = false,
 }: ResultModalProps) {
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   const isWon = gameState === "won";
   const isLost = gameState === "lost";
+  const isStandard = experience === "standard";
   const answerId = answer?.id ?? null;
   const answerSlug = (answer as any)?.slug ?? answerId;
 
   const [headerImage, setHeaderImage] = useState<string | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [connectionsDailyAvailable, setConnectionsDailyAvailable] = useState(true);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -149,6 +150,28 @@ export function ResultModal({
     };
   }, [isOpen, answerId, answerSlug, answer?.name]);
 
+  useEffect(() => {
+    if (!isOpen || gameMode !== "daily" || !isStandard) return;
+
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const raw = localStorage.getItem(`connections-${today}`);
+
+      if (!raw) {
+        setConnectionsDailyAvailable(true);
+        return;
+      }
+
+      const parsed = JSON.parse(raw);
+      const done =
+        (parsed?.solved?.length ?? 0) >= 4 || (parsed?.mistakes ?? 0) >= 4;
+
+      setConnectionsDailyAvailable(!done);
+    } catch {
+      setConnectionsDailyAvailable(true);
+    }
+  }, [isOpen, gameMode, isStandard]);
+
   if (!isOpen) return null;
 
   const coasterName = answer?.name ?? "—";
@@ -170,21 +193,8 @@ export function ResultModal({
   const secondaryBtn =
     "bg-slate-200 text-slate-900 hover:bg-slate-300 dark:bg-neutral-800 dark:text-slate-100 dark:hover:bg-neutral-700";
 
-  const isStandard = experience === "standard";
-
-  const otherDailyHref = isStandard
-    ? "/coastle/insider"
-    : "/coastle/standard";
-
-  const otherDailyLabel = isStandard
-    ? "Go to daily insider"
-    : "Go to daily standard";
-
-  const completedOtherDailyLabel = isStandard
-    ? "Daily Insider Coastle already completed"
-    : "Daily Standard Coastle already completed";
-
-  const shouldRenderOtherDailyAction = gameMode === "daily";
+  const shouldRenderOtherDailyAction =
+    gameMode === "daily" && isStandard;
 
   return (
     <div
@@ -350,18 +360,18 @@ export function ResultModal({
             </div>
 
             {shouldRenderOtherDailyAction &&
-              (hasPlayedOtherDaily ? (
-                <div className="w-full py-2 sm:py-3 md:py-3.5 rounded-2xl font-black text-sm sm:text-base text-center bg-slate-200 text-slate-500 dark:bg-neutral-800 dark:text-slate-400 cursor-not-allowed select-none">
-                  {completedOtherDailyLabel}
-                </div>
-              ) : (
+              (connectionsDailyAvailable ? (
                 <Link
-                  href={otherDailyHref}
+                  href="/games/connections"
                   onClick={onClose}
                   className="w-full py-2 sm:py-3 md:py-3.5 rounded-2xl font-black text-sm sm:text-base text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 transition cursor-pointer text-center"
                 >
-                  {otherDailyLabel}
+                  Go to daily connections
                 </Link>
+              ) : (
+                <div className="w-full py-2 sm:py-3 md:py-3.5 rounded-2xl font-black text-sm sm:text-base text-center bg-slate-200 text-slate-500 dark:bg-neutral-800 dark:text-slate-400 cursor-not-allowed select-none">
+                  Daily Connections already completed
+                </div>
               ))}
 
             {gameMode === "endless" && (

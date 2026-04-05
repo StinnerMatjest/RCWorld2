@@ -29,7 +29,7 @@ function safeParseStats(raw: string | null): GameStats | null {
     ) {
       return s as GameStats;
     }
-  } catch { }
+  } catch {}
   return null;
 }
 
@@ -40,7 +40,7 @@ function safeParseDaily(raw: string | null): DailyState | null {
     if (typeof s?.date === "string" && typeof s?.status === "string") {
       return s as DailyState;
     }
-  } catch { }
+  } catch {}
   return null;
 }
 
@@ -51,7 +51,7 @@ function safeParseConnectionsState(raw: string | null): ConnectionsSavedState | 
     if (Array.isArray(s?.solved) || typeof s?.mistakes === "number") {
       return s as ConnectionsSavedState;
     }
-  } catch { }
+  } catch {}
   return null;
 }
 
@@ -265,12 +265,12 @@ export default function GamesLauncherPage() {
   useEffect(() => {
     setStandardStats(
       safeParseStats(localStorage.getItem("coastle-standard-stats")) ??
-      safeParseStats(localStorage.getItem("coastle-stats"))
+        safeParseStats(localStorage.getItem("coastle-stats"))
     );
 
     setInsiderStats(
       safeParseStats(localStorage.getItem("coastle-insider-stats")) ??
-      safeParseStats(localStorage.getItem("coastle-stats"))
+        safeParseStats(localStorage.getItem("coastle-stats"))
     );
     setConnectionsStats(safeParseStats(localStorage.getItem("connections-stats")));
 
@@ -318,10 +318,10 @@ export default function GamesLauncherPage() {
               <span className="font-bold text-slate-800 dark:text-slate-100">Standard</span> = Focus on general coaster knowledge.
             </span>
             <span className="block">
-              <span className="font-bold text-slate-800 dark:text-slate-100">Insider</span> = Focus on  insider knowledge and ratings.
+              <span className="font-bold text-slate-800 dark:text-slate-100">Connections</span> = Group four coasters by 4 categories.
             </span>
             <span className="block">
-              <span className="font-bold text-slate-800 dark:text-slate-100">Connections</span> = Group four coasters by 4 categories.
+              <span className="font-bold text-slate-800 dark:text-slate-100">Insider</span> = Focus on insider knowledge and ratings.
             </span>
           </div>
         </header>
@@ -337,15 +337,6 @@ export default function GamesLauncherPage() {
             iconDarkSrc="/logos/faviconload.svg"
           />
 
-          <ModeButton
-            href="/games/coastle/insider"
-            label="Insider"
-            gradient={gradient}
-            stats={insiderStats}
-            dailyDone={insiderDailyDone}
-            iconDarkSrc="/logos/faviconbw.svg"
-          />
-
           <div className="flex flex-col h-full relative">
             <ModeButton
               href="/games/connections"
@@ -357,7 +348,6 @@ export default function GamesLauncherPage() {
               iconDarkSrc="/logos/faviconbw.svg"
             />
 
-            {/* Categories Button */}
             {isAdminMode && (
               <div className="absolute -bottom-8 left-0 right-0 flex justify-center">
                 <Link
@@ -369,6 +359,16 @@ export default function GamesLauncherPage() {
               </div>
             )}
           </div>
+
+          <ModeButton
+            href="/games/coastle/insider"
+            label="Insider"
+            gradient={gradient}
+            stats={insiderStats}
+            dailyDone={insiderDailyDone}
+            iconLightSrc="/logos/faviconblackorange.svg"
+            iconDarkSrc="/logos/faviconblackorange.svg"
+          />
         </div>
       </div>
     </div>

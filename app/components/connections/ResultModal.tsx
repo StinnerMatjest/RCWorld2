@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { XMarkIcon, ShareIcon } from "@/app/components/coastle/Icons";
 
 export type ConnectionsColor = "yellow" | "green" | "blue" | "purple";
@@ -54,10 +55,10 @@ function GuessPreview({ guess }: { guess: ConnectionsGuessHistoryEntry }) {
           color === "yellow"
             ? "bg-yellow-400"
             : color === "green"
-              ? "bg-emerald-500"
-              : color === "blue"
-                ? "bg-sky-500"
-                : "bg-violet-500";
+            ? "bg-emerald-500"
+            : color === "blue"
+            ? "bg-sky-500"
+            : "bg-violet-500";
 
         return <div key={index} className={`h-4 w-4 rounded-[4px] ${bg}`} />;
       })}
@@ -95,7 +96,7 @@ export function buildConnectionsShareText({
     "",
     grid,
     "",
-    "Play at <https://parkrating.com/connections>",
+    "Play at <https://parkrating.com/games/connections>",
   ].join("\n");
 }
 
@@ -110,6 +111,7 @@ export function ResultModal({
   onReset,
 }: ResultModalProps) {
   const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const [coastleDailyAvailable, setCoastleDailyAvailable] = useState(true);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -129,6 +131,28 @@ export function ResultModal({
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const raw = localStorage.getItem("coastle-standard-daily-state");
+
+      if (!raw) {
+        setCoastleDailyAvailable(true);
+        return;
+      }
+
+      const parsed = JSON.parse(raw);
+      const done =
+        parsed?.date === today && parsed?.status !== "playing";
+
+      setCoastleDailyAvailable(!done);
+    } catch {
+      setCoastleDailyAvailable(true);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -195,6 +219,20 @@ export function ResultModal({
               <ShareIcon className="h-5 w-5" />
               Share Result
             </button>
+
+            {coastleDailyAvailable ? (
+              <Link
+                href="/games/coastle/standard"
+                onClick={onClose}
+                className="w-full rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 py-3.5 text-center text-sm font-black text-white transition hover:brightness-110"
+              >
+                Go to daily standard
+              </Link>
+            ) : (
+              <div className="w-full rounded-2xl bg-slate-200 py-3.5 text-center text-sm font-black text-slate-500 dark:bg-neutral-800 dark:text-slate-400 cursor-not-allowed select-none">
+                Daily Standard Coastle already completed
+              </div>
+            )}
 
             <button
               onClick={onReset}
