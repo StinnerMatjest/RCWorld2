@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { XMarkIcon, ShareIcon } from "@/app/components/coastle/Icons";
+import { getTodayString } from "@/app/utils/coastle";
 
 export type ConnectionsColor = "yellow" | "green" | "blue" | "purple";
 
@@ -70,6 +71,7 @@ export function buildConnectionsShareText({
   gameState,
   solvedCount,
   totalGroups,
+  mistakes,
   guessHistory,
 }: {
   gameState: "won" | "lost" | "playing";
@@ -79,12 +81,21 @@ export function buildConnectionsShareText({
   maxMistakes: number;
   guessHistory: ConnectionsGuessHistoryEntry[];
 }) {
-  const guessCount = guessHistory.length;
+const tries = mistakes + 1;
 
-  const status =
-    gameState === "won"
-      ? `I completed it in ${solvedCount} out of ${guessCount} guesses`
-      : "I did not complete it.";
+const suffixMap: Record<number, string> = {
+  1: "first",
+  2: "second",
+  3: "third",
+  4: "fourth",
+};
+
+const suffix = suffixMap[tries] ?? `${tries}th`;
+
+const status =
+  gameState === "won"
+    ? `I completed it on the ${suffix} try`
+    : "I did not complete it";
 
   const grid = guessHistory
     .map((guess) => guess.colors.map(colorToEmoji).join(" "))
@@ -132,11 +143,11 @@ export function ResultModal({
     };
   }, [isOpen, onClose]);
 
-  useEffect(() => {
+   useEffect(() => {
     if (!isOpen) return;
 
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getTodayString();
       const raw = localStorage.getItem("coastle-standard-daily-state");
 
       if (!raw) {
@@ -146,7 +157,8 @@ export function ResultModal({
 
       const parsed = JSON.parse(raw);
       const done =
-        parsed?.date === today && parsed?.status !== "playing";
+        parsed?.date === today &&
+        (parsed?.status === "won" || parsed?.status === "lost");
 
       setCoastleDailyAvailable(!done);
     } catch {

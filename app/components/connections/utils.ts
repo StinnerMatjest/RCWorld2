@@ -15,8 +15,16 @@ export type ConnectionsCoaster = {
   inversions: number | null
   trackType: string | null
   classification: string | null
-  ridecount: number;
-  lastVisitDate: string | null;
+  ridecount: number
+  lastVisitDate: string | null
+
+  // ✅ ADD THIS
+  specs?: {
+    height: number | null
+    speed: number | null
+    duration: number | null
+    verticalAngle: number | null
+  }
 }
 
 export async function fetchConnectionsData(): Promise<ConnectionsCoaster[]> {
@@ -48,7 +56,7 @@ export async function fetchConnectionsData(): Promise<ConnectionsCoaster[]> {
     (parkData.parks as Park[]).map((park) => [park.id, park])
   )
 
-return (coasterData.coasters as ApiCoaster[]).map((coaster) => {
+  return (coasterData.coasters as ApiCoaster[]).map((coaster) => {
     const park = parksById.get(coaster.parkId)
 
     return {
@@ -72,8 +80,16 @@ return (coasterData.coasters as ApiCoaster[]).map((coaster) => {
       inversions: coaster.specs?.inversions ?? null,
       trackType: coaster.specs?.type ?? null,
       classification: coaster.specs?.classification ?? null,
-      ridecount: coaster.rideCount || coaster.rideCount || 0,
+      ridecount: coaster.rideCount || 0,
       lastVisitDate: coaster.lastVisitDate ?? null,
+
+      // ✅ THIS FIXES EVERYTHING
+      specs: {
+        height: coaster.specs?.height ?? null,
+        speed: coaster.specs?.speed ?? null,
+        duration: coaster.specs?.duration ?? null,
+        verticalAngle: coaster.specs?.verticalAngle ?? null,
+      },
     }
   })
 }

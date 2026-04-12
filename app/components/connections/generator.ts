@@ -37,7 +37,7 @@ function shuffleWithSeed<T>(array: T[], seed: string): T[] {
 
   for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1))
-      ;[result[i], result[j]] = [result[j], result[i]]
+    ;[result[i], result[j]] = [result[j], result[i]]
   }
 
   return result
@@ -53,46 +53,40 @@ function groupsOverlap(a: CandidateGroup, b: CandidateGroup): boolean {
   return b.coasters.some((coaster) => aIds.has(coaster.id))
 }
 
-function buildCategoryMatchMap(categories: ResolvedConnectionsCategory[]) {
-  const categoryMap = new Map<string, Set<number>>()
-
-  for (const category of categories) {
-    categoryMap.set(
-      category.id,
-      new Set(category.matches.map((coaster) => coaster.id))
-    )
-  }
-
-  return categoryMap
-}
-
-function hasCrossCategoryAmbiguity(
-  chosenGroups: CandidateGroup[],
-  categoryMatchMap: Map<string, Set<number>>
-): boolean {
-  for (const sourceGroup of chosenGroups) {
-    for (const coaster of sourceGroup.coasters) {
-      for (const targetGroup of chosenGroups) {
-        if (sourceGroup.categoryId === targetGroup.categoryId) continue
-
-        const targetCategoryMatches = categoryMatchMap.get(targetGroup.categoryId)
-        if (!targetCategoryMatches) continue
-
-        if (targetCategoryMatches.has(coaster.id)) {
-          return true
-        }
-      }
-    }
-  }
-
-  return false
-}
-
 function groupKey(coasters: ConnectionsCoaster[]): string {
   return coasters
     .map((coaster) => coaster.id)
     .sort((a, b) => a - b)
     .join("-")
+}
+
+function candidateSignature(group: CandidateGroup): string {
+  return `${group.categoryId}:${groupKey(group.coasters)}`
+}
+
+/**
+ * Prevents "5th group" issue:
+ * Reject if ANY other valid group exists within the 16 coasters
+ */
+function hasExtraBoardGroup(
+  chosenGroups: CandidateGroup[],
+  allCandidates: CandidateGroup[]
+): boolean {
+  const boardIds = new Set(
+    chosenGroups.flatMap((g) => g.coasters.map((c) => c.id))
+  )
+
+  const chosenKeys = new Set(chosenGroups.map(candidateSignature))
+
+  return allCandidates.some((candidate) => {
+    const fullyOnBoard = candidate.coasters.every((c) =>
+      boardIds.has(c.id)
+    )
+
+    if (!fullyOnBoard) return false
+
+    return !chosenKeys.has(candidateSignature(candidate))
+  })
 }
 
 function buildCandidateGroupsForCategory(
@@ -113,7 +107,7 @@ function buildCandidateGroupsForCategory(
     const pack = doubled.slice(start, start + 4)
 
     if (pack.length < 4) continue
-    if (new Set(pack.map((coaster) => coaster.id)).size < 4) continue
+    if (new Set(pack.map((c) => c.id)).size < 4) continue
     if (hasDuplicateNames(pack)) continue
 
     const key = groupKey(pack)
@@ -150,7 +144,6 @@ function pickByDifficulty(
   seed: string
 ): CandidateGroup[] {
   const usedKinds = new Set(chosen.map((group) => group.kind))
-  // Keep track of the Category IDs we've already picked
   const usedCategoryIds = new Set(chosen.map((group) => group.categoryId))
 
   const matchingDifficulty = candidates.filter(
@@ -159,9 +152,7 @@ function pickByDifficulty(
 
   const noOverlap = matchingDifficulty.filter(
     (group) =>
-      // Reject the group immediately if its Category ID was already used
       !usedCategoryIds.has(group.categoryId) &&
-      // Reject if any coasters overlap
       !chosen.some((picked) => groupsOverlap(picked, group))
   )
 
@@ -173,18 +164,16 @@ function pickByDifficulty(
 
 function tryBuildPuzzleWithTargets(
   candidates: CandidateGroup[],
-  categories: ResolvedConnectionsCategory[],
   seed: string,
   targetDifficulties: CategoryDifficulty[]
 ): CandidateGroup[] {
-  const categoryMatchMap = buildCategoryMatchMap(categories)
-
   function search(
     chosen: CandidateGroup[],
     difficultyIndex: number
   ): CandidateGroup[] {
     if (difficultyIndex >= targetDifficulties.length) {
-      return hasCrossCategoryAmbiguity(chosen, categoryMatchMap) ? [] : chosen
+      if (hasExtraBoardGroup(chosen, candidates)) return []
+      return chosen
     }
 
     const difficulty = targetDifficulties[difficultyIndex]
@@ -239,7 +228,6 @@ export function buildDailyPuzzleGroups(
     for (const pattern of difficultyPatterns) {
       const result = tryBuildPuzzleWithTargets(
         candidates,
-        categories,
         attemptSeed,
         pattern
       )
