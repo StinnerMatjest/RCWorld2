@@ -4,7 +4,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { XMarkIcon, ShareIcon } from "./Icons";
-import { CoastleCoaster } from "@/app/types";
+import { CoastleCoaster, GuessStandard } from "@/app/types";
+import { getTodayString } from "@/app/utils/coastle";
 
 interface ResultModalProps {
   isOpen: boolean;
@@ -19,6 +20,70 @@ interface ResultModalProps {
   onReset: () => void;
   experience: "standard" | "insider";
   hasPlayedOtherDaily?: boolean;
+}
+
+export function buildCoastleShareText({
+  gameMode,
+  gameState,
+  guessesCount,
+  guesses,
+  answer,
+}: {
+  gameMode: "daily" | "endless";
+  gameState: "playing" | "won" | "lost";
+  guessesCount: number;
+  guesses: GuessStandard[];
+  answer: CoastleCoaster | null;
+}) {
+  const headers = "Mfr\u2003Cty\u2003Len\u2003Hgt\u2003Spd\u2003Inv";
+
+  const grid = guesses
+    .map((g) => {
+      const m = g.matches;
+      const row = [
+        m.manufacturer,
+        m.country,
+        m.length,
+        m.height,
+        m.speed,
+        m.inversions,
+      ];
+
+      const emojiStr = row
+        .map((status) =>
+          status === "correct" ? "🟩" : status === "close" ? "🟨" : "🟥"
+        )
+        .join("\u2003\u200A");
+
+      const name = g.coaster.name;
+      const targetVisualLen = 22;
+      const needed = Math.max(0, Math.ceil((targetVisualLen - name.length) / 1.7));
+      const paddedName = name + "\u3000".repeat(needed);
+
+      return `${emojiStr}\u2003||${paddedName}||`;
+    })
+    .join("\n");
+
+  const title =
+    gameMode === "daily"
+      ? "**Daily Standard Coastle**"
+      : "**Endless Standard Coastle**";
+
+  const status =
+    gameState === "won"
+      ? `I completed it in ${guessesCount} guesses.`
+      : "I did not complete it.";
+
+  let footer = "\n\nPlay at <https://parkrating.com/games/coastle/standard>";
+
+  if (gameState === "lost") {
+    const ansName = answer?.name || "";
+    const needed = Math.max(0, Math.ceil((22 - ansName.length) / 1.7));
+    const paddedAns = ansName + "\u3000".repeat(needed);
+    footer = `\nAnswer: ||${paddedAns}||${footer}`;
+  }
+
+  return `${title}\n${status}\n\n${headers}\n${grid}${footer}`;
 }
 
 function formatRating(val: unknown): string {
@@ -57,8 +122,8 @@ function ConfettiBurst({ enabled }: { enabled: boolean }) {
               p.key % 3 === 0
                 ? "linear-gradient(180deg, #60a5fa, #a78bfa)"
                 : p.key % 3 === 1
-                  ? "linear-gradient(180deg, #34d399, #fbbf24)"
-                  : "linear-gradient(180deg, #fb7185, #f97316)",
+                ? "linear-gradient(180deg, #34d399, #fbbf24)"
+                : "linear-gradient(180deg, #fb7185, #f97316)",
             ["--rot" as any]: `${p.rotate}deg`,
             ["--drift" as any]: `${p.drift}px`,
           }}
@@ -84,7 +149,6 @@ export function ResultModal({
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   const isWon = gameState === "won";
-  const isLost = gameState === "lost";
   const isStandard = experience === "standard";
   const answerId = answer?.id ?? null;
   const answerSlug = (answer as any)?.slug ?? answerId;
@@ -140,8 +204,7 @@ export function ResultModal({
         const img = (galleryData?.headerImage ?? null) as string | null;
 
         if (!cancelled) setHeaderImage(img);
-      } catch {
-      }
+      } catch {}
     }
 
     run();
@@ -154,7 +217,7 @@ export function ResultModal({
     if (!isOpen || gameMode !== "daily" || !isStandard) return;
 
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getTodayString();
       const raw = localStorage.getItem(`connections-${today}`);
 
       if (!raw) {
@@ -273,8 +336,7 @@ export function ResultModal({
                 fill
                 unoptimized
                 priority
-                className={`object-cover transition-all duration-700 ${imageLoaded ? "opacity-100 blur-0" : "opacity-0 blur-md"
-                  }`}
+                className={`object-cover transition-all duration-700 ${imageLoaded ? "opacity-100 blur-0" : "opacity-0 blur-md"}`}
                 onLoad={() => setImageLoaded(true)}
               />
             </button>
@@ -282,7 +344,7 @@ export function ResultModal({
 
           <div className="mt-4 sm:mt-5 md:mt-6 text-center">
             <div className="text-[11px] sm:text-xs font-black uppercase tracking-[0.22em] text-slate-600 dark:text-slate-300">
-              {isLost ? "THE CORRECT ANSWER WAS" : "THE ANSWER WAS"}
+              {gameState === "lost" ? "THE CORRECT ANSWER WAS" : "THE ANSWER WAS"}
             </div>
 
             <div className={`mt-2 text-3xl sm:text-5xl font-black tracking-tight text-transparent bg-clip-text ${nameGradient}`}>

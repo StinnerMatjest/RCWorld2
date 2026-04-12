@@ -26,7 +26,7 @@ import {
 } from "@/app/components/coastle/Icons";
 import { Countdown } from "@/app/components/coastle/Countdown";
 import { GuessRowStandard as GuessRow } from "@/app/components/coastle/GuessRowStandard";
-import { ResultModal } from "@/app/components/coastle/ResultModal";
+import { ResultModal, buildCoastleShareText } from "@/app/components/coastle/ResultModal";
 import { HowTo } from "@/app/components/coastle/HowTo";
 import { Leaderboard } from "@/app/components/coastle/Leaderboard";
 
@@ -345,64 +345,15 @@ export default function CoastlePage() {
   }
 
   // Build the formatted result text used by both share + copy
-  function buildShareText() {
-    const headers = "Mfr\u2003Cty\u2003Len\u2003Hgt\u2003Spd\u2003Inv";
-
-    const grid = guesses
-      .map((g) => {
-        const m = g.matches;
-        const row = [
-          m.manufacturer,
-          m.country,
-          m.length,
-          m.height,
-          m.speed,
-          m.inversions
-        ];
-        const emojiStr = row
-          .map((status) =>
-            status === "correct" ? "🟩" : status === "close" ? "🟨" : "🟥"
-          )
-          .join("\u2003\u200A");
-
-        const name = g.coaster.name;
-        const targetVisualLen = 22;
-        const needed = Math.max(
-          0,
-          Math.ceil((targetVisualLen - name.length) / 1.7)
-        );
-        const paddedName = name + "\u3000".repeat(needed);
-
-        return `${emojiStr}\u2003||${paddedName}||`;
-      })
-      .join("\n");
-
-    const title =
-      gameMode === "daily"
-        ? "**Daily Standard Coastle**"
-        : "**Endless Standard Coastle**";
-
-    let status = "";
-    if (gameState === "won") {
-      status = `I completed it in ${guesses.length} guesses.`;
-    } else {
-      status = "I did not complete it.";
-    }
-
-    let footer = "\n\nPlay at <https://parkrating.com/coastle>";
-
-    if (gameState === "lost") {
-      const ansName = answer?.name || "";
-      const needed = Math.max(0, Math.ceil((22 - ansName.length) / 1.7));
-      const paddedAns = ansName + "\u3000".repeat(needed);
-      footer = `\nAnswer: ||${paddedAns}||${footer}`;
-    }
-
-    return `${title}\n${status}\n\n${headers}\n${grid}${footer}`;
-  }
 
   async function handleShare() {
-    const text = buildShareText();
+    const text = buildCoastleShareText({
+  gameMode,
+  gameState,
+  guessesCount: guesses.length,
+  guesses,
+  answer,
+});
 
     try {
       if (typeof navigator !== "undefined" && navigator.share) {
@@ -418,7 +369,13 @@ export default function CoastlePage() {
   }
 
   async function handleCopy() {
-    const text = buildShareText();
+    const text = buildCoastleShareText({
+  gameMode,
+  gameState,
+  guessesCount: guesses.length,
+  guesses,
+  answer,
+});
 
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {

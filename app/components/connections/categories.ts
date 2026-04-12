@@ -15,6 +15,7 @@ export type CategoryKind =
   | "year"
   | "decade"
   | "ride_type"
+  | "ride_stats"
   | "name_structure"
   | "name_theme"
 
@@ -198,6 +199,94 @@ function buildDynamicCategories(coasters: ConnectionsCoaster[]): CategoryDefinit
       )
     )
   }
+
+
+  // speed / height / duration
+  push(
+    createCategoryDefinition(
+      "vertical-angle-85",
+      "Steep vertical drop coasters (85°+)",
+      "medium",
+      "blue",
+      "ride_stats",
+      (items) =>
+        items.filter(
+          (coaster) =>
+            coaster.specs?.verticalAngle !== null &&
+            coaster.specs?.verticalAngle !== undefined &&
+            coaster.specs.verticalAngle >= 85
+        )
+    )
+  )
+
+  push(
+    createCategoryDefinition(
+      "tall-coasters",
+      "Tall coasters (150ft+)",
+      "safe",
+      "green",
+      "ride_stats",
+      (items) =>
+        items.filter(
+          (coaster) =>
+            coaster.specs?.height !== null &&
+            coaster.specs?.height !== undefined &&
+            coaster.specs.height >= 150
+        )
+    )
+  )
+
+  push(
+    createCategoryDefinition(
+      "fast-coasters",
+      "Fast coasters (60+ mph)",
+      "safe",
+      "green",
+      "ride_stats",
+      (items) =>
+        items.filter(
+          (coaster) =>
+            coaster.specs?.speed !== null &&
+            coaster.specs?.speed !== undefined &&
+            coaster.specs.speed >= 60
+        )
+    )
+  )
+
+  push(
+    createCategoryDefinition(
+      "short-duration",
+      "Short rides (≤ 90 sec)",
+      "medium",
+      "green",
+      "ride_stats",
+      (items) =>
+        items.filter(
+          (coaster) =>
+            coaster.specs?.duration !== null &&
+            coaster.specs?.duration !== undefined &&
+            coaster.specs.duration <= 90
+        )
+    )
+  )
+
+  push(
+    createCategoryDefinition(
+      "long-duration",
+      "Long rides (150+ sec)",
+      "medium",
+      "blue",
+      "ride_stats",
+      (items) =>
+        items.filter(
+          (coaster) =>
+            coaster.specs?.duration !== null &&
+            coaster.specs?.duration !== undefined &&
+            coaster.specs.duration >= 150
+        )
+    )
+  )
+  
 
   // track type
   for (const trackType of uniqueValues(
