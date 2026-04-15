@@ -207,17 +207,19 @@ function findBestBoard(
     for (let b = a + 1; b < max; b++) {
       for (let c = b + 1; c < max; c++) {
         for (let d = c + 1; d < max; d++) {
-          const combo = [pool[a], pool[b], pool[c], pool[d]]
+            const combo = [pool[a], pool[b], pool[c], pool[d]]
 
+            // difficulty rule
             const counts: Record<string, number> = {}
-
             for (const g of combo) {
               counts[g.difficulty] = (counts[g.difficulty] || 0) + 1
             }
-
-            // Rule: max 2 of same difficulty
             if (Object.values(counts).some(count => count > 2)) continue
 
+            // NEW: kind diversity rule
+            const kinds = combo.map(g => g.kind)
+            const uniqueKinds = new Set(kinds)
+            if (uniqueKinds.size < 3) continue
           if (
             groupsOverlap(combo[0], combo[1]) ||
             groupsOverlap(combo[0], combo[2]) ||
