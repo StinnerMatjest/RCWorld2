@@ -209,8 +209,14 @@ function findBestBoard(
         for (let d = c + 1; d < max; d++) {
           const combo = [pool[a], pool[b], pool[c], pool[d]]
 
-          const difficulties = new Set(combo.map((g) => g.difficulty))
-          if (difficulties.size !== 4) continue
+            const counts: Record<string, number> = {}
+
+            for (const g of combo) {
+              counts[g.difficulty] = (counts[g.difficulty] || 0) + 1
+            }
+
+            // Rule: max 2 of same difficulty
+            if (Object.values(counts).some(count => count > 2)) continue
 
           if (
             groupsOverlap(combo[0], combo[1]) ||
