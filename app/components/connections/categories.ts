@@ -346,7 +346,7 @@ function buildDynamicCategories(coasters: ConnectionsCoaster[]): CategoryDefinit
       {
         id: "rating-lte-4",
         label: "Rated 4.0 or below",
-        difficulty: "yellow",
+        difficulty: "blue",
         test: (rating) => rating <= 4,
       },
       {
@@ -358,7 +358,7 @@ function buildDynamicCategories(coasters: ConnectionsCoaster[]): CategoryDefinit
       {
         id: "rating-golden",
         label: "Golden Rating (11.0)",
-        difficulty: "purple",
+        difficulty: "blue",
         test: (rating) => rating === 11,
       },
     ]
