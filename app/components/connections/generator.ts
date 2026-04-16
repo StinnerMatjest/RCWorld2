@@ -90,9 +90,14 @@ function buildCandidateGroupsForCategory(
   seed: string,
   maxGroupsPerCategory = 12
 ): CandidateGroup[] {
-  if (category.matches.length < 4) return []
+// Filter out coasters without a rating
+const validMatches = category.matches.filter(
+  (c) => c.rating !== null && c.rating !== undefined
+)
 
-  const shuffled = shuffleWithSeed(category.matches, `${seed}-${category.id}`)
+if (validMatches.length < 4) return []
+
+const shuffled = shuffleWithSeed(validMatches, `${seed}-${category.id}`)
   const candidates: CandidateGroup[] = []
   const seen = new Set<string>()
 
