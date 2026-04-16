@@ -166,3 +166,50 @@ export async function POST(
         );
     }
 }
+
+export async function PATCH(
+    req: NextRequest,
+    context: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await context.params;
+        const parkId = Number(id);
+        const body = await req.json();
+        const { updates } = body;
+
+        if (isNaN(parkId)) {
+            return NextResponse.json({ error: "Invalid park ID" }, { status: 400 });
+        }
+
+        if (!updates || !Array.isArray(updates)) {
+            return NextResponse.json({ error: "Invalid updates array" }, { status: 400 });
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query("BEGIN");
+
+            for (const update of updates) {
+                if (!update.id || !update.count) continue;
+
+                // Add new count to existing ridecount and ensures haveridden is true
+                await client.query(
+                    "UPDATE rollercoasters SET ridecount = COALESCE(ridecount, 0) + $1, haveridden = true WHERE id = $2 AND park_id = $3",
+                    [update.count, update.id, parkId]
+                );
+            }
+
+            await client.query("COMMIT");
+        } catch (e) {
+            await client.query("ROLLBACK");
+            throw e;
+        } finally {
+            client.release();
+        }
+
+        return NextResponse.json({ success: true }, { status: 200 });
+    } catch (error) {
+        console.error("Failed to sync coasters:", error);
+        return NextResponse.json({ error: "Sync failed" }, { status: 500 });
+    }
+}

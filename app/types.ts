@@ -178,3 +178,27 @@ export interface RankingListItem {
   textBlock2?: string; // Optional second paragraph
   image2?: string;     // Optional second image URL
 }
+
+export type ChecklistItem = {
+  id: string;
+  label: string;
+  checked: boolean;
+  isPhotoTask?: boolean;
+  imageUrl?: string | null;
+  skipped?: boolean;
+  isCoaster?: boolean;
+  rideCount?: number;
+};
+
+export type Checklist = {
+  id: number;
+  title: string;
+  slug: string;
+  description: string;
+  items: ChecklistItem[];
+  visit_start?: string | null;
+  visit_end?: string | null;
+  duration?: number;
+  is_finished?: boolean;
+  park_id?: number;
+};

@@ -54,8 +54,8 @@ const Navbar: React.FC = () => {
               <Link href="/?modal=true" className="hover:text-blue-500">
                 Rate a Park
               </Link>
-              <Link href="/Checklist" className="hover:text-blue-500">
-                Checklist
+              <Link href="/checklists" className="hover:text-blue-500">
+                Checklists
               </Link>
             </>
           )}
@@ -92,7 +92,7 @@ const Navbar: React.FC = () => {
             {isAdminMode && (
               <>
                 <li><Link href="/?modal=true" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Rate a Park</Link></li>
-                <li><Link href="/Checklist" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Checklist</Link></li>
+                <li><Link href="/checklists" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Checklists</Link></li>
               </>
             )}
           </ul>
