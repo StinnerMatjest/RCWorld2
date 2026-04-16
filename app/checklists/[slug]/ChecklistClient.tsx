@@ -16,10 +16,10 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
   const [visitFinished, setVisitFinished] = useState<boolean>(checklist.is_finished || false);
 
   const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
+  // This automatically freezes the UI if an item is uploading
   const isUIFrozen = !!uploadingItemId;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [targetUploadId, setTargetUploadId] = useState<string | null>(null);
 
   function togglePhotoExpand(id: string) {
     setExpandedPhotos((prev) => prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]);
@@ -102,35 +102,59 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
 
   function handlePhotoClick(id: string) {
     if (isUIFrozen || !visitStart) return;
+
+    // This sets the ID, which automatically makes isUIFrozen = true
     setUploadingItemId(id);
-    fileInputRef.current?.click();
+
+    // Micro-delay ensures React registers the state change before firing the native click
+    setTimeout(() => {
+      if (fileInputRef.current) {
+        fileInputRef.current.click();
+      }
+    }, 0);
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !targetUploadId) return;
-    setUploadingItemId(targetUploadId);
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("title", `${checklist.slug}-${targetUploadId}`);
+    // If the user opened the picker but hit "Cancel"
+    if (!file || !uploadingItemId) {
+      setUploadingItemId(null); // Unfreezes UI
+      e.target.value = ""; // Resets input
+      return;
+    }
 
     try {
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Upload failed");
-      const data = await res.json();
-      const newItems = items.map((item) =>
-        item.id === targetUploadId ? { ...item, checked: true, imageUrl: data.imagePath, skipped: false } : item
-      );
-      setItems(newItems);
-      await syncToDatabase({ items: newItems });
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.ok) {
+        const { imagePath } = await res.json();
+
+        const newItems = items.map((item) => {
+          if (item.id === uploadingItemId) {
+            return { ...item, checked: true, imageUrl: imagePath };
+          }
+          return item;
+        });
+
+        setItems(newItems);
+        syncToDatabase({ items: newItems });
+      } else {
+        alert("Upload failed. Please try again.");
+      }
     } catch (err) {
-      console.error("Error uploading photo:", err);
-      alert("Failed to upload photo. Please try again.");
+      console.error("Upload error:", err);
+      alert("An error occurred during upload.");
     } finally {
+      // Always unfreeze the UI and clear the input when done
       setUploadingItemId(null);
-      setTargetUploadId(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      e.target.value = "";
     }
   }
 
@@ -150,7 +174,8 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
-      <input type="file" accept="image/*" capture="environment" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
+
+      {/* NOTE: I removed the duplicate <input> tag that was up here forcing the camera! */}
 
       <div className="mx-auto flex min-h-screen max-w-xl flex-col px-4 pb-32 pt-6">
 
@@ -179,10 +204,10 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                 </p>
                 <p className="hidden text-slate-600 sm:block">•</p>
                 <p className="text-[11px] font-medium text-slate-500 sm:text-xs">
-                  {new Date(visitStart).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                  {new Date(visitStart).toLocaleTimeString('en-US', { hour: "2-digit", minute: "2-digit" })}
                   {" - "}
                   {visitFinished && visitEnd
-                    ? new Date(visitEnd).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+                    ? new Date(visitEnd).toLocaleTimeString('en-US', { hour: "2-digit", minute: "2-digit" })
                     : "Now"}
                 </p>
               </div>
@@ -426,7 +451,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                       <div className="flex justify-between">
                         <span className="font-medium text-slate-500">Started:</span>
                         <span className="font-bold text-slate-200">
-                          {new Date(visitStart).toLocaleString(undefined, { timeStyle: "short" })}
+                          {new Date(visitStart).toLocaleString('en-US', { timeStyle: "short" })}
                         </span>
                       </div>
                     )}
@@ -434,7 +459,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                       <div className="flex justify-between">
                         <span className="font-medium text-slate-500">Finished:</span>
                         <span className="font-bold text-slate-200">
-                          {new Date(visitEnd).toLocaleString(undefined, { timeStyle: "short" })}
+                          {new Date(visitEnd).toLocaleString('en-US', { timeStyle: "short" })}
                         </span>
                       </div>
                     )}
@@ -455,13 +480,14 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Hidden File Input */}
       <input
         type="file"
         ref={fileInputRef}
         className="hidden"
-        accept="image/jpeg,image/png,image/webp" // Specific types often trigger the gallery better than image/*
+        accept="image/jpeg,image/png,image/webp"
         onChange={handleFileChange}
-      // Ensure 'capture' is NOT present here
       />
     </main>
   );
