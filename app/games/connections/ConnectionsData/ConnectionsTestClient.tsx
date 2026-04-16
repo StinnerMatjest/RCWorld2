@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import {
@@ -17,7 +17,33 @@ import {
   buildCandidateGroups,
   buildDailyPuzzleGroups,
   type CandidateGroup,
+  type GeneratedBoard,
 } from "@/app/components/connections/generator";
+
+type TaggedBoard = GeneratedBoard & {
+  isAdmin: boolean;
+  isStandard: boolean;
+};
+
+function getTodaySeed() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function boardKey(groups: CandidateGroup[]) {
+  return groups
+    .map((group) =>
+      group.coasters
+        .map((coaster) => coaster.id)
+        .sort((a, b) => a - b)
+        .join("-")
+    )
+    .sort()
+    .join("||");
+}
 
 export default function ConnectionsTestPage() {
   const { isAdminMode } = useAdminMode();
@@ -26,14 +52,17 @@ export default function ConnectionsTestPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [dailyPuzzleGroups, setDailyPuzzleGroups] = useState<CandidateGroup[]>([]);
+
+  const [adminPuzzleGroups, setAdminPuzzleGroups] = useState<CandidateGroup[]>([]);
+  const [standardPuzzleGroups, setStandardPuzzleGroups] = useState<CandidateGroup[]>([]);
+  const [generatedBoards, setGeneratedBoards] = useState<TaggedBoard[]>([]);
 
   useEffect(() => {
     async function run() {
       try {
         const [coasterData, disabledDataRes] = await Promise.all([
           fetchConnectionsData(),
-          fetch("/api/connections/categories")
+          fetch("/api/connections/categories"),
         ]);
 
         setAllCoasters(coasterData);
@@ -42,7 +71,6 @@ export default function ConnectionsTestPage() {
           const disabledData = await disabledDataRes.json();
           setDisabledOverrides(disabledData.disabledCategories || []);
         }
-
       } catch (err) {
         console.error(err);
         setError(err instanceof Error ? err.message : "Unknown error");
@@ -57,14 +85,14 @@ export default function ConnectionsTestPage() {
   const handleToggleCategory = async (categoryId: string, currentlyEnabled: boolean) => {
     try {
       setDisabledOverrides((prev) =>
-        currentlyEnabled ? [...prev, categoryId] : prev.filter(id => id !== categoryId)
+        currentlyEnabled ? [...prev, categoryId] : prev.filter((id) => id !== categoryId)
       );
+
       await fetch("/api/connections/categories", {
         method: currentlyEnabled ? "POST" : "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ categoryId }),
       });
-
     } catch (err) {
       console.error("Failed to toggle category", err);
     }
@@ -117,23 +145,28 @@ export default function ConnectionsTestPage() {
 
   const disabledSet = useMemo(() => new Set(disabledOverrides), [disabledOverrides]);
 
-  const usableCategories = useMemo(() =>
-    getUsableCategories(allCoasters, disabledSet, isAdminMode),
+  const visibleUsableCategories = useMemo(
+    () => getUsableCategories(allCoasters, disabledSet, isAdminMode),
     [allCoasters, disabledSet, isAdminMode]
   );
 
-  const actuallyEnabledCount = useMemo(() =>
-    allCategories.filter((cat) => !disabledSet.has(cat.id)).length,
+  const adminUsableCategories = useMemo(
+    () => getUsableCategories(allCoasters, disabledSet, true),
+    [allCoasters, disabledSet]
+  );
+
+  const actuallyEnabledCount = useMemo(
+    () => allCategories.filter((cat) => !disabledSet.has(cat.id)).length,
     [allCategories, disabledSet]
   );
 
   const actuallyDisabledCount = allCategories.length - actuallyEnabledCount;
 
-  const seed = "2026-04-04";
+  const seed = getTodaySeed();
 
-  const candidateGroups = useMemo(() =>
-    buildCandidateGroups(usableCategories, seed),
-    [usableCategories]
+  const candidateGroups = useMemo(
+    () => buildCandidateGroups(visibleUsableCategories, seed),
+    [visibleUsableCategories, seed]
   );
 
   useEffect(() => {
@@ -142,13 +175,29 @@ export default function ConnectionsTestPage() {
     setIsGenerating(true);
 
     const timer = setTimeout(() => {
-      const groups = buildDailyPuzzleGroups(usableCategories, seed);
-      setDailyPuzzleGroups(groups);
+      const result = buildDailyPuzzleGroups(adminUsableCategories, seed);
+
+      setAdminPuzzleGroups(result.best);
+      setStandardPuzzleGroups(result.bestStandard);
+
+      const adminSelectedKey = boardKey(result.best);
+      const standardSelectedKey = boardKey(result.bestStandard);
+
+      const mergedBoards: TaggedBoard[] = result.boards.map((board) => {
+        const key = boardKey(board.groups);
+        return {
+          ...board,
+          isAdmin: key === adminSelectedKey,
+          isStandard: key === standardSelectedKey,
+        };
+      });
+
+      setGeneratedBoards(mergedBoards);
       setIsGenerating(false);
     }, 50);
 
     return () => clearTimeout(timer);
-  }, [usableCategories]);
+  }, [allCoasters.length, adminUsableCategories, seed]);
 
   const categoriesByKind = allCategories.reduce((acc, cat) => {
     if (!acc[cat.kind]) acc[cat.kind] = [];
@@ -156,7 +205,6 @@ export default function ConnectionsTestPage() {
     return acc;
   }, {} as Record<string, CategoryDefinition[]>);
 
-  // Sort the category groups alphabetically
   const sortedKinds = Object.keys(categoriesByKind).sort();
 
   if (isLoading) {
@@ -176,44 +224,48 @@ export default function ConnectionsTestPage() {
         <p className="text-red-500">Error: {error}</p>
       ) : (
         <>
+          <p className="mb-2">Seed: {seed}</p>
           <p className="mb-2">Loaded {allCoasters.length} coasters</p>
           <p className="mb-2">Not ridden: {notRidden.length}</p>
           <p className="mb-2">All categories: {allCategories.length}</p>
-          <p className="mb-2">Usable categories: {usableCategories.length}</p>
-          <p className="mb-2 text-green-600 dark:text-green-400 font-bold">Enabled categories: {actuallyEnabledCount}</p>
-          <p className="mb-2 text-red-600 dark:text-red-400 font-bold">Disabled categories: {actuallyDisabledCount}</p>
-          <p className="mb-2">Candidate groups: {candidateGroups.length}</p>
-          {isAdminMode && (
-            <p className="mb-6">
-              Daily puzzle groups: {isGenerating ?
-                <span className="animate-pulse text-amber-500 font-bold">Calculating...</span> :
-                dailyPuzzleGroups.length
-              }
-            </p>
-          )}
+          <p className="mb-2">Visible usable categories: {visibleUsableCategories.length}</p>
+          <p className="mb-2">Admin usable categories: {adminUsableCategories.length}</p>
+          <p className="mb-2 text-green-600 dark:text-green-400 font-bold">
+            Enabled categories: {actuallyEnabledCount}
+          </p>
+          <p className="mb-2 text-red-600 dark:text-red-400 font-bold">
+            Disabled categories: {actuallyDisabledCount}
+          </p>
+          <p className="mb-2">Visible candidate groups: {candidateGroups.length}</p>
 
-          {isAdminMode && (
-            <>
-              <h2 className="text-lg font-bold mb-3">Daily puzzle groups</h2>
+          <p className="mb-6">
+            Generated boards:{" "}
+            {isGenerating ? (
+              <span className="animate-pulse text-amber-500 font-bold">Calculating...</span>
+            ) : (
+              "Done"
+            )}
+          </p>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-10">
+            <div>
+              <h2 className="text-lg font-bold mb-3">Selected board (admin)</h2>
 
               <div className="space-y-4">
                 {isGenerating ? (
                   <div className="p-5 border-2 border-dashed border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 rounded-lg flex items-center justify-center">
                     <span className="animate-pulse font-bold tracking-wider uppercase text-sm">
-                      Calculating daily puzzle...
+                      Calculating admin board...
                     </span>
                   </div>
-                ) : dailyPuzzleGroups.length === 0 ? (
+                ) : adminPuzzleGroups.length === 0 ? (
                   <div className="p-5 border border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/20 text-red-600 dark:text-red-400 rounded-lg">
-                    <p className="font-bold">Generation Failed</p>
-                    <p className="text-sm opacity-80 mt-1">
-                      Could not find a valid 4-group puzzle without overlapping coasters. Try enabling more categories.
-                    </p>
+                    <p className="font-bold">Admin generation failed</p>
                   </div>
                 ) : (
-                  dailyPuzzleGroups.map((group, index) => (
+                  adminPuzzleGroups.map((group, index) => (
                     <div
-                      key={`${group.categoryId}-${index}`}
+                      key={`${group.categoryId}-${index}-admin`}
                       className="border border-slate-300 dark:border-slate-700 p-3 rounded"
                     >
                       <p className="font-bold">{group.label}</p>
@@ -229,28 +281,143 @@ export default function ConnectionsTestPage() {
                   ))
                 )}
               </div>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-bold mb-3">Selected board (standard)</h2>
+
+              <div className="space-y-4">
+                {isGenerating ? (
+                  <div className="p-5 border-2 border-dashed border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 rounded-lg flex items-center justify-center">
+                    <span className="animate-pulse font-bold tracking-wider uppercase text-sm">
+                      Calculating standard board...
+                    </span>
+                  </div>
+                ) : standardPuzzleGroups.length === 0 ? (
+                  <div className="p-5 border border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/20 text-red-600 dark:text-red-400 rounded-lg">
+                    <p className="font-bold">Standard generation failed</p>
+                  </div>
+                ) : (
+                  standardPuzzleGroups.map((group, index) => (
+                    <div
+                      key={`${group.categoryId}-${index}-standard`}
+                      className="border border-slate-300 dark:border-slate-700 p-3 rounded"
+                    >
+                      <p className="font-bold">{group.label}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
+                        {group.difficulty} • {group.kind}
+                      </p>
+                      <ul className="list-disc pl-6 text-slate-700 dark:text-slate-300">
+                        {group.coasters.map((coaster) => (
+                          <li key={coaster.id}>{coaster.name}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {generatedBoards.length > 0 && (
+            <>
+              <div className="flex justify-between items-end mt-10 mb-3">
+                <h2 className="text-lg font-bold">Generated boards</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Higher score = better board
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-10">
+                {generatedBoards.map((board, i) => (
+                  <details
+                    key={`${board.seed}-${i}`}
+                    className={`group rounded-lg border overflow-hidden ${
+                      board.isAdmin || board.isStandard
+                        ? "border-green-500 bg-green-50 dark:bg-green-950/20"
+                        : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                    }`}
+                  >
+                    <summary className="cursor-pointer list-none p-4 flex items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="font-bold">#{i + 1}</span>
+
+                        <span className="text-sm font-semibold">
+                          Score: {board.score}
+                        </span>
+
+
+                            {/* Blue = valid standard board */}
+                            {board.isStandardValid && (
+                              <span
+                                className="w-2.5 h-2.5 rounded-full bg-sky-500"
+                                title="Valid standard board"
+                              />
+                            )}
+                        {board.isAdmin && (
+                          <span className="text-[10px] uppercase tracking-wider font-black px-2 py-1 rounded bg-violet-600 text-white">
+                            Admin
+                          </span>
+                        )}
+
+                        {board.isStandard && (
+                          <span className="text-[10px] uppercase tracking-wider font-black px-2 py-1 rounded bg-sky-600 text-white">
+                            Standard
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          {board.seed}
+                        </span>
+                        <span className="transition-transform duration-200 group-open:rotate-180">
+                          ▼
+                        </span>
+                      </div>
+                    </summary>
+
+                    <div className="border-t border-slate-200 dark:border-slate-700 p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {board.groups.map((group, idx) => (
+                        <div
+                          key={`${group.categoryId}-${idx}-${board.seed}`}
+                          className="border border-slate-200 dark:border-slate-700 p-3 rounded"
+                        >
+                          <p className="font-bold">{group.label}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                            {group.difficulty} • {group.kind}
+                          </p>
+                          <ul className="list-disc pl-5 text-sm text-slate-700 dark:text-slate-300">
+                            {group.coasters.map((c) => (
+                              <li key={c.id}>{c.name}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                ))}
+              </div>
             </>
           )}
 
           <div className="flex justify-between items-end mt-10 mb-3">
             <h2 className="text-lg font-bold">All categories (debug)</h2>
 
-            {isAdminMode && (
-              <div className="flex gap-2">
-                <button
-                  onClick={handleEnableAll}
-                  className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
-                >
-                  Enable All
-                </button>
-                <button
-                  onClick={handleDisableAll}
-                  className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
-                >
-                  Disable All
-                </button>
-              </div>
-            )}
+            <div className="flex gap-2">
+              <button
+                onClick={handleEnableAll}
+                className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                Enable All
+              </button>
+              <button
+                onClick={handleDisableAll}
+                className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                Disable All
+              </button>
+            </div>
           </div>
 
           <div className="space-y-4 text-sm mt-6">
@@ -276,8 +443,8 @@ export default function ConnectionsTestPage() {
                       const isActuallyEnabled = !disabledOverrides.includes(cat.id);
                       const isViable = matches.length >= 4;
 
-                      // TRICOLOR LOGIC
-                      let containerClass = "bg-red-100 border-red-300 text-slate-900 dark:bg-red-950/30 dark:border-red-900 dark:text-white";
+                      let containerClass =
+                        "bg-red-100 border-red-300 text-slate-900 dark:bg-red-950/30 dark:border-red-900 dark:text-white";
                       if (isActuallyEnabled) {
                         containerClass = isViable
                           ? "bg-green-100 border-green-300 text-slate-900 dark:bg-green-950/30 dark:border-green-900 dark:text-white"
@@ -307,8 +474,8 @@ export default function ConnectionsTestPage() {
                                 {!isActuallyEnabled
                                   ? "Disabled"
                                   : isViable
-                                    ? "Active"
-                                    : "Active (Unviable < 4)"}
+                                  ? "Active"
+                                  : "Active (Unviable < 4)"}
                               </span>
                             </div>
 
@@ -324,17 +491,16 @@ export default function ConnectionsTestPage() {
                             )}
                           </div>
 
-                          {isAdminMode && (
-                            <button
-                              onClick={() => handleToggleCategory(cat.id, isActuallyEnabled)}
-                              className={`shrink-0 px-4 py-1.5 rounded text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${isActuallyEnabled
+                          <button
+                            onClick={() => handleToggleCategory(cat.id, isActuallyEnabled)}
+                            className={`shrink-0 px-4 py-1.5 rounded text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                              isActuallyEnabled
                                 ? "bg-red-500 hover:bg-red-600 text-white shadow-sm"
                                 : "bg-green-500 hover:bg-green-600 text-white shadow-sm"
-                                }`}
-                            >
-                              {isActuallyEnabled ? "Disable" : "Enable"}
-                            </button>
-                          )}
+                            }`}
+                          >
+                            {isActuallyEnabled ? "Disable" : "Enable"}
+                          </button>
                         </div>
                       );
                     })}

@@ -57,10 +57,6 @@ const shuffle = <T,>(items: T[]) => {
 };
 
 function getTodaySeed() {
-  if (process.env.NODE_ENV === "development") {
-    return `${new Date().toISOString()}-${Math.random()}`;
-  }
-
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -136,9 +132,14 @@ export default function ConnectionsPage() {
 
         const disabledData = await disabledRes.json();
         const disabledCategories = new Set<string>(disabledData.disabledCategories || []);
-        const usableCategories = getUsableCategories(allCoasters, disabledCategories, isAdminMode);
-        const seed = getTodaySeed();
-        const dailyGroups = buildDailyPuzzleGroups(usableCategories, seed);
+        console.log("GAME DISABLED:", Array.from(disabledCategories).sort());
+const usableCategories = getUsableCategories(allCoasters, disabledCategories, true);
+const seed = getTodaySeed();
+const result = buildDailyPuzzleGroups(usableCategories, seed);
+
+const dailyGroups = isAdminMode
+  ? result.best
+  : result.bestStandard;
 
         if (dailyGroups.length !== 4) {
           setError(usableCategories.length < 4 ? "NOT_ENOUGH_CATEGORIES" : "GENERATION_FAILED");
@@ -190,7 +191,7 @@ export default function ConnectionsPage() {
       clearToastTimer();
       clearRevealTimers();
     };
-  }, []);
+  }, [isAdminMode]);
 
   useEffect(() => {
     try {
