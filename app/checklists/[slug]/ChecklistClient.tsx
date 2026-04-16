@@ -18,7 +18,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
   const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
   const isUIFrozen = !!uploadingItemId;
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [targetUploadId, setTargetUploadId] = useState<string | null>(null);
 
   function togglePhotoExpand(id: string) {
@@ -101,12 +101,9 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
   }
 
   function handlePhotoClick(id: string) {
-    if (isUIFrozen) return;
-    setTargetUploadId(id);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-      fileInputRef.current.click();
-    }
+    if (isUIFrozen || !visitStart) return;
+    setUploadingItemId(id);
+    fileInputRef.current?.click();
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -242,7 +239,15 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                       </button>
 
                       {item.isPhotoTask ? (
-                        <button onClick={() => handlePhotoClick(item.id)} disabled={uploadingItemId === item.id || !visitStart} className="flex h-10 items-center justify-center rounded-lg bg-emerald-500/20 px-4 text-sm font-bold text-emerald-400 hover:bg-emerald-500/30 disabled:opacity-50">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handlePhotoClick(item.id);
+                          }}
+                          disabled={uploadingItemId === item.id || !visitStart}
+                          className="flex h-10 items-center justify-center rounded-lg bg-emerald-500/20 px-4 text-sm font-bold text-emerald-400 hover:bg-emerald-500/30 disabled:opacity-50"
+                        >
                           {uploadingItemId === item.id ? "..." : "📸 Upload"}
                         </button>
                       ) : (
@@ -450,6 +455,14 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
           </motion.div>
         )}
       </AnimatePresence>
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept="image/jpeg,image/png,image/webp" // Specific types often trigger the gallery better than image/*
+        onChange={handleFileChange}
+      // Ensure 'capture' is NOT present here
+      />
     </main>
   );
 }
