@@ -5,7 +5,12 @@ import { useEffect, useRef, useState } from "react";
 import { XMarkIcon, ShareIcon } from "@/app/components/coastle/Icons";
 import { getTodayString } from "@/app/utils/coastle";
 
-export type ConnectionsColor = "yellow" | "green" | "blue" | "purple";
+export type ConnectionsColor =
+  | "yellow"
+  | "green"
+  | "blue"
+  | "purple"
+  | "orange";
 
 export type ConnectionsGuessHistoryEntry = {
   tiles: string[];
@@ -27,52 +32,63 @@ interface ResultModalProps {
   mistakes: number;
   maxMistakes: number;
   guessHistory: ConnectionsGuessHistoryEntry[];
-  solvedGroups: ConnectionsSolvedGroup[];
+  groups: ConnectionsSolvedGroup[];
   onClose: () => void;
-  onShare: () => void;
+  onShare: (text: string) => void;
   onReset: () => void;
 }
 
-function colorToEmoji(color: ConnectionsColor) {
+/* ------------------ EMOJIS ------------------ */
+
+function getEmoji(color: ConnectionsColor) {
   switch (color) {
-    case "yellow":
-      return "🟨";
-    case "green":
-      return "🟩";
-    case "blue":
-      return "🟦";
-    case "purple":
-      return "🟪";
-    default:
-      return "⬛";
+    case "yellow": return "🟨";
+    case "green": return "🟩";
+    case "blue": return "🟦";
+    case "purple": return "🟪";
+    case "orange": return "🟧";
   }
 }
 
-function GuessPreview({ guess }: { guess: ConnectionsGuessHistoryEntry }) {
-  return (
-    <div className="grid grid-cols-4 gap-1">
-      {guess.colors.map((color, index) => {
-        const bg =
-          color === "yellow"
-            ? "bg-yellow-400"
-            : color === "green"
-            ? "bg-emerald-500"
-            : color === "blue"
-            ? "bg-sky-500"
-            : "bg-violet-500";
+/* ------------------ COLOR MAP ------------------ */
 
-        return <div key={index} className={`h-4 w-4 rounded-[4px] ${bg}`} />;
-      })}
-    </div>
-  );
+function parseColor(colorClass: string): ConnectionsColor {
+  if (colorClass.includes("amber")) return "yellow";
+  if (colorClass.includes("emerald")) return "green";
+  if (colorClass.includes("sky")) return "blue";
+  if (colorClass.includes("violet")) return "purple";
+  return "purple";
 }
+
+function buildColorMap(groups: ConnectionsSolvedGroup[]) {
+  const seen = new Map<ConnectionsColor, number>();
+  const map = new Map<string, ConnectionsColor>();
+
+  for (const group of groups) {
+    const base = parseColor(group.colorClass);
+    const count = seen.get(base) ?? 0;
+
+    const finalColor: ConnectionsColor =
+      count === 0 ? base : "orange";
+
+    seen.set(base, count + 1);
+
+    group.coasters.forEach((c) => map.set(c, finalColor));
+  }
+
+  return map;
+}
+
+/* ------------------ SHARE TEXT ------------------ */
 
 export function buildConnectionsShareText({
   gameState,
   solvedCount,
   totalGroups,
   mistakes,
+  maxMistakes,
   guessHistory,
+  groups,
 }: {
   gameState: "won" | "lost" | "playing";
   solvedCount: number;
@@ -80,35 +96,74 @@ export function buildConnectionsShareText({
   mistakes: number;
   maxMistakes: number;
   guessHistory: ConnectionsGuessHistoryEntry[];
+  groups: ConnectionsSolvedGroup[];
 }) {
-const tries = mistakes + 1;
+  const isWon = gameState === "won";
 
-const suffixMap: Record<number, string> = {
-  1: "first",
-  2: "second",
-  3: "third",
-  4: "fourth",
-};
+  let status = "I did not complete it";
 
-const suffix = suffixMap[tries] ?? `${tries}th`;
+  if (isWon && mistakes === 0) {
+    status = "⭐ I completed it with 0 mistakes ⭐";
+  } else if (isWon) {
+    status = "I completed it";
+  }
 
-const status =
-  gameState === "won"
-    ? `I completed it on the ${suffix} try`
-    : "I did not complete it";
+  const map = buildColorMap(groups);
 
   const grid = guessHistory
-    .map((guess) => guess.colors.map(colorToEmoji).join(" "))
-    .join("\n");
+    .map((guess) =>
+      guess.tiles
+        .map((tile, i) => getEmoji(map.get(tile) ?? guess.colors[i]))
+        .join("  ")
+    )
+    .join("\n\u200A\n");
 
   return [
-    "**Daily Connections**",
+    "Daily Connections",
     status,
+    `${solvedCount}/${totalGroups} categories${
+  gameState === "won"
+    ? ` with ${maxMistakes - mistakes} mistakes left`
+    : ""
+}`,
     "",
     grid,
     "",
-    "Play at <https://parkrating.com/games/connections>",
+    "Play at https://parkrating.com/games/connections",
   ].join("\n");
+}
+
+/* ------------------ UI ------------------ */
+
+function GuessPreview({
+  guess,
+  groups,
+}: {
+  guess: ConnectionsGuessHistoryEntry;
+  groups: ConnectionsSolvedGroup[];
+}) {
+  const map = buildColorMap(groups);
+
+  return (
+    <div className="grid grid-cols-4 gap-1.5 justify-center">
+      {guess.tiles.map((tile, i) => {
+        const color = map.get(tile) ?? guess.colors[i];
+
+        const bg =
+          color === "yellow"
+            ? "bg-yellow-400"
+            : color === "green"
+            ? "bg-emerald-500"
+            : color === "blue"
+            ? "bg-sky-500"
+            : color === "purple"
+            ? "bg-violet-500"
+            : "bg-orange-500";
+
+        return <div key={i} className={`h-5 w-5 rounded-sm ${bg}`} />;
+      })}
+    </div>
+  );
 }
 
 export function ResultModal({
@@ -116,10 +171,11 @@ export function ResultModal({
   gameState,
   solvedCount,
   totalGroups,
+  mistakes,
   guessHistory,
+  groups,
   onClose,
   onShare,
-  onReset,
 }: ResultModalProps) {
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const [coastleDailyAvailable, setCoastleDailyAvailable] = useState(true);
@@ -131,39 +187,9 @@ export function ResultModal({
     document.body.style.overflow = "hidden";
     setTimeout(() => closeBtnRef.current?.focus(), 0);
 
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-
     return () => {
       document.body.style.overflow = prevOverflow;
-      window.removeEventListener("keydown", onKeyDown);
     };
-  }, [isOpen, onClose]);
-
-   useEffect(() => {
-    if (!isOpen) return;
-
-    try {
-      const today = getTodayString();
-      const raw = localStorage.getItem("coastle-standard-daily-state");
-
-      if (!raw) {
-        setCoastleDailyAvailable(true);
-        return;
-      }
-
-      const parsed = JSON.parse(raw);
-      const done =
-        parsed?.date === today &&
-        (parsed?.status === "won" || parsed?.status === "lost");
-
-      setCoastleDailyAvailable(!done);
-    } catch {
-      setCoastleDailyAvailable(true);
-    }
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -171,14 +197,7 @@ export function ResultModal({
   const isWon = gameState === "won";
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-3 backdrop-blur-md"
-      role="dialog"
-      aria-modal="true"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-3 backdrop-blur-md">
       <div
         className={`relative w-full max-w-md overflow-hidden rounded-3xl p-1 shadow-2xl ${
           isWon
@@ -190,42 +209,35 @@ export function ResultModal({
           <button
             ref={closeBtnRef}
             onClick={onClose}
-            className="absolute right-3 top-3 z-10 rounded-full bg-white/70 p-2 text-slate-500 transition hover:text-slate-900 dark:bg-neutral-800/70 dark:text-slate-300 dark:hover:text-white"
-            aria-label="Close"
+            className="absolute right-3 top-3 z-10 rounded-full bg-white/70 p-2"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
 
           <div className="text-center">
             <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white sm:text-4xl">
-              {isWon ? "NAILED IT!" : "TRACK INCOMPLETE"}
+              {isWon ? "TRACK COMPLETE" : "TRACK INCOMPLETE"}
             </h2>
             <div className="mt-1 text-sm font-bold text-slate-600 dark:text-slate-300">
-              {`Solved ${solvedCount}/${totalGroups} groups`}
+              {`Solved ${solvedCount}/${totalGroups} categories`}
             </div>
           </div>
 
           <div className="mt-5 rounded-3xl bg-slate-100/90 p-4 dark:bg-neutral-800/60">
-            <div className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+            <div className="text-center text-[11px] font-black uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
               Your guesses
             </div>
 
-            <div className="mt-3 flex flex-col items-center gap-2">
-              {guessHistory.length > 0 ? (
-                guessHistory.map((guess, index) => (
-                  <GuessPreview key={`${guess.tiles.join("-")}-${index}`} guess={guess} />
-                ))
-              ) : (
-                <div className="text-sm font-bold text-slate-500 dark:text-slate-400">
-                  No guesses recorded.
-                </div>
-              )}
+            <div className="mt-4 flex flex-col items-center gap-2">
+              {guessHistory.map((guess, index) => (
+              <GuessPreview key={index} guess={guess} groups={groups} />
+              ))}
             </div>
           </div>
 
           <div className="mt-5 flex flex-col gap-3">
             <button
-              onClick={onShare}
+           onClick={() => onShare("")}
               className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-sm font-black text-white transition hover:opacity-90 dark:bg-white dark:text-slate-950"
             >
               <ShareIcon className="h-5 w-5" />
@@ -242,16 +254,9 @@ export function ResultModal({
               </Link>
             ) : (
               <div className="w-full rounded-2xl bg-slate-200 py-3.5 text-center text-sm font-black text-slate-500 dark:bg-neutral-800 dark:text-slate-400 cursor-not-allowed select-none">
-                Daily Standard Coastle already completed
+                Daily Standard already completed
               </div>
             )}
-
-            <button
-              onClick={onReset}
-              className="w-full rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 py-3.5 text-sm font-black text-white transition hover:brightness-110"
-            >
-              Play Again
-            </button>
           </div>
         </div>
       </div>

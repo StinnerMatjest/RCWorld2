@@ -50,7 +50,7 @@ function shuffleWithSeed<T>(array: T[], seed: string): T[] {
 }
 
 function hasDuplicateNames(coasters: ConnectionsCoaster[]): boolean {
-  const names = coasters.map((c) => c.name.toLowerCase())
+  const names = coasters.map((c) => c.name.trim().toLowerCase())
   return new Set(names).size !== names.length
 }
 
@@ -60,82 +60,14 @@ function groupsOverlap(a: CandidateGroup, b: CandidateGroup): boolean {
 }
 
 function groupKey(coasters: ConnectionsCoaster[]): string {
-  return coasters.map((c) => c.id).sort((a, b) => a - b).join("-")
+  return coasters
+    .map((c) => c.id)
+    .sort((a, b) => a - b)
+    .join("-")
 }
 
 function candidateSignature(group: CandidateGroup): string {
   return `${group.categoryId}:${groupKey(group.coasters)}`
-}
-
-function hasExtraBoardGroup(
-  chosenGroups: CandidateGroup[],
-  allCandidates: CandidateGroup[]
-): boolean {
-  const boardIds = new Set(
-    chosenGroups.flatMap((g) => g.coasters.map((c) => c.id))
-  )
-
-  const chosenKeys = new Set(chosenGroups.map(candidateSignature))
-
-  return allCandidates.some((candidate) => {
-    const fullyOnBoard = candidate.coasters.every((c) => boardIds.has(c.id))
-    if (!fullyOnBoard) return false
-
-    return !chosenKeys.has(candidateSignature(candidate))
-  })
-}
-
-function buildCandidateGroupsForCategory(
-  category: ResolvedConnectionsCategory,
-  seed: string,
-  maxGroupsPerCategory = 12
-): CandidateGroup[] {
-// Filter out coasters without a rating
-const validMatches = category.matches.filter(
-  (c) => c.rating !== null && c.rating !== undefined
-)
-
-if (validMatches.length < 4) return []
-
-const shuffled = shuffleWithSeed(validMatches, `${seed}-${category.id}`)
-  const candidates: CandidateGroup[] = []
-  const seen = new Set<string>()
-
-  const doubled = [...shuffled, ...shuffled]
-
-  for (let i = 0; i < doubled.length; i++) {
-    const pack = doubled.slice(i, i + 4)
-
-    if (pack.length < 4) continue
-    if (new Set(pack.map((c) => c.id)).size < 4) continue
-    if (hasDuplicateNames(pack)) continue
-
-    const key = groupKey(pack)
-    if (seen.has(key)) continue
-    seen.add(key)
-
-    candidates.push({
-      categoryId: category.id,
-      label: category.label,
-      difficulty: category.difficulty,
-      kind: category.kind,
-      adminOnly: category.adminOnly,
-      coasters: pack,
-    })
-
-    if (candidates.length >= maxGroupsPerCategory) break
-  }
-
-  return candidates
-}
-
-export function buildCandidateGroups(
-  categories: ResolvedConnectionsCategory[],
-  seed: string
-): CandidateGroup[] {
-  return categories.flatMap((c) =>
-    buildCandidateGroupsForCategory(c, seed)
-  )
 }
 
 function normalizedValue(value: unknown): string | null {
@@ -146,6 +78,111 @@ function normalizedValue(value: unknown): string | null {
 
 function getIntendedGroupKeys(groups: CandidateGroup[]): Set<string> {
   return new Set(groups.map((g) => groupKey(g.coasters)))
+}
+
+function combinationCount(n: number, r: number): number {
+  if (r > n || r < 0) return 0
+  if (r === 0 || r === n) return 1
+
+  let result = 1
+  for (let i = 1; i <= r; i++) {
+    result = (result * (n - r + i)) / i
+  }
+  return Math.round(result)
+}
+
+function buildCandidateGroupsForCategory(
+  category: ResolvedConnectionsCategory,
+  seed: string,
+  maxGroupsPerCategory = 20
+): CandidateGroup[] {
+  const validMatches = category.matches
+
+  if (validMatches.length < 4) return []
+
+  const shuffled = shuffleWithSeed(validMatches, `${seed}-${category.id}`)
+  const candidates: CandidateGroup[] = []
+  const seen = new Set<string>()
+
+  // sliding window + offset variation (fast + diverse)
+  for (let offset = 0; offset < 3; offset++) {
+    for (let i = 0; i < shuffled.length - 3; i++) {
+      const pack = [
+        shuffled[i],
+        shuffled[(i + 1 + offset) % shuffled.length],
+        shuffled[(i + 2 + offset) % shuffled.length],
+        shuffled[(i + 3 + offset) % shuffled.length],
+      ]
+
+      if (new Set(pack.map((c) => c.id)).size < 4) continue
+      if (hasDuplicateNames(pack)) continue
+
+      const key = groupKey(pack)
+      if (seen.has(key)) continue
+      seen.add(key)
+
+      candidates.push({
+        categoryId: category.id,
+        label: category.label,
+        difficulty: category.difficulty,
+        kind: category.kind,
+        adminOnly: category.adminOnly,
+        coasters: pack,
+      })
+
+      if (candidates.length >= maxGroupsPerCategory) return candidates
+    }
+  }
+
+  return candidates
+}
+
+export function buildCandidateGroups(
+  categories: ResolvedConnectionsCategory[],
+  seed: string
+): CandidateGroup[] {
+  return categories.flatMap((category) =>
+    buildCandidateGroupsForCategory(category, seed)
+  )
+}
+
+/**
+ * True if the board contains any other valid candidate group
+ * besides the four chosen ones.
+ *
+ * This is the core safeguard against:
+ * - hidden alternative solutions
+ * - 5-item category bleed like the Kondaa / 8.0+ issue
+ * - country/manufacturer/etc. groups that the player could fairly spot
+ *
+ * Because candidate generation is now far more complete, this check is much stronger.
+ */
+function hasExtraBoardGroup(
+  chosenGroups: CandidateGroup[],
+  allCandidates: CandidateGroup[]
+): boolean {
+  const boardIds = new Set(
+    chosenGroups.flatMap((g) => g.coasters.map((c) => c.id))
+  )
+
+  const chosenKeys = new Set(chosenGroups.map(candidateSignature))
+
+  for (const candidate of allCandidates) {
+    let matchCount = 0
+
+    for (const c of candidate.coasters) {
+      if (boardIds.has(c.id)) matchCount++
+      if (matchCount === 4) break
+    }
+
+    if (matchCount === 4) {
+      if (!chosenKeys.has(candidateSignature(candidate))) {
+        return true
+      }
+    }
+  }
+
+  return false
 }
 
 function getBoardPenalty(groups: CandidateGroup[]): number {
@@ -179,10 +216,11 @@ function getBoardPenalty(groups: CandidateGroup[]): number {
 
       const attrGroupKey = groupKey(coasters)
 
-      // Ignore intended groups
+      // Ignore intended exact groups
       if (intendedKeys.has(attrGroupKey)) continue
 
-      // Only punish real accidental 4+ groups
+      // Soft penalty for broad thematic overlap.
+      // The hard validity filter is handled by hasExtraBoardGroup().
       penalty += attr.weight * 2
     }
   }
@@ -199,6 +237,45 @@ function isStandardBoard(groups: CandidateGroup[]): boolean {
   return groups.every((group) => !group.adminOnly)
 }
 
+/**
+ * Build a more category-diverse pool for each attempt.
+ * This helps a lot once validity checks become stricter.
+ */
+function buildAttemptPool(
+  candidates: CandidateGroup[],
+  seed: string,
+  maxPoolSize = 40
+): CandidateGroup[] {
+  const shuffled = shuffleWithSeed(candidates, seed)
+
+  const byCategory = new Map<string, CandidateGroup[]>()
+  for (const candidate of shuffled) {
+    const arr = byCategory.get(candidate.categoryId) ?? []
+    arr.push(candidate)
+    byCategory.set(candidate.categoryId, arr)
+  }
+
+  const buckets = Array.from(byCategory.values())
+  const pool: CandidateGroup[] = []
+
+  let addedInRound = true
+  while (pool.length < maxPoolSize && addedInRound) {
+    addedInRound = false
+
+    for (const bucket of buckets) {
+      const next = bucket.shift()
+      if (!next) continue
+
+      pool.push(next)
+      addedInRound = true
+
+      if (pool.length >= maxPoolSize) break
+    }
+  }
+
+  return pool
+}
+
 function findBestBoard(
   pool: CandidateGroup[],
   allCandidates: CandidateGroup[]
@@ -206,25 +283,29 @@ function findBestBoard(
   let best: CandidateGroup[] = []
   let bestScore = -1
 
-  const max = Math.min(pool.length, 25)
+  const max = pool.length
 
   for (let a = 0; a < max; a++) {
     for (let b = a + 1; b < max; b++) {
       for (let c = b + 1; c < max; c++) {
         for (let d = c + 1; d < max; d++) {
-            const combo = [pool[a], pool[b], pool[c], pool[d]]
+          const combo = [pool[a], pool[b], pool[c], pool[d]]
 
-            // difficulty rule
-            const counts: Record<string, number> = {}
-            for (const g of combo) {
-              counts[g.difficulty] = (counts[g.difficulty] || 0) + 1
-            }
-            if (Object.values(counts).some(count => count > 2)) continue
+          // Never allow the same category twice
+          if (new Set(combo.map((g) => g.categoryId)).size !== 4) continue
 
-            // NEW: kind diversity rule
-            const kinds = combo.map(g => g.kind)
-            const uniqueKinds = new Set(kinds)
-            if (uniqueKinds.size < 3) continue
+          // Difficulty balance: max 2 of any one difficulty
+          const counts: Record<string, number> = {}
+          for (const g of combo) {
+            counts[g.difficulty] = (counts[g.difficulty] || 0) + 1
+          }
+          if (Object.values(counts).some((count) => count > 2)) continue
+
+          // Kind diversity: require at least 3 unique kinds
+          const uniqueKinds = new Set(combo.map((g) => g.kind))
+          if (uniqueKinds.size < 3) continue
+
+          // No overlap in coaster IDs
           if (
             groupsOverlap(combo[0], combo[1]) ||
             groupsOverlap(combo[0], combo[2]) ||
@@ -236,6 +317,7 @@ function findBestBoard(
             continue
           }
 
+          // Hard reject if the board contains any extra valid group
           if (hasExtraBoardGroup(combo, allCandidates)) continue
 
           const score = getBoardScore(combo)
@@ -272,11 +354,10 @@ export function buildDailyPuzzleGroups(
 
   const boards: GeneratedBoard[] = []
 
-  for (let i = 0; i < 30; i++) {
+  // Increased from 30 to 150 to compensate for stricter validity rules
+  for (let i = 0; i < 50; i++) {
     const attemptSeed = `${seed}-${i}`
-    const shuffled = shuffleWithSeed(candidates, attemptSeed)
-
-    const pool = shuffled.slice(0, 25)
+    const pool = buildAttemptPool(candidates, attemptSeed, 18)
     const board = findBestBoard(pool, candidates)
 
     if (board.length !== 4) continue
@@ -287,7 +368,7 @@ export function buildDailyPuzzleGroups(
       groups: board,
       score,
       seed: attemptSeed,
-      isStandardValid: board.every(g => !g.adminOnly),
+      isStandardValid: board.every((g) => !g.adminOnly),
     })
 
     if (score > bestScore) {

@@ -45,6 +45,7 @@ const GROUP_COLOR_CLASS_MAP: Record<ConnectionsColor, string> = {
   green: "bg-emerald-400 text-white",
   blue: "bg-sky-400 text-white",
   purple: "bg-violet-400 text-white",
+    orange: "bg-orange-400 text-white", // ✅ ADD THIS
 };
 
 const shuffle = <T,>(items: T[]) => {
@@ -400,19 +401,25 @@ const dailyGroups = isAdminMode
     window.setTimeout(() => setAnimState("idle"), 380);
   };
 
-  const handleShare = async () => {
-    const text = buildConnectionsShareText({
-      gameState: mistakes >= MAX_MISTAKES ? "lost" : "won",
-      solvedCount: playerSolvedCount,
-      totalGroups: groups.length,
-      mistakes,
-      maxMistakes: MAX_MISTAKES,
-      guessHistory,
-    });
+ const handleShare = async () => {
+  const text = buildConnectionsShareText({
+    gameState: mistakes >= MAX_MISTAKES ? "lost" : "won",
+    solvedCount: playerSolvedCount,
+    totalGroups: groups.length,
+    mistakes,
+    maxMistakes: MAX_MISTAKES,
+    guessHistory,
+    groups: solvedGroups.map((group) => ({
+      id: group.id,
+      label: group.label,
+      colorClass: group.color,
+      coasters: group.coasters,
+    })),
+  });
 
-    await navigator.clipboard.writeText(text);
-    showToast("Results copied to clipboard");
-  };
+  await navigator.clipboard.writeText(text);
+  showToast("Results copied to clipboard");
+};
 
   const shuffleCurrentTiles = () => {
     if (animState !== "idle") return;
@@ -723,24 +730,24 @@ const dailyGroups = isAdminMode
         />
       )}
 
-      <ResultModal
-        isOpen={showModal}
-        gameState={mistakes >= MAX_MISTAKES ? "lost" : "won"}
-        solvedCount={playerSolvedCount}
-        totalGroups={groups.length}
-        mistakes={mistakes}
-        maxMistakes={MAX_MISTAKES}
-        guessHistory={guessHistory}
-        solvedGroups={solvedGroups.map((group) => ({
-          id: group.id,
-          label: group.label,
-          colorClass: group.color,
-          coasters: group.coasters,
-        }))}
-        onClose={() => setShowModal(false)}
-        onShare={handleShare}
-        onReset={resetGame}
-      />
+<ResultModal
+  isOpen={showModal}
+  gameState={mistakes >= MAX_MISTAKES ? "lost" : "won"}
+  solvedCount={playerSolvedCount}
+  totalGroups={groups.length}
+  mistakes={mistakes}
+  maxMistakes={MAX_MISTAKES}
+  guessHistory={guessHistory}
+  groups={solvedGroups.map((group) => ({
+    id: group.id,
+    label: group.label,
+    colorClass: group.color,
+    coasters: group.coasters,
+  }))}
+  onClose={() => setShowModal(false)}
+  onShare={handleShare}
+  onReset={resetGame}
+/>
     </div>
   );
 }
