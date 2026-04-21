@@ -1,21 +1,17 @@
-// app/api/checklists/[slug]/route.ts
-import { Pool } from "pg";
 import { NextResponse } from "next/server";
-import { Checklist } from "@/app/types";
+import { Pool } from "pg";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: { rejectUnauthorized: false },
 });
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ slug: string }> }
+  context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = await params;
+    const { slug } = await context.params;
 
     const query = `
       SELECT 
@@ -23,36 +19,31 @@ export async function GET(
       FROM checklists 
       WHERE slug = $1
     `;
-
     const result = await pool.query(query, [slug]);
 
     if (result.rows.length === 0) {
-      return NextResponse.json(
-        { error: "Checklist not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Checklist not found" }, { status: 404 });
     }
 
-    const checklist: Checklist = result.rows[0];
-    return NextResponse.json({ checklist }, { status: 200 });
+    return NextResponse.json({ checklist: result.rows[0] });
   } catch (error) {
-    console.error("Database query error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch checklist" },
-      { status: 500 }
-    );
+    console.error("Error fetching checklist:", error);
+    return NextResponse.json({ error: "Failed to fetch checklist" }, { status: 500 });
   }
 }
 
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ slug: string }> }
+  context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = await params;
+    const { slug } = await context.params;
     const body = await request.json();
+
+    // Destructure all the new timing properties sent from ChecklistClient
     const { items, visit_start, visit_end, duration, is_finished } = body;
 
+    // Update the database to actually save the new columns
     const query = `
       UPDATE checklists 
       SET 
@@ -62,13 +53,13 @@ export async function PATCH(
         duration = $4,
         is_finished = $5
       WHERE slug = $6
-      RETURNING *
+      RETURNING *;
     `;
 
     const values = [
       JSON.stringify(items),
-      visit_start,
-      visit_end,
+      visit_start || null,
+      visit_end || null,
       duration || 0,
       is_finished || false,
       slug
@@ -76,34 +67,33 @@ export async function PATCH(
 
     const result = await pool.query(query, values);
 
-    if (result.rows.length === 0) {
+    if (result.rowCount === 0) {
       return NextResponse.json({ error: "Checklist not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ checklist: result.rows[0] }, { status: 200 });
+    return NextResponse.json({ success: true, checklist: result.rows[0] });
   } catch (error) {
-    console.error("Failed to patch checklist:", error);
+    console.error("Error updating checklist:", error);
     return NextResponse.json({ error: "Failed to update checklist" }, { status: 500 });
   }
 }
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ slug: string }> }
+  context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = await params;
-
+    const { slug } = await context.params;
     const query = "DELETE FROM checklists WHERE slug = $1 RETURNING id";
     const result = await pool.query(query, [slug]);
 
-    if (result.rows.length === 0) {
+    if (result.rowCount === 0) {
       return NextResponse.json({ error: "Checklist not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true }, { status: 200 });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Failed to delete checklist:", error);
-    return NextResponse.json({ error: "Delete failed" }, { status: 500 });
+    console.error("Error deleting checklist:", error);
+    return NextResponse.json({ error: "Failed to delete checklist" }, { status: 500 });
   }
 }

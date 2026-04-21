@@ -173,7 +173,6 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
           }
 
           if (cl.park_id) {
-            // 1. Fetch Park Details & Pre-fill info
             const parkRes = await fetch(`/api/park/${cl.park_id}`);
             const parkData = await parkRes.json();
             if (parkData && parkData.name) {
@@ -187,14 +186,12 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
               }));
             }
 
-            // 2. Fetch most recent rating for this park to pre-fill scores
             const ratingsRes = await fetch(`/api/park/${cl.park_id}/ratings`);
             const ratingsData = await ratingsRes.json();
 
             if (ratingsData.ratings && ratingsData.ratings.length > 0) {
               const latest = ratingsData.ratings[0];
               CATEGORIES.forEach((cat) => {
-                // Pre-fill the store with latest values
                 if (latest[cat] !== undefined) {
                   ratingsStore.set(cat, latest[cat]);
                 }
@@ -310,7 +307,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
         date: selectedDate ? selectedDate.toISOString().split("T")[0] : "",
         visitStart: visitDetails.start || null,
         visitEnd: visitDetails.end || null,
-        duration: visitDetails.durationMinutes * 60,
+        duration: visitDetails.durationMinutes > 0 ? (visitDetails.durationMinutes / 60).toFixed(2) : 0,
         parkId: savedPark.parkId,
       };
 
@@ -327,17 +324,23 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
 
           if (pendingGalleryImages.length > 0) {
             for (const img of pendingGalleryImages) {
-              let cleanTitle = img.title;
-              const lowerLabel = img.title.toLowerCase();
+              let cleanTitle = img.title || "Extra Park Photo";
+              const lowerLabel = cleanTitle.toLowerCase();
 
-              if (lowerLabel.includes("park entrance")) cleanTitle = `${parkInfo.name} Entrance`;
-              else if (lowerLabel.includes("food")) cleanTitle = `${parkInfo.name} Food`;
-              else if (lowerLabel.includes("snacks")) cleanTitle = `${parkInfo.name} Snacks & Drinks`;
-              else if (lowerLabel.includes("flatrides")) cleanTitle = `${parkInfo.name} Flatrides`;
-              else if (lowerLabel.includes("inside park picture")) {
+              if (lowerLabel.includes("park entrance")) {
+                cleanTitle = `${parkInfo.name} Entrance`;
+              } else if (lowerLabel.includes("food")) {
+                cleanTitle = `${parkInfo.name} Food`;
+              } else if (lowerLabel.includes("snacks")) {
+                cleanTitle = `${parkInfo.name} Snacks & Drinks`;
+              } else if (lowerLabel.includes("flatrides")) {
+                cleanTitle = `${parkInfo.name} Flatrides`;
+              } else if (lowerLabel.includes("inside park picture")) {
                 const numMatch = lowerLabel.match(/\d+/);
                 cleanTitle = `${parkInfo.name} Scenery ${numMatch ? numMatch[0] : ""}`.trim();
-              } else cleanTitle = img.title.replace(/^take picture of\s+/i, "");
+              } else {
+                cleanTitle = cleanTitle.replace(/^take picture of\s+/i, "");
+              }
 
               syncPromises.push(
                 fetch(`/api/park/${savedPark.parkId}/gallery`, {
@@ -394,7 +397,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <div
-        className="fixed left-0 right-0 top-0 z-[9999] bg-black/50 dark:bg-black/70 backdrop-blur-sm flex justify-center items-start overflow-hidden"
+        className="fixed left-0 right-0 top-0 z-[9999] bg-black/60 dark:bg-black/80 flex justify-center items-start overflow-hidden"
         style={{ height: "100dvh", paddingTop: "120px" }}
         onClick={closeModal}
       >
@@ -426,7 +429,8 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                   key="info"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   transition={{ duration: 0.18 }}
-                  className="px-4 sm:px-8 pb-24 space-y-4"
+                  style={{ willChange: "transform, opacity" }}
+                  className="px-4 sm:px-8 pb-24 space-y-4 transform-gpu"
                 >
                   {isLocked && (
                     <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 text-xs font-bold uppercase tracking-wider mb-2">
@@ -564,7 +568,8 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                   key="ratings"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   transition={{ duration: 0.18 }}
-                  className="pb-24"
+                  style={{ willChange: "transform, opacity" }}
+                  className="pb-24 transform-gpu"
                 >
                   <div className="sticky top-0 left-0 right-0 z-[10001] w-full bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 pt-3 pb-3 shadow-sm">
                     <ProgressBar categories={CATEGORIES} />
@@ -585,7 +590,8 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                   key="summary"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   transition={{ duration: 0.18 }}
-                  className="px-4 sm:px-8 pb-28 space-y-4"
+                  style={{ willChange: "transform, opacity" }}
+                  className="px-4 sm:px-8 pb-28 space-y-4 transform-gpu"
                 >
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-semibold">Summary</h3>

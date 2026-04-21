@@ -188,6 +188,7 @@ export type ChecklistItem = {
   skipped?: boolean;
   isCoaster?: boolean;
   rideCount?: number;
+  isExtra?: boolean;
 };
 
 export type Checklist = {

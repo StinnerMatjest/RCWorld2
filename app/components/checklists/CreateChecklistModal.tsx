@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Park, ChecklistItem } from "@/app/types";
+import LoadingSpinner from "@/app/components/LoadingSpinner";
 
 export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -106,65 +107,69 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
             </button>
 
             {isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
-                        <h2 className="mb-4 text-xl font-bold text-slate-50">Select a Park</h2>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+                    {isGenerating ? (
+                        <LoadingSpinner className="!min-h-0 !pt-0 !bg-transparent dark:!bg-transparent" />
+                    ) : (
+                        <div className="w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+                            <h2 className="mb-4 text-xl font-bold text-slate-50">Select a Park</h2>
 
-                        {/* Gallery Grid */}
-                        <div className="mb-6 grid max-h-[50vh] grid-cols-2 gap-4 overflow-y-auto pr-2 sm:grid-cols-3">
-                            {parks.map((park) => {
-                                const isSelected = selectedParkId === park.id.toString();
-                                return (
-                                    <button
-                                        key={park.id}
-                                        type="button"
-                                        onClick={() => setSelectedParkId(park.id.toString())}
-                                        className={`group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border-2 text-left transition-all ${isSelected
-                                            ? "border-emerald-500 ring-2 ring-emerald-500/50"
-                                            : "border-slate-800 hover:border-slate-600"
-                                            }`}
-                                    >
-                                        <div className="relative aspect-video w-full flex-shrink-0 overflow-hidden bg-slate-800">
-                                            <img
-                                                src={park.imagepath}
-                                                alt={park.name}
-                                                className={`absolute inset-0 h-full w-full object-cover transition-transform duration-300 ${isSelected ? "scale-105" : "group-hover:scale-105"
-                                                    }`}
-                                            />
-                                            {isSelected && (
-                                                <div className="absolute inset-0 z-10 bg-emerald-500/20" />
-                                            )}
-                                        </div>
-                                        <div className="flex-1 bg-slate-950 p-3">
-                                            <p className="truncate text-sm font-semibold text-slate-200">
-                                                {park.name}
-                                            </p>
-                                            <p className="truncate text-[11px] text-slate-400">
-                                                {park.country}
-                                            </p>
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
+                            {/* Gallery Grid */}
+                            <div className="mb-6 grid max-h-[50vh] grid-cols-2 gap-4 overflow-y-auto pr-2 sm:grid-cols-3">
+                                {parks.map((park) => {
+                                    const isSelected = selectedParkId === park.id.toString();
+                                    return (
+                                        <button
+                                            key={park.id}
+                                            type="button"
+                                            onClick={() => setSelectedParkId(park.id.toString())}
+                                            className={`group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border-2 text-left transition-all ${isSelected
+                                                ? "border-emerald-500 ring-2 ring-emerald-500/50"
+                                                : "border-slate-800 hover:border-slate-600"
+                                                }`}
+                                        >
+                                            <div className="relative aspect-video w-full flex-shrink-0 overflow-hidden bg-slate-800">
+                                                <img
+                                                    src={park.imagepath}
+                                                    alt={park.name}
+                                                    className={`absolute inset-0 h-full w-full object-cover transition-transform duration-300 ${isSelected ? "scale-105" : "group-hover:scale-105"
+                                                        }`}
+                                                />
+                                                {isSelected && (
+                                                    <div className="absolute inset-0 z-10 bg-emerald-500/20" />
+                                                )}
+                                            </div>
+                                            <div className="flex-1 bg-slate-950 p-3">
+                                                <p className="truncate text-sm font-semibold text-slate-200">
+                                                    {park.name}
+                                                </p>
+                                                <p className="truncate text-[11px] text-slate-400">
+                                                    {park.country}
+                                                </p>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
 
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setIsOpen(false)}
-                                className="flex-1 rounded-xl bg-slate-800 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-700"
-                                disabled={isGenerating}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleCreate}
-                                disabled={!selectedParkId || isGenerating}
-                                className="flex-1 rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
-                            >
-                                {isGenerating ? "Generating..." : "Generate Checklist"}
-                            </button>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setIsOpen(false)}
+                                    className="flex-1 rounded-xl bg-slate-800 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-700"
+                                    disabled={isGenerating}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleCreate}
+                                    disabled={!selectedParkId || isGenerating}
+                                    className="flex-1 rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+                                >
+                                    Generate Checklist
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             )}
         </>

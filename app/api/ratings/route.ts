@@ -12,9 +12,12 @@ const pool = new Pool({
 export async function GET() {
   try {
     const query = `
-      SELECT DISTINCT ON (parks.id)
+      SELECT 
         ratings.id AS rating_id,
         ratings.date,
+        ratings.visit_start,
+        ratings.visit_end,
+        ratings.duration,
         ratings.parkAppearance AS "parkappearance",
         ratings.bestCoaster AS "bestcoaster",
         ratings.coasterDepth AS "coasterdepth",
@@ -47,7 +50,7 @@ export async function GET() {
       JOIN parks ON ratings.park_id = parks.id
       LEFT JOIN ratingwarning ON ratingwarning.ratingid = ratings.id
       GROUP BY ratings.id, parks.id
-      ORDER BY parks.id, ratings.date DESC;
+      ORDER BY ratings.date DESC;
     `;
 
     const result = await pool.query(query);
@@ -55,6 +58,9 @@ export async function GET() {
     const ratings: Rating[] = result.rows.map((row) => ({
       id: row.rating_id,
       date: row.date,
+      visit_start: row.visit_start,
+      visit_end: row.visit_end,
+      duration: row.duration,
       park: row.park_name,
       parkAppearance: row.parkappearance,
       bestCoaster: row.bestcoaster,
@@ -82,7 +88,6 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log("Received body:", body);
 
     const {
       date,
@@ -97,8 +102,10 @@ export async function POST(request: Request) {
       rideOperations,
       parkManagement,
       parkId,
+      visitStart,
+      visitEnd,
+      duration,
     } = body;
-
 
     if (
       date === undefined ||
@@ -133,8 +140,11 @@ export async function POST(request: Request) {
         snacksanddrinks,
         rideoperations,
         parkmanagement,
-        park_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        park_id,
+        visit_start,
+        visit_end,
+        duration
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING id
     `;
 
@@ -151,19 +161,19 @@ export async function POST(request: Request) {
       rideOperations,
       parkManagement,
       parkId,
+      visitStart || null,
+      visitEnd || null,
+      duration || 0,
     ];
 
     const result = await pool.query(query, values);
 
-    const newRatingId = result.rows[0].id;
-
     return NextResponse.json(
-      { message: "Park rated successfully", ratingId: newRatingId },
+      { message: "Park rated successfully", ratingId: result.rows[0].id },
       { status: 201 }
     );
   } catch (error) {
     console.error("Error inserting rating:", error);
-
     return NextResponse.json(
       { error: "Failed to create rating" },
       { status: 500 }

@@ -15,9 +15,12 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(checklist.duration || 0);
   const [visitFinished, setVisitFinished] = useState<boolean>(checklist.is_finished || false);
 
+  const [pendingFiles, setPendingFiles] = useState<Record<string, { file: File; preview: string }>>({});
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
-  // This automatically freezes the UI if an item is uploading
-  const isUIFrozen = !!uploadingItemId;
+
+  const isUIFrozen = !!uploadingItemId || !!confirmingId;
+  const hasPendingFiles = Object.keys(pendingFiles).length > 0;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -59,7 +62,8 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
   }
 
   function handleComplete() {
-    if (!allCompleted || isUIFrozen) return;
+    if (!allCompleted || isUIFrozen || hasPendingFiles) return;
+
     setShowCelebration(true);
     if (visitStart && !visitFinished) {
       const startMs = new Date(visitStart).getTime();
@@ -91,7 +95,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
     const newItems = items.map((item) => {
       if (item.id === id) {
         const currentCount = item.rideCount || 0;
-        const newCount = Math.max(0, currentCount + delta); // Prevents negative rides
+        const newCount = Math.max(0, currentCount + delta);
         return { ...item, rideCount: newCount };
       }
       return item;
@@ -100,51 +104,103 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
     syncToDatabase({ items: newItems });
   }
 
+  function updateExtraLabel(id: string, newLabel: string) {
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, label: newLabel } : item)));
+  }
+
   function handlePhotoClick(id: string) {
     if (isUIFrozen || !visitStart) return;
 
-    // This sets the ID, which automatically makes isUIFrozen = true
     setUploadingItemId(id);
 
-    // Micro-delay ensures React registers the state change before firing the native click
     setTimeout(() => {
       if (fileInputRef.current) {
+        const handleFocus = () => {
+          window.removeEventListener('focus', handleFocus);
+          setTimeout(() => {
+            if (fileInputRef.current && fileInputRef.current.files?.length === 0) {
+              setUploadingItemId(null);
+            }
+          }, 300);
+        };
+
+        window.addEventListener('focus', handleFocus);
         fileInputRef.current.click();
       }
     }, 0);
   }
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    const targetId = uploadingItemId;
 
-    // If the user opened the picker but hit "Cancel"
-    if (!file || !uploadingItemId) {
-      setUploadingItemId(null); // Unfreezes UI
-      e.target.value = ""; // Resets input
+    if (!file || !targetId) {
+      setUploadingItemId(null);
+      e.target.value = "";
       return;
     }
 
+    const previewUrl = URL.createObjectURL(file);
+
+    if (targetId === "extra-new") {
+      const newId = `extra-${Date.now()}`;
+      const newItem: ChecklistItem = {
+        id: newId,
+        label: "Extra Park Photo",
+        checked: true, // Auto-check it so it behaves like a gallery item
+        isPhotoTask: true,
+        isExtra: true,
+      };
+      setItems((prev) => [...prev, newItem]);
+      setPendingFiles((prev) => ({ ...prev, [newId]: { file, preview: previewUrl } }));
+    } else {
+      setPendingFiles((prev) => ({ ...prev, [targetId]: { file, preview: previewUrl } }));
+    }
+
+    setUploadingItemId(null);
+    e.target.value = "";
+  }
+
+  function discardPending(id: string, isConfirmed: boolean = false) {
+    setPendingFiles((prev) => {
+      const copy = { ...prev };
+      if (copy[id]?.preview) URL.revokeObjectURL(copy[id].preview);
+      delete copy[id];
+      return copy;
+    });
+
+    if (!isConfirmed) {
+      setItems((prev) => {
+        const newItems = prev.filter((i) => !(i.id === id && i.isExtra && !i.imageUrl));
+        if (newItems.length !== prev.length) syncToDatabase({ items: newItems });
+        return newItems;
+      });
+    }
+  }
+
+  async function confirmUpload(id: string) {
+    const pending = pendingFiles[id];
+    if (!pending) return;
+
+    setConfirmingId(id);
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", pending.file);
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
       if (res.ok) {
         const { imagePath } = await res.json();
 
-        const newItems = items.map((item) => {
-          if (item.id === uploadingItemId) {
-            return { ...item, checked: true, imageUrl: imagePath };
-          }
-          return item;
+        setItems((prevItems) => {
+          const newItems = prevItems.map((item) => {
+            if (item.id === id) return { ...item, checked: true, imageUrl: imagePath };
+            return item;
+          });
+          syncToDatabase({ items: newItems });
+          return newItems;
         });
 
-        setItems(newItems);
-        syncToDatabase({ items: newItems });
+        discardPending(id, true);
       } else {
         alert("Upload failed. Please try again.");
       }
@@ -152,9 +208,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
       console.error("Upload error:", err);
       alert("An error occurred during upload.");
     } finally {
-      // Always unfreeze the UI and clear the input when done
-      setUploadingItemId(null);
-      e.target.value = "";
+      setConfirmingId(null);
     }
   }
 
@@ -166,20 +220,18 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
     return `${hours}h ${minutes}m`;
   }
 
-  const remainingItems = useMemo(() => items.filter((item) => !item.checked && !item.skipped), [items]);
-  const completedItems = useMemo(() => items.filter((item) => item.checked && !item.skipped), [items]);
-  const skippedItems = useMemo(() => items.filter((item) => item.skipped), [items]);
-  const validTotalTasks = items.length - skippedItems.length;
+  const remainingItems = useMemo(() => items.filter((item) => !item.checked && !item.skipped && !item.isExtra), [items]);
+  const completedItems = useMemo(() => items.filter((item) => item.checked && !item.skipped && !item.isExtra), [items]);
+  const skippedItems = useMemo(() => items.filter((item) => item.skipped && !item.isExtra), [items]);
+  const extraItems = useMemo(() => items.filter((item) => item.isExtra), [items]);
+
+  const validTotalTasks = items.filter(i => !i.isExtra).length - skippedItems.length;
   const allCompleted = remainingItems.length === 0 && validTotalTasks > 0;
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
-
-      {/* NOTE: I removed the duplicate <input> tag that was up here forcing the camera! */}
-
       <div className="mx-auto flex min-h-screen max-w-xl flex-col px-4 pb-32 pt-6">
 
-        {/* Back Button */}
         <Link href="/checklists" className="mb-6 inline-flex w-fit items-center gap-2 py-2 text-sm font-medium text-slate-400 transition-colors hover:text-slate-200">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
           Back to Dashboard
@@ -224,59 +276,42 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
             <AnimatePresence>
               <ul className="space-y-2">
                 {remainingItems.map((item) => (
-                  <motion.li key={item.id} layout className={`flex min-h-[56px] items-center justify-between gap-2 rounded-xl bg-slate-950/60 px-3 py-2 transition-opacity ${isUIFrozen && uploadingItemId !== item.id ? 'opacity-50' : 'opacity-100'}`}>
+                  <motion.li key={item.id} layout className={`flex min-h-[56px] items-center justify-between gap-2 rounded-xl bg-slate-950/60 px-3 py-2 transition-opacity ${isUIFrozen && confirmingId !== item.id ? 'opacity-50' : 'opacity-100'}`}>
 
-                    {/* Entire label acts as a huge hit area */}
-                    <div
-                      className="flex-1 cursor-pointer py-2 text-sm font-medium leading-snug text-slate-100"
-                      onClick={() => !item.isPhotoTask && toggleItem(item.id)}
-                    >
+                    <div className="flex-1 cursor-pointer py-2 text-sm font-medium leading-snug text-slate-100" onClick={() => !item.isPhotoTask && toggleItem(item.id)}>
                       {item.label}
                     </div>
 
-                    <div className="flex items-center gap-1">
-
-                      {/* Ride Counter */}
+                    <div className="flex items-center gap-2">
                       {item.isCoaster && (
                         <div className="mr-1 flex items-center rounded-lg border border-slate-700 bg-slate-900 p-0.5">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); updateRideCount(item.id, -1); }}
-                            disabled={!visitStart || isUIFrozen || (item.rideCount || 0) === 0}
-                            className="flex h-7 w-7 items-center justify-center rounded-md text-lg font-bold text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30"
-                          >
-                            −
-                          </button>
-                          <span className="w-6 text-center text-xs font-bold text-emerald-400">
-                            {item.rideCount || 0}
-                          </span>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); updateRideCount(item.id, 1); }}
-                            disabled={!visitStart || isUIFrozen || visitFinished}
-                            className="flex h-7 w-7 items-center justify-center rounded-md text-lg font-bold text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30"
-                          >
-                            +
-                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); updateRideCount(item.id, -1); }} disabled={!visitStart || isUIFrozen || (item.rideCount || 0) === 0} className="flex h-7 w-7 items-center justify-center rounded-md text-lg font-bold text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30">−</button>
+                          <span className="w-6 text-center text-xs font-bold text-emerald-400">{item.rideCount || 0}</span>
+                          <button onClick={(e) => { e.stopPropagation(); updateRideCount(item.id, 1); }} disabled={!visitStart || isUIFrozen || visitFinished} className="flex h-7 w-7 items-center justify-center rounded-md text-lg font-bold text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30">+</button>
                         </div>
                       )}
 
-                      <button onClick={() => toggleSkipItem(item.id)} disabled={!visitStart || isUIFrozen} className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 transition-colors hover:text-rose-400 disabled:opacity-50">
-                        Skip
-                      </button>
+                      {!pendingFiles[item.id] && (
+                        <button onClick={() => toggleSkipItem(item.id)} disabled={!visitStart || isUIFrozen} className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 transition-colors hover:text-rose-400 disabled:opacity-50">Skip</button>
+                      )}
 
+                      {/* Photo Logic */}
                       {item.isPhotoTask ? (
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handlePhotoClick(item.id);
-                          }}
-                          disabled={uploadingItemId === item.id || !visitStart}
-                          className="flex h-10 items-center justify-center rounded-lg bg-emerald-500/20 px-4 text-sm font-bold text-emerald-400 hover:bg-emerald-500/30 disabled:opacity-50"
-                        >
-                          {uploadingItemId === item.id ? "..." : "📸 Upload"}
-                        </button>
+                        pendingFiles[item.id] ? (
+                          <div className="flex items-center gap-2 rounded-lg bg-slate-900 p-1 border border-emerald-500/30">
+                            <img src={pendingFiles[item.id].preview} className="h-8 w-8 rounded-md object-cover" alt="Preview" />
+                            <button onClick={() => confirmUpload(item.id)} disabled={!!confirmingId} className="flex h-8 items-center justify-center rounded-md bg-emerald-500 px-3 text-xs font-bold text-slate-950 hover:bg-emerald-400 disabled:opacity-50">
+                              {confirmingId === item.id ? "..." : "✅ Confirm"}
+                            </button>
+                            <button onClick={() => discardPending(item.id)} disabled={!!confirmingId} className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-800 text-rose-400 hover:bg-rose-500/20 disabled:opacity-50">✕</button>
+                          </div>
+                        ) : (
+                          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePhotoClick(item.id); }} disabled={isUIFrozen || !visitStart} className="flex h-10 items-center justify-center rounded-lg bg-emerald-500/20 px-4 text-sm font-bold text-emerald-400 hover:bg-emerald-500/30 disabled:opacity-50">
+                            {uploadingItemId === item.id ? "..." : "📸 Upload"}
+                          </button>
+                        )
                       ) : (
-                        <button onClick={() => toggleItem(item.id)} disabled={!visitStart || isUIFrozen} className="ml-1 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border-2 border-slate-600 bg-slate-900 disabled:opacity-50">
+                        <button onClick={() => toggleItem(item.id)} disabled={!visitStart || isUIFrozen} className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border-2 border-slate-600 bg-slate-900 disabled:opacity-50">
                           <input type="checkbox" checked={item.checked} readOnly className="pointer-events-none h-5 w-5 accent-emerald-500" />
                         </button>
                       )}
@@ -299,33 +334,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                     <span className="text-slate-600">⏭</span>
                     <span className="flex-1 line-through opacity-80">{item.label}</span>
                   </div>
-
-                  {/* Wrapper for counter + Undo button */}
                   <div className="flex items-center gap-2">
-
-                    {/* Ride Counter UI */}
-                    {item.isCoaster && (
-                      <div className="mr-1 flex items-center rounded-lg border border-slate-700 bg-slate-900 p-0.5">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); updateRideCount(item.id, -1); }}
-                          disabled={!visitStart || isUIFrozen || visitFinished || (item.rideCount || 0) === 0}
-                          className="flex h-7 w-7 items-center justify-center rounded-md text-lg font-bold text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30"
-                        >
-                          −
-                        </button>
-                        <span className="w-6 text-center text-xs font-bold text-emerald-400">
-                          {item.rideCount || 0}
-                        </span>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); updateRideCount(item.id, 1); }}
-                          disabled={!visitStart || isUIFrozen || visitFinished}
-                          className="flex h-7 w-7 items-center justify-center rounded-md text-lg font-bold text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30"
-                        >
-                          +
-                        </button>
-                      </div>
-                    )}
-
                     <button onClick={() => toggleSkipItem(item.id)} disabled={!visitStart || visitFinished || isUIFrozen} className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-bold text-slate-300 shadow-sm hover:bg-slate-700 disabled:opacity-50">
                       Undo
                     </button>
@@ -344,49 +353,45 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
               {completedItems.map((item) => {
                 const isExpanded = expandedPhotos.includes(item.id);
                 return (
-                  <motion.li key={item.id} layout className="flex flex-col px-1 text-sm">
-                    <div className={`flex items-center gap-2 text-slate-400 transition-opacity ${isUIFrozen ? 'opacity-50' : 'opacity-100'}`}>
+                  <motion.li key={item.id} layout className={`flex flex-col px-1 text-sm transition-opacity ${isUIFrozen && confirmingId !== item.id ? 'opacity-50' : 'opacity-100'}`}>
+                    <div className="flex items-center gap-2 text-slate-400">
                       <span className="text-emerald-400">✓</span>
                       <span className="flex-1 line-through">{item.label}</span>
 
-                      {/* Ride Counter UI */}
-                      {item.isCoaster && (
-                        <div className="mr-1 flex items-center rounded-lg border border-slate-700 bg-slate-900 p-0.5">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); updateRideCount(item.id, -1); }}
-                            disabled={!visitStart || isUIFrozen || visitFinished || (item.rideCount || 0) === 0}
-                            className="flex h-7 w-7 items-center justify-center rounded-md text-lg font-bold text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30"
-                          >
-                            −
+                      {pendingFiles[item.id] ? (
+                        <div className="flex items-center gap-2 rounded-lg bg-slate-900 p-1 border border-amber-500/30">
+                          <img src={pendingFiles[item.id].preview} className="h-8 w-8 rounded-md object-cover" alt="Preview" />
+                          <button onClick={() => confirmUpload(item.id)} disabled={!!confirmingId} className="flex h-8 items-center justify-center rounded-md bg-amber-500 px-3 text-xs font-bold text-slate-950 hover:bg-amber-400 disabled:opacity-50">
+                            {confirmingId === item.id ? "..." : "✅ Confirm Replace"}
                           </button>
-                          <span className="w-6 text-center text-xs font-bold text-emerald-400">
-                            {item.rideCount || 0}
-                          </span>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); updateRideCount(item.id, 1); }}
-                            disabled={!visitStart || isUIFrozen || visitFinished}
-                            className="flex h-7 w-7 items-center justify-center rounded-md text-lg font-bold text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30"
-                          >
-                            +
-                          </button>
+                          <button onClick={() => discardPending(item.id)} disabled={!!confirmingId} className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-800 text-rose-400 hover:bg-rose-500/20 disabled:opacity-50">✕</button>
                         </div>
-                      )}
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          {item.isCoaster && (
+                            <div className="mr-1 flex items-center rounded-lg border border-slate-700 bg-slate-900 p-0.5">
+                              <button onClick={(e) => { e.stopPropagation(); updateRideCount(item.id, -1); }} disabled={!visitStart || isUIFrozen || visitFinished || (item.rideCount || 0) === 0} className="flex h-7 w-7 items-center justify-center rounded-md text-lg font-bold text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30">−</button>
+                              <span className="w-6 text-center text-xs font-bold text-emerald-400">{item.rideCount || 0}</span>
+                              <button onClick={(e) => { e.stopPropagation(); updateRideCount(item.id, 1); }} disabled={!visitStart || isUIFrozen || visitFinished} className="flex h-7 w-7 items-center justify-center rounded-md text-lg font-bold text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30">+</button>
+                            </div>
+                          )}
 
-                      {item.imageUrl && (
-                        <button onClick={() => togglePhotoExpand(item.id)} className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-slate-700">
-                          {isExpanded ? "Hide" : "View"}
-                        </button>
-                      )}
+                          {item.imageUrl && (
+                            <>
+                              <button onClick={() => togglePhotoExpand(item.id)} className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-slate-700">{isExpanded ? "Hide" : "View"}</button>
+                              <button onClick={(e) => { e.preventDefault(); handlePhotoClick(item.id); }} disabled={isUIFrozen || !visitStart} className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-400 hover:bg-amber-500/20 disabled:opacity-50">Replace</button>
+                            </>
+                          )}
 
-                      {!item.isPhotoTask && !visitFinished && (
-                        <button onClick={() => toggleItem(item.id)} disabled={isUIFrozen} className="ml-1 px-2 py-2 text-xs font-bold text-slate-500 hover:text-slate-300 disabled:opacity-50">
-                          Undo
-                        </button>
+                          {!item.isPhotoTask && !visitFinished && (
+                            <button onClick={() => toggleItem(item.id)} disabled={isUIFrozen} className="ml-1 px-2 py-2 text-xs font-bold text-slate-500 hover:text-slate-300 disabled:opacity-50">Undo</button>
+                          )}
+                        </div>
                       )}
                     </div>
 
                     <AnimatePresence>
-                      {item.imageUrl && isExpanded && (
+                      {item.imageUrl && isExpanded && !pendingFiles[item.id] && (
                         <motion.div initial={{ height: 0, opacity: 0, marginTop: 0 }} animate={{ height: "auto", opacity: 1, marginTop: 12 }} exit={{ height: 0, opacity: 0, marginTop: 0 }} className="overflow-hidden">
                           <div className="relative aspect-video w-full rounded-xl border border-slate-800 bg-slate-900">
                             <img src={item.imageUrl} alt="Uploaded task" className="absolute inset-0 h-full w-full rounded-xl object-cover" />
@@ -401,9 +406,81 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
           </section>
         )}
 
+        {/* EXTRA PHOTOS GALLERY SECTION */}
+        <section className="mb-6 rounded-2xl border border-blue-900/30 bg-blue-950/10 p-3 shadow-sm sm:p-4">
+          <h2 className="mb-3 px-1 text-sm font-bold uppercase tracking-wide text-blue-400">Extra Park Photos</h2>
+          <p className="px-1 text-xs text-slate-400 mb-4">Add general park photos here. They are permanently visible in this gallery and will transfer to your final review.</p>
+
+          {extraItems.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              {extraItems.map((item) => (
+                <div key={item.id} className={`flex flex-col gap-2 rounded-xl bg-slate-900/80 p-3 border border-slate-800 transition-opacity ${isUIFrozen && confirmingId !== item.id ? 'opacity-50' : 'opacity-100'}`}>
+
+                  {/* The Image Display */}
+                  {pendingFiles[item.id] ? (
+                    <div className="relative aspect-video w-full rounded-lg overflow-hidden border-2 border-dashed border-emerald-500/50 bg-slate-950">
+                      <img src={pendingFiles[item.id].preview} className="absolute inset-0 w-full h-full object-cover opacity-40" alt="Preview" />
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
+                        <button onClick={() => confirmUpload(item.id)} disabled={!!confirmingId} className="w-full bg-emerald-500 text-slate-950 font-bold py-2 rounded-md text-xs shadow hover:bg-emerald-400 disabled:opacity-50">
+                          {confirmingId === item.id ? "Uploading..." : "✅ Confirm Image"}
+                        </button>
+                        <button onClick={() => discardPending(item.id)} disabled={!!confirmingId} className="w-full bg-slate-950 text-rose-400 font-bold py-2 rounded-md text-xs shadow border border-rose-500/30 hover:bg-slate-900 disabled:opacity-50">
+                          ✕ Discard
+                        </button>
+                      </div>
+                    </div>
+                  ) : item.imageUrl ? (
+                    <div className="relative aspect-video w-full rounded-lg overflow-hidden border border-slate-700 bg-slate-950">
+                      <img src={item.imageUrl} className="absolute inset-0 w-full h-full object-cover" alt="Extra Photo" />
+                    </div>
+                  ) : null}
+
+                  {/* Description Input & Controls */}
+                  <div className="flex flex-col gap-2 mt-1">
+                    <input
+                      value={item.label}
+                      onChange={(e) => updateExtraLabel(item.id, e.target.value)}
+                      onBlur={(e) => {
+                        const newItems = items.map((i) => (i.id === item.id ? { ...i, label: e.target.value } : i));
+                        syncToDatabase({ items: newItems });
+                      }}
+                      placeholder="Photo description..."
+                      className="bg-transparent border-b border-slate-700 text-sm text-slate-200 py-1 focus:outline-none focus:border-blue-500 w-full placeholder-slate-600"
+                    />
+
+                    {!pendingFiles[item.id] && (
+                      <div className="flex items-center justify-between mt-1">
+                        {item.imageUrl && (
+                          <button onClick={(e) => { e.preventDefault(); handlePhotoClick(item.id); }} disabled={isUIFrozen || !visitStart} className="text-xs font-bold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-2 rounded-lg border border-amber-500/20 disabled:opacity-50">
+                            Replace Image
+                          </button>
+                        )}
+                        <button onClick={() => {
+                          const newItems = items.filter(i => i.id !== item.id);
+                          setItems(newItems);
+                          syncToDatabase({ items: newItems });
+                        }} disabled={isUIFrozen} className="text-xs font-bold text-rose-500 hover:text-rose-400 px-2 py-2 disabled:opacity-50 ml-auto">
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button
+            onClick={(e) => { e.preventDefault(); handlePhotoClick("extra-new"); }}
+            disabled={isUIFrozen || !visitStart}
+            className="flex w-full h-12 items-center justify-center rounded-xl border-2 border-dashed border-blue-500/30 bg-blue-500/10 text-sm font-bold text-blue-400 hover:bg-blue-500/20 disabled:opacity-50"
+          >
+            + Add Extra Photo
+          </button>
+        </section>
+
         <div className="flex-1" />
 
-        {/* Dynamic Bottom Bar */}
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center pb-8 pt-4 sm:pb-6">
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent" />
 
@@ -413,8 +490,12 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                 Start Visit ⏱️
               </button>
             ) : !visitFinished ? (
-              <button onClick={handleComplete} disabled={!allCompleted || isUIFrozen} className={`flex min-h-[56px] w-full items-center justify-center rounded-2xl px-4 text-base font-bold shadow-xl transition-all ${allCompleted && !isUIFrozen ? "bg-emerald-500 text-slate-950 shadow-emerald-500/20 hover:bg-emerald-400 active:scale-[0.98]" : "bg-slate-800 text-slate-500 shadow-none"}`}>
-                {allCompleted ? "Complete Visit 🎉" : "Complete all tasks to finish"}
+              <button
+                onClick={handleComplete}
+                disabled={!allCompleted || isUIFrozen || hasPendingFiles}
+                className={`flex min-h-[56px] w-full items-center justify-center rounded-2xl px-4 text-base font-bold shadow-xl transition-all ${allCompleted && !isUIFrozen && !hasPendingFiles ? "bg-emerald-500 text-slate-950 shadow-emerald-500/20 hover:bg-emerald-400 active:scale-[0.98]" : "bg-slate-800 text-slate-500 shadow-none"}`}
+              >
+                {hasPendingFiles ? "Confirm pending photos to finish" : allCompleted ? "Complete Visit 🎉" : "Complete all tasks to finish"}
               </button>
             ) : (
               <Link href={`/?modal=true&importChecklist=${checklist.slug}`} className="flex min-h-[56px] w-full items-center justify-center rounded-2xl bg-blue-500 px-4 text-base font-bold text-white shadow-xl shadow-blue-500/20 transition-transform hover:bg-blue-400 active:scale-[0.98]">
@@ -425,7 +506,6 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
         </div>
       </div>
 
-      {/* Celebration overlay */}
       <AnimatePresence>
         {showCelebration && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/80 p-4 backdrop-blur-sm sm:items-center">
@@ -481,7 +561,6 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
         )}
       </AnimatePresence>
 
-      {/* Hidden File Input */}
       <input
         type="file"
         ref={fileInputRef}
