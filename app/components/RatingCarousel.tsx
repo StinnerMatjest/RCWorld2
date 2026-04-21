@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 type RatingCarouselProps = {
   title?: string;
   subtitle?: string;
-  children: React.ReactNode; // typically a list of <RatingCard />
+  children: React.ReactNode;
 };
 
 export function RatingCarousel({ title, subtitle, children }: RatingCarouselProps) {

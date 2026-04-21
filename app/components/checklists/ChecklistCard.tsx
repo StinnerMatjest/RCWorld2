@@ -128,7 +128,7 @@ export default function ChecklistCard({ checklist }: { checklist: Checklist }) {
                                     <span className="text-slate-700">•</span>
                                     {visitDate && <span>{visitDate}</span>}
 
-                                    {/* NEW: Time range rendering */}
+                                    {/* Time range rendering */}
                                     {startTime && (
                                         <>
                                             <span className="text-slate-700">•</span>

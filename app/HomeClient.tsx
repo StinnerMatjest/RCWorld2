@@ -31,8 +31,25 @@ const Home = () => {
   const carouselRef = useRef<HTMLDivElement>(null);
 
   const filteredRatings = React.useMemo(() => {
-    const sorted = [...ratings].sort((a, b) => b.overall - a.overall);
-    return sorted.filter((rating) => {
+    // Sort all ratings by date descending (newest first)
+    const sortedByDate = [...ratings].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    // Use a Map to keep only the first (newest) rating for each parkId
+    const latestRatingsMap = new Map<number, Rating>();
+    sortedByDate.forEach((rating) => {
+      if (!latestRatingsMap.has(rating.parkId)) {
+        latestRatingsMap.set(rating.parkId, rating);
+      }
+    });
+
+    // Convert back to array and sort by overall score
+    const latestRatings = Array.from(latestRatingsMap.values());
+    const sortedByOverall = latestRatings.sort((a, b) => b.overall - a.overall);
+
+    // Filter by the search query
+    return sortedByOverall.filter((rating) => {
       const park = parks.find((p) => p.id === rating.parkId);
       return park && park.name.toLowerCase().includes(query.toLowerCase());
     });

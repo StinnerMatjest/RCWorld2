@@ -19,21 +19,21 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
             const park = parks.find((p) => p.id.toString() === selectedParkId);
             if (!park) return;
 
-            // 1. Fetch the coasters for this specific park
+            // Fetch coasters for park
             const coasterRes = await fetch(`/api/park/${park.id}/coasters`);
             const fetchedCoasters = await coasterRes.json();
             let coasters = Array.isArray(fetchedCoasters) ? fetchedCoasters : [];
             coasters = Array.from(new Map(coasters.map((c) => [c.id, c])).values());
 
-            // 2. Build the checklist items in the correct order
+            // Build hecklist items in order
             const newItems: ChecklistItem[] = [];
 
-            // A. Always first: Park Entrance
+            // Always first: Park Entrance
             newItems.push({
                 id: "pic-entrance", label: "Take Picture of park entrance", checked: false, isPhotoTask: true
             });
 
-            // B. Next: All Coasters
+            // Next: All Coasters
             coasters.forEach((coaster: any) => {
                 newItems.push({
                     id: `pic-coaster-${coaster.id}`,
@@ -45,7 +45,7 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
                 });
             });
 
-            // C. Next: Other photo tasks
+            // Next: Other photo tasks
             newItems.push(
                 { id: "pic-log-flume", label: "Take picture of log flume", checked: false, isPhotoTask: true },
                 { id: "pic-rapids", label: "Take picture of rapids ride", checked: false, isPhotoTask: true },
@@ -58,12 +58,12 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
                 { id: "pic-inside-3", label: "Take inside park picture 3", checked: false, isPhotoTask: true }
             );
 
-            // D. Always last: Buy a mug
+            // Always last: Buy a mug
             newItems.push({
                 id: "buy-mug", label: "Buy a mug!", checked: false, isPhotoTask: false
             });
 
-            // 4. Construct checklist payload with unique timestamp
+            // Construct checklist payload with unique timestamp
             const timestamp = Date.now();
             const currentYear = new Date().getFullYear();
             const payload = {
@@ -74,7 +74,7 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
                 parkId: park.id,
             };
 
-            // 5. Send to database
+            // Send to database
             const res = await fetch("/api/checklists", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
