@@ -6,6 +6,7 @@ export type CategoryDifficulty = "yellow" | "green" | "blue" | "purple"
 export type CategoryKind =
   | "manufacturer"
   | "country"
+  | "region"
   | "park"
   | "inversions"
   | "track_type"
@@ -166,6 +167,21 @@ function buildDynamicCategories(coasters: ConnectionsCoaster[]): CategoryDefinit
     )
   }
 
+  // geographic regions
+  push(
+    createCategoryDefinition(
+      "region-scandinavia",
+      "Scandinavian coasters",
+      "safe",
+      "green",
+      "region",
+      (items) =>
+        items.filter((coaster) =>
+          ["Denmark", "Sweden", "Norway", "Finland"].includes(coaster.country ?? "")
+        )
+    )
+  )
+
   // parks
   for (const parkName of uniqueValues(coasters.map((coaster) => coaster.parkName))) {
     const value = String(parkName)
@@ -200,6 +216,21 @@ function buildDynamicCategories(coasters: ConnectionsCoaster[]): CategoryDefinit
     )
   }
 
+
+  // inversion bucket
+  push(
+    createCategoryDefinition(
+      "inversions-5-plus",
+      "Coasters with 5+ inversions",
+      "safe",
+      "blue",
+      "inversions",
+      (items) =>
+        items.filter(
+          (coaster) => coaster.inversions !== null && coaster.inversions >= 5
+        )
+    )
+  )
 
   // speed / height / duration
   push(
@@ -944,6 +975,36 @@ function buildDynamicCategories(coasters: ConnectionsCoaster[]): CategoryDefinit
         difficulty: "purple",
       },
     ]
+
+  const classificationExtras: Array<{
+    id: string
+    label: string
+    keyword: string
+    difficulty: CategoryDifficulty
+  }> = [
+      {
+        id: "onboard-sound",
+        label: "Coasters with onboard audio",
+        keyword: "onboard sound",
+        difficulty: "purple",
+      },
+    ]
+
+  for (const extra of classificationExtras) {
+    push(
+      createCategoryDefinition(
+        extra.id,
+        extra.label,
+        "risky",
+        extra.difficulty,
+        "ride_type",
+        (items) =>
+          items.filter((coaster) =>
+            lower(coaster.classification).includes(extra.keyword)
+          )
+      )
+    )
+  }
 
   for (const rule of nameRules) {
     push(
