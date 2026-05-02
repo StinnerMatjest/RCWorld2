@@ -66,9 +66,6 @@ function groupKey(coasters: ConnectionsCoaster[]): string {
     .join("-")
 }
 
-function candidateSignature(group: CandidateGroup): string {
-  return `${group.categoryId}:${groupKey(group.coasters)}`
-}
 
 function normalizedValue(value: unknown): string | null {
   if (value === null || value === undefined) return null
@@ -147,39 +144,30 @@ export function buildCandidateGroups(
 }
 
 /**
- * True if the board contains any other valid candidate group
- * besides the four chosen ones.
+ * True if any category outside the four chosen ones has 4+ members on the board.
  *
- * This is the core safeguard against:
- * - hidden alternative solutions
- * - 5-item category bleed like the Kondaa / 8.0+ issue
- * - country/manufacturer/etc. groups that the player could fairly spot
- *
- * Because candidate generation is now far more complete, this check is much stronger.
+ * This is stronger than checking pre-generated candidates because the sliding-window
+ * sampler never generates every C(n,4) combination. A "Germany" category with 20
+ * coasters could contribute 4 board members via a combination the sampler missed,
+ * and a player would correctly spot it as an alternative solution.
  */
-function hasExtraBoardGroup(
+function hasExtraCategoryOnBoard(
   chosenGroups: CandidateGroup[],
-  allCandidates: CandidateGroup[]
+  allCategories: ResolvedConnectionsCategory[]
 ): boolean {
   const boardIds = new Set(
     chosenGroups.flatMap((g) => g.coasters.map((c) => c.id))
   )
+  const chosenCategoryIds = new Set(chosenGroups.map((g) => g.categoryId))
 
-  const chosenKeys = new Set(chosenGroups.map(candidateSignature))
-
-  for (const candidate of allCandidates) {
-    let matchCount = 0
-
-    for (const c of candidate.coasters) {
-      if (boardIds.has(c.id)) matchCount++
-      if (matchCount === 4) break
-    }
-
-    if (matchCount === 4) {
-      if (!chosenKeys.has(candidateSignature(candidate))) {
-        return true
-      }
-    }
+  for (const category of allCategories) {
+    if (chosenCategoryIds.has(category.id)) continue
+    if (category.kind === "status") continue
+    const onBoard = category.matches.filter((c) => boardIds.has(c.id)).length
+    // Reject only when 4+ board coasters belong to this category AND they represent
+    // ≥50% of the category's total pool. Below that threshold, the overlap is
+    // incidental and a player wouldn't reliably spot it as an alternative solution.
+    if (onBoard >= 4 && onBoard * 2 >= category.matches.length) return true
   }
 
   return false
@@ -230,7 +218,10 @@ function getBoardPenalty(groups: CandidateGroup[]): number {
 
 function getBoardScore(groups: CandidateGroup[]): number {
   const penalty = getBoardPenalty(groups)
-  return Math.max(0, 1000 - Math.round(penalty))
+  const base = Math.max(0, 1000 - Math.round(penalty))
+  const allUniqueDifficulties =
+    new Set(groups.map((g) => g.difficulty)).size === 4
+  return base + (allUniqueDifficulties ? 150 : 0)
 }
 
 function isStandardBoard(groups: CandidateGroup[]): boolean {
@@ -278,7 +269,7 @@ function buildAttemptPool(
 
 function findBestBoard(
   pool: CandidateGroup[],
-  allCandidates: CandidateGroup[]
+  allCategories: ResolvedConnectionsCategory[]
 ): CandidateGroup[] {
   let best: CandidateGroup[] = []
   let bestScore = -1
@@ -317,8 +308,8 @@ function findBestBoard(
             continue
           }
 
-          // Hard reject if the board contains any extra valid group
-          if (hasExtraBoardGroup(combo, allCandidates)) continue
+          // Hard reject if any non-chosen category has 4+ members on the board
+          if (hasExtraCategoryOnBoard(combo, allCategories)) continue
 
           const score = getBoardScore(combo)
 
@@ -326,7 +317,7 @@ function findBestBoard(
             bestScore = score
             best = combo
 
-            if (score >= 950) return best
+            if (score >= 1050) return best
           }
         }
       }
@@ -354,11 +345,10 @@ export function buildDailyPuzzleGroups(
 
   const boards: GeneratedBoard[] = []
 
-  // Increased from 30 to 150 to compensate for stricter validity rules
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 100; i++) {
     const attemptSeed = `${seed}-${i}`
-    const pool = buildAttemptPool(candidates, attemptSeed, 18)
-    const board = findBestBoard(pool, candidates)
+    const pool = buildAttemptPool(candidates, attemptSeed, 26)
+    const board = findBestBoard(pool, categories)
 
     if (board.length !== 4) continue
 

@@ -488,7 +488,7 @@ function CoasterRatingsContent() {
                       {/* Ride Count */}
                       {colIsVisible("rideCount") && (
                         <td className="px-2 whitespace-nowrap" style={{ minWidth: COL_MIN_W_MOBILE.rideCount }}>
-                          <div className="flex items-baseline gap-1" style={{ height: ROW_H }}>
+                          <div className="flex items-center gap-1" style={{ height: ROW_H }}>
                             <span>{c.rideCount}</span>
                             {c.visitCount > 1 && (
                               <span className="text-xs text-gray-400 font-normal">

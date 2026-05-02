@@ -138,9 +138,10 @@ const Home = () => {
             flex gap-3 overflow-x-auto pb-2
             snap-x snap-mandatory
             no-scrollbar
-            scroll-pl-4
+            overscroll-x-contain
+            px-[11vw]
           "
-          style={{ scrollBehavior: "smooth", scrollPadding: "0 7vw" }}
+          style={{ touchAction: "pan-x" }}
         >
           {filteredRatings.map((rating, index) => {
             const park = parks.find((p) => p.id === rating.parkId);
@@ -157,15 +158,13 @@ const Home = () => {
                   } as React.CSSProperties
                 }
                 className={`
-                  snap-start shrink-0
-                  transition-transform duration-150 ease-out
+                  snap-center [scroll-snap-stop:always] shrink-0
+                  transition-all duration-200 ease-in-out
                   ${active ? "scale-100 opacity-100" : "scale-95 opacity-80"}
-                  w-[74vw]
                   w-[78vw]
                   min-[400px]:w-[72vw]
                   min-[480px]:w-[68vw]
                   min-[560px]:w-[64vw]
-
                   max-w-sm
                   `}
               >
@@ -203,10 +202,11 @@ const Home = () => {
           {filteredRatings.map((_, i) => (
             <span
               key={i}
-              className={`h-2 w-2 rounded-full transition-colors ${i === currentIndex
-                ? "bg-blue-600 dark:bg-blue-400"
-                : "bg-gray-300 dark:bg-gray-600"
-                }`}
+              className={`h-2 rounded-full transition-all duration-300 ease-in-out ${
+                i === currentIndex
+                  ? "w-5 bg-blue-600 dark:bg-blue-400"
+                  : "w-2 bg-gray-300 dark:bg-gray-600"
+              }`}
             />
           ))}
         </div>
