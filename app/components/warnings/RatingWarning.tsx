@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { RatingWarningType } from "@/app/types";
 import WarningCreatorModal from "./WarningCreatorModal";
 
@@ -13,65 +13,70 @@ interface RatingWarningProps {
   coasters: import("@/app/types").RollerCoaster[];
 }
 
-const RatingWarning: React.FC<RatingWarningProps> = ({ 
-  warning, 
-  isAdminMode, 
-  ratingId, 
+const RatingWarning: React.FC<RatingWarningProps> = ({
+  warning,
+  isAdminMode,
+  ratingId,
   onUpdate,
-  coasters
+  coasters,
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [flipped, setFlipped] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (showTooltip && tooltipRef.current) {
+      const rect = tooltipRef.current.getBoundingClientRect();
+      setFlipped(rect.right > window.innerWidth - 8);
+    }
+  }, [showTooltip]);
 
   const warningsArray = Array.isArray(warning) ? warning : [warning];
 
   const handleClick = (e: React.MouseEvent) => {
     if (isAdminMode && ratingId) {
-      e.stopPropagation();
       setShowTooltip(false);
       setShowModal(true);
     }
   };
 
-  // Determine the highest severity present in the array
-  let highestSeverityLevel = 0; // 0 = Minor, 1 = Moderate, 2 = Major
-  
+  let highestSeverityLevel = 0;
   warningsArray.forEach((w) => {
-    const sev = w.severity || "Moderate"; // Fallback
+    const sev = w.severity || "Moderate";
     if (sev === "Major") highestSeverityLevel = Math.max(highestSeverityLevel, 2);
     else if (sev === "Moderate") highestSeverityLevel = Math.max(highestSeverityLevel, 1);
   });
+
   let colorClass = "";
-  
   if (warningsArray.length === 1) {
     if (highestSeverityLevel === 2) colorClass = "text-red-600";
     else if (highestSeverityLevel === 1) colorClass = "text-yellow-500";
-    else colorClass = "text-gray-400"; // Minor
-  } else if (warningsArray.length >= 2) {
-    // Escalation!
-    if (highestSeverityLevel === 2) colorClass = "text-slate-900 dark:text-white drop-shadow-sm"; // Escalate to Black (or white in dark mode)
-    else if (highestSeverityLevel === 1) colorClass = "text-red-600"; // Escalate to Red
-    else colorClass = "text-yellow-500"; // Escalate to Yellow
+    else colorClass = "text-gray-400";
+  } else {
+    if (highestSeverityLevel === 2) colorClass = "text-slate-900 dark:text-white drop-shadow-sm";
+    else if (highestSeverityLevel === 1) colorClass = "text-red-600";
+    else colorClass = "text-yellow-500";
   }
 
   return (
     <>
       <div
-        className="relative inline-flex items-center ml-2 cursor-pointer gap-1"
+        className="relative inline-flex items-center cursor-pointer gap-1"
         onMouseEnter={() => !showModal && setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
-        onClick={handleClick}
+        onClick={(e) => { e.stopPropagation(); handleClick(e); }}
       >
         <AlertTriangle
-          className={`w-4 h-4 transition-transform ${
-            isAdminMode ? "hover:scale-110" : ""
-          } ${colorClass}`}
+          className={`w-4 h-4 transition-transform ${isAdminMode ? "hover:scale-110" : ""} ${colorClass}`}
           aria-label="Rating Warning"
         />
 
-        {/* Warning Tooltip */}
         {showTooltip && warningsArray.length > 0 && (
-          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-56 p-2 rounded-2xl bg-neutral-800 text-white text-sm shadow-lg z-50 whitespace-pre-line pointer-events-none">
+          <div
+            ref={tooltipRef}
+            className={`absolute top-full mt-2 w-56 p-2 rounded-2xl bg-neutral-800 text-white text-sm shadow-lg z-50 whitespace-pre-line pointer-events-none ${flipped ? "right-0" : "left-0"}`}
+          >
             {warningsArray.map((w, i) => (
               <div key={i} className="mb-2 last:mb-0">
                 <div className="flex justify-between items-center mb-0.5">
@@ -91,15 +96,12 @@ const RatingWarning: React.FC<RatingWarningProps> = ({
         )}
       </div>
 
-      {/* Admin Manager Modal */}
       {showModal && ratingId && (
         <WarningCreatorModal
           ratingId={ratingId}
           existingWarnings={warningsArray}
           onClose={() => setShowModal(false)}
-          onSaved={() => {
-            if (onUpdate) onUpdate();
-          }}
+          onSaved={() => { if (onUpdate) onUpdate(); }}
           coasters={coasters}
         />
       )}

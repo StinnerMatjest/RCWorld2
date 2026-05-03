@@ -52,9 +52,15 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-60" />
         </div>
 
-        <h1 className="absolute bottom-6 left-6 text-4xl md:text-5xl font-bold text-white z-10 drop-shadow-lg pointer-events-none">
+        <h1 className="absolute bottom-10 md:bottom-12 left-6 text-4xl md:text-5xl font-bold text-white z-10 drop-shadow-lg pointer-events-none">
           {park.name}
         </h1>
+        <p className="absolute bottom-4 left-6 z-10 pointer-events-none flex items-center gap-2 text-base font-medium text-white/90 drop-shadow-md">
+          {park.city && <span>{park.city}</span>}
+          {park.city && park.country && <span className="opacity-40">·</span>}
+          {park.country && <span>{park.country}</span>}
+          {park.continent && <><span className="opacity-40">·</span><span>{park.continent}</span></>}
+        </p>
 
         {/* LAYER 3: Admin UI */}
         {isAdminMode && (

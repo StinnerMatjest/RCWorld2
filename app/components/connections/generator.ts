@@ -164,10 +164,10 @@ function hasExtraCategoryOnBoard(
     if (chosenCategoryIds.has(category.id)) continue
     if (category.kind === "status") continue
     const onBoard = category.matches.filter((c) => boardIds.has(c.id)).length
-    // Reject only when 4+ board coasters belong to this category AND they represent
-    // ≥50% of the category's total pool. Below that threshold, the overlap is
-    // incidental and a player wouldn't reliably spot it as an alternative solution.
-    if (onBoard >= 4 && onBoard * 2 >= category.matches.length) return true
+    // Reject when 4+ board coasters belong to this category AND they represent
+    // ≥33% of the category's total pool. 50% was too lenient — e.g. "rated 8+"
+    // has 10 coasters, so 4 on the board (40%) slipped through at 50%.
+    if (onBoard >= 4 && onBoard * 3 >= category.matches.length) return true
   }
 
   return false
