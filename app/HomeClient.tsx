@@ -29,6 +29,7 @@ const Home = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [parallaxByIndex, setParallaxByIndex] = useState<number[]>([]);
   const carouselRef = useRef<HTMLDivElement>(null);
+  const currentIndexRef = useRef(0);
 
   const filteredRatings = React.useMemo(() => {
     // Sort all ratings by date descending (newest first)
@@ -117,6 +118,54 @@ const Home = () => {
     handleScrollInternal(el);
   };
 
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
+  function scrollToIndex(idx: number) {
+    const el = carouselRef.current;
+    if (!el) return;
+    const children = Array.from(el.children) as HTMLElement[];
+    const child = children[Math.max(0, Math.min(idx, children.length - 1))];
+    if (!child) return;
+    el.scrollTo({
+      left: child.offsetLeft + child.offsetWidth / 2 - el.clientWidth / 2,
+      behavior: "smooth",
+    });
+  }
+
+  useEffect(() => {
+    const el = carouselRef.current;
+    if (!el) return;
+
+    let startX = 0;
+    let startTime = 0;
+
+    const onTouchStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX;
+      startTime = Date.now();
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      const deltaX = e.changedTouches[0].clientX - startX;
+      if (Math.abs(deltaX) < 50) return;
+
+      const velocity = Math.abs(deltaX) / Math.max(1, Date.now() - startTime);
+      const direction = deltaX < 0 ? 1 : -1;
+      const cards = velocity > 1.5 ? 3 : velocity > 0.8 ? 2 : 1;
+      const maxIdx = el.children.length - 1;
+      const target = Math.max(0, Math.min(maxIdx, currentIndexRef.current + direction * cards));
+      scrollToIndex(target);
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  }, []);
+
   if (isLoading) return <LoadingSpinner />;
   if (error) return <div>Error: {error}</div>;
 
@@ -158,7 +207,7 @@ const Home = () => {
                   } as React.CSSProperties
                 }
                 className={`
-                  snap-center [scroll-snap-stop:always] shrink-0
+                  snap-center shrink-0
                   transition-all duration-200 ease-in-out
                   ${active ? "scale-100 opacity-100" : "scale-95 opacity-80"}
                   w-[78vw]

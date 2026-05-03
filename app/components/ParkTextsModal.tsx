@@ -1,13 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import type { GalleryImage } from "./parkpage/ParkGallery";
 
 interface ParkTextsModalProps {
   explanations: Record<string, string>;
+  sectionImages: Record<string, string>;
+  galleryImages: GalleryImage[];
   parkId: number;
   ratingId: number;
   onClose: () => void;
-  onSave?: (updated: Record<string, string>) => void;
+  onSave?: (updatedText: Record<string, string>, updatedImages: Record<string, string>) => void;
 }
 
 const categories = [
@@ -25,13 +28,12 @@ const categories = [
 ];
 
 const humanizeLabel = (key: string) =>
-  key
-    .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (str) => str.toUpperCase())
-    .trim();
+  key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase()).trim();
 
 const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
   explanations,
+  sectionImages,
+  galleryImages,
   parkId,
   ratingId,
   onClose,
@@ -39,17 +41,19 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
 }) => {
   const [selectedCategory, setSelectedCategory] = useState(categories[0]);
   const [text, setText] = useState("");
-  const [localExplanations, setLocalExplanations] =
-    useState<Record<string, string>>(explanations);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [localExplanations, setLocalExplanations] = useState<Record<string, string>>(explanations);
+  const [localImages, setLocalImages] = useState<Record<string, string>>(sectionImages);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
     setText(localExplanations[selectedCategory] || "");
-  }, [selectedCategory, localExplanations]);
+    setSelectedImage(localImages[selectedCategory] || null);
+  }, [selectedCategory, localExplanations, localImages]);
 
   const handleClose = () => {
-    onSave?.(localExplanations);
+    onSave?.(localExplanations, localImages);
     onClose();
   };
 
@@ -63,7 +67,12 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
       const res = await fetch(`/api/park/${parkId}/parkTexts`, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: selectedCategory, text, ratingId }),
+        body: JSON.stringify({
+          category: selectedCategory,
+          text,
+          ratingId,
+          imageUrl: selectedImage ?? null,
+        }),
       });
 
       if (!res.ok) {
@@ -71,15 +80,19 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
         return;
       }
 
-      const updatedText = await res.json();
+      const saved = await res.json();
 
-      const updatedExplanations = {
-        ...localExplanations,
-        [selectedCategory]: updatedText.text,
-      };
+      const updatedTexts = { ...localExplanations, [selectedCategory]: saved.text };
+      const updatedImages = { ...localImages };
+      if (saved.imageUrl) {
+        updatedImages[selectedCategory] = saved.imageUrl;
+      } else {
+        delete updatedImages[selectedCategory];
+      }
 
-      setLocalExplanations(updatedExplanations);
-      onSave?.(updatedExplanations);
+      setLocalExplanations(updatedTexts);
+      setLocalImages(updatedImages);
+      onSave?.(updatedTexts, updatedImages);
 
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
@@ -90,78 +103,119 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
     }
   };
 
-  const handleSaveClick = () => {
-    handleSave();
-  };
+  const imageOptions = galleryImages;
+  const isVideo = (path: string) => /\.(mp4|webm|ogg)$/i.test(path);
 
   return (
-    <div className="fixed inset-0 z-[1000] bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center">
-      <div className="relative bg-white dark:bg-gray-800 dark:text-gray-100 border border-transparent dark:border-white/10 p-6 rounded-lg shadow-lg w-full max-w-xl">
+    <div className="fixed inset-0 z-[1000] bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="relative bg-white dark:bg-gray-800 dark:text-gray-100 border border-transparent dark:border-white/10 p-6 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white transition duration-300 cursor-pointer"
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white transition cursor-pointer"
         >
           ✕
         </button>
 
-        <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">
-          Edit Explanation
-        </h2>
+        <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Edit Section</h2>
 
-        <label className="block mb-2 font-medium text-gray-700 dark:text-gray-300">
-          Category
-        </label>
+        {/* Category selector */}
+        <label className="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
         <select
-          className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900
-                     focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                     dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:focus-visible:ring-offset-gray-800 mb-4"
+          className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 mb-4"
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
         >
           {categories.map((cat) => (
-            <option key={cat} value={cat}>
-              {humanizeLabel(cat)}
-            </option>
+            <option key={cat} value={cat}>{humanizeLabel(cat)}</option>
           ))}
         </select>
 
-        <label className="block mb-2 font-medium text-gray-700 dark:text-gray-300">
-          Text
-        </label>
+        {/* Text */}
+        <label className="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Text</label>
         <textarea
-          className="w-full p-3 h-40 resize-none rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
-                     focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                     dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
+          className="w-full p-3 h-36 resize-none rounded-md border border-gray-300 bg-white text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 mb-5"
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
 
-        <div className="mt-6 flex items-center justify-end gap-3">
-          {saveSuccess && (
-            <div className="text-green-600 dark:text-green-400 text-sm font-medium mr-auto">
-              Saved!
-            </div>
-          )}
+        {/* Image picker */}
+        <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+          Section Image <span className="text-gray-400 font-normal">(optional)</span>
+        </label>
 
+        {imageOptions.length === 0 ? (
+          <p className="text-sm text-gray-400 mb-4">No gallery images available yet.</p>
+        ) : (
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-2">
+            {/* Clear option */}
+            <button
+              onClick={() => setSelectedImage(null)}
+              className={`aspect-square rounded-lg border-2 flex items-center justify-center text-xs font-medium transition-all ${
+                selectedImage === null
+                  ? "border-blue-500 bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400"
+                  : "border-gray-200 dark:border-gray-700 text-gray-400 hover:border-gray-300"
+              }`}
+            >
+              None
+            </button>
+
+            {imageOptions.map((img) => {
+              const isSelected = selectedImage === img.path;
+              return (
+                <button
+                  key={img.id}
+                  onClick={() => setSelectedImage(img.path)}
+                  className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all ${
+                    isSelected
+                      ? "border-blue-500 ring-2 ring-blue-500/30"
+                      : "border-gray-200 dark:border-gray-700 hover:border-gray-400"
+                  }`}
+                >
+                  {isVideo(img.path) ? (
+                    <>
+                      <video src={img.path} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+                        <svg className="w-6 h-6 text-white drop-shadow" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </div>
+                    </>
+                  ) : (
+                    <img src={img.path} alt={img.description || ""} className="w-full h-full object-cover" />
+                  )}
+                  {isSelected && (
+                    <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+                      <svg className="w-6 h-6 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {selectedImage && (
+          <p className="text-xs text-gray-400 mb-4 truncate">Selected: {selectedImage!.split("/").pop()}</p>
+        )}
+
+        <div className="mt-4 flex items-center justify-end gap-3">
+          {saveSuccess && (
+            <span className="text-green-600 dark:text-green-400 text-sm font-medium mr-auto">Saved!</span>
+          )}
           <button
             onClick={handleClose}
-            className="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300 text-gray-800 cursor-pointer
-                       focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                       dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 dark:focus-visible:ring-offset-gray-800"
+            className="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300 text-gray-800 cursor-pointer dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
           >
             Close
           </button>
-
           <button
-            onClick={handleSaveClick}
+            onClick={handleSave}
             disabled={isSaving}
-            className={`px-4 py-2 rounded-md text-white cursor-pointer transition
-                        focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                        dark:focus-visible:ring-offset-gray-800
-                        ${isSaving
-                ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
-              }`}
+            className={`px-4 py-2 rounded-md text-white cursor-pointer transition ${
+              isSaving ? "bg-blue-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
+            }`}
           >
             {isSaving ? "Saving..." : "Save"}
           </button>

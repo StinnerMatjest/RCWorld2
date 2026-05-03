@@ -1,13 +1,18 @@
 export const ratingCategories = [
   "description",
-  "parkAppearance",
+  // Coasters
   "bestCoaster",
   "coasterDepth",
+  // Rides
   "waterRides",
   "flatridesAndDarkrides",
+  // Park
+  "parkAppearance",
+  "parkPracticality",
+  // Food
   "food",
   "snacksAndDrinks",
-  "parkPracticality",
+  // Management
   "rideOperations",
   "parkManagement",
   "overall",

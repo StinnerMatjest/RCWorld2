@@ -7,9 +7,9 @@ import CoasterCreatorModal from "@/app/components/CoasterCreatorModal";
 import RatingExplanations from "@/app/components/RatingExplanations";
 import Coasterlist from "@/app/components/parkpage/Coasterlist";
 import ParkHeader from "@/app/components/ParkHeader";
-import ParkInfo from "@/app/components/ParkInfo";
 import ParkGallery, { type GalleryImage } from "@/app/components/parkpage/ParkGallery";
 import ArchivePanel from "@/app/components/parkpage/VisitArchivePanel";
+import ScoreSummaryCard from "@/app/components/parkpage/ScoreSummaryCard";
 import type { Park, Rating, RatingWarningType, RollerCoaster } from "@/app/types";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
@@ -33,6 +33,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingCoaster, setEditingCoaster] = useState<RollerCoaster>();
   const [explanations, setExplanations] = useState<Record<string, string>>({});
+  const [sectionImages, setSectionImages] = useState<Record<string, string>>({});
   const { isAdminMode } = useAdminMode();
 
   useEffect(() => {
@@ -134,12 +135,15 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
         const explanationsData = await res.json();
 
         const explanationMap: Record<string, string> = {};
+        const imageMap: Record<string, string> = {};
         for (const item of explanationsData) {
           if (!item.ratingId || item.ratingId === activeRatingId) {
             explanationMap[item.category] = item.text;
+            if (item.imageUrl) imageMap[item.category] = item.imageUrl;
           }
         }
         setExplanations(explanationMap);
+        setSectionImages(imageMap);
       } catch (error) {
         console.error("Failed to fetch explanations:", error);
       } finally {
@@ -211,35 +215,23 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
         isAdminMode={isAdminMode}
         onUpdate={fetchParkData}
       />
-      <div className="grid grid-cols-1 md:grid-cols-[20%_1fr_1fr] gap-6 w-full py-10 px-6 md:px-20 bg-base-200 dark:bg-gray-900">
-        <div
-          className="
-            bg-blue-50 dark:bg-gray-800
-            rounded-2xl p-6 text-center space-y-6 self-start
-            border border-gray-300 dark:border-white/10
-            shadow-sm dark:shadow-xl
-            ring ring-gray-200 dark:ring-white/10
-          "
-        >
-          <div>
-            <h2 className="text-xl font-semibold mb-1 dark:text-white">Park Info</h2>
-            <div className="border-t border-gray-300 dark:border-white/10 my-3" />
-            <ParkInfo park={park} />
-
-            <div className="border-t border-gray-300 dark:border-white/10 my-3" />
-            <ArchivePanel
-              ratings={ratings}
-              parkSlug={park.slug}
-              currentRatingId={selectedRatingId}
-              coasters={coasters}
-            />
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_5.5fr_3.5fr] gap-6 w-full py-10 px-6 md:px-20 bg-base-200 dark:bg-gray-900">
+        <div className="self-start md:sticky md:top-6 space-y-4 min-w-0">
+          <ArchivePanel
+            ratings={ratings}
+            parkSlug={park.slug}
+            currentRatingId={selectedRatingId}
+            coasters={coasters}
+          />
+          {(selectedRating ?? ratings[0]) && (
+            <ScoreSummaryCard rating={selectedRating ?? ratings[0]} />
+          )}
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-8">
           <div>
-            <h2 className="text-3xl font-semibold dark:text-white">Introduction</h2>
-            <div className="border-t border-gray-300 dark:border-white/10 my-3" />
+            <h2 className="text-4xl font-bold dark:text-white tracking-tight">Introduction</h2>
+            <div className="w-12 h-1 bg-blue-500 rounded-full mt-3 mb-4" />
             <p className="text-gray-700 dark:text-gray-400 text-base leading-relaxed">
               {explanations.description ?? "No description available."}
             </p>
@@ -248,8 +240,11 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
           <RatingExplanations
             rating={selectedRating ?? ratings[0]}
             explanations={explanations}
+            sectionImages={sectionImages}
+            galleryImages={galleryImages}
             parkId={park.id}
             onWarningsUpdate={refreshRatings}
+            onSectionImagesUpdate={setSectionImages}
             coasters={coasters}
           />
         </div>
@@ -286,6 +281,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
             refreshImages={refreshGallery}
           />
         </div>
+
         <div className="md:col-span-3 flex justify-center pt-6">
           <MainPageButton />
         </div>
