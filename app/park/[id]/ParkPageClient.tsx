@@ -215,18 +215,14 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
         isAdminMode={isAdminMode}
         onUpdate={fetchParkData}
       />
-      <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_5.5fr_3.5fr] xl:grid-cols-[1.8fr_6fr_3.5fr] gap-8 w-full py-10 px-6 md:px-12 xl:px-20 bg-base-200 dark:bg-gray-900">
-        <div className="self-start md:sticky md:top-6 min-w-0 md:bg-white dark:md:bg-gray-800 md:border md:border-gray-200 dark:md:border-gray-700 md:rounded-2xl md:shadow-sm md:p-5 flex flex-col gap-4 md:gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-[1.4fr_5.5fr_3.5fr] [@media(min-width:2560px)]:grid-cols-[1.8fr_6fr_3.5fr] gap-6 w-full py-10 px-6 md:px-20 bg-base-200 dark:bg-gray-900">
+        <div className="self-start md:sticky md:top-6 min-w-0 space-y-4">
           <VisitPanel
             ratings={ratings}
             parkSlug={park.slug}
             currentRatingId={selectedRatingId}
             coasters={coasters}
           />
-
-          {/* Divider line between Visit and Scores (Hidden on Mobile) */}
-          <div className="hidden md:block border-t border-gray-100 dark:border-gray-700/60" />
-
           {(selectedRating ?? ratings[0]) && (
             <VisitPanelDropdown rating={selectedRating ?? ratings[0]} />
           )}

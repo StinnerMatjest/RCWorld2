@@ -154,7 +154,7 @@ const RatingExplanations: React.FC<RatingTextProps> = ({
                           <img
                             src={mediaUrl}
                             alt={humanizeLabel(key)}
-                            className="w-full h-64 xl:h-72 object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105"
+                            className="w-full h-64 xl:h-72 object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105 transform-gpu will-change-transform"
                           />
                           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-2xl">
                             <svg className="w-8 h-8 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -164,10 +164,10 @@ const RatingExplanations: React.FC<RatingTextProps> = ({
                         </>
                       )}
                     </div>
-                    <p className="text-gray-700 dark:text-gray-400 leading-relaxed md:text-lg flex-1">{text}</p>
+                    <p className="text-gray-700 dark:text-gray-400 leading-relaxed md:text-[17px] flex-1">{text}</p>
                   </div>
                 ) : (
-                  <p className="text-gray-700 dark:text-gray-400 leading-relaxed">{text}</p>
+                  <p className="text-gray-700 dark:text-gray-400 leading-relaxed md:text-[17px]">{text}</p>
                 )}
               </div>
             );
