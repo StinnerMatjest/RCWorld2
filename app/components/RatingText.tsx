@@ -10,12 +10,13 @@ import WarningCreatorModal from "./warnings/WarningCreatorModal";
 import { useAdminMode } from "../context/AdminModeContext";
 import type { GalleryImage } from "./parkpage/ParkGallery";
 
-interface RatingExplanationsProps {
+interface RatingTextProps {
   rating: Rating;
   explanations: Record<string, string>;
   sectionImages: Record<string, string>;
   galleryImages: GalleryImage[];
   parkId: number;
+  parkName: string;
   onWarningsUpdate: () => void;
   onSectionImagesUpdate: (images: Record<string, string>) => void;
   coasters: import("@/app/types").RollerCoaster[];
@@ -29,12 +30,13 @@ function isVideo(src: string) {
   return /\.(mp4|webm|ogg)$/i.test(src);
 }
 
-const RatingExplanations: React.FC<RatingExplanationsProps> = ({
+const RatingExplanations: React.FC<RatingTextProps> = ({
   rating,
   explanations,
   sectionImages,
   galleryImages,
   parkId,
+  parkName,
   onWarningsUpdate,
   onSectionImagesUpdate,
   coasters,
@@ -77,7 +79,7 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
   return (
     <div className="space-y-8">
       <div className="flex items-center gap-4">
-        <h2 className="text-3xl font-semibold dark:text-white">Rating Explanations</h2>
+        <h2 className="text-3xl font-semibold dark:text-white">{ } Review</h2>
 
         {isAdminMode && (
           <div className="flex items-center gap-2">
@@ -126,22 +128,22 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
                 </div>
 
                 {mediaUrl ? (
-                  <div className={`flex flex-col gap-4 items-start ${imageOnRight ? "sm:flex-row-reverse" : "sm:flex-row"}`}>
+                  <div className={`flex flex-col gap-6 items-start ${imageOnRight ? "md:flex-row-reverse" : "md:flex-row"}`}>
                     <div
-                      className="w-full sm:w-2/5 flex-shrink-0 rounded-xl overflow-hidden cursor-zoom-in group relative mt-1.5"
+                      className="w-full md:w-1/2 flex-shrink-0 rounded-2xl overflow-hidden cursor-zoom-in group relative mt-1.5 shadow-sm"
                       onClick={() => setLightbox(mediaUrl)}
                     >
                       {isVideo(mediaUrl) ? (
                         <>
                           <video
                             src={mediaUrl}
-                            className="w-full h-52 object-cover rounded-xl"
+                            className="w-full h-64 xl:h-72 object-cover rounded-2xl"
                             muted
                             loop
                             autoPlay
                             playsInline
                           />
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 rounded-xl">
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 rounded-2xl">
                             <svg className="w-12 h-12 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M8 5v14l11-7z" />
                             </svg>
@@ -152,9 +154,9 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
                           <img
                             src={mediaUrl}
                             alt={humanizeLabel(key)}
-                            className="w-full h-52 object-cover rounded-xl transition-transform duration-300 group-hover:scale-105"
+                            className="w-full h-64 xl:h-72 object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105"
                           />
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-xl">
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-2xl">
                             <svg className="w-8 h-8 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0zM11 8v6M8 11h6" />
                             </svg>
@@ -162,7 +164,7 @@ const RatingExplanations: React.FC<RatingExplanationsProps> = ({
                         </>
                       )}
                     </div>
-                    <p className="text-gray-700 dark:text-gray-400 leading-relaxed flex-1">{text}</p>
+                    <p className="text-gray-700 dark:text-gray-400 leading-relaxed md:text-lg flex-1">{text}</p>
                   </div>
                 ) : (
                   <p className="text-gray-700 dark:text-gray-400 leading-relaxed">{text}</p>

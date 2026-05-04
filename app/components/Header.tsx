@@ -8,35 +8,53 @@ import { getDaysUntil } from "@/app/utils/trips";
 
 const Header = () => {
   const [days, setDays] = useState<number | null>(null);
-  const [isLoadingTrip, setIsLoadingTrip] = useState(true);
+  const [underReviewParks, setUnderReviewParks] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
-    const fetchNextTrip = async () => {
+    const fetchHeaderData = async () => {
       try {
-        const res = await fetch("/api/trips");
-        if (!res.ok) throw new Error("Failed to fetch trips");
-        const data = await res.json();
+        // Fetch both trips and ratings simultaneously
+        const [tripsRes, ratingsRes] = await Promise.all([
+          fetch("/api/trips"),
+          fetch("/api/ratings")
+        ]);
 
-        const next = data.trips
-          .filter((t: any) => t.status === "booked" && getDaysUntil(t.startDate))
-          .sort(
-            (a: any, b: any) =>
-              new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-          )[0];
+        if (tripsRes.ok) {
+          const tripsData = await tripsRes.json();
+          const next = tripsData.trips
+            ?.filter((t: any) => t.status === "booked" && getDaysUntil(t.startDate))
+            .sort(
+              (a: any, b: any) =>
+                new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+            )[0];
 
-        if (next) {
-          setDays(getDaysUntil(next.startDate));
+          if (next) {
+            setDays(getDaysUntil(next.startDate));
+          }
+        }
+
+        if (ratingsRes.ok) {
+          const ratingsData = await ratingsRes.json();
+          // Filter for unpublished ratings, grab the park name, and remove duplicates
+          if (ratingsData.ratings) {
+            const unpublishedParks = ratingsData.ratings
+              .filter((r: any) => r.published === false)
+              .map((r: any) => r.park);
+
+            setUnderReviewParks(Array.from(new Set(unpublishedParks)));
+          }
         }
       } catch (error) {
-        console.error("Failed to fetch next trip for header:", error);
+        console.error("Failed to fetch header data:", error);
       } finally {
-        setIsLoadingTrip(false);
+        setIsLoading(false);
       }
     };
 
-    fetchNextTrip();
+    fetchHeaderData();
   }, []);
 
   useEffect(() => {
@@ -56,17 +74,16 @@ const Header = () => {
     <div
       className={`
         transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] relative z-50
-        ${
-          isVisible
-            ? "max-h-[300px] opacity-100"
-            : "max-h-0 opacity-0 md:max-h-[300px] md:opacity-100"
+        ${isVisible
+          ? "max-h-[300px] opacity-100"
+          : "max-h-0 opacity-0 md:max-h-[300px] md:opacity-100"
         }
         ${isAnimating || !isVisible ? "overflow-hidden" : "overflow-visible"}
       `}
     >
       <header className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-4 md:py-6 px-4 md:px-6 relative animate-fade-in">
         <div className="relative grid grid-cols-2 items-center gap-x-3 lg:flex lg:items-center lg:justify-between">
-          <div className="relative -ml-2 md:ml-0 h-14 sm:h-16 md:h-20 lg:h-20 w-36 sm:w-44 md:w-52 lg:w-56">
+          <div className="relative -ml-2 md:ml-0 h-14 sm:h-16 md:h-20 lg:h-20 w-36 sm:w-44 md:w-52 lg:w-56 z-10">
             <Link
               href="/"
               aria-label="Go to homepage"
@@ -93,6 +110,7 @@ const Header = () => {
             <Navbar />
           </div>
 
+          {/* Centered Countdown */}
           <div
             className={`
               hidden md:block
@@ -107,7 +125,7 @@ const Header = () => {
                 text-[#e9820e] dark:text-[#e9820e] font-semibold hover:underline whitespace-nowrap truncate px-2 leading-none
                 text-xs sm:text-sm lg:text-base xl:text-base
                 block text-center max-w-[90vw] lg:max-w-[50vw] xl:max-w-[60vw]
-                ${isLoadingTrip ? "opacity-0" : "opacity-100 transition-opacity duration-300"}
+                ${isLoading ? "opacity-0" : "opacity-100 transition-opacity duration-300"}
               `}
               title={days ? `${days} days until next trip` : "Next trip countdown"}
             >
@@ -115,6 +133,22 @@ const Header = () => {
             </Link>
           </div>
         </div>
+
+        {/* Parks Under Review */}
+        {underReviewParks.length > 0 && (
+          <div className="hidden md:flex absolute bottom-1 left-0 w-full justify-center pointer-events-none z-0">
+            <span
+              className={`
+                italic text-gray-400 dark:text-gray-500 font-medium whitespace-nowrap truncate px-4 leading-none
+                text-[10px] sm:text-xs lg:text-sm tracking-wide
+                ${isLoading ? "opacity-0" : "opacity-100 transition-opacity duration-300 delay-100"}
+              `}
+              title={`Parks currently under review: ${underReviewParks.join(", ")}`}
+            >
+              Parks currently under review: {underReviewParks.join(", ")}
+            </span>
+          </div>
+        )}
       </header>
     </div>
   );

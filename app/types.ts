@@ -23,6 +23,7 @@ export interface Rating {
   parkManagement: number;
   overall: number;
   parkId: number;
+  published: boolean;
   warnings?: RatingWarningType[];
 }
 

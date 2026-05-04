@@ -203,6 +203,13 @@ const CoasterList: React.FC<CoasterListProps> = ({
         </div>
       ) : (
         <>
+          <h3 className="text-lg lg:text-xl font-semibold mt-3 dark:text:white">
+            Main Coasters{" "}
+            <span className="font-medium text-gray-500 dark:text-gray-400">
+              ({sorted.length - optionalCoasters.length})
+            </span>
+          </h3>
+
           {mainCoasters.length ? (
             <ul className="divide-y divide-gray-300 dark:divide-white/10">
               {mainCoasters.map((c) => (

@@ -29,6 +29,7 @@ export async function GET() {
         ratings.rideOperations AS "rideoperations",
         ratings.parkManagement AS "parkmanagement",
         ratings.overall,
+        ratings.published,
         ratings.park_id,
         parks.id AS park_id,
         parks.name AS park_name,
@@ -73,6 +74,7 @@ export async function GET() {
       rideOperations: row.rideoperations,
       parkManagement: row.parkmanagement,
       overall: row.overall,
+      published: row.published,
       imagePath: row.park_image,
       parkId: row.park_id,
       warnings: row.warnings as RatingWarningType[],
@@ -106,6 +108,7 @@ export async function POST(request: Request) {
       visitStart,
       visitEnd,
       duration,
+      published,
     } = body;
 
     if (
@@ -144,8 +147,9 @@ export async function POST(request: Request) {
         park_id,
         visit_start,
         visit_end,
-        duration
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        duration,
+        published
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING id
     `;
 
@@ -165,6 +169,7 @@ export async function POST(request: Request) {
       visitStart || null,
       visitEnd || null,
       duration || 0,
+      published ?? false,
     ];
 
     const result = await pool.query(query, values);

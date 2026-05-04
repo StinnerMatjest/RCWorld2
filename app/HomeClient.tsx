@@ -32,8 +32,11 @@ const Home = () => {
   const currentIndexRef = useRef(0);
 
   const filteredRatings = React.useMemo(() => {
-    // Sort all ratings by date descending (newest first)
-    const sortedByDate = [...ratings].sort(
+    // Filter out unpublished ratings first
+    const publishedRatings = ratings.filter((r) => r.published);
+
+    // Sort all published ratings by date descending (newest first)
+    const sortedByDate = [...publishedRatings].sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
 
@@ -251,11 +254,10 @@ const Home = () => {
           {filteredRatings.map((_, i) => (
             <span
               key={i}
-              className={`h-2 rounded-full transition-all duration-300 ease-in-out ${
-                i === currentIndex
+              className={`h-2 rounded-full transition-all duration-300 ease-in-out ${i === currentIndex
                   ? "w-5 bg-blue-600 dark:bg-blue-400"
                   : "w-2 bg-gray-300 dark:bg-gray-600"
-              }`}
+                }`}
             />
           ))}
         </div>

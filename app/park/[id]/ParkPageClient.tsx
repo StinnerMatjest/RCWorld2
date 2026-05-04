@@ -4,12 +4,12 @@ import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import MainPageButton from "@/app/components/buttons/MainPageButton";
 import CoasterCreatorModal from "@/app/components/CoasterCreatorModal";
-import RatingExplanations from "@/app/components/RatingExplanations";
+import RatingText from "@/app/components/RatingText";
 import Coasterlist from "@/app/components/parkpage/Coasterlist";
 import ParkHeader from "@/app/components/ParkHeader";
 import ParkGallery, { type GalleryImage } from "@/app/components/parkpage/ParkGallery";
-import ArchivePanel from "@/app/components/parkpage/VisitArchivePanel";
-import ScoreSummaryCard from "@/app/components/parkpage/ScoreSummaryCard";
+import VisitPanel from "@/app/components/parkpage/VisitPanel";
+import VisitPanelDropdown from "@/app/components/parkpage/VisitPanelDropdown";
 import type { Park, Rating, RatingWarningType, RollerCoaster } from "@/app/types";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
@@ -215,16 +215,20 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
         isAdminMode={isAdminMode}
         onUpdate={fetchParkData}
       />
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_5.5fr_3.5fr] gap-6 w-full py-10 px-6 md:px-20 bg-base-200 dark:bg-gray-900">
-        <div className="self-start md:sticky md:top-6 space-y-4 min-w-0">
-          <ArchivePanel
+      <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_5.5fr_3.5fr] xl:grid-cols-[1.8fr_6fr_3.5fr] gap-8 w-full py-10 px-6 md:px-12 xl:px-20 bg-base-200 dark:bg-gray-900">
+        <div className="self-start md:sticky md:top-6 min-w-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm p-4 md:p-5 flex flex-col gap-5">
+          <VisitPanel
             ratings={ratings}
             parkSlug={park.slug}
             currentRatingId={selectedRatingId}
             coasters={coasters}
           />
+
+          {/* Divider line between Visit and Scores */}
+          <div className="border-t border-gray-100 dark:border-gray-700/60" />
+
           {(selectedRating ?? ratings[0]) && (
-            <ScoreSummaryCard rating={selectedRating ?? ratings[0]} />
+            <VisitPanelDropdown rating={selectedRating ?? ratings[0]} />
           )}
         </div>
 
@@ -237,12 +241,13 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
             </p>
           </div>
 
-          <RatingExplanations
+          <RatingText
             rating={selectedRating ?? ratings[0]}
             explanations={explanations}
             sectionImages={sectionImages}
             galleryImages={galleryImages}
             parkId={park.id}
+            parkName={park.name}
             onWarningsUpdate={refreshRatings}
             onSectionImagesUpdate={setSectionImages}
             coasters={coasters}
