@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-const INSTAGRAM_URL = "https://www.instagram.com/"; // TODO: replace with your real URL
-const FACEBOOK_URL = "https://www.facebook.com/"; // TODO: replace with your real URL
+const INSTAGRAM_URL = "https://www.instagram.com/parkratings/";
+const FACEBOOK_URL = "https://www.facebook.com/profile.php?id=61587368730086";
 
 export default function Footer() {
   return (

@@ -409,7 +409,7 @@ const dailyGroups = isAdminMode
     mistakes,
     maxMistakes: MAX_MISTAKES,
     guessHistory,
-    groups: solvedGroups.map((group) => ({
+    groups: groups.map((group) => ({
       id: group.id,
       label: group.label,
       colorClass: group.color,

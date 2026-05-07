@@ -173,6 +173,26 @@ function hasExtraCategoryOnBoard(
   return false
 }
 
+function hasChosenCategoryBleed(
+  chosenGroups: CandidateGroup[],
+  allCategories: ResolvedConnectionsCategory[]
+): boolean {
+  const allBoardIds = new Set(chosenGroups.flatMap((g) => g.coasters.map((c) => c.id)))
+
+  for (const group of chosenGroups) {
+    const category = allCategories.find((c) => c.id === group.categoryId)
+    if (!category) continue
+
+    const groupIds = new Set(group.coasters.map((c) => c.id))
+
+    for (const match of category.matches) {
+      if (allBoardIds.has(match.id) && !groupIds.has(match.id)) return true
+    }
+  }
+
+  return false
+}
+
 function getBoardPenalty(groups: CandidateGroup[]): number {
   const board = groups.flatMap((g) => g.coasters)
   const intendedKeys = getIntendedGroupKeys(groups)
@@ -310,6 +330,11 @@ function findBestBoard(
 
           // Hard reject if any non-chosen category has 4+ members on the board
           if (hasExtraCategoryOnBoard(combo, allCategories)) continue
+
+          // Hard reject if any chosen category has extra members on the board
+          // outside its own group — e.g. "0 inversions" chosen but Wodan (also
+          // 0 inversions) appears in a different group. Player can't solve it.
+          if (hasChosenCategoryBleed(combo, allCategories)) continue
 
           const score = getBoardScore(combo)
 

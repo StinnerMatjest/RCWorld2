@@ -25,6 +25,35 @@ type TaggedBoard = GeneratedBoard & {
   isStandard: boolean;
 };
 
+function DifficultyDot({ difficulty }: { difficulty: string }) {
+  const colors: Record<string, string> = {
+    yellow: "bg-amber-400",
+    green:  "bg-emerald-500",
+    blue:   "bg-sky-500",
+    purple: "bg-violet-600",
+  };
+  return (
+    <span
+      className={`inline-block w-3 h-3 rounded-full flex-shrink-0 ${colors[difficulty] ?? "bg-slate-400"}`}
+      title={difficulty}
+    />
+  );
+}
+
+function BoardDots({ groups }: { groups: CandidateGroup[] }) {
+  const difficulties = groups.map((g) => g.difficulty);
+  const counts = difficulties.reduce((acc, d) => { acc[d] = (acc[d] ?? 0) + 1; return acc; }, {} as Record<string, number>);
+  const hasDuplicate = Object.values(counts).some((c) => c > 1);
+  return (
+    <span className="flex items-center gap-1">
+      {difficulties.map((d, i) => <DifficultyDot key={i} difficulty={d} />)}
+      {hasDuplicate && (
+        <span className="ml-1 text-[10px] font-black text-amber-500 uppercase tracking-wider">dup</span>
+      )}
+    </span>
+  );
+}
+
 function getTodaySeed() {
   const now = new Date();
   const year = now.getFullYear();
@@ -269,7 +298,8 @@ export default function ConnectionsTestPage() {
                       className="border border-slate-300 dark:border-slate-700 p-3 rounded"
                     >
                       <p className="font-bold">{group.label}</p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+                        <DifficultyDot difficulty={group.difficulty} />
                         {group.difficulty} • {group.kind}
                       </p>
                       <ul className="list-disc pl-6 text-slate-700 dark:text-slate-300">
@@ -304,7 +334,8 @@ export default function ConnectionsTestPage() {
                       className="border border-slate-300 dark:border-slate-700 p-3 rounded"
                     >
                       <p className="font-bold">{group.label}</p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+                        <DifficultyDot difficulty={group.difficulty} />
                         {group.difficulty} • {group.kind}
                       </p>
                       <ul className="list-disc pl-6 text-slate-700 dark:text-slate-300">
@@ -346,6 +377,7 @@ export default function ConnectionsTestPage() {
                           Score: {board.score}
                         </span>
 
+                        <BoardDots groups={board.groups} />
 
                             {/* Blue = valid standard board */}
                             {board.isStandardValid && (
@@ -384,7 +416,8 @@ export default function ConnectionsTestPage() {
                           className="border border-slate-200 dark:border-slate-700 p-3 rounded"
                         >
                           <p className="font-bold">{group.label}</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+                            <DifficultyDot difficulty={group.difficulty} />
                             {group.difficulty} • {group.kind}
                           </p>
                           <ul className="list-disc pl-5 text-sm text-slate-700 dark:text-slate-300">
