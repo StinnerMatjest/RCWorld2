@@ -10,7 +10,9 @@ export type ConnectionsColor =
   | "green"
   | "blue"
   | "purple"
-  | "orange";
+  | "orange"
+  | "red"
+  | "brown";
 
 export type ConnectionsGuessHistoryEntry = {
   tiles: string[];
@@ -36,6 +38,7 @@ interface ResultModalProps {
   onClose: () => void;
   onShare: (text: string) => void;
   onReset: () => void;
+  onNextBoard?: () => void;
 }
 
 /* ------------------ EMOJIS ------------------ */
@@ -43,10 +46,12 @@ interface ResultModalProps {
 function getEmoji(color: ConnectionsColor) {
   switch (color) {
     case "yellow": return "🟨";
-    case "green": return "🟩";
-    case "blue": return "🟦";
+    case "green":  return "🟩";
+    case "blue":   return "🟦";
     case "purple": return "🟪";
     case "orange": return "🟧";
+    case "red":    return "🟥";
+    case "brown":  return "🟫";
   }
 }
 
@@ -60,16 +65,19 @@ function parseColor(colorClass: string): ConnectionsColor {
   return "purple";
 }
 
+const COLOR_SUBSTITUTES: ConnectionsColor[] = ["orange", "red", "brown"];
+
 function buildColorMap(groups: ConnectionsSolvedGroup[]) {
   const seen = new Map<ConnectionsColor, number>();
   const map = new Map<string, ConnectionsColor>();
+  let substituteIdx = 0;
 
   for (const group of groups) {
     const base = parseColor(group.colorClass);
     const count = seen.get(base) ?? 0;
 
     const finalColor: ConnectionsColor =
-      count === 0 ? base : "orange";
+      count === 0 ? base : (COLOR_SUBSTITUTES[substituteIdx++] ?? "brown");
 
     seen.set(base, count + 1);
 
@@ -150,15 +158,14 @@ function GuessPreview({
         const color = map.get(tile) ?? guess.colors[i];
 
         const bg =
-          color === "yellow"
-            ? "bg-yellow-400"
-            : color === "green"
-            ? "bg-emerald-500"
-            : color === "blue"
-            ? "bg-sky-500"
-            : color === "purple"
-            ? "bg-violet-500"
-            : "bg-orange-500";
+          color === "yellow" ? "bg-yellow-400" :
+          color === "green"  ? "bg-emerald-500" :
+          color === "blue"   ? "bg-sky-500" :
+          color === "purple" ? "bg-violet-500" :
+          color === "orange" ? "bg-orange-500" :
+          color === "red"    ? "bg-red-500" :
+          color === "brown"  ? "bg-amber-800" :
+          "bg-orange-500";
 
         return <div key={i} className={`h-5 w-5 rounded-sm ${bg}`} />;
       })}
@@ -176,6 +183,7 @@ export function ResultModal({
   groups,
   onClose,
   onShare,
+  onNextBoard,
 }: ResultModalProps) {
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const [coastleDailyAvailable, setCoastleDailyAvailable] = useState(true);
@@ -244,7 +252,14 @@ export function ResultModal({
               Share Result
             </button>
 
-            {coastleDailyAvailable ? (
+            {onNextBoard ? (
+              <button
+                onClick={() => { onNextBoard(); onClose(); }}
+                className="w-full rounded-2xl bg-violet-600 hover:bg-violet-500 py-3.5 text-center text-sm font-black text-white transition cursor-pointer"
+              >
+                Next Board →
+              </button>
+            ) : coastleDailyAvailable ? (
               <Link
                 href="/games/coastle/standard"
                 onClick={onClose}
