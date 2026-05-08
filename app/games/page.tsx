@@ -349,7 +349,7 @@ export default function GamesLauncherPage() {
             />
 
             {isAdminMode && (
-              <div className="absolute -bottom-14 left-0 right-0 flex justify-center gap-2">
+              <div className="sm:absolute sm:-bottom-14 left-0 right-0 flex justify-center gap-2 pb-2 sm:pb-0">
                 <Link
                   href="/ConnectionsData"
                   className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:bg-blue-100 hover:text-blue-600 dark:hover:bg-slate-700 dark:hover:text-white transition-all shadow-sm cursor-pointer"
