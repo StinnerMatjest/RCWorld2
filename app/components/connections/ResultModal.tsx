@@ -10,7 +10,9 @@ export type ConnectionsColor =
   | "green"
   | "blue"
   | "purple"
-  | "orange";
+  | "orange"
+  | "red"
+  | "brown";
 
 export type ConnectionsGuessHistoryEntry = {
   tiles: string[];
@@ -36,6 +38,7 @@ interface ResultModalProps {
   onClose: () => void;
   onShare: (text: string) => void;
   onReset: () => void;
+  onNextBoard?: () => void;
 }
 
 /* ------------------ EMOJIS ------------------ */
@@ -43,10 +46,12 @@ interface ResultModalProps {
 function getEmoji(color: ConnectionsColor) {
   switch (color) {
     case "yellow": return "🟨";
-    case "green": return "🟩";
-    case "blue": return "🟦";
+    case "green":  return "🟩";
+    case "blue":   return "🟦";
     case "purple": return "🟪";
     case "orange": return "🟧";
+    case "red":    return "🟥";
+    case "brown":  return "🟫";
   }
 }
 
@@ -60,16 +65,19 @@ function parseColor(colorClass: string): ConnectionsColor {
   return "purple";
 }
 
+const COLOR_SUBSTITUTES: ConnectionsColor[] = ["orange", "red", "brown"];
+
 function buildColorMap(groups: ConnectionsSolvedGroup[]) {
   const seen = new Map<ConnectionsColor, number>();
   const map = new Map<string, ConnectionsColor>();
+  let substituteIdx = 0;
 
   for (const group of groups) {
     const base = parseColor(group.colorClass);
     const count = seen.get(base) ?? 0;
 
     const finalColor: ConnectionsColor =
-      count === 0 ? base : "orange";
+      count === 0 ? base : (COLOR_SUBSTITUTES[substituteIdx++] ?? "brown");
 
     seen.set(base, count + 1);
 
@@ -150,15 +158,14 @@ function GuessPreview({
         const color = map.get(tile) ?? guess.colors[i];
 
         const bg =
-          color === "yellow"
-            ? "bg-yellow-400"
-            : color === "green"
-            ? "bg-emerald-500"
-            : color === "blue"
-            ? "bg-sky-500"
-            : color === "purple"
-            ? "bg-violet-500"
-            : "bg-orange-500";
+          color === "yellow" ? "bg-yellow-400" :
+          color === "green"  ? "bg-emerald-500" :
+          color === "blue"   ? "bg-sky-500" :
+          color === "purple" ? "bg-violet-500" :
+          color === "orange" ? "bg-orange-500" :
+          color === "red"    ? "bg-red-500" :
+          color === "brown"  ? "bg-amber-800" :
+          "bg-orange-500";
 
         return <div key={i} className={`h-5 w-5 rounded-sm ${bg}`} />;
       })}
@@ -176,9 +183,22 @@ export function ResultModal({
   groups,
   onClose,
   onShare,
+  onNextBoard,
 }: ResultModalProps) {
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const [coastleDailyAvailable, setCoastleDailyAvailable] = useState(true);
+  const [countdown, setCountdown] = useState("");
+
+  function getTimeUntilMidnight() {
+    const now = new Date();
+    const midnight = new Date();
+    midnight.setHours(24, 0, 0, 0);
+    const diff = midnight.getTime() - now.getTime();
+    const h = Math.floor(diff / 3_600_000);
+    const m = Math.floor((diff % 3_600_000) / 60_000);
+    const s = Math.floor((diff % 60_000) / 1_000);
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
 
   useEffect(() => {
     if (!isOpen) return;
@@ -187,10 +207,29 @@ export function ResultModal({
     document.body.style.overflow = "hidden";
     setTimeout(() => closeBtnRef.current?.focus(), 0);
 
+    // Check if coastle standard is already done today
+    try {
+      const raw = localStorage.getItem("coastle-standard-daily-state");
+      if (raw) {
+        const state = JSON.parse(raw);
+        const today = getTodayString();
+        if (state.date === today && state.status !== "playing") {
+          setCoastleDailyAvailable(false);
+          setCountdown(getTimeUntilMidnight());
+        }
+      }
+    } catch {}
+
     return () => {
       document.body.style.overflow = prevOverflow;
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || coastleDailyAvailable) return;
+    const interval = setInterval(() => setCountdown(getTimeUntilMidnight()), 1_000);
+    return () => clearInterval(interval);
+  }, [isOpen, coastleDailyAvailable]);
 
   if (!isOpen) return null;
 
@@ -244,17 +283,25 @@ export function ResultModal({
               Share Result
             </button>
 
-            {coastleDailyAvailable ? (
+            {onNextBoard ? (
+              <button
+                onClick={() => { onNextBoard(); onClose(); }}
+                className="w-full rounded-2xl bg-violet-600 hover:bg-violet-500 py-3.5 text-center text-sm font-black text-white transition cursor-pointer"
+              >
+                Next Board →
+              </button>
+            ) : coastleDailyAvailable ? (
               <Link
                 href="/games/coastle/standard"
                 onClick={onClose}
                 className="w-full rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 py-3.5 text-center text-sm font-black text-white transition hover:brightness-110"
               >
-                Go to daily standard
+                Go to daily coastle
               </Link>
             ) : (
-              <div className="w-full rounded-2xl bg-slate-200 py-3.5 text-center text-sm font-black text-slate-500 dark:bg-neutral-800 dark:text-slate-400 cursor-not-allowed select-none">
-                Daily Standard already completed
+              <div className="w-full rounded-2xl bg-slate-100 dark:bg-neutral-800 py-3 text-center select-none">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Next puzzle in</div>
+                <div className="mt-0.5 text-2xl font-black tabular-nums text-slate-700 dark:text-slate-200">{countdown}</div>
               </div>
             )}
           </div>

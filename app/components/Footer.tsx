@@ -1,5 +1,5 @@
-const INSTAGRAM_URL = "https://www.instagram.com/";
-const FACEBOOK_URL = "https://www.facebook.com/";
+const INSTAGRAM_URL = "https://www.instagram.com/parkratings/";
+const FACEBOOK_URL = "https://www.facebook.com/profile.php?id=61587368730086";
 
 export default function Footer() {
   return (
