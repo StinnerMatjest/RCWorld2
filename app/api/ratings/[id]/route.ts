@@ -1,5 +1,5 @@
 import { Pool } from "pg";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -9,11 +9,11 @@ const pool = new Pool({
 });
 
 export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const ratingId = params.id;
+    const { id: ratingId } = await context.params;
     const body = await request.json();
 
     if (typeof body.published !== "boolean") {
