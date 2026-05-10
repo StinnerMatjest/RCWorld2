@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import MainPageButton from "@/app/components/buttons/MainPageButton";
 import CoasterCreatorModal from "@/app/components/CoasterCreatorModal";
-import RatingText from "@/app/components/RatingText";
+import RatingText from "@/app/components/parkpage/RatingText";
 import Coasterlist from "@/app/components/parkpage/Coasterlist";
 import ParkHeader from "@/app/components/ParkHeader";
 import ParkGallery, { type GalleryImage } from "@/app/components/parkpage/ParkGallery";
@@ -118,11 +118,14 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
     })();
   }, [parkSlug]);
 
-  const selectedRating = ratings.find((r) => r.id.toString() === visitId);
-  const activeRatingId = selectedRating?.id ?? ratings[0]?.id;
+  // Filter ratings at the page level so draft reviews never act as the default for non-admins
+  const visibleRatings = ratings.filter((r) => isAdminMode || r.published);
+
+  const selectedRating = visibleRatings.find((r) => r.id.toString() === visitId);
+  const activeRatingId = selectedRating?.id ?? visibleRatings[0]?.id;
 
   useEffect(() => {
-    if (park && !loadingCoasters && ratings.length === 0) {
+    if (park && !loadingCoasters && visibleRatings.length === 0) {
       setLoadingExplanations(false);
       return;
     }
@@ -152,7 +155,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
     };
 
     fetchExplanations();
-  }, [park, loadingCoasters, ratings.length, activeRatingId]);
+  }, [park, loadingCoasters, visibleRatings.length, activeRatingId]);
 
   const refreshGallery = async () => {
     if (!park?.id) return;
@@ -218,13 +221,13 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
       <div className="grid grid-cols-1 md:grid-cols-[1.4fr_5.5fr_3.5fr] [@media(min-width:2560px)]:grid-cols-[1.8fr_6fr_3.5fr] gap-6 w-full py-10 px-6 md:px-20 bg-base-200 dark:bg-gray-900">
         <div className="self-start md:sticky md:top-6 min-w-0 space-y-4">
           <VisitPanel
-            ratings={ratings}
+            ratings={visibleRatings}
             parkSlug={park.slug}
             currentRatingId={selectedRatingId}
             coasters={coasters}
           />
-          {(selectedRating ?? ratings[0]) && (
-            <VisitPanelDropdown rating={selectedRating ?? ratings[0]} />
+          {(selectedRating ?? visibleRatings[0]) && (
+            <VisitPanelDropdown rating={selectedRating ?? visibleRatings[0]} />
           )}
         </div>
 
@@ -238,7 +241,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
           </div>
 
           <RatingText
-            rating={selectedRating ?? ratings[0]}
+            rating={selectedRating ?? visibleRatings[0]}
             explanations={explanations}
             sectionImages={sectionImages}
             galleryImages={galleryImages}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import type { GalleryImage } from "./parkpage/ParkGallery";
+import type { GalleryImage } from "./ParkGallery";
 
 interface ParkTextsModalProps {
   explanations: Record<string, string>;
@@ -30,7 +30,7 @@ const categories = [
 const humanizeLabel = (key: string) =>
   key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase()).trim();
 
-const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
+const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   explanations,
   sectionImages,
   galleryImages,
@@ -55,6 +55,24 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
   const handleClose = () => {
     onSave?.(localExplanations, localImages);
     onClose();
+  };
+
+  const handleUnpublish = async () => {
+    if (!confirm("Are you sure you want to unpublish this review? It will be moved back to drafts.")) return;
+    try {
+      const res = await fetch(`/api/ratings/${ratingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ published: false }),
+      });
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        alert("Failed to unpublish rating.");
+      }
+    } catch (error) {
+      console.error("Failed to unpublish:", error);
+    }
   };
 
   const handleSave = async () => {
@@ -150,11 +168,10 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
             {/* Clear option */}
             <button
               onClick={() => setSelectedImage(null)}
-              className={`aspect-square rounded-lg border-2 flex items-center justify-center text-xs font-medium transition-all ${
-                selectedImage === null
+              className={`aspect-square rounded-lg border-2 flex items-center justify-center text-xs font-medium transition-all ${selectedImage === null
                   ? "border-blue-500 bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400"
                   : "border-gray-200 dark:border-gray-700 text-gray-400 hover:border-gray-300"
-              }`}
+                }`}
             >
               None
             </button>
@@ -165,11 +182,10 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
                 <button
                   key={img.id}
                   onClick={() => setSelectedImage(img.path)}
-                  className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all ${
-                    isSelected
+                  className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all ${isSelected
                       ? "border-blue-500 ring-2 ring-blue-500/30"
                       : "border-gray-200 dark:border-gray-700 hover:border-gray-400"
-                  }`}
+                    }`}
                 >
                   {isVideo(img.path) ? (
                     <>
@@ -200,29 +216,41 @@ const ParkTextsModal: React.FC<ParkTextsModalProps> = ({
           <p className="text-xs text-gray-400 mb-4 truncate">Selected: {selectedImage!.split("/").pop()}</p>
         )}
 
-        <div className="mt-4 flex items-center justify-end gap-3">
-          {saveSuccess && (
-            <span className="text-green-600 dark:text-green-400 text-sm font-medium mr-auto">Saved!</span>
-          )}
-          <button
-            onClick={handleClose}
-            className="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300 text-gray-800 cursor-pointer dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
-          >
-            Close
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className={`px-4 py-2 rounded-md text-white cursor-pointer transition ${
-              isSaving ? "bg-blue-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
-            }`}
-          >
-            {isSaving ? "Saving..." : "Save"}
-          </button>
+        {/* Action Buttons */}
+        <div className="mt-6 pt-4 border-t border-gray-100 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <button
+              onClick={handleUnpublish}
+              className="px-3 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/30 text-sm font-medium transition-colors cursor-pointer"
+            >
+              Unpublish
+            </button>
+            {saveSuccess && (
+              <span className="text-green-600 dark:text-green-400 text-sm font-medium">Saved!</span>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end w-full sm:w-auto gap-3">
+            <button
+              onClick={handleClose}
+              className="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300 text-gray-800 cursor-pointer dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 transition-colors"
+            >
+              Close
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className={`px-4 py-2 rounded-md text-white transition-colors ${isSaving ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 cursor-pointer"
+                }`}
+            >
+              {isSaving ? "Saving..." : "Save"}
+            </button>
+          </div>
         </div>
+
       </div>
     </div>
   );
 };
 
-export default ParkTextsModal;
+export default ParkTextModal;

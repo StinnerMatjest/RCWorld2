@@ -112,36 +112,32 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
     return `${Math.floor(s / 3600)}h ago`;
   }
 
-  // ── Derived state ────────────────────────────────────────────────────────────
-
   const coasterItems = useMemo(() => items.filter(i => i.isCoaster && !i.isExtra), [items]);
-  const photoItems   = useMemo(() => items.filter(i => i.isPhotoTask && !i.isCoaster && !i.isExtra), [items]);
+  const photoItems = useMemo(() => items.filter(i => i.isPhotoTask && !i.isCoaster && !i.isExtra), [items]);
   const regularItems = useMemo(() => items.filter(i => !i.isCoaster && !i.isPhotoTask && !i.isExtra), [items]);
 
   const remainingRegular = useMemo(() => regularItems.filter(i => !i.checked && !i.skipped), [regularItems]);
-  const remainingPhotos  = useMemo(() => photoItems.filter(i => !i.checked && !i.skipped), [photoItems]);
+  const remainingPhotos = useMemo(() => photoItems.filter(i => !i.checked && !i.skipped), [photoItems]);
   const completedRegular = useMemo(() => (
     [...regularItems, ...photoItems].filter(i => i.checked && !i.skipped)
   ), [regularItems, photoItems]);
-  const skippedItems      = useMemo(() => items.filter(i => i.skipped && !i.isExtra), [items]);
+  const skippedItems = useMemo(() => items.filter(i => i.skipped && !i.isExtra), [items]);
 
-  const allNonExtra   = items.filter(i => !i.isExtra);
-  const validTotal    = allNonExtra.length - skippedItems.length;
+  const allNonExtra = items.filter(i => !i.isExtra);
+  const validTotal = allNonExtra.length - skippedItems.length;
   const completedCount = allNonExtra.filter(i => i.checked && !i.skipped).length;
   const progressPercent = validTotal > 0 ? Math.round((completedCount / validTotal) * 100) : 0;
-  const allCompleted  = completedCount === validTotal && validTotal > 0;
+  const allCompleted = completedCount === validTotal && validTotal > 0;
 
   function cleanLabel(label: string): string {
     return label.replace(/^take (a )?picture of /i, "").trim();
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────────
-
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
       <div className="mx-auto flex min-h-screen max-w-xl flex-col px-4 pb-32 pt-6">
 
-        <Link href="/checklists" className="mb-6 inline-flex w-fit items-center gap-2 py-2 text-sm font-medium text-slate-400 transition-colors hover:text-slate-200">
+        <Link href="/checklists" className="mb-6 inline-flex w-fit items-center gap-2 py-2 text-sm font-medium text-slate-400 transition-colors hover:text-slate-200 cursor-pointer">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="m15 18-6-6 6-6" />
           </svg>
@@ -203,21 +199,19 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
 
             <ul className="space-y-2">
               {coasterItems.map((item) => {
-                const isDone    = item.checked && !item.skipped;
+                const isDone = item.checked && !item.skipped;
                 const isSkipped = !!item.skipped;
-                const ago       = timeAgo(item.rideCountLastModified);
+                const ago = timeAgo(item.rideCountLastModified);
 
                 return (
                   <li
                     key={item.id}
-                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all ${
-                      isSkipped ? "opacity-40" : isDone ? "bg-emerald-950/30 border border-emerald-900/30" : "bg-slate-950/60"
-                    }`}
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all ${isSkipped ? "opacity-40" : isDone ? "bg-emerald-950/30 border border-emerald-900/30" : "bg-slate-950/60"
+                      }`}
                   >
                     {/* Done indicator */}
-                    <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all ${
-                      isDone ? "border-emerald-500 bg-emerald-500" : "border-slate-600"
-                    }`}>
+                    <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all ${isDone ? "border-emerald-500 bg-emerald-500" : "border-slate-600"
+                      }`}>
                       {isDone && (
                         <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
                           <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -284,70 +278,69 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
 
             <ul className="space-y-2">
               <AnimatePresence mode="popLayout">
-              {remainingPhotos.map((item) => {
-                const isSkipped     = !!item.skipped;
-                const isCompleting  = completingIds.has(item.id);
+                {remainingPhotos.map((item) => {
+                  const isSkipped = !!item.skipped;
+                  const isCompleting = completingIds.has(item.id);
 
-                return (
-                  <motion.li
-                    key={item.id}
-                    layout
-                    initial={{ opacity: 1, scale: 1 }}
-                    animate={isCompleting
-                      ? { backgroundColor: "rgba(6,78,59,0.45)", scale: 1.015, borderColor: "rgba(16,185,129,0.35)" }
-                      : { backgroundColor: "rgba(2,6,23,0.6)", scale: 1, borderColor: "transparent" }
-                    }
-                    exit={{ opacity: 0, x: 16, scale: 0.97, transition: { duration: 0.22, ease: "easeOut" } }}
-                    transition={{ duration: 0.18 }}
-                    className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${isSkipped ? "opacity-40" : ""}`}
-                  >
-                    <span className="text-base">📸</span>
-                    <span className={`flex-1 text-sm font-medium transition-colors ${isCompleting ? "text-emerald-300" : "text-slate-100"}`}>
-                      {cleanLabel(item.label)}
-                    </span>
+                  return (
+                    <motion.li
+                      key={item.id}
+                      layout
+                      initial={{ opacity: 1, scale: 1 }}
+                      animate={isCompleting
+                        ? { backgroundColor: "rgba(6,78,59,0.45)", scale: 1.015, borderColor: "rgba(16,185,129,0.35)" }
+                        : { backgroundColor: "rgba(2,6,23,0.6)", scale: 1, borderColor: "transparent" }
+                      }
+                      exit={{ opacity: 0, x: 16, scale: 0.97, transition: { duration: 0.22, ease: "easeOut" } }}
+                      transition={{ duration: 0.18 }}
+                      className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${isSkipped ? "opacity-40" : ""}`}
+                    >
+                      <span className="text-base">📸</span>
+                      <span className={`flex-1 text-sm font-medium transition-colors ${isCompleting ? "text-emerald-300" : "text-slate-100"}`}>
+                        {cleanLabel(item.label)}
+                      </span>
 
-                    {isSkipped ? (
-                      <button
-                        onClick={() => toggleSkipItem(item.id)}
-                        disabled={!visitStart || visitFinished}
-                        className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-700 disabled:opacity-50"
-                      >Undo</button>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        {!isCompleting && (
-                          <button
-                            onClick={() => toggleSkipItem(item.id)}
-                            disabled={!visitStart}
-                            className="px-2 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-rose-400 disabled:opacity-50"
-                          >Skip</button>
-                        )}
+                      {isSkipped ? (
                         <button
-                          onClick={() => !isCompleting && toggleItem(item.id)}
-                          disabled={!visitStart || isCompleting}
-                          className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border-2 transition-all disabled:opacity-50 ${
-                            isCompleting ? "border-emerald-500 bg-emerald-500/20" : "border-slate-600 bg-slate-900"
-                          }`}
-                        >
-                          {isCompleting ? (
-                            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                              <motion.path
-                                d="M4 10.5l4.5 4.5 7.5-8"
-                                stroke="#10b981"
-                                strokeWidth="2.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                initial={{ pathLength: 0 }}
-                                animate={{ pathLength: 1 }}
-                                transition={{ duration: 0.25 }}
-                              />
-                            </svg>
-                          ) : null}
-                        </button>
-                      </div>
-                    )}
-                  </motion.li>
-                );
-              })}
+                          onClick={() => toggleSkipItem(item.id)}
+                          disabled={!visitStart || visitFinished}
+                          className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-700 disabled:opacity-50"
+                        >Undo</button>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          {!isCompleting && (
+                            <button
+                              onClick={() => toggleSkipItem(item.id)}
+                              disabled={!visitStart}
+                              className="px-2 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-rose-400 disabled:opacity-50"
+                            >Skip</button>
+                          )}
+                          <button
+                            onClick={() => !isCompleting && toggleItem(item.id)}
+                            disabled={!visitStart || isCompleting}
+                            className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border-2 transition-all disabled:opacity-50 ${isCompleting ? "border-emerald-500 bg-emerald-500/20" : "border-slate-600 bg-slate-900"
+                              }`}
+                          >
+                            {isCompleting ? (
+                              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                                <motion.path
+                                  d="M4 10.5l4.5 4.5 7.5-8"
+                                  stroke="#10b981"
+                                  strokeWidth="2.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  initial={{ pathLength: 0 }}
+                                  animate={{ pathLength: 1 }}
+                                  transition={{ duration: 0.25 }}
+                                />
+                              </svg>
+                            ) : null}
+                          </button>
+                        </div>
+                      )}
+                    </motion.li>
+                  );
+                })}
               </AnimatePresence>
             </ul>
           </section>
@@ -389,9 +382,8 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                         <button
                           onClick={() => !isCompleting && toggleItem(item.id)}
                           disabled={!visitStart || isCompleting}
-                          className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border-2 transition-all ${
-                            isCompleting ? "border-emerald-500 bg-emerald-500/20" : "border-slate-600 bg-slate-900 disabled:opacity-50"
-                          }`}
+                          className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border-2 transition-all ${isCompleting ? "border-emerald-500 bg-emerald-500/20" : "border-slate-600 bg-slate-900 disabled:opacity-50"
+                            }`}
                         >
                           {isCompleting ? (
                             <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
@@ -464,23 +456,22 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent" />
           <div className="pointer-events-auto relative w-full max-w-xl px-4">
             {!visitStart ? (
-              <button onClick={handleBeginVisit} className="flex min-h-[56px] w-full items-center justify-center rounded-2xl bg-emerald-500 px-4 text-base font-bold text-slate-950 shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 active:scale-[0.98]">
+              <button onClick={handleBeginVisit} className="flex min-h-[56px] w-full items-center justify-center rounded-2xl bg-emerald-500 px-4 text-base font-bold text-slate-950 shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 active:scale-[0.98] cursor-pointer">
                 Start Visit ⏱️
               </button>
             ) : !visitFinished ? (
               <button
                 onClick={handleComplete}
                 disabled={!allCompleted}
-                className={`flex min-h-[56px] w-full items-center justify-center rounded-2xl px-4 text-base font-bold shadow-xl transition-all ${
-                  allCompleted
+                className={`flex min-h-[56px] w-full items-center justify-center rounded-2xl px-4 text-base font-bold shadow-xl transition-all cursor-pointer ${allCompleted
                     ? "bg-emerald-500 text-slate-950 shadow-emerald-500/20 hover:bg-emerald-400 active:scale-[0.98]"
                     : "bg-slate-800 text-slate-500 shadow-none"
-                }`}
+                  }`}
               >
                 {allCompleted ? "Complete Visit 🎉" : "Complete all tasks to finish"}
               </button>
             ) : (
-              <Link href={`/?modal=true&importChecklist=${checklist.slug}`} className="flex min-h-[56px] w-full items-center justify-center rounded-2xl bg-blue-500 px-4 text-base font-bold text-white shadow-xl shadow-blue-500/20 hover:bg-blue-400 active:scale-[0.98]">
+              <Link href={`/?modal=true&importChecklist=${checklist.slug}`} className="flex min-h-[56px] w-full items-center justify-center rounded-2xl bg-blue-500 px-4 text-base font-bold text-white shadow-xl shadow-blue-500/20 hover:bg-blue-400 active:scale-[0.98] cursor-pointer cursor-pointer">
                 Draft Review 📝
               </Link>
             )}
@@ -531,7 +522,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                   </div>
                 </motion.div>
 
-                <button type="button" onClick={() => setShowCelebration(false)} className="relative z-10 min-h-[56px] w-full rounded-xl bg-emerald-500 px-4 text-base font-bold text-slate-950 hover:bg-emerald-400 active:scale-[0.98]">
+                <button type="button" onClick={() => setShowCelebration(false)} className="relative z-10 min-h-[56px] w-full rounded-xl bg-emerald-500 px-4 text-base font-bold text-slate-950 hover:bg-emerald-400 active:scale-[0.98] cursor-pointer">
                   Back to dashboard
                 </button>
               </div>

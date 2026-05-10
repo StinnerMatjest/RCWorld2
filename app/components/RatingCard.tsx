@@ -174,9 +174,16 @@ const RatingCard: React.FC<RatingCardProps> = ({
             />
           </figure>
 
-          {/* Rating Date */}
-          <div className="text-sm italic py-1 text-gray-600 dark:text-gray-400">
-            Date: {new Date(rating.date).toLocaleDateString()}
+          {/* Rating Date & Status */}
+          <div className="flex items-center justify-center gap-3 py-1">
+            <div className="text-sm italic text-gray-600 dark:text-gray-400">
+              Date: {new Date(rating.date).toLocaleDateString()}
+            </div>
+            {!rating.published && (
+              <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider border border-red-200 dark:border-red-800">
+                Draft
+              </span>
+            )}
           </div>
 
           {/* Overall Score */}
@@ -211,7 +218,6 @@ const RatingCard: React.FC<RatingCardProps> = ({
 
               const hasWarnings = warningsForGroup.length > 0;
 
-              // --- ADDED SEVERITY COLOR LOGIC ---
               let highestSeverityLevel = 0;
               warningsForGroup.forEach((w) => {
                 const sev = w.severity || "Moderate";
@@ -229,7 +235,6 @@ const RatingCard: React.FC<RatingCardProps> = ({
                 else if (highestSeverityLevel === 1) warningColorClass = "text-red-600 dark:text-red-400";
                 else warningColorClass = "text-yellow-500 dark:text-yellow-400";
               }
-              // -----------------------------------
 
               return (
                 <React.Fragment key={idx}>
@@ -281,7 +286,6 @@ const RatingCard: React.FC<RatingCardProps> = ({
                             </div>
 
                             {warningsForGroup.map((w, i) => {
-                              // Calculate individual color for the tooltip list
                               const indColor = w.severity === "Major" ? "text-red-600 dark:text-red-400" :
                                 w.severity === "Minor" ? "text-gray-500 dark:text-gray-400" :
                                   "text-yellow-500 dark:text-yellow-400";
@@ -330,7 +334,6 @@ const RatingCard: React.FC<RatingCardProps> = ({
                             </div>
 
                             {warningsForGroup.map((w, i) => {
-                              // Calculate individual color for the tooltip list
                               const indColor = w.severity === "Major" ? "text-red-600 dark:text-red-400" :
                                 w.severity === "Minor" ? "text-gray-500 dark:text-gray-400" :
                                   "text-yellow-500 dark:text-yellow-400";

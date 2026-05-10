@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import type { Rating, RatingWarningType } from "@/app/types";
-import ParkRatingsModal from "./ParkTextsModal";
+import ParkRatingsModal from "./ParkTextModal";
 import { getRatingColor } from "@/app/utils/design";
 import { ratingCategories } from "@/app/utils/ratings";
-import RatingWarning from "./warnings/RatingWarning";
-import WarningCreatorModal from "./warnings/WarningCreatorModal";
-import { useAdminMode } from "../context/AdminModeContext";
-import type { GalleryImage } from "./parkpage/ParkGallery";
+import RatingWarning from "../warnings/RatingWarning";
+import WarningCreatorModal from "../warnings/WarningCreatorModal";
+import { useAdminMode } from "../../context/AdminModeContext";
+import type { GalleryImage } from "../parkpage/ParkGallery";
 
 interface RatingTextProps {
   rating: Rating;
@@ -30,7 +30,7 @@ function isVideo(src: string) {
   return /\.(mp4|webm|ogg)$/i.test(src);
 }
 
-const RatingExplanations: React.FC<RatingTextProps> = ({
+const RatingText: React.FC<RatingTextProps> = ({
   rating,
   explanations,
   sectionImages,
@@ -47,6 +47,9 @@ const RatingExplanations: React.FC<RatingTextProps> = ({
   const [localExplanations, setLocalExplanations] = useState(explanations);
   const [localImages, setLocalImages] = useState(sectionImages);
   const [lightbox, setLightbox] = useState<string | null>(null);
+
+  // State for publishing
+  const [isPublishing, setIsPublishing] = useState(false);
 
   useEffect(() => { setLocalExplanations(explanations); }, [explanations]);
   useEffect(() => { setLocalImages(sectionImages); }, [sectionImages]);
@@ -67,6 +70,27 @@ const RatingExplanations: React.FC<RatingTextProps> = ({
     return () => window.removeEventListener("keydown", onKey);
   }, [lightbox, closeLightbox]);
 
+  const handlePublish = async () => {
+    if (!confirm("Are you sure you want to publish this review? It will become visible to all users.")) return;
+    setIsPublishing(true);
+    try {
+      const res = await fetch(`/api/ratings/${rating.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ published: true }),
+      });
+      if (res.ok) {
+        onWarningsUpdate(); // This triggers the refresh/refetch function passed down from ParkPageClient
+      } else {
+        alert("Failed to publish rating. Ensure you have created the PATCH route at /api/ratings/[id]/route.ts");
+      }
+    } catch (error) {
+      console.error("Failed to publish:", error);
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
   if (!rating) return <p>No rating available yet.</p>;
 
   const categoryWarningsMap: Record<string, RatingWarningType[]> = {};
@@ -78,8 +102,15 @@ const RatingExplanations: React.FC<RatingTextProps> = ({
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center gap-4">
-        <h2 className="text-3xl font-semibold dark:text-white">{ } Review</h2>
+      <div className="flex flex-col md:flex-row md:items-center gap-4">
+        <h2 className="text-3xl font-semibold dark:text-white flex items-center flex-wrap gap-3">
+          {parkName} Review
+          {!rating.published && (
+            <span className="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 text-sm uppercase font-bold px-3 py-1 rounded-md tracking-wider border border-red-200 dark:border-red-800">
+              Unpublished Draft
+            </span>
+          )}
+        </h2>
 
         {isAdminMode && (
           <div className="flex items-center gap-2">
@@ -154,7 +185,7 @@ const RatingExplanations: React.FC<RatingTextProps> = ({
                           <img
                             src={mediaUrl}
                             alt={humanizeLabel(key)}
-                            className="w-full h-64 xl:h-72 object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105 transform-gpu will-change-transform"
+                            className="w-full h-64 xl:h-72 object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105"
                           />
                           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-2xl">
                             <svg className="w-8 h-8 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -164,10 +195,10 @@ const RatingExplanations: React.FC<RatingTextProps> = ({
                         </>
                       )}
                     </div>
-                    <p className="text-gray-700 dark:text-gray-400 leading-relaxed md:text-[17px] flex-1">{text}</p>
+                    <p className="text-gray-700 dark:text-gray-400 leading-relaxed md:text-lg flex-1">{text}</p>
                   </div>
                 ) : (
-                  <p className="text-gray-700 dark:text-gray-400 leading-relaxed md:text-[17px]">{text}</p>
+                  <p className="text-gray-700 dark:text-gray-400 leading-relaxed md:text-lg">{text}</p>
                 )}
               </div>
             );
@@ -231,8 +262,21 @@ const RatingExplanations: React.FC<RatingTextProps> = ({
           coasters={coasters}
         />
       )}
+
+      {/* PUBLISH BUTTON */}
+      {isAdminMode && !rating.published && (
+        <div className="flex justify-center pt-8 pb-4 mt-8 border-t border-gray-200 dark:border-gray-800">
+          <button
+            onClick={handlePublish}
+            disabled={isPublishing}
+            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 text-white font-bold text-lg md:text-xl py-4 px-8 md:px-12 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-3 cursor-pointer"
+          >
+            {isPublishing ? "PUBLISHING..." : "PUBLISH REVIEW"}
+          </button>
+        </div>
+      )}
     </div>
   );
 };
 
-export default RatingExplanations;
+export default RatingText;

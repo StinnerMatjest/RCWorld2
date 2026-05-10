@@ -88,7 +88,7 @@ const Navbar: React.FC = () => {
             <li><Link href="/info" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Rating Evaluation</Link></li>
             <li><Link href="/coasterratings" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Coaster Ratings</Link></li>
             <li><Link href="/lists" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Lists</Link></li>
-            <li><Link href="/games" className="block px-4 py-2 font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-fuchsia-600 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>games</Link></li>
+            <li><Link href="/games" className="block px-4 py-2 font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-fuchsia-600 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Games</Link></li>
             {isAdminMode && (
               <>
                 <li><Link href="/?modal=true" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Rate a Park</Link></li>
