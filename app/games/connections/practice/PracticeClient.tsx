@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import { fetchConnectionsData } from "@/app/components/connections/utils";
 import { getUsableCategories } from "@/app/components/connections/categories";
@@ -44,6 +44,8 @@ export default function PracticeClient() {
   const [idx,    setIdx]    = useState(0);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const dragRef   = useRef({ dragging: false, startX: 0, scrollLeft: 0 });
 
   async function generate(count = genCount) {
     setLoading(true);
@@ -102,7 +104,22 @@ export default function PracticeClient() {
         <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-2">
           <div className="max-w-3xl mx-auto">
             {error && <p className="text-red-400 text-xs mb-1">{error}</p>}
-            <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+            <div
+              ref={scrollRef}
+              className="flex gap-1.5 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none"
+              onMouseDown={(e) => {
+                const el = scrollRef.current;
+                if (!el) return;
+                dragRef.current = { dragging: true, startX: e.pageX - el.offsetLeft, scrollLeft: el.scrollLeft };
+              }}
+              onMouseMove={(e) => {
+                const el = scrollRef.current;
+                if (!el || !dragRef.current.dragging) return;
+                el.scrollLeft = dragRef.current.scrollLeft - (e.pageX - el.offsetLeft - dragRef.current.startX);
+              }}
+              onMouseUp={() => { dragRef.current.dragging = false; }}
+              onMouseLeave={() => { dragRef.current.dragging = false; }}
+            >
               {boards.map((b, i) => (
                 <button
                   key={i}
