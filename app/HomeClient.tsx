@@ -196,14 +196,13 @@ function FullBleedRatingCard({ rating, park, isActive = false }: { rating: Ratin
     if (cycleFirstRef.current) { clearTimeout(cycleFirstRef.current);  cycleFirstRef.current = null; }
   }, []);
 
-  const startCycle = useCallback(() => {
+  const startCycle = useCallback((initialDelay = 1500) => {
     if (intervalRef.current || cycleFirstRef.current) return;
     // Skip images that are the same src as the header — no point cycling to what's already shown
     const imgs = getCycleImages().filter(img => img.src !== headerSrc);
     cycleListRef.current = imgs;
     if (imgs.length === 0) return;
     cycleIdxRef.current = -1;
-    // Show first image after 1.5s, then cycle every 4.5s
     cycleFirstRef.current = setTimeout(() => {
       cycleFirstRef.current = null;
       const list = cycleListRef.current;
@@ -216,13 +215,13 @@ function FullBleedRatingCard({ rating, park, isActive = false }: { rating: Ratin
         cycleIdxRef.current = (cycleIdxRef.current + 1) % l.length;
         transitionTo(l[cycleIdxRef.current], l[cycleIdxRef.current].label);
       }, 4500);
-    }, 1500);
+    }, initialDelay);
   }, [getCycleImages, transitionTo]);
 
   // Mobile: auto-cycle when active
   useEffect(() => {
     if (isActive) {
-      startCycle();
+      startCycle(3000);
     } else {
       stopCycle();
       transitionTo(null, null);
