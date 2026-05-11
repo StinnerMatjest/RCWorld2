@@ -11,6 +11,18 @@ interface GalleryImage {
   path: string;
 }
 
+type CardCatKey = "coasters" | "rides" | "park" | "food" | "mgmt";
+type CardImageEntry = { src: string; focus: string };
+type CardImagesMap = Partial<Record<CardCatKey, CardImageEntry>>;
+
+const CARD_CAT_META: { key: CardCatKey; emoji: string; label: string }[] = [
+  { key: "coasters", emoji: "🎢", label: "Coasters" },
+  { key: "rides",    emoji: "🎡", label: "Rides"    },
+  { key: "park",     emoji: "🏞️", label: "Park"     },
+  { key: "food",     emoji: "🍔", label: "Food"     },
+  { key: "mgmt",     emoji: "📋", label: "Mgmt"     },
+];
+
 interface ParkHeaderModalProps {
   parkId: number;
   parkName: string;
@@ -18,6 +30,7 @@ interface ParkHeaderModalProps {
   currentImagePath: string | null;
   currentFocus?: string;
   currentHeaderFocus?: string;
+  currentCardImages?: CardImagesMap;
   overall?: number;
   onClose: () => void;
   onSuccess: () => void;
@@ -39,9 +52,9 @@ const CARD_PREVIEW_GROUPS = [
 
 const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   parkId, parkName, parkCountry, currentImagePath,
-  currentFocus, currentHeaderFocus, overall, onClose, onSuccess,
+  currentFocus, currentHeaderFocus, currentCardImages, overall, onClose, onSuccess,
 }) => {
-  const [tab, setTab] = useState<"header" | "card-focal" | "header-focal">("header");
+  const [tab, setTab] = useState<"header" | "card-focal" | "header-focal" | "card-images">("header");
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -52,7 +65,56 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   const [savingFocus, setSavingFocus] = useState(false);
   const draggingRef = useRef(false);
   const imgRef = useRef<HTMLImageElement>(null);
+  const cardImgRef = useRef<HTMLImageElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Card images state
+  const defaultCardImages: CardImagesMap = {
+    coasters: { src: currentImagePath ?? "", focus: currentFocus ?? "50% 50%" },
+    ...currentCardImages,
+  };
+  const [cardEntries, setCardEntries] = useState<CardImagesMap>(defaultCardImages);
+  const [activeCatKey, setActiveCatKey] = useState<CardCatKey>("coasters");
+  const [cardDragging, setCardDragging] = useState(false);
+  const cardDraggingRef = useRef(false);
+  const [cardZoom, setCardZoom] = useState(1);
+  const [savingCardImages, setSavingCardImages] = useState(false);
+
+  const activeEntry = cardEntries[activeCatKey] ?? { src: "", focus: "50% 50%" };
+  const activeCardFocus = parseFocus(activeEntry.focus);
+
+  const applyCardPosition = (clientX: number, clientY: number) => {
+    const rect = cardImgRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = Math.max(0, Math.min(100, Math.round(((clientX - rect.left) / rect.width) * 100)));
+    const y = Math.max(0, Math.min(100, Math.round(((clientY - rect.top) / rect.height) * 100)));
+    setCardEntries(prev => ({
+      ...prev,
+      [activeCatKey]: { ...prev[activeCatKey] ?? { src: "" }, focus: `${x}% ${y}%` },
+    }));
+  };
+
+  const cardEditorProps = {
+    onMouseDown: (e: React.MouseEvent) => { cardDraggingRef.current = true; applyCardPosition(e.clientX, e.clientY); },
+    onMouseMove: (e: React.MouseEvent) => { if (cardDraggingRef.current) applyCardPosition(e.clientX, e.clientY); },
+    onMouseUp:   () => { cardDraggingRef.current = false; },
+    onMouseLeave: () => { cardDraggingRef.current = false; },
+    onTouchStart: (e: React.TouchEvent) => { cardDraggingRef.current = true; applyCardPosition(e.touches[0].clientX, e.touches[0].clientY); },
+    onTouchMove:  (e: React.TouchEvent) => { if (cardDraggingRef.current) applyCardPosition(e.touches[0].clientX, e.touches[0].clientY); },
+    onTouchEnd:   () => { cardDraggingRef.current = false; },
+  };
+
+  const handleSaveCardImages = async () => {
+    setSavingCardImages(true);
+    await fetch(`/api/park/${parkId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cardImages: cardEntries }),
+    });
+    setSavingCardImages(false);
+    onSuccess();
+    onClose();
+  };
 
   const activeFocus = tab === "header-focal" ? headerFocus : cardFocus;
   const setActiveFocus = tab === "header-focal" ? setHeaderFocus : setCardFocus;
@@ -175,15 +237,15 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
           <div className="flex items-center gap-3 min-w-0">
             <h2 className="text-sm sm:text-xl font-bold text-gray-900 dark:text-white truncate">{parkName}</h2>
             <div className="flex gap-1 flex-shrink-0">
-              {(["header", "card-focal", "header-focal"] as const).map((t) => (
+              {(["header", "card-focal", "header-focal", "card-images"] as const).map((t) => (
                 <button
                   key={t}
-                  onClick={() => { setTab(t); setZoom(1); if (scrollRef.current) scrollRef.current.scrollTop = 0; }}
+                  onClick={() => { setTab(t); setZoom(1); setCardZoom(1); if (scrollRef.current) scrollRef.current.scrollTop = 0; }}
                   className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold transition-colors whitespace-nowrap ${
                     tab === t ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
                   }`}
                 >
-                  {t === "header" ? "Header" : t === "card-focal" ? "📍 Card" : "🏔️ Header"}
+                  {t === "header" ? "Header" : t === "card-focal" ? "📍 Card" : t === "header-focal" ? "🏔️ Header" : "🖼️ Images"}
                 </button>
               ))}
             </div>
@@ -384,6 +446,133 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
               className="w-full py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 flex-shrink-0"
             >
               {savingFocus ? "Saving…" : "Save focal point"}
+            </button>
+          </div>
+        )}
+
+        {/* Card images tab */}
+        {tab === "card-images" && (
+          <div ref={scrollRef} className="flex flex-col p-4 gap-4 overflow-y-auto flex-1 min-h-0">
+
+            {/* Category selector */}
+            <div className="flex gap-1.5 flex-wrap flex-shrink-0">
+              {CARD_CAT_META.map((cat) => {
+                const hasImg = !!(cardEntries[cat.key]?.src);
+                return (
+                  <button
+                    key={cat.key}
+                    onClick={() => { setActiveCatKey(cat.key); setCardZoom(1); }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors border ${
+                      activeCatKey === cat.key
+                        ? "bg-blue-600 border-blue-600 text-white"
+                        : hasImg
+                          ? "border-green-500 text-green-600 dark:text-green-400"
+                          : "border-gray-300 dark:border-gray-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    <span>{cat.emoji}</span>
+                    <span>{cat.label}</span>
+                    {hasImg && activeCatKey !== cat.key && <span className="w-1.5 h-1.5 rounded-full bg-green-500 ml-0.5" />}
+                  </button>
+                );
+              })}
+            </div>
+
+            {activeEntry.src ? (
+              <>
+                {/* Focal point editor for active category image */}
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    {CARD_CAT_META.find(c => c.key === activeCatKey)?.emoji} {CARD_CAT_META.find(c => c.key === activeCatKey)?.label}
+                    {activeCatKey === "coasters"
+                      ? <span className="normal-case font-normal text-gray-400 ml-2">— focal point set in Card focal tab 🔒</span>
+                      : <span className="normal-case font-normal text-gray-500 ml-2">— drag to set focal point · {activeEntry.focus}</span>
+                    }
+                  </p>
+                  <div
+                    className={`relative rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 select-none ${activeCatKey === "coasters" ? "cursor-default" : "cursor-crosshair"}`}
+                    {...(activeCatKey === "coasters" ? {} : cardEditorProps)}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img ref={cardImgRef} src={activeEntry.src} alt="" className="block select-none"
+                      style={{ width: "100%", maxHeight: "200px", objectFit: "contain" }} draggable={false} />
+                    <div className="absolute pointer-events-none" style={{ left: `${activeCardFocus.x}%`, top: `${activeCardFocus.y}%`, transform: "translate(-50%,-50%)" }}>
+                      <div className="w-7 h-7 rounded-full border-[2.5px] border-white shadow-lg bg-white/20" />
+                      <div className="absolute top-1/2 left-1/2 h-px w-12 -translate-y-1/2 -translate-x-full bg-white/90" />
+                      <div className="absolute top-1/2 left-1/2 h-px w-12 -translate-y-1/2 bg-white/90" />
+                      <div className="absolute top-1/2 left-1/2 w-px h-12 -translate-x-1/2 -translate-y-full bg-white/90" />
+                      <div className="absolute top-1/2 left-1/2 w-px h-12 -translate-x-1/2 bg-white/90" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Preview */}
+                <div className="flex gap-3 items-start">
+                  <div className="flex-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Preview</p>
+                    <div className="relative rounded-xl overflow-hidden bg-gray-900" style={{ aspectRatio: "3/4", maxWidth: "140px" }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={activeEntry.src} alt="" className="w-full h-full object-cover opacity-70"
+                        style={{ objectPosition: activeEntry.focus, transform: `scale(${cardZoom})`, transformOrigin: activeEntry.focus }} />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent pointer-events-none" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Zoom</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400 font-bold">1×</span>
+                      <input type="range" min={1} max={4} step={0.1} value={cardZoom} onChange={(e) => setCardZoom(Number(e.target.value))} className="flex-1 accent-blue-600" />
+                      <span className="text-xs text-gray-400 font-bold">4×</span>
+                    </div>
+                    <button
+                      onClick={() => setCardEntries(prev => { const n = { ...prev }; delete n[activeCatKey]; return n; })}
+                      className="mt-2 text-xs text-red-400 hover:text-red-600 font-bold text-left"
+                    >
+                      Remove image
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-sm text-gray-400 dark:text-gray-500 py-2">
+                Pick an image from the gallery below for{" "}
+                <span className="font-bold text-gray-600 dark:text-gray-300">
+                  {CARD_CAT_META.find(c => c.key === activeCatKey)?.label}
+                </span>
+              </div>
+            )}
+
+            {/* Gallery strip */}
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Gallery</p>
+              {loading ? (
+                <LoadingSpinner />
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {images.map((img) => {
+                    const isSelected = cardEntries[activeCatKey]?.src === img.path;
+                    return (
+                      <div
+                        key={img.id}
+                        onClick={() => setCardEntries(prev => ({ ...prev, [activeCatKey]: { src: img.path, focus: prev[activeCatKey]?.focus ?? "50% 50%" } }))}
+                        className={`relative aspect-video rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
+                          isSelected ? "border-blue-500 ring-2 ring-blue-500/30" : "border-transparent hover:border-blue-400"
+                        }`}
+                      >
+                        <Image src={img.path} alt="" fill className="object-cover" unoptimized />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleSaveCardImages}
+              disabled={savingCardImages}
+              className="w-full py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 flex-shrink-0"
+            >
+              {savingCardImages ? "Saving…" : "Save card images"}
             </button>
           </div>
         )}

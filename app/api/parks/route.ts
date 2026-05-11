@@ -21,7 +21,8 @@ export async function GET() {
         imagepath,
         slug,
         image_focus AS "imageFocus",
-        header_focus AS "headerFocus"
+        header_focus AS "headerFocus",
+        card_images AS "cardImages"
       FROM parks
     `;
     const result = await pool.query(query);
@@ -38,6 +39,7 @@ export async function GET() {
         slug: row.slug,
         imageFocus: row.imageFocus ?? undefined,
         headerFocus: row.headerFocus ?? undefined,
+        cardImages:  row.cardImages  ?? undefined,
       };
     });
 

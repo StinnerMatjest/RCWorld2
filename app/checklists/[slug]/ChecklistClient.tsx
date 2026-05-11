@@ -91,7 +91,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
     const newItems = items.map(i => {
       if (i.id !== id) return i;
       const newCount = Math.max(0, (i.rideCount || 0) + delta);
-      return { ...i, rideCount: newCount, rideCountLastModified: nowIso, checked: newCount > 0 };
+      return { ...i, rideCount: newCount, rideCountLastModified: nowIso };
     });
     setItems(newItems);
     syncToDatabase({ items: newItems });
@@ -193,7 +193,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
             <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-200">
               🎢 Coaster Rides
               <span className="text-xs font-normal normal-case tracking-normal text-slate-500">
-                {coasterItems.filter(i => i.checked && !i.skipped).length}/{coasterItems.filter(i => !i.skipped).length} ridden
+                {coasterItems.filter(i => (i.rideCount || 0) > 0 && !i.skipped).length}/{coasterItems.filter(i => !i.skipped).length} ridden
               </span>
             </h2>
 
@@ -209,15 +209,19 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                     className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all ${isSkipped ? "opacity-40" : isDone ? "bg-emerald-950/30 border border-emerald-900/30" : "bg-slate-950/60"
                       }`}
                   >
-                    {/* Done indicator */}
-                    <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all ${isDone ? "border-emerald-500 bg-emerald-500" : "border-slate-600"
-                      }`}>
+                    {/* Photo checkmark — tap to mark photo taken */}
+                    <button
+                      onClick={() => toggleItem(item.id)}
+                      disabled={!visitStart || visitFinished || isSkipped}
+                      title={isDone ? "Photo taken ✓" : "Mark photo taken"}
+                      className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all disabled:opacity-30 ${isDone ? "border-emerald-500 bg-emerald-500" : "border-slate-600 hover:border-emerald-400"}`}
+                    >
                       {isDone && (
                         <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
                           <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
-                    </div>
+                    </button>
 
                     {/* Name + timestamp */}
                     <div className="min-w-0 flex-1">

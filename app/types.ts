@@ -8,6 +8,13 @@ export interface Park {
   slug: string;
   imageFocus?: string;
   headerFocus?: string;
+  cardImages?: {
+    coasters?: { src: string; focus: string };
+    rides?:    { src: string; focus: string };
+    park?:     { src: string; focus: string };
+    food?:     { src: string; focus: string };
+    mgmt?:     { src: string; focus: string };
+  };
 }
 
 export interface Rating {

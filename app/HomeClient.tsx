@@ -1,7 +1,9 @@
 "use client";
 
 import React, {
+  useCallback,
   useEffect,
+  useMemo,
   useState,
   Suspense,
   useRef,
@@ -95,15 +97,244 @@ const FULL_BLEED_GROUPS = [
   { emoji: "📋", label: "Mgmt",     getValue: (r: Rating) => avg(r.rideOperations, r.parkManagement) },
 ];
 
-function FullBleedRatingCard({ rating, park }: { rating: Rating; park: Park }) {
-  const focus = park.imageFocus ?? "50% 50%";
+const CARD_CATS = ["coasters", "rides", "park", "food", "mgmt"] as const;
+type CardCat = typeof CARD_CATS[number];
+
+function FullBleedRatingCard({ rating, park, isActive = false }: { rating: Rating; park: Park; isActive?: boolean }) {
+  const headerSrc   = park.imagepath || "/images/error.PNG";
+  const headerFocus = park.imageFocus ?? "50% 50%";
+
+  const getCardEntry = useCallback((label: string): { src: string; focus: string } | null => {
+    const key = label.toLowerCase() as CardCat;
+    const entry = park.cardImages?.[key];
+    if (entry?.src) return entry;
+    if (key === "coasters") return { src: headerSrc, focus: headerFocus };
+    return null;
+  }, [park.cardImages, headerSrc, headerFocus]);
+
+  const getCycleImages = useCallback(() =>
+    FULL_BLEED_GROUPS
+      .map(g => { const e = getCardEntry(g.label); return e ? { label: g.label, ...e } : null; })
+      .filter((x): x is { label: string; src: string; focus: string } => x !== null),
+  [getCardEntry]);
+
+  // Two-slot cross-fade — both slots always sum to opacity 0.7, no black ever shows
+  const slotARef      = useRef<HTMLImageElement>(null);
+  const slotBRef      = useRef<HTMLImageElement>(null);
+  const activeSlotRef = useRef<"A" | "B">("A");
+  const raf1Ref       = useRef<number | null>(null);
+  const raf2Ref       = useRef<number | null>(null);
+  const [activeLabel, setActiveLabel] = useState<string | null>(null);
+
+  useLayoutEffect(() => {
+    const a = slotARef.current;
+    const b = slotBRef.current;
+    if (!a || !b) return;
+    a.src = headerSrc; a.style.objectPosition = headerFocus; a.style.opacity = "0.88"; a.style.transition = "none";
+    b.src = headerSrc; b.style.objectPosition = headerFocus; b.style.opacity = "0";   b.style.transition = "none";
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isHoveringRef = useRef(false);
+  const hoveredCatRef = useRef<string | null>(null);
+  const intervalRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cycleFirstRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cycleIdxRef   = useRef(0);
+  const cycleListRef  = useRef<{ label: string; src: string; focus: string }[]>([]);
+
+  const cancelInFlight = useCallback(() => {
+    if (raf1Ref.current) { cancelAnimationFrame(raf1Ref.current); raf1Ref.current = null; }
+    if (raf2Ref.current) { cancelAnimationFrame(raf2Ref.current); raf2Ref.current = null; }
+    // Snap slots back to a clean state so the next transition always starts correctly
+    const activeEl   = (activeSlotRef.current === "A" ? slotARef : slotBRef).current;
+    const inactiveEl = (activeSlotRef.current === "A" ? slotBRef : slotARef).current;
+    if (activeEl)   { activeEl.style.transition = "none";   activeEl.style.opacity = "0.88"; }
+    if (inactiveEl) { inactiveEl.style.transition = "none"; inactiveEl.style.opacity = "0"; }
+    [slotARef, slotBRef].forEach(r => { if (r.current) { r.current.onload = null; r.current.onerror = null; } });
+  }, []);
+
+  const transitionTo = useCallback((entry: { src: string; focus: string } | null, label: string | null) => {
+    cancelInFlight();
+    setActiveLabel(label);
+
+    const target = entry ?? { src: headerSrc, focus: headerFocus };
+    const [inactiveRef, activeRef, nextSlot] = activeSlotRef.current === "A"
+      ? [slotBRef, slotARef, "B" as const]
+      : [slotARef, slotBRef, "A" as const];
+
+    const inactive = inactiveRef.current;
+    const active   = activeRef.current;
+    if (!inactive || !active) return;
+
+    inactive.src = target.src;
+    inactive.style.objectPosition = target.focus;
+    // Already at opacity 0 (reset by cancelInFlight), transition stays "none"
+
+    const startFade = () => {
+      inactive.onload = null;
+      inactive.onerror = null;
+      raf1Ref.current = requestAnimationFrame(() => {
+        raf2Ref.current = requestAnimationFrame(() => {
+          inactive.style.transition = "opacity 700ms ease-in-out";
+          inactive.style.opacity    = "0.88";
+          active.style.transition   = "opacity 700ms ease-in-out";
+          active.style.opacity      = "0";
+          activeSlotRef.current = nextSlot;
+        });
+      });
+    };
+
+    if (inactive.complete && inactive.naturalWidth > 0) {
+      startFade();
+    } else {
+      inactive.onload  = startFade;
+      inactive.onerror = startFade;
+    }
+  }, [cancelInFlight, headerSrc, headerFocus]);
+
+  const stopCycle = useCallback(() => {
+    if (intervalRef.current)   { clearInterval(intervalRef.current);   intervalRef.current = null; }
+    if (cycleFirstRef.current) { clearTimeout(cycleFirstRef.current);  cycleFirstRef.current = null; }
+  }, []);
+
+  const startCycle = useCallback(() => {
+    if (intervalRef.current || cycleFirstRef.current) return;
+    // Skip images that are the same src as the header — no point cycling to what's already shown
+    const imgs = getCycleImages().filter(img => img.src !== headerSrc);
+    cycleListRef.current = imgs;
+    if (imgs.length === 0) return;
+    cycleIdxRef.current = -1;
+    // Show first image after 1.5s, then cycle every 4.5s
+    cycleFirstRef.current = setTimeout(() => {
+      cycleFirstRef.current = null;
+      const list = cycleListRef.current;
+      if (!list.length) return;
+      cycleIdxRef.current = 0;
+      transitionTo(list[0], list[0].label);
+      intervalRef.current = setInterval(() => {
+        const l = cycleListRef.current;
+        if (!l.length) return;
+        cycleIdxRef.current = (cycleIdxRef.current + 1) % l.length;
+        transitionTo(l[cycleIdxRef.current], l[cycleIdxRef.current].label);
+      }, 4500);
+    }, 1500);
+  }, [getCycleImages, transitionTo]);
+
+  // Mobile: auto-cycle when active
+  useEffect(() => {
+    if (isActive) {
+      startCycle();
+    } else {
+      stopCycle();
+      transitionTo(null, null);
+    }
+  }, [isActive, startCycle, stopCycle, transitionTo]);
+
+  useEffect(() => () => {
+    stopCycle();
+    cancelInFlight();
+    if (cardEnterTimerRef.current) clearTimeout(cardEnterTimerRef.current);
+    if (catHoverTimerRef.current)  clearTimeout(catHoverTimerRef.current);
+    if (catLeaveTimerRef.current)  clearTimeout(catLeaveTimerRef.current);
+    if (cycleFirstRef.current)     clearTimeout(cycleFirstRef.current);
+    if (cycleRestartRef.current)   clearTimeout(cycleRestartRef.current);
+  }, [stopCycle, cancelInFlight]);
+
+  const cardEnterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const catHoverTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const catLeaveTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCardEnter = useCallback(() => {
+    isHoveringRef.current = true;
+    // Short delay: if cursor entered directly onto a category pill,
+    // handleCatEnter fires within ~16ms and sets hoveredCatRef, skipping the cycle
+    if (cardEnterTimerRef.current) clearTimeout(cardEnterTimerRef.current);
+    cardEnterTimerRef.current = setTimeout(() => {
+      if (isHoveringRef.current && !hoveredCatRef.current) startCycle();
+    }, 60);
+  }, [startCycle]);
+
+  const handleCardLeave = useCallback(() => {
+    isHoveringRef.current = false;
+    hoveredCatRef.current = null;
+    if (cardEnterTimerRef.current) { clearTimeout(cardEnterTimerRef.current); cardEnterTimerRef.current = null; }
+    if (catHoverTimerRef.current)  { clearTimeout(catHoverTimerRef.current);  catHoverTimerRef.current = null; }
+    if (catLeaveTimerRef.current)  { clearTimeout(catLeaveTimerRef.current);  catLeaveTimerRef.current = null; }
+    if (cycleRestartRef.current)   { clearTimeout(cycleRestartRef.current);   cycleRestartRef.current = null; }
+    stopCycle();
+    const activeEl = (activeSlotRef.current === "A" ? slotARef : slotBRef).current;
+    const isOnHeader = !activeEl || activeEl.src === headerSrc || activeEl.src === "";
+    if (isOnHeader) {
+      // Already showing header — cancel silently, no visible transition
+      cancelInFlight();
+      setActiveLabel(null);
+    } else {
+      // A category image is showing — fade back to header gracefully
+      transitionTo(null, null);
+    }
+  }, [stopCycle, cancelInFlight, transitionTo, headerSrc]);
+
+  const cycleRestartRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCatEnter = useCallback((label: string) => {
+    if (catLeaveTimerRef.current) { clearTimeout(catLeaveTimerRef.current); catLeaveTimerRef.current = null; }
+    if (catHoverTimerRef.current) { clearTimeout(catHoverTimerRef.current); catHoverTimerRef.current = null; }
+    if (cycleRestartRef.current)  { clearTimeout(cycleRestartRef.current);  cycleRestartRef.current = null; }
+    hoveredCatRef.current = label;
+    stopCycle();
+    // Only show image after intentional hover (500ms) — prevents accidental triggers
+    catHoverTimerRef.current = setTimeout(() => {
+      catHoverTimerRef.current = null;
+      if (hoveredCatRef.current !== label) return;
+      const entry = getCardEntry(label);
+      transitionTo(entry, entry ? label : null);
+    }, 500);
+  }, [stopCycle, getCardEntry, transitionTo]);
+
+  const handleCatLeave = useCallback(() => {
+    if (catHoverTimerRef.current) { clearTimeout(catHoverTimerRef.current); catHoverTimerRef.current = null; }
+    if (catLeaveTimerRef.current) clearTimeout(catLeaveTimerRef.current);
+    catLeaveTimerRef.current = setTimeout(() => {
+      catLeaveTimerRef.current = null;
+      hoveredCatRef.current = null;
+      stopCycle();
+      transitionTo(getCardEntry("Coasters"), null);
+      if (isHoveringRef.current) {
+        if (cycleRestartRef.current) clearTimeout(cycleRestartRef.current);
+        cycleRestartRef.current = setTimeout(() => {
+          if (isHoveringRef.current && !hoveredCatRef.current) startCycle();
+        }, 800);
+      }
+    }, 50);
+  }, [stopCycle, getCardEntry, transitionTo, startCycle]);
+
+  const handleCatTap = useCallback((e: React.MouseEvent, label: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (hoveredCatRef.current === label) {
+      hoveredCatRef.current = null;
+      startCycle();
+    } else {
+      hoveredCatRef.current = label;
+      stopCycle();
+      const entry = getCardEntry(label);
+      transitionTo(entry, entry ? label : null);
+    }
+  }, [getCardEntry, startCycle, stopCycle, transitionTo]);
+
   return (
     <Link href={`/park/${park.slug}`}>
-      <div className="mx-auto w-full max-w-[400px] py-3 md:py-4 animate-fade-in-up">
-        <div className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg hover:scale-105 transition-transform duration-300 ease-in-out transform-gpu will-change-transform">
-          <Image src={park.imagepath || "/images/error.PNG"} alt={park.name} fill className="object-cover opacity-70" style={{ objectPosition: focus }} unoptimized />
+      <div
+        className="mx-auto w-full max-w-[400px] py-3 md:py-4 animate-fade-in-up [@media(hover:hover)]:hover:scale-105 transition-transform duration-300 ease-in-out"
+        onPointerEnter={(e) => { if (e.pointerType === "mouse") handleCardEnter(); }}
+        onPointerLeave={(e) => { if (e.pointerType === "mouse") handleCardLeave(); }}
+      >
+        <div className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img ref={slotARef} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img ref={slotBRef} alt="" className="absolute inset-0 w-full h-full object-cover" />
 
-          <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/85 to-transparent px-4 pt-4 pb-16 pointer-events-none">
+          <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent px-4 pt-4 pb-16 pointer-events-none">
             <div className="flex items-center gap-2">
               <Image src={getParkFlag(park.country)} alt="" width={20} height={14} className="rounded-sm shrink-0" unoptimized />
               <h1 className="text-white font-bold text-xl leading-tight drop-shadow-md">{park.name}</h1>
@@ -111,18 +342,27 @@ function FullBleedRatingCard({ rating, park }: { rating: Rating; park: Park }) {
             <p className="text-white/50 text-xs mt-1">{new Date(rating.date).toLocaleDateString()}</p>
           </div>
 
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/75 to-transparent px-5 pt-16 pb-4 flex flex-col items-center gap-3 pointer-events-none">
-            <span className={`text-[4rem] font-black tabular-nums leading-none drop-shadow-xl ${getRatingColor(rating.overall)}`}>
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent px-5 pt-16 pb-4 flex flex-col items-center gap-3">
+            <span className={`text-[4rem] font-black tabular-nums leading-none drop-shadow-xl pointer-events-none ${getRatingColor(rating.overall)}`}>
               {rating.overall.toFixed(2)}
             </span>
             <div className="w-full grid grid-cols-5 gap-1 mt-1">
-              {FULL_BLEED_GROUPS.map((g) => (
-                <div key={g.label} className="flex flex-col items-center gap-0.5">
-                  <span className="text-base">{g.emoji}</span>
-                  <span className={`text-xs font-bold tabular-nums ${getRatingColor(parseFloat(g.getValue(rating)))}`}>{g.getValue(rating)}</span>
-                  <span className="text-[9px] text-white/40 uppercase tracking-wide">{g.label}</span>
-                </div>
-              ))}
+              {FULL_BLEED_GROUPS.map((g) => {
+                const highlighted = activeLabel === g.label;
+                return (
+                  <div key={g.label} className="flex flex-col items-center gap-0.5 cursor-pointer"
+                    onPointerEnter={(e) => { if (e.pointerType === "mouse") handleCatEnter(g.label); }}
+                    onPointerLeave={(e) => { if (e.pointerType === "mouse") handleCatLeave(); }}
+                    onClick={(e) => handleCatTap(e, g.label)}
+                  >
+                    <span className={`transition-transform duration-300 leading-none ${highlighted ? "scale-125" : "text-base"}`}>{g.emoji}</span>
+                    <span className={`text-xs font-bold tabular-nums ${getRatingColor(parseFloat(g.getValue(rating)))}`}>{g.getValue(rating)}</span>
+                    <span className={`text-[9px] uppercase tracking-wide transition-all duration-300 ${highlighted ? "text-white/90 border-b border-white/60 pb-px" : "text-white/40"}`}>
+                      {g.label}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -344,7 +584,7 @@ const Home = () => {
                 ) : item.type === "teaser" ? (
                   <TeaserParkCard rating={item.rating} park={item.park} />
                 ) : item.type === "rating" ? (
-                  <FullBleedRatingCard rating={item.rating} park={item.park} />
+                  <FullBleedRatingCard rating={item.rating} park={item.park} isActive={active} />
                 ) : (
                   <RatingCard
                     rating={item.rating}

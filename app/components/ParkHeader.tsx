@@ -99,6 +99,7 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
           currentImagePath={park.imagepath}
           currentFocus={park.imageFocus}
           currentHeaderFocus={park.headerFocus}
+          currentCardImages={park.cardImages}
           onClose={() => setShowModal(false)}
           onSuccess={handleSuccess}
         />
