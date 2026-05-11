@@ -18,11 +18,11 @@ export async function GET(
 
     const result = isNumeric
       ? await pool.query(
-        `SELECT id, name, continent, country, city, imagepath, slug FROM parks WHERE id = $1`,
+        `SELECT id, name, continent, country, city, imagepath, slug, image_focus AS "imageFocus", header_focus AS "headerFocus" FROM parks WHERE id = $1`,
         [Number(id)]
       )
       : await pool.query(
-        `SELECT id, name, continent, country, city, imagepath, slug FROM parks WHERE slug = $1`,
+        `SELECT id, name, continent, country, city, imagepath, slug, image_focus AS "imageFocus", header_focus AS "headerFocus" FROM parks WHERE slug = $1`,
         [id]
       );
 
@@ -56,6 +56,8 @@ export async function PATCH(
     if (body.country) { fields.push(`country = $${queryIdx++}`); values.push(body.country); }
     if (body.city) { fields.push(`city = $${queryIdx++}`); values.push(body.city); }
     if (body.imagepath) { fields.push(`imagepath = $${queryIdx++}`); values.push(body.imagepath); }
+    if (body.imageFocus !== undefined) { fields.push(`image_focus = $${queryIdx++}`); values.push(body.imageFocus); }
+    if (body.headerFocus !== undefined) { fields.push(`header_focus = $${queryIdx++}`); values.push(body.headerFocus); }
 
     if (fields.length === 0) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });

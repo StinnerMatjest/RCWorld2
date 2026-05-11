@@ -6,6 +6,8 @@ export interface Park {
   city: string;
   imagepath: string;
   slug: string;
+  imageFocus?: string;
+  headerFocus?: string;
 }
 
 export interface Rating {

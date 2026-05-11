@@ -45,6 +45,7 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
             className={`object-cover transition-transform duration-750 group-hover:scale-105 ${
               imageLoaded ? "opacity-100 blur-0" : "opacity-0 blur-lg"
             }`}
+            style={{ objectPosition: park.headerFocus ?? "50% 50%" }}
             priority
             unoptimized
             onLoad={() => setImageLoaded(true)}
@@ -91,10 +92,13 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
 
       {/* MODAL MOUNT */}
       {showModal && (
-        <ParkHeaderModal 
-          parkId={park.id} 
-          parkName={park.name} 
+        <ParkHeaderModal
+          parkId={park.id}
+          parkName={park.name}
+          parkCountry={park.country}
           currentImagePath={park.imagepath}
+          currentFocus={park.imageFocus}
+          currentHeaderFocus={park.headerFocus}
           onClose={() => setShowModal(false)}
           onSuccess={handleSuccess}
         />
