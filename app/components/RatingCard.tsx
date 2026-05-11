@@ -123,9 +123,9 @@ const RatingCard: React.FC<RatingCardProps> = ({
           } animate-fade-in-up ${delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""
           }`}
       >
-        <div className="flex flex-col items-center justify-between 
-    bg-blue-50 dark:bg-[#1e293b] rounded-2xl overflow-hidden 
-    shadow-md dark:shadow-lg transition-transform duration-300 ease-in-out 
+        <div className="relative flex flex-col items-center justify-between
+    bg-blue-50 dark:bg-[#1e293b] rounded-2xl overflow-hidden
+    shadow-md dark:shadow-lg transition-transform duration-300 ease-in-out
     hover:scale-105 hover:shadow-xl transform-gpu will-change-transform">
 
           {/* Park Name */}
@@ -153,7 +153,6 @@ const RatingCard: React.FC<RatingCardProps> = ({
               </h1>
             </div>
           </div>
-
           {/* Park Image */}
           <figure
             className={`w-full aspect-[16/9] md:aspect-video overflow-hidden bg-gray-200 dark:bg-gray-800 will-change-transform transition-transform duration-350 ease-[cubic-bezier(0.33,1,0.68,1)]`}
@@ -196,7 +195,6 @@ const RatingCard: React.FC<RatingCardProps> = ({
             {rating.overall.toFixed(2)}
           </p>
 
-          {/* Separator */}
           <div
             className={`${isMobile ? "w-10/12 my-1.5" : "w-3/4 my-2"
               } border-t border-gray-300 dark:border-gray-600`}

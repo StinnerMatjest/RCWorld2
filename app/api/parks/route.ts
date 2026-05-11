@@ -12,14 +12,17 @@ const pool = new Pool({
 export async function GET() {
   try {
     const query = `
-      SELECT 
+      SELECT
         id,
         name,
         continent,
         country,
         city,
         imagepath,
-        slug
+        slug,
+        image_focus AS "imageFocus",
+        header_focus AS "headerFocus",
+        card_images AS "cardImages"
       FROM parks
     `;
     const result = await pool.query(query);
@@ -34,6 +37,9 @@ export async function GET() {
         city: row.city,
         imagepath: row.imagepath,
         slug: row.slug,
+        imageFocus: row.imageFocus ?? undefined,
+        headerFocus: row.headerFocus ?? undefined,
+        cardImages:  row.cardImages  ?? undefined,
       };
     });
 
