@@ -26,7 +26,6 @@ export async function GET() {
       FROM parks
     `;
     const result = await pool.query(query);
-    console.log("Database result:", result.rows);
 
     const parks: Park[] = result.rows.map((row) => {
       return {

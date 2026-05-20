@@ -342,7 +342,7 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-900 p-2 sm:p-6 flex flex-col items-center overflow-x-hidden text-slate-900 dark:text-white select-none">
+    <div className="min-h-screen bg-white dark:bg-slate-900 p-2 sm:p-6 flex flex-col items-center overflow-x-hidden">
       <style>{`
         @keyframes revealUp {
           0% { opacity: 0; transform: translateY(10px) scale(0.99); }
@@ -373,14 +373,14 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
         </div>
       )}
 
-      <div className="mb-2 mt-2 w-full space-y-2 px-4 text-center animate-reveal">
-        <h1 className="pr-4 text-4xl sm:text-6xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 drop-shadow-sm italic transform -skew-x-6">
+      <header className="mb-2 text-center mt-2 space-y-2 px-4 animate-reveal">
+        <h1 className="text-4xl sm:text-6xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 drop-shadow-sm italic transform -skew-x-6 pr-4">
           CONNECTIONS
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">
           {isPractice ? "Practice mode" : "Find the four coaster groups"}
         </p>
-      </div>
+      </header>
 
       {!isPractice && <div className="w-full max-w-[280px] sm:max-w-xs grid grid-cols-3 gap-1 bg-slate-200 dark:bg-slate-800 p-1 rounded-lg mb-3 mx-auto animate-reveal">
         {([
@@ -490,7 +490,7 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
 
       {activeTab === "howto" && (
         <div className="w-full max-w-xl animate-reveal rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
-          <h2 className="text-xl font-black uppercase tracking-wide">How To Play</h2>
+          <h2 className="text-xl font-black uppercase tracking-wide text-slate-900 dark:text-white">How To Play</h2>
           <p className="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-6">
             Select four coasters that belong together, then press submit. Find all four groups before you run out of mistakes.
           </p>

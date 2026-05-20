@@ -66,33 +66,49 @@ const Navbar: React.FC = () => {
       <div className="relative md:hidden" ref={dropdownRef}>
         <button
           onClick={toggleDropdown}
-          className="inline-flex items-center justify-center w-11 h-11 rounded-md border
-                     border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800
-                     text-slate-800 dark:text-slate-100 shadow-sm
-                     hover:bg-slate-100 dark:hover:bg-slate-700
-                     focus:outline-none transition"
+          className="inline-flex items-center justify-center w-11 h-11 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white focus:outline-none transition"
         >
           {/* Icons */}
           <svg className={`w-6 h-6 transition-transform duration-200 ${isDropdownOpen ? "rotate-90 opacity-0" : "opacity-100"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
           <svg className={`absolute w-6 h-6 transition-transform duration-200 ${isDropdownOpen ? "opacity-100 rotate-0" : "opacity-0 -rotate-90"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
         </button>
 
-        {isDropdownOpen && <button onClick={closeDropdown} className="fixed inset-0 bg-black/30 backdrop-blur-[1px] z-[9998]" />}
+        {isDropdownOpen && <button onClick={closeDropdown} className="fixed inset-0 z-[9998]" />}
 
-        <div className={`fixed top-14 right-4 w-72 z-[9999] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl transition-all duration-200 ${isDropdownOpen ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-2 pointer-events-none"}`}>
-          <div className="p-3 border-b border-slate-200 dark:border-slate-700">
+        <div className={`fixed top-14 right-4 w-64 z-[9999] rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl dark:shadow-black/40 transition-all duration-200 overflow-hidden ${isDropdownOpen ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-2 pointer-events-none"}`}>
+          <div className="p-3 border-b border-slate-100 dark:border-slate-800">
             <SearchBar />
           </div>
-          <ul className="py-2 text-slate-900 dark:text-slate-100">
-            <li><Link href="/about" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>About</Link></li>
-            <li><Link href="/info" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Rating Evaluation</Link></li>
-            <li><Link href="/coasterratings" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Coaster Ratings</Link></li>
-            <li><Link href="/lists" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Lists</Link></li>
-            <li><Link href="/games" className="block px-4 py-2 font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-fuchsia-600 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Games</Link></li>
+          <ul className="py-1.5">
+            {[
+              { href: "/about", label: "About" },
+              { href: "/info", label: "Rating Evaluation" },
+              { href: "/coasterratings", label: "Coaster Ratings" },
+              { href: "/lists", label: "Lists" },
+            ].map(({ href, label }) => (
+              <li key={href}>
+                <Link href={href}
+                  className="flex items-center px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  onClick={closeDropdown}>
+                  {label}
+                </Link>
+              </li>
+            ))}
+            <li>
+              <Link href="/games"
+                className="flex items-center px-4 py-2.5 text-sm font-black bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-fuchsia-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                onClick={closeDropdown}>
+                Games
+              </Link>
+            </li>
             {isAdminMode && (
               <>
-                <li><Link href="/?modal=true" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Rate a Park</Link></li>
-                <li><Link href="/checklists" className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={closeDropdown}>Checklists</Link></li>
+                <li className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
+                  <Link href="/?modal=true" className="flex items-center px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" onClick={closeDropdown}>Rate a Park</Link>
+                </li>
+                <li>
+                  <Link href="/checklists" className="flex items-center px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" onClick={closeDropdown}>Checklists</Link>
+                </li>
               </>
             )}
           </ul>

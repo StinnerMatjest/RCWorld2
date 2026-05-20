@@ -37,6 +37,7 @@ export async function GET() {
         rs.duration_sec AS duration,
         rs.notes,
         p.name AS park_name,
+        p.country AS park_country,
         p.slug AS park_slug,
         MAX(r.date) AS last_visit_date,
         COUNT(DISTINCT r.id) AS visit_count
@@ -47,8 +48,8 @@ export async function GET() {
       GROUP BY 
         rc.id, rc.name, rc.year, rc.manufacturer, rc.model, rc.scale, rc.haveridden, 
         rc.isbestcoaster, rc.rcdbpath, rc.ridecount, rc.rating, rc.park_id, rc.slug,
-        rs.type, rs.classification, rs.length, rs.height, rs.drop, rs.speed, 
-        rs.inversions, rs.vertical_angle, rs.gforce, rs.duration_sec, rs.notes, p.name, p.slug
+        rs.type, rs.classification, rs.length, rs.height, rs.drop, rs.speed,
+        rs.inversions, rs.vertical_angle, rs.gforce, rs.duration_sec, rs.notes, p.name, p.slug, p.country
       ORDER BY p.name, rc.name;
     `;
 
@@ -71,6 +72,7 @@ export async function GET() {
       slug: row.slug,
       parkSlug: row.park_slug,
       parkName: row.park_name,
+      parkCountry: row.park_country ?? null,
       lastVisitDate: row.last_visit_date,
       visitCount: Number(row.visit_count) || 0,
       specs: {

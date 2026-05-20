@@ -106,14 +106,22 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
 
   const handleSaveCardImages = async () => {
     setSavingCardImages(true);
-    await fetch(`/api/park/${parkId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cardImages: cardEntries }),
-    });
-    setSavingCardImages(false);
-    onSuccess();
-    onClose();
+    try {
+      const res = await fetch(`/api/park/${parkId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cardImages: cardEntries }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(`Save failed (${res.status}): ${err.error ?? "unknown error"}`);
+        return;
+      }
+      onSuccess();
+      onClose();
+    } finally {
+      setSavingCardImages(false);
+    }
   };
 
   const activeFocus = tab === "header-focal" ? headerFocus : cardFocus;

@@ -100,7 +100,7 @@ const FULL_BLEED_GROUPS = [
 const CARD_CATS = ["coasters", "rides", "park", "food", "mgmt"] as const;
 type CardCat = typeof CARD_CATS[number];
 
-function FullBleedRatingCard({ rating, park, isActive = false }: { rating: Rating; park: Park; isActive?: boolean }) {
+function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }: { rating: Rating; park: Park; isActive?: boolean; delayIndex?: number }) {
   const headerSrc   = park.imagepath || "/images/error.PNG";
   const headerFocus = park.imageFocus ?? "50% 50%";
 
@@ -323,7 +323,8 @@ function FullBleedRatingCard({ rating, park, isActive = false }: { rating: Ratin
   return (
     <Link href={`/park/${park.slug}`}>
       <div
-        className="mx-auto w-full max-w-[400px] py-3 md:py-4 animate-fade-in-up [@media(hover:hover)]:hover:scale-105 transition-transform duration-300 ease-in-out"
+        className="mx-auto w-full max-w-[400px] py-3 md:py-4 animate-fade-in-up [@media(hover:hover)]:hover:scale-105 transition-transform duration-300 ease-in-out will-change-transform"
+        style={{ animationDelay: `${delayIndex * 60}ms` }}
         onPointerEnter={(e) => { if (e.pointerType === "mouse") handleCardEnter(); }}
         onPointerLeave={(e) => { if (e.pointerType === "mouse") handleCardLeave(); }}
       >
@@ -626,7 +627,7 @@ const Home = () => {
           if (item.type === "teaser") {
             return <TeaserParkCard key={item.id} rating={item.rating} park={item.park} />;
           }
-          return <FullBleedRatingCard key={item.id} rating={item.rating} park={item.park} />;
+          return <FullBleedRatingCard key={item.id} rating={item.rating} park={item.park} delayIndex={index} />;
         })}
       </div>
 
