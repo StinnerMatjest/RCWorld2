@@ -256,10 +256,10 @@ function ModeButton({
 export default function GamesLauncherPage() {
   const { isAdminMode } = useAdminMode();
   const [standardStats, setStandardStats] = useState<GameStats | null>(null);
-  const [insiderStats, setInsiderStats] = useState<GameStats | null>(null);
+  const [zoomleStats, setZoomleStats] = useState<GameStats | null>(null);
   const [connectionsStats, setConnectionsStats] = useState<GameStats | null>(null);
   const [standardDailyDone, setStandardDailyDone] = useState<boolean | null>(null);
-  const [insiderDailyDone, setInsiderDailyDone] = useState<boolean | null>(null);
+  const [zoomleDailyDone, setZoomleDailyDone] = useState<boolean | null>(null);
   const [connectionsDailyDone, setConnectionsDailyDone] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -268,18 +268,15 @@ export default function GamesLauncherPage() {
         safeParseStats(localStorage.getItem("coastle-stats"))
     );
 
-    setInsiderStats(
-      safeParseStats(localStorage.getItem("coastle-insider-stats")) ??
-        safeParseStats(localStorage.getItem("coastle-stats"))
-    );
+    // Zoomle has no cumulative stats yet — future feature
     setConnectionsStats(safeParseStats(localStorage.getItem("connections-stats")));
 
     const today = getTodayString();
 
     const stdDaily = safeParseDaily(localStorage.getItem("coastle-standard-daily-state"));
-    const insDaily =
-      safeParseDaily(localStorage.getItem("coastle-insider-daily-state")) ??
-      safeParseDaily(localStorage.getItem("coastle-daily-state"));
+    const today2 = getTodayString();
+    const zoomleRaw = localStorage.getItem(`zoomle-${today2}`);
+    const zoomleState = zoomleRaw ? JSON.parse(zoomleRaw) : null;
 
     const connectionsDaily = safeParseConnectionsState(
       localStorage.getItem(`connections-${today}`)
@@ -289,9 +286,7 @@ export default function GamesLauncherPage() {
       stdDaily ? stdDaily.date === today && stdDaily.status !== "playing" : false
     );
 
-    setInsiderDailyDone(
-      insDaily ? insDaily.date === today && insDaily.status !== "playing" : false
-    );
+    setZoomleDailyDone(zoomleState?.done === true);
 
     setConnectionsDailyDone(
       connectionsDaily
@@ -305,7 +300,7 @@ export default function GamesLauncherPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-slate-900 px-4 py-6 sm:py-10 flex items-start justify-center">
       <div className="w-full max-w-7xl">
-        <header className="text-center mt-2 md:mt-0 mb-8 sm:mb-12">
+        <header className="text-center mt-2 md:mt-0 mb-4 sm:mb-12">
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 drop-shadow-sm italic transform -skew-x-6">
             Games
           </h1>
@@ -313,23 +308,23 @@ export default function GamesLauncherPage() {
             Choose a game below.
           </p>
 
-          <div className="mt-4 text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium max-w-3xl mx-auto space-y-1">
+          <div className="hidden sm:block mt-4 text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium max-w-3xl mx-auto space-y-1">
             <span className="block">
-              <span className="font-bold text-slate-800 dark:text-slate-100">Standard</span> = Focus on general coaster knowledge.
+              <span className="font-bold text-slate-800 dark:text-slate-100">Coastle</span> = Focus on general coaster knowledge.
             </span>
             <span className="block">
               <span className="font-bold text-slate-800 dark:text-slate-100">Connections</span> = Group four coasters by 4 categories.
             </span>
             <span className="block">
-              <span className="font-bold text-slate-800 dark:text-slate-100">Insider</span> = Focus on insider knowledge and ratings.
+              <span className="font-bold text-slate-800 dark:text-slate-100">Zoomle</span> = Guess the coaster as the image slowly reveals.
             </span>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-8">
           <ModeButton
             href="/games/coastle/standard"
-            label="Standard"
+            label="Coastle"
             gradient={gradient}
             stats={standardStats}
             dailyDone={standardDailyDone}
@@ -366,15 +361,25 @@ export default function GamesLauncherPage() {
             )}
           </div>
 
+          <div className="flex flex-col h-full relative">
           <ModeButton
-            href="/games/coastle/insider"
-            label="Insider"
+            href="/games/zoomle"
+            label="Zoomle"
             gradient={gradient}
-            stats={insiderStats}
-            dailyDone={insiderDailyDone}
-            iconLightSrc="/logos/faviconblackorange.svg"
-            iconDarkSrc="/logos/faviconblackorange.svg"
+            stats={zoomleStats}
+            dailyDone={zoomleDailyDone}
+            iconLightSrc="/logos/favicon.svg"
+            iconDarkSrc="/logos/faviconload.svg"
           />
+          {isAdminMode && (
+            <div className="sm:absolute sm:-bottom-14 left-0 right-0 flex justify-center pb-2 sm:pb-0">
+              <Link href="/games/zoomle/config"
+                className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:bg-blue-100 hover:text-blue-600 dark:hover:bg-slate-700 dark:hover:text-white transition-all shadow-sm cursor-pointer">
+                ⚙️ Config
+              </Link>
+            </div>
+          )}
+          </div>
         </div>
       </div>
     </div>
