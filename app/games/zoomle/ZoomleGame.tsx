@@ -31,7 +31,7 @@ function getTodayStr() {
 }
 
 function buildShareText(date: string, scores: (number|null)[], maxScore: number): string {
-  const total = scores.reduce((s, p) => s + (p ?? 0), 0);
+  const total = scores.reduce<number>((s, p) => s + (p ?? 0), 0);
   const lines = scores.map((p, i) => {
     const sq = p === null ? "⬛" : p >= 5 ? "🟩" : p >= 4 ? "🟨" : p >= 3 ? "🟧" : "🟥";
     return `${sq} Round ${i + 1}: ${p !== null ? `+${p} pts` : "0 pts"}`;

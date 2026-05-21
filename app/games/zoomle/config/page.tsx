@@ -3,12 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-
-const GRID_FOCUSES = [
-  "20% 20%", "50% 20%", "80% 20%",
-  "20% 50%", "50% 50%", "80% 50%",
-  "20% 75%", "50% 75%", "80% 75%",
-];
+import { GRID_FOCUSES } from "@/app/games/zoomle/constants";
 
 type CoasterImage = {
   gallery_id: number;
@@ -26,8 +21,6 @@ type CoasterGroup = {
   coaster_enabled: boolean;
   images: CoasterImage[];
 };
-
-// ─── Inline focal editor for one grid cell ───────────────────────────────────
 
 function FocalCellEditor({ img, fi, currentFocus, onSave, onClose }: {
   img: CoasterImage; fi: number; currentFocus: string;
@@ -56,8 +49,10 @@ function FocalCellEditor({ img, fi, currentFocus, onSave, onClose }: {
     await fetch("/api/zoomle/images", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ coaster_id: img.coaster_id, image_path: img.image_path,
-        focal_override: { focal_index: fi, focus: focusStr } }),
+      body: JSON.stringify({
+        coaster_id: img.coaster_id, image_path: img.image_path,
+        focal_override: { focal_index: fi, focus: focusStr }
+      }),
     });
     setSaving(false);
     onSave(focusStr);
@@ -151,9 +146,8 @@ function ImageFocalGrid({ img, flags, onToggleFlag, onFocalSaved }: {
               return (
                 <div key={fi} className="flex flex-col gap-1">
                   <button onClick={() => !isEditing && onToggleFlag(img.image_path, fi)}
-                    className={`relative rounded-lg overflow-hidden cursor-pointer transition-all ${
-                      isFlagged ? "ring-2 ring-rose-500 opacity-50" : "hover:ring-2 hover:ring-blue-400"
-                    }`}
+                    className={`relative rounded-lg overflow-hidden cursor-pointer transition-all ${isFlagged ? "ring-2 ring-rose-500 opacity-50" : "hover:ring-2 hover:ring-blue-400"
+                      }`}
                     style={{ aspectRatio: "3/2" }}
                     title={isFlagged ? "Flagged — click to unflag" : "Click to flag"}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -169,9 +163,8 @@ function ImageFocalGrid({ img, flags, onToggleFlag, onFocalSaved }: {
                     </div>
                   </button>
                   <button onClick={() => setEditing(isEditing ? null : fi)}
-                    className={`text-[9px] font-bold text-center transition-colors cursor-pointer ${
-                      isEditing ? "text-blue-500" : "text-slate-400 hover:text-slate-600"
-                    }`}>
+                    className={`text-[9px] font-bold text-center transition-colors cursor-pointer ${isEditing ? "text-blue-500" : "text-slate-400 hover:text-slate-600"
+                      }`}>
                     {isEditing ? "close ✕" : "✏️ edit"}
                   </button>
                 </div>
@@ -210,9 +203,8 @@ function CoasterRow({ group, flags, onToggleFlag, onToggleCoaster, onFocalSaved 
   const activeFocals = totalFocals - flaggedCount;
 
   return (
-    <div className={`rounded-2xl border-2 overflow-hidden transition-all ${
-      group.coaster_enabled ? "border-slate-200 dark:border-slate-700" : "border-slate-100 dark:border-slate-800"
-    }`}>
+    <div className={`rounded-2xl border-2 overflow-hidden transition-all ${group.coaster_enabled ? "border-slate-200 dark:border-slate-700" : "border-slate-100 dark:border-slate-800"
+      }`}>
       <div className={`flex items-center gap-3 px-4 py-3 bg-white dark:bg-slate-900 ${!group.coaster_enabled ? "opacity-40" : ""}`}>
         <button onClick={() => setOpen(o => !o)} className="flex-1 min-w-0 text-left cursor-pointer">
           <p className="font-black text-sm text-slate-900 dark:text-white">{group.coaster_name}</p>
@@ -220,9 +212,8 @@ function CoasterRow({ group, flags, onToggleFlag, onToggleCoaster, onFocalSaved 
         </button>
         <span className="text-slate-300 dark:text-slate-600 text-xs select-none">{open ? "▲" : "▼"}</span>
         <button onClick={() => onToggleCoaster(group.coaster_id, !group.coaster_enabled)}
-          className={`flex-shrink-0 w-11 h-6 rounded-full relative transition-colors cursor-pointer ${
-            group.coaster_enabled ? "bg-emerald-500" : "bg-slate-200 dark:bg-slate-700"
-          }`}>
+          className={`flex-shrink-0 w-11 h-6 rounded-full relative transition-colors cursor-pointer ${group.coaster_enabled ? "bg-emerald-500" : "bg-slate-200 dark:bg-slate-700"
+            }`}>
           <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${group.coaster_enabled ? "left-5" : "left-0.5"}`} />
         </button>
       </div>
@@ -243,10 +234,10 @@ function CoasterRow({ group, flags, onToggleFlag, onToggleCoaster, onFocalSaved 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ZoomleConfig() {
-  const [groups, setGroups]   = useState<CoasterGroup[]>([]);
-  const [flags, setFlags]     = useState<Set<string>>(new Set());
+  const [groups, setGroups] = useState<CoasterGroup[]>([]);
+  const [flags, setFlags] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [search, setSearch]   = useState("");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     Promise.all([
