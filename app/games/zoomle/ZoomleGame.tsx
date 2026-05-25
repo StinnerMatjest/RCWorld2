@@ -64,6 +64,8 @@ const POINT_BRACKETS = [
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+function isVideo(path: string) { return /\.(mp4|webm|mov)$/i.test(path); }
+
 function pickRandom<T>(arr: T[], n: number): T[] {
   const c = [...arr];
   for (let i = c.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [c[i], c[j]] = [c[j], c[i]]; }
@@ -172,7 +174,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
   const [pointsEarned, setPointsEarned] = useState<number | null>(null);
 
   // Direct DOM refs for smooth zoom — no React re-renders for the transform
-  const imgRef        = useRef<HTMLImageElement>(null);
+  const imgRef        = useRef<HTMLElement>(null);
   const timerBarRef   = useRef<HTMLDivElement>(null);
   const rafRef        = useRef<number | null>(null);
   const startTimeRef  = useRef<number>(0);
@@ -412,9 +414,15 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
               }`}>
               {/* Thumbnail */}
               <div className="relative w-20 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-slate-700">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={r.image} alt="" className="absolute inset-0 w-full h-full object-cover"
-                  style={{ transform: `scale(${START_SCALE})`, transformOrigin: r.focus }} />
+                {isVideo(r.image) ? (
+                  <video src={r.image} muted playsInline
+                    className="absolute inset-0 w-full h-full object-cover"
+                    style={{ transform: `scale(${START_SCALE})`, transformOrigin: r.focus }} />
+                ) : (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={r.image} alt="" className="absolute inset-0 w-full h-full object-cover"
+                    style={{ transform: `scale(${START_SCALE})`, transformOrigin: r.focus }} />
+                )}
               </div>
               {/* Info */}
               <div className="flex-1 min-w-0">
@@ -587,11 +595,19 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
                 </motion.div>
               )}
             </AnimatePresence>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img ref={imgRef} src={current.image} alt=""
-              className="absolute inset-0 w-full h-full object-cover"
-              style={{ opacity: phase === "intro" ? 0 : 1, transform: `scale(${START_SCALE})`,
-                transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease" }} />
+            {isVideo(current.image) ? (
+              <video ref={imgRef as React.RefObject<HTMLVideoElement>} src={current.image}
+                autoPlay muted loop playsInline
+                className="absolute inset-0 w-full h-full object-cover"
+                style={{ opacity: phase === "intro" ? 0 : 1, transform: `scale(${START_SCALE})`,
+                  transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease" }} />
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img ref={imgRef as React.RefObject<HTMLImageElement>} src={current.image} alt=""
+                className="absolute inset-0 w-full h-full object-cover"
+                style={{ opacity: phase === "intro" ? 0 : 1, transform: `scale(${START_SCALE})`,
+                  transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease" }} />
+            )}
           </div>
 
           {/* Result strip — below image, fixed height */}
@@ -702,9 +718,19 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
               </motion.div>
             )}
           </AnimatePresence>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img ref={imgRef} src={current.image} alt="" className="absolute inset-0 w-full h-full object-cover"
-            style={{ opacity: phase === "intro" ? 0 : 1, transform: `scale(${START_SCALE})`, transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease" }} />
+          {isVideo(current.image) ? (
+            <video ref={imgRef as React.RefObject<HTMLVideoElement>} src={current.image}
+              autoPlay muted loop playsInline
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ opacity: phase === "intro" ? 0 : 1, transform: `scale(${START_SCALE})`,
+                transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease" }} />
+          ) : (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img ref={imgRef as React.RefObject<HTMLImageElement>} src={current.image} alt=""
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ opacity: phase === "intro" ? 0 : 1, transform: `scale(${START_SCALE})`,
+                transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease" }} />
+          )}
         </div>
         {/* Result strip */}
         <div className="flex-shrink-0 h-9">
