@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
+import { ROUNDS_PER_DAY, GRID_FOCUSES } from "@/app/games/zoomle/constants";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
-
-export const ROUNDS_PER_DAY = 5;
-
-// 3×3 grid of focal points — deterministic, shared with client
-export const GRID_FOCUSES = [
-  "20% 20%", "50% 20%", "80% 20%",
-  "20% 50%", "50% 50%", "80% 50%",
-  "20% 75%", "50% 75%", "80% 75%",
-];
 
 function seededRng(seed: string) {
   let h = 2166136261 >>> 0;
@@ -89,13 +81,13 @@ export async function GET(req: NextRequest) {
           const overrides: Record<string, string> = img.focuses_override ?? {};
           const focus = overrides[String(fi)] ?? GRID_FOCUSES[fi];
           allEntries.push({
-            image_path:    img.image_path,
-            focal_index:   fi,
+            image_path: img.image_path,
+            focal_index: fi,
             focus,
-            coaster_id:    img.coaster_id,
-            coaster_name:  img.coaster_name,
-            park_name:     img.park_name,
-            park_country:  img.park_country,
+            coaster_id: img.coaster_id,
+            coaster_name: img.coaster_name,
+            park_name: img.park_name,
+            park_country: img.park_country,
           });
         }
       }
@@ -137,12 +129,12 @@ export async function GET(req: NextRequest) {
         seededRng(`zoomle-${date}-order-${i}`)
       );
       return {
-        image:        entry.image_path,
-        focus:        entry.focus,
-        focal_index:  entry.focal_index,
-        answer_id:    entry.coaster_id,
-        answer_name:  entry.coaster_name,
-        park_name:    entry.park_name,
+        image: entry.image_path,
+        focus: entry.focus,
+        focal_index: entry.focal_index,
+        answer_id: entry.coaster_id,
+        answer_name: entry.coaster_name,
+        park_name: entry.park_name,
         park_country: entry.park_country,
         options,
       };
