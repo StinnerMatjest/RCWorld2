@@ -5,7 +5,13 @@
       "Bash(mkdir -p \"c:/ParkRating/RCWorld2/app/test-games\")",
       "Bash(git fetch *)",
       "Bash(git rebase *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(New-Item -ItemType Directory -Force \"c:\\\\ParkRating\\\\RCWorld2\\\\app\\\\api\\\\setup\\\\facebook\\\\callback\")",
+      "Bash(Out-Null)",
+      "Bash(Write-Host \"done\")",
+      "Bash(grep -n \"VOICE\\\\|CTA RULES\\\\|HASHTAG RULES\" \"C:/Users/janni/.claude/projects/c--ParkRating-RCWorld2/9d84060f-824b-4ffb-b978-719e95d0cbe3.jsonl\" | head -5)",
+      "Read(//c/Users/janni/.claude/projects/c--ParkRating-RCWorld2/**)",
+      "Bash(npx tsc *)"
     ],
     "additionalDirectories": [
       "c:\\ParkRating\\RCWorld2\\app"
