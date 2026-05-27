@@ -19,6 +19,7 @@ export async function POST(req: Request) {
   const imgBuf = Buffer.from(await imgRes.arrayBuffer());
 
   const cropped = await sharp(imgBuf)
+    .rotate()
     .extract({ left: x, top: y, width: w, height: h })
     .resize(outW, outH)
     .jpeg({ quality: 92 })

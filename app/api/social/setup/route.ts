@@ -28,6 +28,7 @@ export async function GET() {
   await pool.query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS category TEXT`);
   await pool.query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ`);
   await pool.query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS scheduled_platforms TEXT[]`);
+  await pool.query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS ig_crop_url TEXT`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS social_settings (
       key        TEXT PRIMARY KEY,

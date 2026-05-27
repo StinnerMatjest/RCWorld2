@@ -57,6 +57,9 @@ const Navbar: React.FC = () => {
               <Link href="/checklists" className="hover:text-blue-500">
                 Checklists
               </Link>
+              <Link href="/admin/social" className="hover:text-pink-500 font-semibold">
+                SoMe
+              </Link>
             </>
           )}
         </div>
@@ -108,6 +111,9 @@ const Navbar: React.FC = () => {
                 </li>
                 <li>
                   <Link href="/checklists" className="flex items-center px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" onClick={closeDropdown}>Checklists</Link>
+                </li>
+                <li>
+                  <Link href="/admin/social" className="flex items-center px-4 py-2.5 text-sm font-semibold text-pink-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" onClick={closeDropdown}>SoMe</Link>
                 </li>
               </>
             )}

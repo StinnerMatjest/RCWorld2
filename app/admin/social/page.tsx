@@ -16,6 +16,7 @@ type Post = {
   category?: string;
   scheduled_at?: string;
   scheduled_platforms?: string[];
+  ig_crop_url?: string;
 };
 
 type GalleryImage = { id: number; title: string; path: string };
@@ -243,6 +244,11 @@ export default function SocialAdminPage() {
     const res = await fetch("/api/social/queue");
     const { posts: data } = await res.json();
     setPosts(data ?? []);
+    const crops: Record<number, IgCropResult> = {};
+    for (const p of (data ?? []) as Post[]) {
+      if (p.ig_crop_url) crops[p.id] = { url: p.ig_crop_url, ratio: "1:1" };
+    }
+    setIgCropData(prev => ({ ...crops, ...prev }));
   }
 
   useEffect(() => {
@@ -697,6 +703,8 @@ export default function SocialAdminPage() {
                   img={img}
                   onClick={() => {
                     setEditing(prev => ({ ...prev, [gallery.postId]: { ...(prev[gallery.postId] ?? { caption: posts.find(p=>p.id===gallery.postId)?.caption ?? "", hashtags: posts.find(p=>p.id===gallery.postId)?.hashtags ?? "" }), image_url: img.path } }));
+                    setIgCropData(prev => { const n = { ...prev }; delete n[gallery.postId]; return n; });
+                    fetch(`/api/social/queue/${gallery.postId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ig_crop_url: null }) });
                     setGallery(null);
                   }}
                 />
@@ -721,6 +729,11 @@ export default function SocialAdminPage() {
               });
               const { url } = await res.json();
               setIgCropData(prev => ({ ...prev, [cropEditor.postId]: { url, ratio: crop.ratio } }));
+              await fetch(`/api/social/queue/${cropEditor.postId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ig_crop_url: url }),
+              });
             } finally {
               setCropUploading(false);
               setCropEditor(null);
