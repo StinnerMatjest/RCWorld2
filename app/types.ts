@@ -10,10 +10,10 @@ export interface Park {
   headerFocus?: string;
   cardImages?: {
     coasters?: { src: string; focus: string };
-    rides?:    { src: string; focus: string };
-    park?:     { src: string; focus: string };
-    food?:     { src: string; focus: string };
-    mgmt?:     { src: string; focus: string };
+    rides?: { src: string; focus: string };
+    park?: { src: string; focus: string };
+    food?: { src: string; focus: string };
+    mgmt?: { src: string; focus: string };
   };
 }
 
@@ -83,6 +83,77 @@ export interface RollerCoasterHighlights {
   severity: string;
 }
 
+export const MAJOR_MANUFACTURERS = [
+  "Arrow Dynamics",
+  "Bolliger & Mabillard",
+  "GCI",
+  "Gerstlauer",
+  "Gravity Group",
+  "Intamin",
+  "Mack Rides",
+  "Maurer",
+  "Premier Rides",
+  "RMC",
+  "S&S Worldwide",
+  "Schwarzkopf",
+  "Vekoma",
+  "Zamperla",
+  "Zierer",
+];
+
+export const MINOR_MANUFACTURERS = [
+  "abc rides",
+  "Allan Herschell Company",
+  "ART Engineering",
+  "Barbisan",
+  "Beijing Shibaolai",
+  "BHS",
+  "Chance Rides",
+  "CCI",
+  "Dinn Corporation",
+  "Dynamic Attractions",
+  "E&F Miler",
+  "EOS Rides",
+  "Extreme Engineering",
+  "Fabbri",
+  "Giovanola",
+  "Gosetto",
+  "Güven",
+  "Hoei Sangyo",
+  "Hopkins",
+  "I.E. Park",
+  "Interpark",
+  "Jinma Rides",
+  "L.A. Thompson",
+  "L&T Systems",
+  "Martin & Vleminckx",
+  "Meisho",
+  "Molina & Son's",
+  "Morgan",
+  "Pax Company",
+  "Pinfari",
+  "Preston & Barbieri",
+  "PTC",
+  "RCCA",
+  "Reverchon",
+  "RES Rides AG",
+  "Sansei Technologies",
+  "SBF Visa",
+  "S.D.C.",
+  "Senyo Kogyo",
+  "Skyline Attractions",
+  "Soquet",
+  "Technical Park",
+  "Togo",
+  "Walther Queenland",
+  "Wisdom Rides",
+  "Zhipao",
+];
+
+export const ALL_MANUFACTURERS = [...MAJOR_MANUFACTURERS, ...MINOR_MANUFACTURERS].sort((a, b) =>
+  a.localeCompare(b)
+);
+
 export type ApiCoaster = {
   id: number;
   name: string;
@@ -96,6 +167,7 @@ export type ApiCoaster = {
   rating: number | string | null;
   parkId: number;
   parkName: string;
+  country: string;
   year: number | null;
   lastVisitDate: string | null;
   slug: string;
@@ -124,16 +196,7 @@ export type CoastleCoaster = {
 
 export type MatchStatus = "correct" | "close" | "wrong";
 
-export type GuessMatchesInsider = {
-  park: MatchStatus;
-  manufacturer: MatchStatus;
-  rating: MatchStatus;
-  year: MatchStatus;
-  country: MatchStatus;
-  rideCount: MatchStatus;
-};
-
-export type GuessMatchesStandard = {
+export type GuessMatches = {
   manufacturer: MatchStatus;
   country: MatchStatus;
   length: MatchStatus;
@@ -142,14 +205,9 @@ export type GuessMatchesStandard = {
   inversions: MatchStatus;
 };
 
-export type GuessInsider = {
+export type Guess = {
   coaster: CoastleCoaster;
-  matches: GuessMatchesInsider;
-};
-
-export type GuessStandard = {
-  coaster: CoastleCoaster;
-  matches: GuessMatchesStandard;
+  matches: GuessMatches;
 };
 
 export type Cell = {

@@ -15,14 +15,14 @@ interface ParkTextsModalProps {
 
 const categories = [
   "description",
-  "parkAppearance",
   "bestCoaster",
   "coasterDepth",
   "waterRides",
   "flatridesAndDarkrides",
+  "parkAppearance",
+  "parkPracticality",
   "food",
   "snacksAndDrinks",
-  "parkPracticality",
   "rideOperations",
   "parkManagement",
 ];
@@ -169,8 +169,8 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
             <button
               onClick={() => setSelectedImage(null)}
               className={`aspect-square rounded-lg border-2 flex items-center justify-center text-xs font-medium transition-all ${selectedImage === null
-                  ? "border-blue-500 bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400"
-                  : "border-gray-200 dark:border-gray-700 text-gray-400 hover:border-gray-300"
+                ? "border-blue-500 bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400"
+                : "border-gray-200 dark:border-gray-700 text-gray-400 hover:border-gray-300"
                 }`}
             >
               None
@@ -183,8 +183,8 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                   key={img.id}
                   onClick={() => setSelectedImage(img.path)}
                   className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all ${isSelected
-                      ? "border-blue-500 ring-2 ring-blue-500/30"
-                      : "border-gray-200 dark:border-gray-700 hover:border-gray-400"
+                    ? "border-blue-500 ring-2 ring-blue-500/30"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-400"
                     }`}
                 >
                   {isVideo(img.path) ? (

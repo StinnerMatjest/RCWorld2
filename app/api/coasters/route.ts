@@ -72,7 +72,7 @@ export async function GET() {
       slug: row.slug,
       parkSlug: row.park_slug,
       parkName: row.park_name,
-      parkCountry: row.park_country ?? null,
+      country: row.park_country ?? "Unknown",
       lastVisitDate: row.last_visit_date,
       visitCount: Number(row.visit_count) || 0,
       specs: {

@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { XMarkIcon, ShareIcon } from "./Icons";
-import { CoastleCoaster, GuessStandard } from "@/app/types";
+import { CoastleCoaster, Guess } from "@/app/types";
 import { getTodayString } from "@/app/utils/coastle";
 
 interface ResultModalProps {
@@ -18,8 +18,6 @@ interface ResultModalProps {
   onClose: () => void;
   onShare: () => void;
   onReset: () => void;
-  experience: "standard" | "insider";
-  hasPlayedOtherDaily?: boolean;
 }
 
 export function buildCoastleShareText({
@@ -32,7 +30,7 @@ export function buildCoastleShareText({
   gameMode: "daily" | "endless";
   gameState: "playing" | "won" | "lost";
   guessesCount: number;
-  guesses: GuessStandard[];
+  guesses: Guess[];
   answer: CoastleCoaster | null;
 }) {
   const headers = "Mfr\u2003Cty\u2003Len\u2003Hgt\u2003Spd\u2003Inv";
@@ -66,15 +64,15 @@ export function buildCoastleShareText({
 
   const title =
     gameMode === "daily"
-      ? "**Daily Standard Coastle**"
-      : "**Endless Standard Coastle**";
+      ? "**Daily Coastle**"
+      : "**Endless Coastle**";
 
   const status =
     gameState === "won"
       ? `I completed it in ${guessesCount} guesses.`
       : "I did not complete it.";
 
-  let footer = "\n\nPlay at <https://parkrating.com/games/coastle/standard>";
+  let footer = "\n\nPlay at <https://parkrating.com/games/coastle>";
 
   if (gameState === "lost") {
     const ansName = answer?.name || "";
@@ -122,8 +120,8 @@ function ConfettiBurst({ enabled }: { enabled: boolean }) {
               p.key % 3 === 0
                 ? "linear-gradient(180deg, #60a5fa, #a78bfa)"
                 : p.key % 3 === 1
-                ? "linear-gradient(180deg, #34d399, #fbbf24)"
-                : "linear-gradient(180deg, #fb7185, #f97316)",
+                  ? "linear-gradient(180deg, #34d399, #fbbf24)"
+                  : "linear-gradient(180deg, #fb7185, #f97316)",
             ["--rot" as any]: `${p.rotate}deg`,
             ["--drift" as any]: `${p.drift}px`,
           }}
@@ -144,12 +142,10 @@ export function ResultModal({
   onClose,
   onShare,
   onReset,
-  experience,
 }: ResultModalProps) {
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   const isWon = gameState === "won";
-  const isStandard = experience === "standard";
   const answerId = answer?.id ?? null;
   const answerSlug = (answer as any)?.slug ?? answerId;
 
@@ -204,7 +200,7 @@ export function ResultModal({
         const img = (galleryData?.headerImage ?? null) as string | null;
 
         if (!cancelled) setHeaderImage(img);
-      } catch {}
+      } catch { }
     }
 
     run();
@@ -214,7 +210,7 @@ export function ResultModal({
   }, [isOpen, answerId, answerSlug, answer?.name]);
 
   useEffect(() => {
-    if (!isOpen || gameMode !== "daily" || !isStandard) return;
+    if (!isOpen || gameMode !== "daily") return;
 
     try {
       const today = getTodayString();
@@ -233,7 +229,7 @@ export function ResultModal({
     } catch {
       setConnectionsDailyAvailable(true);
     }
-  }, [isOpen, gameMode, isStandard]);
+  }, [isOpen, gameMode]);
 
   if (!isOpen) return null;
 
@@ -256,8 +252,7 @@ export function ResultModal({
   const secondaryBtn =
     "bg-slate-200 text-slate-900 hover:bg-slate-300 dark:bg-neutral-800 dark:text-slate-100 dark:hover:bg-neutral-700";
 
-  const shouldRenderOtherDailyAction =
-    gameMode === "daily" && isStandard;
+  const shouldRenderOtherDailyAction = gameMode === "daily";
 
   return (
     <div

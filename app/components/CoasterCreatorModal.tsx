@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getRatingColor } from "@/app/utils/design";
+import { MAJOR_MANUFACTURERS, ALL_MANUFACTURERS } from "@/app/types";
 
 interface CoasterCreatorModalProps {
   parkId: number;
@@ -22,70 +23,6 @@ interface Coaster {
   rating?: number; // Optional
   rideCount?: number;
 }
-
-interface AddCoasterModalProps {
-  parkId: number;
-  coaster?: Coaster; // For edit mode
-  onClose: () => void;
-  onCoasterAdded: () => void;
-}
-
-const manufacturers = [
-  "abc rides",
-  "Allan Herschell Company",
-  "Arrow Dynamics",
-  "ART Engineering",
-  "Barbisan",
-  "Beijing Shibaolai",
-  "BHS",
-  "Bolliger & Mabillard",
-  "Chance Rides",
-  "CCI",
-  "Dinn Corporation",
-  "Dynamic Attractions",
-  "E&F Miler",
-  "EOS Rides",
-  "Extreme Engineering",
-  "Fabbri",
-  "Gerstlauer",
-  "Giovanola",
-  "Gravity Group",
-  "GCI",
-  "Hopkins",
-  "I.E. Park",
-  "Intamin",
-  "Interpark",
-  "Jinma Rides",
-  "L.A. Thompson",
-  "L&T Systems",
-  "Mack Rides",
-  "Martin & Vleminckx",
-  "Maurer",
-  "Meisho",
-  "Morgan",
-  "Pax Company",
-  "Pinfari",
-  "Premier Rides",
-  "Preston & Barbieri",
-  "PTC",
-  "RCCA",
-  "Reverchon",
-  "RES Rides AG",
-  "RMC",
-  "S&S Worldwide",
-  "SBF Visa",
-  "S.D.C.",
-  "Schwarzkopf",
-  "Skyline Attractions",
-  "Soquet",
-  "Technical Park",
-  "Togo",
-  "Vekoma",
-  "Walther Queenland",
-  "Zamperla",
-  "Zhipao",
-  "Zierer",
-];
 
 const scales = [
   "High Thrill",
@@ -121,6 +58,9 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
     coaster?.rideCount ?? ""
   );
 
+  const [showAllManufacturers, setShowAllManufacturers] = useState(false);
+  const displayedManufacturers = showAllManufacturers ? ALL_MANUFACTURERS : MAJOR_MANUFACTURERS;
+
   const [loading, setLoading] = useState(false);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,13 +71,9 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
   };
 
   const handleSubmit = async () => {
-    if (!haveridden && rating !== "") {
-      alert("You can only rate a coaster if you have ridden it.");
-      return;
-    }
-
     if (isbestcoaster) {
-      if (rating === "" || typeof rating !== "number" || Number.isNaN(rating)) {
+      const numRating = Number(rating);
+      if (rating === "" || Number.isNaN(numRating) || numRating === 0) {
         alert("You must provide a rating if you mark this as your best coaster.");
         return;
       }
@@ -262,16 +198,29 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
                          dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:focus-visible:ring-offset-gray-800"
               value={manufacturer}
-              onChange={(e) => setManufacturer(e.target.value)}
+              onChange={(e) => {
+                if (e.target.value === "SHOW_ALL") {
+                  setShowAllManufacturers(true);
+                  setManufacturer("");
+                } else {
+                  setManufacturer(e.target.value);
+                }
+              }}
             >
               <option value="" disabled>
                 Select Manufacturer
               </option>
-              {manufacturers.map((m) => (
+              {displayedManufacturers.map((m) => (
                 <option key={m} value={m}>
                   {m}
                 </option>
               ))}
+              {!showAllManufacturers && (
+                <>
+                  <option disabled>──────────</option>
+                  <option value="SHOW_ALL">Show all manufacturers...</option>
+                </>
+              )}
             </select>
           </div>
 
@@ -387,9 +336,10 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
                   e.target.value === "" ? "" : parseInt(e.target.value)
                 )
               }
-              className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
-                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                         dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
+              disabled={!haveridden}
+              className={`w-full p-2 rounded-md border 
+                ${!haveridden ? "bg-gray-100 text-gray-500 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600" : "bg-white text-gray-900 border-gray-300 dark:bg-gray-900 dark:text-gray-100"}
+                placeholder-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800`}
             />
           </div>
 
@@ -398,7 +348,16 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
             <input
               type="checkbox"
               checked={haveridden}
-              onChange={() => setHaveRidden(!haveridden)}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setHaveRidden(checked);
+                if (!checked) {
+                  setRating("");
+                  setRideCount("");
+                  setGoldenCoaster(false);
+                  setIsBestCoaster(false);
+                }
+              }}
               className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer
                          dark:bg-gray-900 dark:border-white/10"
             />

@@ -258,7 +258,7 @@ export default function GamesLauncherPage() {
   const [standardStats, setStandardStats] = useState<GameStats | null>(null);
   const [zoomleStats, setZoomleStats] = useState<GameStats | null>(null);
   const [connectionsStats, setConnectionsStats] = useState<GameStats | null>(null);
-  const [standardDailyDone, setStandardDailyDone] = useState<boolean | null>(null);
+  const [dailyCoastleDone, setStandardDailyDone] = useState<boolean | null>(null);
   const [zoomleDailyDone, setZoomleDailyDone] = useState<boolean | null>(null);
   const [connectionsDailyDone, setConnectionsDailyDone] = useState<boolean | null>(null);
 
@@ -323,11 +323,11 @@ export default function GamesLauncherPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-8">
           <ModeButton
-            href="/games/coastle/standard"
+            href="/games/coastle"
             label="Coastle"
             gradient={gradient}
             stats={standardStats}
-            dailyDone={standardDailyDone}
+            dailyDone={dailyCoastleDone}
             iconLightSrc="/logos/favicon.svg"
             iconDarkSrc="/logos/faviconload.svg"
           />

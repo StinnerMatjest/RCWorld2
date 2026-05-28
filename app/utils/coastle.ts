@@ -1,43 +1,5 @@
 import { ApiCoaster, CoastleCoaster, GameStats, MatchStatus } from "../types";
 
-export const PARK_COUNTRY_MAP: Record<string, string> = {
-  "Alton Towers": "UnitedKingdom",
-  "Bakken": "Denmark",
-  "BonBon-Land": "Denmark",
-  "Cedar Point": "UnitedStates",
-  "Disneyland Paris - Disneyland Park": "France",
-  "Disneyland Paris - Walt Disney Studios Park": "France",
-  "Djurs Sommerland": "Denmark",
-  "Efteling": "Netherlands",
-  "Energylandia": "Poland",
-  "Europa-Park": "Germany",
-  "Fårup Sommerland": "Denmark",
-  "Gardaland": "Italy",
-  "Hansa Park": "Germany",
-  "Heide Park": "Germany",
-  "Jardin d'Acclimatation": "France",
-  "Legendia": "Poland",
-  "Legoland Billung": "Denmark",
-  "Linnanmäki": "Finland",
-  "Liseberg": "Sweden",
-  "Mer de Sable": "France",
-  "Mirabilandia": "Italy",
-  "Parc Astérix": "France",
-  "Parc Saint Paul": "France",
-  "Phantasialand": "Germany",
-  "Plopsaland Belgium": "Belgium",
-  "Plopsaland Deutschland": "Germany",
-  "PortAventura Park": "Spain",
-  "PowerPark": "Finland",
-  "Särkänniemi": "Finland",
-  "Serengeti-Park": "Germany",
-  "Tivoli Gardens": "Denmark",
-  "Tivoli Friheden": "Denmark",
-  "Toverland": "Netherlands",
-  "Tusenfryd": "Norway",
-  "Walibi Belgium": "Belgium",
-};
-
 export const INITIAL_STATS: GameStats = {
   played: 0,
   won: 0,
@@ -45,11 +7,6 @@ export const INITIAL_STATS: GameStats = {
   maxStreak: 0,
   guessDistribution: [0, 0, 0, 0, 0],
 };
-
-// --- CORE FIX: High Variance Seeding ---
-// Instead of 20251001 -> 20251002 (linear +1), this creates wild jumps in the seed
-// while remaining 100% deterministic for everyone globally.
-// ✅ Updated: accepts optional salt to differentiate schedules (e.g. insider vs standard)
 function getSeedFromDate(d: Date, salt = "") {
   const dateStr = d.toISOString().split("T")[0]; // "2025-12-03"
   const str = salt ? `${dateStr}::${salt}` : dateStr;
@@ -62,7 +19,6 @@ function getSeedFromDate(d: Date, salt = "") {
   return Math.abs(hash);
 }
 
-// ✅ Updated: accepts optional salt
 export function getUTCTodaySeed(salt = "") {
   return getSeedFromDate(new Date(), salt);
 }
@@ -74,7 +30,6 @@ export function seededRandom(seed: number) {
   return (a * seed + c) % m;
 }
 
-// ✅ Updated: accepts optional salt so each mode has its own daily schedule
 export function getDailyCoaster(
   coasters: CoastleCoaster[],
   salt = ""
@@ -135,7 +90,7 @@ export function getNumericMatchStatus(
   return "wrong";
 }
 
-export const STANDARD_CLOSE_MARGINS = {
+export const CLOSE_MARGINS = {
   lengthFt: 500,
   heightFt: 30,
   speedMph: 10,
@@ -167,8 +122,7 @@ export function mapApiToCoastle(c: ApiCoaster): CoastleCoaster | null {
   if (rating === null || Number.isNaN(rating)) return null;
 
   const parkName = c.parkName;
-  const countryName = PARK_COUNTRY_MAP[parkName];
-
+  const countryName = c.country;
   const anyC = c as any;
   const specs = anyC?.specs ?? {};
   const toNumOrNull = (v: any): number | null => {

@@ -62,15 +62,15 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
 
             // Next: Other photo tasks
             newItems.push(
-                { id: "pic-waterrides",  label: "All waterrides",    checked: false, isPhotoTask: true },
-                { id: "pic-flatrides",   label: "All flatrides",     checked: false, isPhotoTask: true },
-                { id: "pic-darkrides",   label: "All darkrides",     checked: false, isPhotoTask: true },
-                { id: "pic-food",        label: "Food",              checked: false, isPhotoTask: true },
-                { id: "pic-drinks",      label: "Snacks/Drinks",     checked: false, isPhotoTask: true },
-                { id: "pic-operations",  label: "Ride Operations",   checked: false, isPhotoTask: true },
-                { id: "pic-park-1",      label: "Park appearance 1", checked: false, isPhotoTask: true },
-                { id: "pic-park-2",      label: "Park appearance 2", checked: false, isPhotoTask: true },
-                { id: "pic-park-3",      label: "Park appearance 3", checked: false, isPhotoTask: true }
+                { id: "pic-waterrides", label: "All waterrides", checked: false, isPhotoTask: true },
+                { id: "pic-flatrides", label: "All flatrides", checked: false, isPhotoTask: true },
+                { id: "pic-darkrides", label: "All darkrides", checked: false, isPhotoTask: true },
+                { id: "pic-food", label: "Food", checked: false, isPhotoTask: true },
+                { id: "pic-drinks", label: "Snacks/Drinks", checked: false, isPhotoTask: true },
+                { id: "pic-operations", label: "Ride Operations", checked: false, isPhotoTask: true },
+                { id: "pic-park-1", label: "Park appearance 1", checked: false, isPhotoTask: true },
+                { id: "pic-park-2", label: "Park appearance 2", checked: false, isPhotoTask: true },
+                { id: "pic-park-3", label: "Park appearance 3", checked: false, isPhotoTask: true }
             );
 
             // Always last: Buy a mug
@@ -118,8 +118,9 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
 
         try {
             const timestamp = Date.now();
-            const slugBase = newParkName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-            const uniqueParkSlug = `${slugBase}-${timestamp}`;
+
+            // Just use the clean base slug for the park!
+            const uniqueParkSlug = newParkName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
             // Create Barebones Park
             const parkPayload = {
@@ -186,15 +187,15 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
             });
 
             newItems.push(
-                { id: "pic-waterrides",  label: "All waterrides",    checked: false, isPhotoTask: true },
-                { id: "pic-flatrides",   label: "All flatrides",     checked: false, isPhotoTask: true },
-                { id: "pic-darkrides",   label: "All darkrides",     checked: false, isPhotoTask: true },
-                { id: "pic-food",        label: "Food",              checked: false, isPhotoTask: true },
-                { id: "pic-drinks",      label: "Snacks/Drinks",     checked: false, isPhotoTask: true },
-                { id: "pic-operations",  label: "Ride Operations",   checked: false, isPhotoTask: true },
-                { id: "pic-park-1",      label: "Park appearance 1", checked: false, isPhotoTask: true },
-                { id: "pic-park-2",      label: "Park appearance 2", checked: false, isPhotoTask: true },
-                { id: "pic-park-3",      label: "Park appearance 3", checked: false, isPhotoTask: true },
+                { id: "pic-waterrides", label: "All waterrides", checked: false, isPhotoTask: true },
+                { id: "pic-flatrides", label: "All flatrides", checked: false, isPhotoTask: true },
+                { id: "pic-darkrides", label: "All darkrides", checked: false, isPhotoTask: true },
+                { id: "pic-food", label: "Food", checked: false, isPhotoTask: true },
+                { id: "pic-drinks", label: "Snacks/Drinks", checked: false, isPhotoTask: true },
+                { id: "pic-operations", label: "Ride Operations", checked: false, isPhotoTask: true },
+                { id: "pic-park-1", label: "Park appearance 1", checked: false, isPhotoTask: true },
+                { id: "pic-park-2", label: "Park appearance 2", checked: false, isPhotoTask: true },
+                { id: "pic-park-3", label: "Park appearance 3", checked: false, isPhotoTask: true },
                 { id: "buy-mug", label: "Buy a mug!", checked: false, isPhotoTask: false }
             );
 

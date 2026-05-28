@@ -292,7 +292,7 @@ export function ResultModal({
               </button>
             ) : coastleDailyAvailable ? (
               <Link
-                href="/games/coastle/standard"
+                href="/games/coastle"
                 onClick={onClose}
                 className="w-full rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 py-3.5 text-center text-sm font-black text-white transition hover:brightness-110"
               >

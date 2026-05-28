@@ -5,14 +5,14 @@ import Image from "next/image";
 import Fuse from "fuse.js";
 import { getParkFlag } from "@/app/utils/design";
 
-import { ApiCoaster, CoastleCoaster, GuessStandard, GameStats } from "@/app/types";
+import { ApiCoaster, CoastleCoaster, Guess, GameStats } from "@/app/types";
 import {
   INITIAL_STATS,
   getDailyCoaster,
   getTodayString,
   getMatchStatus,
   getNumericMatchStatus,
-  STANDARD_CLOSE_MARGINS,
+  CLOSE_MARGINS,
   mapApiToCoastle,
   legacyCopy
 } from "@/app/utils/coastle";
@@ -25,7 +25,7 @@ import {
   ArrowPathIcon
 } from "@/app/components/coastle/Icons";
 import { Countdown } from "@/app/components/coastle/Countdown";
-import { GuessRowStandard as GuessRow } from "@/app/components/coastle/GuessRowStandard";
+import { GuessRow } from "@/app/components/coastle/GuessRow";
 import { ResultModal, buildCoastleShareText } from "@/app/components/coastle/ResultModal";
 import { HowTo } from "@/app/components/coastle/HowTo";
 import { Leaderboard } from "@/app/components/coastle/Leaderboard";
@@ -37,7 +37,7 @@ export default function CoastlePage() {
   const [error, setError] = useState<string | null>(null);
 
   const [input, setInput] = useState("");
-  const [guesses, setGuesses] = useState<GuessStandard[]>([]);
+  const [guesses, setGuesses] = useState<Guess[]>([]);
   const [gameState, setGameState] = useState<"playing" | "won" | "lost">("playing");
   const [toast, setToast] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -47,28 +47,12 @@ export default function CoastlePage() {
   const [showModal, setShowModal] = useState(false);
   const [stats, setStats] = useState<GameStats>(INITIAL_STATS);
   const [gameMode, setGameMode] = useState<"daily" | "endless">("daily");
-  const [hasCompletedInsiderDaily, setHasCompletedInsiderDaily] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const isGameActive = guesses.length > 0 && gameState === "playing";
   const showMenu = !isGameActive && !isFocused;
-
-  function getHasCompletedOtherDaily(storageKey: string) {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (!raw) return false;
-
-      const parsed = JSON.parse(raw);
-      const isToday = parsed?.date === getTodayString();
-      const isFinished = parsed?.status === "won" || parsed?.status === "lost";
-
-      return isToday && isFinished;
-    } catch {
-      return false;
-    }
-  }
 
   // Header Animation
   useEffect(() => {
@@ -116,14 +100,15 @@ export default function CoastlePage() {
         // Daily Mode Logic (Default)
         if (mapped.length > 0) {
           const today = getTodayString();
-          const savedDaily = localStorage.getItem("coastle-standard-daily-state");
+          // Fallback to legacy key so returning players don't lose their active daily game
+          const savedDaily = localStorage.getItem("coastle-daily-state") || localStorage.getItem("coastle-standard-daily-state");
           let restored = false;
 
           if (savedDaily) {
             try {
               const parsed = JSON.parse(savedDaily);
               if (parsed.date === today) {
-                setAnswer(getDailyCoaster(mapped, "standard"));
+                setAnswer(getDailyCoaster(mapped));
                 setGuesses(parsed.guesses);
                 setGameState(parsed.status);
                 restored = true;
@@ -132,7 +117,7 @@ export default function CoastlePage() {
           }
 
           if (!restored) {
-            setAnswer(getDailyCoaster(mapped, "standard"));
+            setAnswer(getDailyCoaster(mapped));
             setGuesses([]);
             setGameState("playing");
           }
@@ -147,16 +132,13 @@ export default function CoastlePage() {
 
     fetchCoasters();
 
-    const saved = localStorage.getItem("coastle-standard-stats");
+    // Fallback to legacy stats key so returning players keep their streaks
+    const saved = localStorage.getItem("coastle-stats") || localStorage.getItem("coastle-standard-stats");
     if (saved) {
       try {
         setStats(JSON.parse(saved));
       } catch (e) {}
     }
-
-    setHasCompletedInsiderDaily(
-      getHasCompletedOtherDaily("coastle-insider-daily-state")
-    );
   }, []);
 
   // --- Game Logic ---
@@ -171,13 +153,13 @@ export default function CoastlePage() {
 
     if (mode === "daily") {
       const today = getTodayString();
-      const savedDaily = localStorage.getItem("coastle-standard-daily-state");
+      const savedDaily = localStorage.getItem("coastle-daily-state") || localStorage.getItem("coastle-standard-daily-state");
       let restored = false;
 
       if (savedDaily && allCoasters.length > 0) {
         const parsed = JSON.parse(savedDaily);
         if (parsed.date === today) {
-          const dailyAnswer = getDailyCoaster(allCoasters, "standard");
+          const dailyAnswer = getDailyCoaster(allCoasters);
           setAnswer(dailyAnswer);
           setGuesses(parsed.guesses);
           setGameState(parsed.status);
@@ -185,7 +167,7 @@ export default function CoastlePage() {
         }
       }
       if (!restored && allCoasters.length > 0) {
-        const dailyAnswer = getDailyCoaster(allCoasters, "standard");
+        const dailyAnswer = getDailyCoaster(allCoasters);
         setAnswer(dailyAnswer);
         setGuesses([]);
         setGameState("playing");
@@ -265,31 +247,30 @@ export default function CoastlePage() {
       return;
     }
 
-    const guess: GuessStandard = {
+    const guess: Guess = {
       coaster,
       matches: {
         manufacturer: getMatchStatus(coaster.manufacturer, answer.manufacturer),
         country: getMatchStatus(coaster.countryName, answer.countryName),
-
         length: getNumericMatchStatus(
           coaster.length,
           answer.length,
-          STANDARD_CLOSE_MARGINS.lengthFt
+          CLOSE_MARGINS.lengthFt
         ),
         height: getNumericMatchStatus(
           coaster.height,
           answer.height,
-          STANDARD_CLOSE_MARGINS.heightFt
+          CLOSE_MARGINS.heightFt
         ),
         speed: getNumericMatchStatus(
           coaster.speed,
           answer.speed,
-          STANDARD_CLOSE_MARGINS.speedMph
+          CLOSE_MARGINS.speedMph
         ),
         inversions: getNumericMatchStatus(
           coaster.inversions,
           answer.inversions,
-          STANDARD_CLOSE_MARGINS.inversions
+          CLOSE_MARGINS.inversions
         ),
       },
     };
@@ -326,7 +307,7 @@ export default function CoastlePage() {
       }
 
       setStats(nextStats);
-      localStorage.setItem("coastle-standard-stats", JSON.stringify(nextStats));
+      localStorage.setItem("coastle-stats", JSON.stringify(nextStats));
 
       setTimeout(() => setShowModal(true), 1500);
     }
@@ -337,23 +318,19 @@ export default function CoastlePage() {
         guesses: nextGuesses,
         status: newStatus
       };
-      localStorage.setItem("coastle-standard-daily-state", JSON.stringify(stateToSave));
-      setHasCompletedInsiderDaily(
-        getHasCompletedOtherDaily("coastle-insider-daily-state")
-      );
+      localStorage.setItem("coastle-daily-state", JSON.stringify(stateToSave));
     }
   }
 
   // Build the formatted result text used by both share + copy
-
   async function handleShare() {
     const text = buildCoastleShareText({
-  gameMode,
-  gameState,
-  guessesCount: guesses.length,
-  guesses,
-  answer,
-});
+      gameMode,
+      gameState,
+      guessesCount: guesses.length,
+      guesses,
+      answer,
+    });
 
     try {
       if (typeof navigator !== "undefined" && navigator.share) {
@@ -370,12 +347,12 @@ export default function CoastlePage() {
 
   async function handleCopy() {
     const text = buildCoastleShareText({
-  gameMode,
-  gameState,
-  guessesCount: guesses.length,
-  guesses,
-  answer,
-});
+      gameMode,
+      gameState,
+      guessesCount: guesses.length,
+      guesses,
+      answer,
+    });
 
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
@@ -762,8 +739,6 @@ export default function CoastlePage() {
         onClose={() => setShowModal(false)}
         onShare={handleCopy}
         onReset={resetGame}
-        experience="standard"
-        hasPlayedOtherDaily={hasCompletedInsiderDaily}
       />
     </div>
   );
