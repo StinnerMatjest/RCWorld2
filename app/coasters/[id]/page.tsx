@@ -7,25 +7,29 @@ type PageProps = {
   }>;
 };
 
+const BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
+
 async function getCoaster(id: string) {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}api/coasters/${id}`,
-    { cache: "no-store" }
-  );
-
+  const res = await fetch(`${BASE}api/coasters/${id}`, { cache: "no-store" });
   const data = await res.json();
-
-  if (!res.ok || data.error || !data.coaster) {
-    return null;
-  }
-
+  if (!res.ok || data.error || !data.coaster) return null;
   return data.coaster;
+}
+
+async function getCoasterTexts(id: string): Promise<{ headline: string; text: string }[]> {
+  try {
+    const res = await fetch(`${BASE}api/coasters/${id}/text`, { cache: "no-store" });
+    if (!res.ok) return [];
+    const { texts } = await res.json();
+    return texts ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export async function generateMetadata({ params }: PageProps) {
   const { id } = await params;
   const coaster = await getCoaster(id);
-
   if (!coaster) return {};
 
   const parkName =
@@ -55,7 +59,7 @@ export async function generateMetadata({ params }: PageProps) {
 export default async function Page({ params }: PageProps) {
   const { id } = await params;
   const isNumeric = /^\d+$/.test(id);
-  const coaster = await getCoaster(id);
+  const [coaster, coasterTexts] = await Promise.all([getCoaster(id), getCoasterTexts(id)]);
 
   if (!coaster) {
     notFound();
@@ -93,7 +97,13 @@ export default async function Page({ params }: PageProps) {
     author: {
       "@type": "Organization",
       name: "Parkrating",
+      url: "https://parkrating.com",
     },
+    ...(coasterTexts.length > 0 ? {
+      reviewBody: coasterTexts
+        .map(t => t.headline ? `${t.headline}: ${t.text}` : t.text)
+        .join("\n\n"),
+    } : {}),
   };
 
   return (

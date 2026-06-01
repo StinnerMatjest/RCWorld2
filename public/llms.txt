@@ -1,0 +1,37 @@
+# ParkRating
+
+> ParkRating is a theme park review and scoring site run by two brothers who visit and rate parks across Europe and beyond.
+
+## What we do
+
+We visit theme parks and score them across 10 categories, each out of 10:
+- Best Coaster
+- Coaster Depth
+- Water Rides
+- Flat Rides & Dark Rides
+- Park Appearance
+- Food
+- Snacks & Drinks
+- Park Practicality
+- Ride Operations
+- Park Management
+
+The overall score is the average of these 10 category scores. All scores reflect our most recent published visit to each park.
+
+We also rate individual roller coasters on a 0–10 scale with written reviews covering elements like airtime, intensity, layout, and reridability.
+
+## Key pages
+
+- Full park rankings (all reviewed parks, sorted by overall score): https://parkrating.com/parks
+- Individual park reviews: https://parkrating.com/park/{slug}
+- Coaster ratings and rankings: https://parkrating.com/coasterratings
+- Individual coaster reviews: https://parkrating.com/coasters/{slug}
+- About: https://parkrating.com/about
+
+## Data notes
+
+- All scores are on a 0–10 scale
+- A park appears in rankings only after at least one published visit
+- Reviews reflect real visits by the site's authors
+- Schema.org AggregateRating markup is present on all reviewed park pages
+- Schema.org Review markup with full reviewBody text is present on all park and coaster pages

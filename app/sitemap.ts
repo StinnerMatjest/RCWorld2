@@ -1,32 +1,30 @@
 export default async function sitemap() {
   const baseUrl = "https://parkrating.com";
+  const API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-  const [parksRes, coastersRes] = await Promise.all([
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}api/parks`, { cache: "no-store" }),
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}api/coasters`, { cache: "no-store" }),
+  const [rankedRes, coastersRes] = await Promise.all([
+    fetch(`${API}api/parks/ranked`, { cache: "no-store" }),
+    fetch(`${API}api/coasters`, { cache: "no-store" }),
   ]);
 
-  const parksData = await parksRes.json();
+  const rankedData = await rankedRes.json();
   const coastersData = await coastersRes.json();
 
-  const parks = parksData.parks || [];
-  const coasters = coastersData.coasters || [];
+  const parks: { slug: string; lastVisitDate?: string }[] = rankedData.parks || [];
+  const coasters: { slug: string }[] = coastersData.coasters || [];
 
-  const parkUrls = parks.map((park: any) => ({
+  const parkUrls = parks.map((park) => ({
     url: `${baseUrl}/park/${park.slug}`,
-    lastModified: new Date(),
+    lastModified: park.lastVisitDate ? new Date(park.lastVisitDate) : new Date("2024-01-01"),
   }));
 
-  const coasterUrls = coasters.map((coaster: any) => ({
+  const coasterUrls = coasters.map((coaster) => ({
     url: `${baseUrl}/coasters/${coaster.slug}`,
-    lastModified: new Date(),
   }));
 
   return [
-    {
-      url: baseUrl,
-      lastModified: new Date(),
-    },
+    { url: baseUrl,            lastModified: new Date() },
+    { url: `${baseUrl}/parks`, lastModified: new Date() },
     ...parkUrls,
     ...coasterUrls,
   ];
