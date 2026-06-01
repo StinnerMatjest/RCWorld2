@@ -335,8 +335,16 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
             )}
 
             <div className="flex-1 flex items-center justify-center w-full h-full overflow-hidden">
+              <div className="absolute opacity-0 pointer-events-none w-0 h-0 overflow-hidden">
+                {selectedIndex !== null && selectedIndex > 0 && !isVideo(images[selectedIndex - 1].path) && (
+                  <Image src={images[selectedIndex - 1].path} alt="prev" width={1920} height={1080} unoptimized priority />
+                )}
+                {selectedIndex !== null && selectedIndex < images.length - 1 && !isVideo(images[selectedIndex + 1].path) && (
+                  <Image src={images[selectedIndex + 1].path} alt="next" width={1920} height={1080} unoptimized priority />
+                )}
+              </div>
               <div
-                className={`relative transition-all duration-200 ${animClass} w-full h-full flex items-center justify-center`}
+                className={`relative ${animClass} w-full h-full flex items-center justify-center`}
                 onClick={(e) => e.stopPropagation()}
               >
                 {isVideo(selected.path) ? (
