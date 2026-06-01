@@ -1,27 +1,37 @@
 # Base image
 FROM node:18-alpine AS builder
+
+# Set working directory
 WORKDIR /app
 
-# Install dependencies and build
+# Install dependencies
 COPY package.json package-lock.json ./
 RUN npm install --frozen-lockfile
+
+# Copy application files
 COPY . ./
+
+# Build the Next.js application
 RUN npm run build
 
 # Production image
 FROM node:18-alpine AS runner
+
+# Set working directory
 WORKDIR /app
 
-ENV NODE_ENV production
+# Install production dependencies
+COPY package.json package-lock.json ./
+RUN npm install --production --frozen-lockfile
 
-# Standalone automatically copies the config, so we just grab the standalone folder
+# Copy built files from the builder (THIS FIXES THE IMAGES)
+COPY --from=builder /app/next.config.js ./
+COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/node_modules ./node_modules
 
+# Expose the port that Next.js is running on
 EXPOSE 3000
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
 
-# Run the standalone server directly
-CMD ["node", "server.js"]
+# Command to start the app
+CMD ["npm", "start"]
