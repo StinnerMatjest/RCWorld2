@@ -3,7 +3,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { AlertTriangle } from "lucide-react";
 import { getParkFlag, getRatingColor } from "@/app/utils/design";
-import { fieldToGroupLabel } from "@/app/utils/ratings";
 import { RatingWarningType, Park, Rating } from "@/app/types";
 
 interface RatingCardProps {
@@ -146,6 +145,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
                   width={isMobile ? 22 : 24}
                   height={16}
                   loading="lazy"
+                  unoptimized
                   className="rounded-sm shrink-0"
                 />
                 {park.name}
