@@ -90,7 +90,7 @@ export default async function Page({ params }: PageProps) {
       ? {
           "@type": "Rating",
     ratingValue: Math.min(ratingNumber, 10),
-        bestRating: 10,
+        bestRating: 11,
         worstRating: 0,
         }
       : undefined,

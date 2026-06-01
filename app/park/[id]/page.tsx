@@ -47,6 +47,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   coasterDepth:         "Coaster Depth",
   waterRides:           "Water Rides",
   flatRidesAndDarkRides: "Flat Rides & Dark Rides",
+  flatridesAndDarkrides: "Flat Rides & Dark Rides",
   parkAppearance:       "Park Appearance",
   food:                 "Food",
   snacksAndDrinks:      "Snacks & Drinks",
@@ -112,10 +113,10 @@ export default async function Page({ params }: PageProps) {
     "aggregateRating": {
       "@type": "AggregateRating",
       "ratingValue": String(scores.overall),
-      "bestRating": "10",
+      "bestRating": "11",
       "worstRating": "0",
       "reviewCount": String(scores.visitCount),
-      "ratingExplanation": "Composite score across 10 categories rated by ParkRating reviewers.",
+      "ratingExplanation": "Composite score across 10 categories rated by ParkRating reviewers. Scores are typically 0–10, but exceptional parks can break the scale and score 11.",
     },
     "additionalProperty": [
       { "@type": "PropertyValue", "name": "Best Coaster",            "value": String(scores.bestCoaster) },
