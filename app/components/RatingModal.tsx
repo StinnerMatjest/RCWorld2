@@ -122,6 +122,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
   const isOpen = searchParams?.get("modal") === "true";
   const pendingParkId = searchParams?.get("pendingParkId");
 
+
   const [parkInfo, setParkInfo] = useState({
     name: "",
     continent: "",
@@ -135,6 +136,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
   const [isLocked, setIsLocked] = useState(false);
   const [isDraftPark, setIsDraftPark] = useState(false);
   const [editingParkId, setEditingParkId] = useState<string | null>(null);
+  const [existingRatingId, setExistingRatingId] = useState<number | null>(null);
 
   const [visitDetails, setVisitDetails] = useState({
     start: "",
@@ -260,6 +262,9 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
             const ratingsData = await ratingsRes.json();
             if (ratingsData.ratings && ratingsData.ratings.length > 0) {
               const latest = ratingsData.ratings[0];
+
+              setExistingRatingId(latest.id);
+
               CATEGORIES.forEach((cat) => {
                 if (latest[cat] !== undefined) {
                   ratingsStore.set(cat, latest[cat]);
@@ -461,8 +466,13 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
         parkId: finalParkId,
       };
 
-      const ratingResponse = await fetch("/api/ratings", {
-        method: "POST",
+      // Determine if we are creating a new rating or updating an existing one
+      const isRatingUpdate = Boolean(existingRatingId);
+      const ratingUrl = isRatingUpdate ? `/api/ratings/${existingRatingId}` : "/api/ratings";
+      const ratingMethod = isRatingUpdate ? "PATCH" : "POST";
+
+      const ratingResponse = await fetch(ratingUrl, {
+        method: ratingMethod,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(ratingPayload),
       });

@@ -4,13 +4,8 @@ import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import ImageUploaderModal from "@/app/components/ImageUploaderModal";
 import { useAdminMode } from "../../context/AdminModeContext";
-import {
-  TransformWrapper,
-  TransformComponent,
-  ReactZoomPanPinchRef
-} from "react-zoom-pan-pinch";
+import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
 
-// EXPORT THIS SO THE PARENT CAN USE IT
 export type GalleryImage = {
   id: number;
   parkId: number;
@@ -31,7 +26,6 @@ function isVideo(path: string) {
   return videoExtensions.some((ext) => path.toLowerCase().endsWith(ext));
 }
 
-/** STABLE SWIPE HOOK */
 function useSwipe(
   onSwipeLeft: () => void,
   onSwipeRight: () => void,
@@ -89,6 +83,55 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [direction, setDirection] = useState<"left" | "right" | null>(null);
+  const [isEditingDesc, setIsEditingDesc] = useState(false);
+  const [editDescText, setEditDescText] = useState("");
+  const [savingDesc, setSavingDesc] = useState(false);
+
+  const selected = selectedIndex !== null ? images[selectedIndex] : null;
+
+  // Reset edit mode if they swipe to a new image
+  useEffect(() => {
+    setIsEditingDesc(false);
+    setEditDescText(selected?.description || "");
+  }, [selectedIndex, selected]);
+
+  const handleSaveDescription = async () => {
+    if (!selected) return;
+    setSavingDesc(true);
+
+    // Automatically rebuild the title using the exact same format as your upload modal
+    const newTitle = `${parkName} - ${editDescText || "untitled"}`;
+
+    try {
+      const res = await fetch(`/api/gallery/${selected.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: editDescText,
+          title: newTitle // <-- Add the new title to the payload
+        }),
+      });
+
+      if (res.ok) {
+        // Update local state for BOTH description and title so it shows instantly
+        setImages((prev) =>
+          prev.map((img) =>
+            img.id === selected.id
+              ? { ...img, description: editDescText, title: newTitle }
+              : img
+          )
+        );
+        setIsEditingDesc(false);
+      } else {
+        alert("Failed to save description");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while saving.");
+    } finally {
+      setSavingDesc(false);
+    }
+  };
 
   // Sync state if the parent updates the images
   useEffect(() => {
@@ -103,7 +146,6 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
 
   const modalContainerRef = useRef<HTMLDivElement>(null);
   const isDesktop = () => typeof window !== 'undefined' && window.innerWidth > 768;
-  const selected = selectedIndex !== null ? images[selectedIndex] : null;
 
   const toggleFullscreen = () => {
     if (!document || !modalContainerRef.current) return;
@@ -256,7 +298,6 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
             }
           }}
         >
-          {/* ... Modal content remains identical ... */}
           <div
             className="relative w-full h-full flex flex-col touch-pan-y select-none"
             onPointerDown={swipe.onPointerDown}
@@ -341,11 +382,53 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
             </div>
 
             <div className="p-4 bg-gradient-to-t from-black/80 to-transparent z-50">
-              {selected.description && (
-                <p className="text-white text-center text-sm md:text-base font-medium drop-shadow-md mb-4 max-w-2xl mx-auto" onClick={(e) => e.stopPropagation()}>
-                  {selected.description}
-                </p>
-              )}
+              <div className="w-full max-w-2xl mx-auto mb-4" onClick={(e) => e.stopPropagation()}>
+                {isEditingDesc ? (
+                  <div className="flex flex-col gap-2 animate-fadeIn">
+                    <textarea
+                      value={editDescText}
+                      onChange={(e) => setEditDescText(e.target.value)}
+                      className="w-full p-2.5 rounded-lg bg-black/60 text-white border border-white/20 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm md:text-base resize-none backdrop-blur-md"
+                      rows={2}
+                      placeholder="Enter image description..."
+                      autoFocus
+                    />
+                    <div className="flex justify-end gap-3">
+                      <button
+                        onClick={() => setIsEditingDesc(false)}
+                        className="px-4 py-1.5 text-sm font-bold text-white/70 hover:text-white transition cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveDescription}
+                        disabled={savingDesc}
+                        className="px-4 py-1.5 text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-md transition disabled:opacity-50 cursor-pointer"
+                      >
+                        {savingDesc ? "Saving..." : "Save Description"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="group relative flex flex-col items-center justify-center min-h-[32px]">
+                    <p className="text-white text-center text-sm md:text-base font-medium drop-shadow-md">
+                      {selected.description || (isAdminMode && <span className="text-white/40 italic">No description</span>)}
+                    </p>
+
+                    {isAdminMode && (
+                      <button
+                        onClick={() => setIsEditingDesc(true)}
+                        className="absolute -right-8 opacity-0 group-hover:opacity-100 p-1.5 bg-black/40 hover:bg-black/60 rounded-full text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-sm"
+                        title="Edit Description"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="w-full flex items-center justify-center pb-2" ref={dotsContainerRef}>
                 <div className="px-2.5 py-1 rounded-full bg-black/40 border border-white/10 backdrop-blur-md" style={{ transform: `scale(${scale})`, transformOrigin: "center center" }} onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-1.5">
