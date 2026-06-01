@@ -289,8 +289,17 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
 
                         {/* Image */}
                         <div className="flex-1 flex items-center justify-center w-full h-full overflow-hidden">
+
+                            <div className="absolute opacity-0 pointer-events-none w-0 h-0 overflow-hidden">
+                                {selectedIndex !== null && selectedIndex > 0 && !images[selectedIndex - 1].path.match(/\.(mp4|webm|ogg)$/i) && (
+                                    <Image src={images[selectedIndex - 1].path} alt="prev" width={1920} height={1080} unoptimized priority />
+                                )}
+                                {selectedIndex !== null && selectedIndex < (images?.length ?? 0) - 1 && !images[selectedIndex + 1].path.match(/\.(mp4|webm|ogg)$/i) && (
+                                    <Image src={images[selectedIndex + 1].path} alt="next" width={1920} height={1080} unoptimized priority />
+                                )}
+                            </div>
                             <div
-                                className={`relative transition-all duration-200 ${animClass} w-full h-full flex items-center justify-center p-4`}
+                                className={`relative ${animClass} w-full h-full flex items-center justify-center p-4`}
                             >
                                 {selected.path.match(/\.(mp4|webm|ogg)$/i) ? (
                                     <video
@@ -306,9 +315,11 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
                                         alt={selected.title || "Full Image"}
                                         width={1920}
                                         height={1080}
+                                        unoptimized
                                         onClick={handleImageClick}
                                         className="w-auto h-auto max-w-full max-h-[80vh] object-contain cursor-pointer shadow-2xl rounded-sm"
                                         draggable={false}
+                                        priority
                                     />
                                 )}
                             </div>

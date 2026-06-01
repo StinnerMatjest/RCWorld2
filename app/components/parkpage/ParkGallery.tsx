@@ -370,6 +370,7 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
                         alt={selected.title || "Full Image"}
                         width={1920}
                         height={1080}
+                        unoptimized
                         onClick={handleImageClick}
                         className="w-auto h-auto max-w-full max-h-[80vh] object-contain cursor-pointer shadow-2xl rounded-sm block mx-auto"
                         draggable={false}
