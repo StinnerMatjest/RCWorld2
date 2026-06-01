@@ -51,7 +51,7 @@ const TeaserParkCard = ({ rating, park }: { rating: Rating; park: Park }) => (
       {/* Top: park name */}
       <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent px-4 pt-4 pb-14">
         <div className="flex items-center gap-2">
-          <Image src={getParkFlag(park.country)} alt="" width={20} height={14} className="rounded-sm shrink-0"/>
+          <Image src={getParkFlag(park.country)} alt="" width={20} height={14} className="rounded-sm shrink-0" unoptimized />
           <h1 className="text-white font-bold text-xl leading-tight drop-shadow-md">{park.name}</h1>
         </div>
       </div>
@@ -336,7 +336,7 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
 
           <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent px-4 pt-4 pb-16 pointer-events-none">
             <div className="flex items-center gap-2">
-              <Image src={getParkFlag(park.country)} alt="" width={20} height={14} className="rounded-sm shrink-0"/>
+              <Image src={getParkFlag(park.country)} alt="" width={20} height={14} className="rounded-sm shrink-0" unoptimized/>
               <h1 className="text-white font-bold text-xl leading-tight drop-shadow-md">{park.name}</h1>
             </div>
             <p className="text-white/50 text-xs mt-1">{new Date(rating.date).toLocaleDateString()}</p>

@@ -656,7 +656,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
                           onClick={() => handleGuess(opt.id)} disabled={phase !== "playing"}
                           className={`w-full h-full flex flex-col items-center justify-center gap-1.5 rounded-2xl px-4 text-center transition-all ${cls}`}>
                           {opt.park_country && (
-                            <Image src={getParkFlag(opt.park_country)} alt="" width={30} height={21} className="rounded-sm flex-shrink-0" />
+                            <Image src={getParkFlag(opt.park_country)} alt="" width={30} height={21} className="rounded-sm flex-shrink-0" unoptimized />
                           )}
                           <p className={`font-black text-base leading-tight ${revealed && (isAnswer || isGuessed) ? "text-white" : "text-slate-900 dark:text-white"}`}>{opt.name}</p>
                           <p className={`text-xs ${revealed && (isAnswer || isGuessed) ? "text-white/70" : "text-slate-500 dark:text-slate-400"}`}>{opt.park_name}</p>

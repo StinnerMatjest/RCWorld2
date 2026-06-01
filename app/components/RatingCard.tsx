@@ -145,8 +145,8 @@ const RatingCard: React.FC<RatingCardProps> = ({
                   width={isMobile ? 22 : 24}
                   height={16}
                   loading="lazy"
-                  unoptimized
                   className="rounded-sm shrink-0"
+                  unoptimized
                 />
                 {park.name}
               </h1>

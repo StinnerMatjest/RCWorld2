@@ -45,6 +45,7 @@ export function GuessRow({
               width={42}
               height={28}
               className="object-cover"
+              unoptimized
             />
           </div>
           <span className="text-[10px] uppercase tracking-wide opacity-90 font-bold hidden md:block">

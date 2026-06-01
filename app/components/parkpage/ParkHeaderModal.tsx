@@ -403,7 +403,6 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Card preview</p>
                   <div className="flex justify-center sm:block">
                     <div className="relative rounded-2xl overflow-hidden bg-gray-900 w-48 sm:w-full" style={{ aspectRatio: "3/4" }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={currentImagePath}
                         alt=""
@@ -414,7 +413,6 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                       <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/85 to-transparent px-3 pt-3 pb-10 pointer-events-none">
                         <div className="flex items-center gap-1.5">
                           {parkCountry && (
-                            // eslint-disable-next-line @next/next/no-img-element
                             <img src={getParkFlag(parkCountry)} alt="" width={16} height={11} className="rounded-sm shrink-0" />
                           )}
                           <span className="text-white font-bold text-sm leading-tight drop-shadow-md truncate">{parkName}</span>

@@ -139,6 +139,7 @@ export default function TripCard({
                 width={24}
                 height={18}
                 className="rounded-sm object-cover"
+                unoptimized
               />
               <span className="text-2xl font-bold dark:text-white">{c}</span>
               {idx < trip.country.length - 1 && (
@@ -154,6 +155,7 @@ export default function TripCard({
               width={24}
               height={18}
               className="rounded-sm object-cover"
+              unoptimized
             />
             <h4 className="text-2xl font-bold dark:text-white">{trip.country}</h4>
           </div>
