@@ -34,7 +34,6 @@ const ListItem: React.FC<Props> = ({ item }) => {
               alt={`${item.title} image 1`}
               fill
               className="object-cover"
-              unoptimized
             />
           </div>
         </div>
@@ -48,7 +47,6 @@ const ListItem: React.FC<Props> = ({ item }) => {
                 alt={`${item.title} image 2`}
                 fill
                 className="object-cover"
-                unoptimized
               />
             </div>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm md:text-base order-1 md:order-2">

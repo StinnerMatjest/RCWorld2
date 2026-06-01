@@ -294,7 +294,6 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
               className={`object-cover cursor-pointer transition-all duration-1000 group-hover:scale-105 ${imageVisualLoaded ? "opacity-100 blur-0" : "opacity-0 blur-lg"
                 }`}
               priority
-              unoptimized
               onLoad={() => setImageVisualLoaded(true)}
               onClick={() => window.open(headerImage, "_blank")}
             />

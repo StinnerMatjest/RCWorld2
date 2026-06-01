@@ -195,7 +195,7 @@ const CoasterHeaderModal: React.FC<ModalProps> = ({ coasterId, coasterName, park
                     className={`relative aspect-video rounded-xl overflow-hidden cursor-pointer border-4 transition-all group ${isHeader ? "border-blue-600 ring-4 ring-blue-600/20" : "border-transparent hover:border-blue-400"
                       }`}
                   >
-                    <Image src={img.path} alt={img.title} fill className="object-cover" unoptimized />
+                    <Image src={img.path} alt={img.title} fill className="object-cover"/>
                     <div className={`absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity`}>
                       <span className="text-white font-bold text-sm bg-blue-600 px-3 py-1 rounded-full">Set as Header</span>
                     </div>

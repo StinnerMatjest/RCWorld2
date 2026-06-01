@@ -237,7 +237,7 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
                   className="rounded-lg object-cover h-40 w-full bg-black"
                 />
               ) : (
-                <Image src={img.path} alt={img.title || "Gallery"} width={400} height={300} className="rounded-lg object-cover h-40 w-full" unoptimized />
+                <Image src={img.path} alt={img.title || "Gallery"} width={400} height={300} className="rounded-lg object-cover h-40 w-full" />
               )}
             </div>
           ))}
@@ -331,7 +331,6 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
                         height={1080}
                         onClick={handleImageClick}
                         className="w-auto h-auto max-w-full max-h-[80vh] object-contain cursor-pointer shadow-2xl rounded-sm block mx-auto"
-                        unoptimized
                         draggable={false}
                         priority
                       />

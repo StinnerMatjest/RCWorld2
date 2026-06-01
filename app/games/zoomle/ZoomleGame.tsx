@@ -656,7 +656,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
                           onClick={() => handleGuess(opt.id)} disabled={phase !== "playing"}
                           className={`w-full h-full flex flex-col items-center justify-center gap-1.5 rounded-2xl px-4 text-center transition-all ${cls}`}>
                           {opt.park_country && (
-                            <Image src={getParkFlag(opt.park_country)} alt="" width={30} height={21} className="rounded-sm flex-shrink-0" unoptimized />
+                            <Image src={getParkFlag(opt.park_country)} alt="" width={30} height={21} className="rounded-sm flex-shrink-0" />
                           )}
                           <p className={`font-black text-base leading-tight ${revealed && (isAnswer || isGuessed) ? "text-white" : "text-slate-900 dark:text-white"}`}>{opt.name}</p>
                           <p className={`text-xs ${revealed && (isAnswer || isGuessed) ? "text-white/70" : "text-slate-500 dark:text-slate-400"}`}>{opt.park_name}</p>
@@ -760,7 +760,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
                       <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}
                         onClick={() => handleGuess(opt.id)} disabled={phase !== "playing"}
                         className={`w-full h-full flex items-center gap-2.5 rounded-xl px-3 text-left transition-colors ${cls}`}>
-                        {opt.park_country && <Image src={getParkFlag(opt.park_country)} alt="" width={24} height={17} className="rounded flex-shrink-0" unoptimized />}
+                        {opt.park_country && <Image src={getParkFlag(opt.park_country)} alt="" width={24} height={17} className="rounded flex-shrink-0" />}
                         <div className="min-w-0">
                           <p className="font-black text-sm leading-tight truncate text-white">{opt.name}</p>
                           <p className={`text-xs truncate ${revealed && (isAnswer || isGuessed) ? "text-white/70" : "text-slate-400"}`}>{opt.park_name}</p>

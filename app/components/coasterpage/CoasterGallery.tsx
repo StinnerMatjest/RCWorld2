@@ -219,7 +219,6 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
                                     width={400}
                                     height={300}
                                     className="rounded-lg object-cover h-40 w-full"
-                                    unoptimized
                                 />
                             )}
                         </div>
@@ -309,7 +308,6 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
                                         height={1080}
                                         onClick={handleImageClick}
                                         className="w-auto h-auto max-w-full max-h-[80vh] object-contain cursor-pointer shadow-2xl rounded-sm"
-                                        unoptimized
                                         draggable={false}
                                     />
                                 )}

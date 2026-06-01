@@ -329,7 +329,6 @@ export function ResultModal({
                 src={headerImage}
                 alt={coasterName}
                 fill
-                unoptimized
                 priority
                 className={`object-cover transition-all duration-700 ${imageLoaded ? "opacity-100 blur-0" : "opacity-0 blur-md"}`}
                 onLoad={() => setImageLoaded(true)}

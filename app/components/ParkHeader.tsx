@@ -47,7 +47,6 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
             }`}
             style={{ objectPosition: park.headerFocus ?? "50% 50%" }}
             priority
-            unoptimized
             onLoad={() => setImageLoaded(true)}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-60" />

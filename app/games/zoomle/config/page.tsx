@@ -118,7 +118,7 @@ function ImageFocalGrid({ img, flags, onToggleFlag, onFocalSaved }: {
       <button onClick={() => setOpen(o => !o)}
         className="flex items-center gap-3 px-3 py-2 w-full text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer">
         <div className="relative w-16 h-11 rounded-lg overflow-hidden flex-shrink-0 bg-slate-200 dark:bg-slate-700">
-          <Image src={img.image_path} alt="" fill className="object-cover" unoptimized />
+          <Image src={img.image_path} alt="" fill className="object-cover" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-bold text-slate-600 dark:text-slate-400 truncate">

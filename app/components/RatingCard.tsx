@@ -147,7 +147,6 @@ const RatingCard: React.FC<RatingCardProps> = ({
                   height={16}
                   loading="lazy"
                   className="rounded-sm shrink-0"
-                  unoptimized
                 />
                 {park.name}
               </h1>
@@ -169,7 +168,6 @@ const RatingCard: React.FC<RatingCardProps> = ({
               width={500}
               priority={typeof delayIndex === 'number' && delayIndex < 6}
               className="w-full h-full object-cover"
-              unoptimized
             />
           </figure>
 

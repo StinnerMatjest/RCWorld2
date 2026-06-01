@@ -105,7 +105,6 @@ const ImageSelectorModal: React.FC<Props> = ({ onClose, onSelect }) => {
                       alt={img.title || "Gallery image"}
                       fill
                       className="object-cover"
-                      unoptimized
                     />
                     {/* Gradient overlay for title and park name */}
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 pt-8">

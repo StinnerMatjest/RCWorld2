@@ -626,7 +626,6 @@ export default function CoastlePage() {
                           alt="flag"
                           fill
                           className="object-cover"
-                          unoptimized
                         />
                       </div>
                     )}

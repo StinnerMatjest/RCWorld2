@@ -15,55 +15,68 @@ export default function ImageUploaderModal({
   onClose,
   onUploadSuccess,
 }: ImageUploaderModalProps) {
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [description, setDescription] = useState("");
   const [isHeader, setIsHeader] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const uploadImage = async () => {
-    if (!file) {
-      setError("Please select an image file to upload.");
+    if (files.length === 0) {
+      setError("Please select at least one image file to upload.");
       return;
     }
 
     setError(null);
     setLoading(true);
 
+    const isBulk = files.length > 1;
+    const finalDescription = isBulk ? "" : description;
+    const finalIsHeader = isBulk ? false : isHeader;
+
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("title", `${parkName} - ${description}`);
+      await Promise.all(
+        files.map(async (file, index) => {
+          const formData = new FormData();
+          formData.append("file", file);
 
-      // Upload to R2
-      const r2Response = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!r2Response.ok) throw new Error("Image upload failed.");
+          const fileSuffix = isBulk ? ` (${index + 1})` : "";
+          const r2Title = finalDescription
+            ? `${parkName} - ${finalDescription}${fileSuffix}`
+            : `${parkName}${fileSuffix}`;
 
-      const r2Result = await r2Response.json();
-      const imagePath = r2Result.imagePath;
-      const title = `${parkName} - ${description}`;
+          formData.append("title", r2Title);
 
-      // Build backend title automatically
-      const backendTitle = `${parkName} - ${description || "untitled"}${isHeader ? " - HEADER" : ""}`;
+          // Upload to R2
+          const r2Response = await fetch("/api/upload", { method: "POST", body: formData });
+          if (!r2Response.ok) throw new Error(`Image upload failed for ${file.name}.`);
 
-      const galleryPayload = {
-        title: backendTitle,
-        description: description || "",
-        path: imagePath,
-        parkId,
-      };
+          const r2Result = await r2Response.json();
+          const imagePath = r2Result.imagePath;
 
-      // Save to gallery
-      const galleryResponse = await fetch(`/api/park/${parkId}/gallery`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(galleryPayload),
-      });
+          // Build backend title automatically
+          const backendTitle = `${parkName} - ${finalDescription || "untitled"}${fileSuffix}${finalIsHeader ? " - HEADER" : ""}`;
 
-      if (!galleryResponse.ok) {
-        const errorText = await galleryResponse.text();
-        throw new Error("Failed to save gallery image: " + errorText);
-      }
+          const galleryPayload = {
+            title: backendTitle,
+            description: finalDescription,
+            path: imagePath,
+            parkId,
+          };
+
+          // Save to gallery
+          const galleryResponse = await fetch(`/api/park/${parkId}/gallery`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(galleryPayload),
+          });
+
+          if (!galleryResponse.ok) {
+            const errorText = await galleryResponse.text();
+            throw new Error(`Failed to save gallery image ${file.name}: ` + errorText);
+          }
+        })
+      );
 
       if (onUploadSuccess) onUploadSuccess();
       onClose();
@@ -90,16 +103,22 @@ export default function ImageUploaderModal({
         <form onSubmit={handleUploadClick} className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-              Image File
+              Image Files
             </label>
             <input
               type="file"
               accept="image/*,video/*"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              multiple
+              onChange={(e) => setFiles(Array.from(e.target.files || []))}
               className="block w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-2
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
                          dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:file:bg-gray-800 dark:file:text-gray-100 dark:focus-visible:ring-offset-gray-800"
             />
+            {files.length > 0 && (
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                {files.length} file{files.length > 1 ? "s" : ""} selected.
+              </p>
+            )}
           </div>
 
           <div>
@@ -107,13 +126,15 @@ export default function ImageUploaderModal({
               Description
             </label>
             <textarea
-              value={description}
+              value={files.length > 1 ? "" : description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Image description (optional)"
+              disabled={files.length > 1}
+              placeholder={files.length > 1 ? "Descriptions are disabled for bulk uploads" : "Image description (optional)"}
               rows={3}
-              className="block w-full p-3 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
+              className={`block w-full p-3 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                         dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
+                         dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800
+                         ${files.length > 1 ? "opacity-50 cursor-not-allowed bg-gray-50 dark:bg-gray-800/50" : ""}`}
             />
           </div>
 
@@ -121,12 +142,16 @@ export default function ImageUploaderModal({
             <input
               type="checkbox"
               id="isHeader"
-              checked={isHeader}
+              checked={files.length > 1 ? false : isHeader}
               onChange={(e) => setIsHeader(e.target.checked)}
-              className="w-4 h-4 accent-blue-600"
+              disabled={files.length > 1}
+              className={`w-4 h-4 accent-blue-600 ${files.length > 1 ? "opacity-50 cursor-not-allowed" : ""}`}
             />
-            <label htmlFor="isHeader" className="text-gray-700 dark:text-gray-300 text-sm">
-              Header image
+            <label
+              htmlFor="isHeader"
+              className={`text-sm ${files.length > 1 ? "text-gray-400 dark:text-gray-500" : "text-gray-700 dark:text-gray-300"}`}
+            >
+              Header image {files.length > 1 && "(Disabled for bulk uploads)"}
             </label>
           </div>
 
