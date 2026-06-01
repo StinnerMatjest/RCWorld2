@@ -108,7 +108,7 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           description: editDescText,
-          title: newTitle // <-- Add the new title to the payload
+          title: newTitle
         }),
       });
 
@@ -410,7 +410,7 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
                     </div>
                   </div>
                 ) : (
-                  <div className="group relative flex flex-col items-center justify-center min-h-[32px]">
+                  <div className="group flex items-center justify-center gap-2.5 min-h-[32px] px-4">
                     <p className="text-white text-center text-sm md:text-base font-medium drop-shadow-md">
                       {selected.description || (isAdminMode && <span className="text-white/40 italic">No description</span>)}
                     </p>
@@ -418,7 +418,7 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
                     {isAdminMode && (
                       <button
                         onClick={() => setIsEditingDesc(true)}
-                        className="absolute -right-8 opacity-0 group-hover:opacity-100 p-1.5 bg-black/40 hover:bg-black/60 rounded-full text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-sm"
+                        className="opacity-100 md:opacity-0 group-hover:opacity-100 flex-shrink-0 p-1.5 bg-black/40 hover:bg-black/60 rounded-full text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-sm"
                         title="Edit Description"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
