@@ -24,25 +24,39 @@ const BASE_JOIN = `
 export async function GET(req: NextRequest) {
   const all = new URL(req.url).searchParams.get("all") === "1";
   try {
-    const result = await pool.query(`
-      SELECT
-        zi.id                                AS zoomle_id,
-        pg.id                                AS gallery_id,
-        pg.path                              AS image_path,
-        COALESCE(zi.focus, '50% 50%')               AS focus,
-        COALESCE(zi.focuses_override, '{}'::jsonb)  AS focuses_override,
-        COALESCE(zi.enabled, TRUE)                  AS enabled,
-        rc.id                                AS coaster_id,
-        rc.name                              AS coaster_name,
-        COALESCE(rc.zoomle_enabled, TRUE)    AS coaster_enabled,
-        p.name                               AS park_name,
-        p.country                            AS park_country,
-        p.id                                 AS park_id
-      ${BASE_JOIN}
-      ${all ? "" : "WHERE COALESCE(zi.enabled, TRUE) = TRUE AND COALESCE(rc.zoomle_enabled, TRUE) = TRUE"}
-      ORDER BY p.name, rc.name, (pg.title ILIKE '%HEADER%') DESC, pg.id ASC
-    `);
-    return NextResponse.json({ images: result.rows });
+    const [imagesRes, missingRes] = await Promise.all([
+      pool.query(`
+        SELECT
+          zi.id                                AS zoomle_id,
+          pg.id                                AS gallery_id,
+          pg.path                              AS image_path,
+          COALESCE(zi.focus, '50% 50%')               AS focus,
+          COALESCE(zi.focuses_override, '{}'::jsonb)  AS focuses_override,
+          COALESCE(zi.enabled, TRUE)                  AS enabled,
+          rc.id                                AS coaster_id,
+          rc.name                              AS coaster_name,
+          COALESCE(rc.zoomle_enabled, TRUE)    AS coaster_enabled,
+          p.name                               AS park_name,
+          p.country                            AS park_country,
+          p.id                                 AS park_id
+        ${BASE_JOIN}
+        ${all ? "" : "WHERE COALESCE(zi.enabled, TRUE) = TRUE AND COALESCE(rc.zoomle_enabled, TRUE) = TRUE"}
+        ORDER BY p.name, rc.name, (pg.title ILIKE '%HEADER%') DESC, pg.id ASC
+      `),
+      all ? pool.query(`
+        SELECT rc.id, rc.name, rc.slug, p.name AS park_name
+        FROM rollercoasters rc
+        JOIN parks p ON p.id = rc.park_id
+        LEFT JOIN parkgallery pg
+          ON  pg.park_id = rc.park_id
+          AND pg.title ILIKE '%' || rc.name || '%'
+          AND pg.title NOT ILIKE '%HEADER ONLY%'
+        WHERE pg.id IS NULL
+        ORDER BY p.name, rc.name
+      `) : Promise.resolve({ rows: [] }),
+    ]);
+
+    return NextResponse.json({ images: imagesRes.rows, missing: missingRes.rows });
   } catch (error) {
     console.error("zoomle/images GET:", error);
     return NextResponse.json({ error: "Failed to fetch" }, { status: 500 });

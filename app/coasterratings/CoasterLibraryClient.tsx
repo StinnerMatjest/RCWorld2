@@ -38,753 +38,581 @@ const compare = (a: unknown, b: unknown, dir: "asc" | "desc"): number => {
   if (a === b) return 0;
   if (!isDefined(a)) return 1;
   if (!isDefined(b)) return -1;
-
   const isParsableDate = (x: unknown) =>
     typeof x === "string" && !Number.isFinite(+x) && !Number.isNaN(Date.parse(x));
   if (isParsableDate(a) && isParsableDate(b)) {
-    const da = new Date(a as string).getTime();
-    const db = new Date(b as string).getTime();
-    return dir === "asc" ? da - db : db - da;
+    return dir === "asc"
+      ? new Date(a as string).getTime() - new Date(b as string).getTime()
+      : new Date(b as string).getTime() - new Date(a as string).getTime();
   }
-
   if (typeof a === "number" && typeof b === "number")
     return dir === "asc" ? a - b : b - a;
-
-  const sa = String(a);
-  const sb = String(b);
+  const sa = String(a), sb = String(b);
   return dir === "asc"
     ? sa.localeCompare(sb, "en", { ignorePunctuation: true, sensitivity: "base" })
     : sb.localeCompare(sa, "en", { ignorePunctuation: true, sensitivity: "base" });
 };
 
-/** Toggleable columns */
 const ALL_COLUMNS = [
-  { key: "rating", label: "Rating" },
-  { key: "manufacturer", label: "Manufacturer" },
-  { key: "parkName", label: "Park" },
-  { key: "rideCount", label: "Ride Count" },
-  { key: "lastVisitDate", label: "Last Ridden" },
-  { key: "year", label: "Year" },
+  { key: "rating",        label: "Rating"      },
+  { key: "manufacturer",  label: "Manufacturer" },
+  { key: "parkName",      label: "Park"         },
+  { key: "rideCount",     label: "Rides"        },
+  { key: "lastVisitDate", label: "Last Ridden"  },
+  { key: "year",          label: "Year"         },
 ] as const;
 
 type ColumnKey = (typeof ALL_COLUMNS)[number]["key"];
 
-const DEFAULT_VISIBLE: ColumnKey[] = ["rating", "manufacturer"];
+const DESKTOP_DEFAULT: ColumnKey[] = ["rating", "manufacturer", "parkName", "rideCount", "year"];
+const MOBILE_DEFAULT:  ColumnKey[] = ["rating", "manufacturer"];
 const DESC_BY_DEFAULT: ColumnKey[] = ["rating", "rideCount", "lastVisitDate"];
 
-const INDEX_COL_W_MOBILE = 48;
-const NAME_COL_W_MOBILE = 112;
-const NAME_COL_W_SM = 200;
-const NAME_COL_W_LG = 300;
-const ROW_H = 44;
+const ROW_H = 48;
+const INDEX_W  = 52;
+const NAME_W_M = 130;
+const NAME_W_D = 260;
 
-const COL_MIN_W_MOBILE: Record<ColumnKey, number> = {
-  rating: 72,
-  manufacturer: 120,
-  parkName: 140,
-  rideCount: 96,
-  lastVisitDate: 128,
-  year: 80,
+const COL_MIN_W: Record<ColumnKey, number> = {
+  rating: 80, manufacturer: 130, parkName: 150,
+  rideCount: 90, lastVisitDate: 130, year: 80,
 };
 
+function parseCoasterList(raw: any[]): Coaster[] {
+  return raw.map((c): Coaster => ({
+    id: c.id, name: c.name, manufacturer: c.manufacturer, model: c.model,
+    scale: c.scale, haveRidden: c.haveRidden, isBestCoaster: c.isBestCoaster,
+    rcdbPath: c.rcdbPath,
+    rideCount: c.rideCount ?? 0,
+    visitCount: c.visitCount ?? 1,
+    rating:
+      c.rating === null || c.rating === undefined ? null
+      : typeof c.rating === "string" ? parseFloat(c.rating) : c.rating,
+    parkId: c.parkId, parkName: c.parkName,
+    year: c.year ?? 0, lastVisitDate: c.lastVisitDate, slug: c.slug,
+    specs: c.specs ? {
+      type: c.specs.type, classification: c.specs.classification,
+      length: c.specs.length, height: c.specs.height, drop: c.specs.drop,
+      speed: c.specs.speed, inversions: c.specs.inversions,
+      verticalAngle: c.specs.verticalAngle, gforce: c.specs.gforce,
+      duration: c.specs.duration, notes: c.specs.notes,
+    } : null,
+  })).filter(c => (c.rating ?? 0) > 0);
+}
+
 // ——— Inner Component ———
-function CoasterRatingsContent() {
-  const [coasters, setCoasters] = useState<Coaster[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [sortBy, setSortBy] = useState<ColumnKey | "name">("rating");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [visibleCols, setVisibleCols] = useState<ColumnKey[]>(DEFAULT_VISIBLE);
+function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] }) {
+  const [coasters, setCoasters] = useState<Coaster[]>(() =>
+    initialCoasters ? parseCoasterList(initialCoasters) : []
+  );
+  const [loading, setLoading]         = useState(!initialCoasters);
+  const [error, setError]             = useState("");
+  const [sortBy, setSortBy]           = useState<ColumnKey | "name">("rating");
+  const [sortDir, setSortDir]         = useState<"asc" | "desc">("desc");
+  const [visibleCols, setVisibleCols] = useState<ColumnKey[]>(() =>
+    typeof window !== "undefined" && window.innerWidth < 640 ? MOBILE_DEFAULT : DESKTOP_DEFAULT
+  );
 
   const searchCtx = useSearch() as { query: string; setQuery?: (q: string) => void };
-  const rawQuery = searchCtx?.query ?? "";
-  const q = rawQuery.trim().toLowerCase();
-  const setQuery = searchCtx?.setQuery;
+  const rawQuery  = searchCtx?.query ?? "";
+  const q         = rawQuery.trim().toLowerCase();
+  const setQuery  = searchCtx?.setQuery;
   const searchParams = useSearchParams();
 
-  // Sync URL query to state
   useEffect(() => {
-    const urlQuery = searchParams.get("q");
-    if (urlQuery && setQuery) setQuery(urlQuery);
+    const urlQ = searchParams.get("q");
+    if (urlQ && setQuery) setQuery(urlQ);
   }, [searchParams, setQuery]);
 
-  // Clear search on unmount
-  useEffect(() => {
-    return () => {
-      if (setQuery) setQuery("");
-    };
-  }, []);
+  useEffect(() => () => { if (setQuery) setQuery(""); }, []);
 
-  // Fetch Data
   useEffect(() => {
-    const fetchCoasters = async () => {
+    if (initialCoasters) return;
+    (async () => {
       try {
-        const res = await fetch("/api/coasters");
+        const res  = await fetch("/api/coasters");
         const data = await res.json();
-        if (!data || !Array.isArray(data.coasters))
-          throw new Error("Unexpected data format from API");
-
-        const structured: Coaster[] = (data.coasters as any[])
-          .map((c): Coaster => ({
-            id: c.id,
-            name: c.name,
-            manufacturer: c.manufacturer,
-            model: c.model,
-            scale: c.scale,
-            haveRidden: c.haveRidden,
-            isBestCoaster: c.isBestCoaster,
-            rcdbPath: c.rcdbPath,
-            rideCount: c.rideCount ?? 0,
-            visitCount: c.visitCount ?? 1,
-            rating:
-              c.rating === null || c.rating === undefined
-                ? null
-                : typeof c.rating === "string"
-                  ? parseFloat(c.rating)
-                  : c.rating,
-            parkId: c.parkId,
-            parkName: c.parkName,
-            year: c.year ?? 0,
-            lastVisitDate: c.lastVisitDate,
-            slug: c.slug,
-            specs: c.specs ? {
-              type: c.specs.type,
-              classification: c.specs.classification,
-              length: c.specs.length,
-              height: c.specs.height,
-              drop: c.specs.drop,
-              speed: c.specs.speed,
-              inversions: c.specs.inversions,
-              verticalAngle: c.specs.verticalAngle,
-              gforce: c.specs.gforce,
-              duration: c.specs.duration,
-              notes: c.specs.notes,
-            } : null
-          }))
-          .filter((c: Coaster) => (c.rating ?? 0) > 0);
-
-        setCoasters(structured);
+        if (!data || !Array.isArray(data.coasters)) throw new Error("Unexpected data");
+        setCoasters(parseCoasterList(data.coasters));
       } catch (err: any) {
-        console.error("Error fetching data:", err?.message ?? err);
         setError(err?.message ?? "An unexpected error occurred");
       } finally {
         setLoading(false);
       }
-    };
-    fetchCoasters();
+    })();
   }, []);
 
-  const filteredCoasters = useMemo<Coaster[]>(
-    () => {
-      if (!q) return coasters;
-      return coasters.filter((c: Coaster) => {
-        const hay = [
-          c.name,
-          c.parkName,
-          c.manufacturer,
-          c.model,
-          c.specs?.type,
-          c.specs?.classification?.replace(/\|/g, " "),
-          String(c.year),
-          String(c.rating ?? ""),
-          c.rating !== null && c.rating !== undefined ? c.rating.toFixed(1) : "",
-          String(c.rideCount ?? ""),
-          formatDate(c.lastVisitDate),
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
+  const filtered = useMemo<Coaster[]>(() => {
+    if (!q) return coasters;
+    return coasters.filter(c => {
+      const hay = [
+        c.name, c.parkName, c.manufacturer, c.model, c.specs?.type,
+        c.specs?.classification?.replace(/\|/g, " "), String(c.year),
+        c.rating != null ? c.rating.toFixed(1) : "",
+        String(c.rideCount ?? ""), formatDate(c.lastVisitDate),
+      ].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [coasters, q]);
 
-        return hay.includes(q);
-      });
-    },
-    [coasters, q]
-  );
+  const sorted = useMemo<Coaster[]>(() => {
+    return [...filtered].sort((a, b) => {
+      if (sortBy === "rating") {
+        const d = sortDir === "asc" ? 1 : -1;
+        const rDiff = ((a.rating ?? 0) - (b.rating ?? 0)) * d;
+        if (rDiff !== 0) return rDiff;
+        const cDiff = ((a.rideCount ?? 0) - (b.rideCount ?? 0)) * d;
+        if (cDiff !== 0) return cDiff;
+        const aT = a.lastVisitDate ? new Date(a.lastVisitDate).getTime() : 0;
+        const bT = b.lastVisitDate ? new Date(b.lastVisitDate).getTime() : 0;
+        return (aT - bT) * d;
+      }
+      return compare(
+        a[sortBy as keyof Coaster] ?? (sortBy === "name" ? a.name : undefined),
+        b[sortBy as keyof Coaster] ?? (sortBy === "name" ? b.name : undefined),
+        sortDir,
+      );
+    });
+  }, [filtered, sortBy, sortDir]);
 
-  // Sorting Logic
-  const sortedCoasters = useMemo<Coaster[]>(
-    () => {
-      return [...filteredCoasters].sort((a: Coaster, b: Coaster) => {
-        if (sortBy === "rating") {
-          const dirMult = sortDirection === "asc" ? 1 : -1;
-
-          // Rating
-          const ratingA = a.rating ?? 0;
-          const ratingB = b.rating ?? 0;
-          if (ratingA !== ratingB) return (ratingA - ratingB) * dirMult;
-
-          // Tiebreaker 1: Ride Count
-          const countA = a.rideCount ?? 0;
-          const countB = b.rideCount ?? 0;
-          if (countA !== countB) return (countA - countB) * dirMult;
-
-          // Tiebreaker 2: Date
-          const dateA = a.lastVisitDate ? new Date(a.lastVisitDate).getTime() : 0;
-          const dateB = b.lastVisitDate ? new Date(b.lastVisitDate).getTime() : 0;
-          return (dateA - dateB) * dirMult;
-        }
-
-        return compare(
-          a[sortBy as keyof Coaster] ?? (sortBy === "name" ? a.name : undefined),
-          b[sortBy as keyof Coaster] ?? (sortBy === "name" ? b.name : undefined),
-          sortDirection
-        );
-      });
-    },
-    [filteredCoasters, sortBy, sortDirection]
-  );
-
-  const totalRideCount = useMemo(
-    () => sortedCoasters.reduce((sum: number, c: Coaster) => sum + (c.rideCount ?? 0), 0),
-    [sortedCoasters]
+  const totalRides = useMemo(
+    () => sorted.reduce((s, c) => s + (c.rideCount ?? 0), 0), [sorted],
   );
   const avgRating = useMemo(() => {
-    const vals = sortedCoasters
-      .map((c: Coaster) => c.rating)
-      .filter((r): r is number => r !== null && r !== undefined);
-    if (!vals.length) return null;
-    return vals.reduce((s: number, v: number) => s + v, 0) / vals.length;
-  }, [sortedCoasters]);
+    const vals = sorted.map(c => c.rating).filter((r): r is number => r != null);
+    return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+  }, [sorted]);
+  const uniqueParks = useMemo(
+    () => new Set(sorted.map(c => c.parkId)).size, [sorted],
+  );
 
-  function handleSort(column: ColumnKey | "name") {
-    if (sortBy === column) {
-      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortBy(column);
-      setSortDirection(
-        column === "name" || !DESC_BY_DEFAULT.includes(column as ColumnKey) ? "asc" : "desc"
-      );
-    }
+  function handleSort(col: ColumnKey | "name") {
+    if (sortBy === col) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortBy(col); setSortDir(col === "name" || !DESC_BY_DEFAULT.includes(col as ColumnKey) ? "asc" : "desc"); }
   }
-
-  function toggleColumn(col: ColumnKey) {
-    setVisibleCols((prev) => {
-      const has = prev.includes(col);
-      if (has) return prev.filter((c) => c !== col);
-      return [...prev, col];
-    });
+  function toggleCol(col: ColumnKey) {
+    setVisibleCols(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]);
   }
+  const colOn = (k: ColumnKey) => visibleCols.includes(k);
 
-  if (loading) {
-    return <LoadingSpinner className="pt-24" />;
-  }
-  if (error) return <p className="p-4 text-red-500">Error: {error}</p>;
-
-  const colIsVisible = (key: ColumnKey) => visibleCols.includes(key);
+  if (loading) return <LoadingSpinner className="pt-24" />;
+  if (error)   return <p className="p-4 text-red-400">Error: {error}</p>;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-10 bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-900 min-h-[100dvh]">
-      {/* Intro */}
-      <div className="max-w-4xl mx-auto text-center mb-6 sm:mb-8">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-500 to-fuchsia-500">
-          ParkRating's Coaster Library
-        </h1>
-        <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-300">
-          Explore every coaster we’ve ridden with detailed ratings, ride counts, and insights, <br />
-          including average scores by park and manufacturer.
-        </p>
+    <div className="min-h-screen bg-slate-900 text-white">
+
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
+      <div className="border-b border-slate-800 px-4 sm:px-8 py-12 sm:py-16">
+        <div className="max-w-5xl mx-auto">
+          <p className="text-orange-500 text-xs font-bold uppercase tracking-widest mb-3">
+            ParkRating · Coaster Library
+          </p>
+          <h1 className="text-4xl sm:text-5xl font-black mb-3 leading-tight">
+            Coaster <span className="text-orange-500">Rankings</span>
+          </h1>
+          <p className="text-slate-400 text-base max-w-xl">
+            Every coaster we&apos;ve ridden, rated across ride quality, intensity and reridability.
+            Click any name for the full breakdown.
+          </p>
+
+          {/* Stats strip */}
+          {coasters.length > 0 && (
+            <div className="flex flex-wrap gap-6 mt-8">
+              {[
+                { label: "Coasters rated", value: coasters.length.toLocaleString() },
+                { label: "Parks visited",  value: new Set(coasters.map(c => c.parkId)).size.toLocaleString() },
+                { label: "Total rides",    value: coasters.reduce((s, c) => s + (c.rideCount ?? 0), 0).toLocaleString() },
+                { label: "Avg rating",     value: (() => { const vals = coasters.map(c => c.rating).filter((r): r is number => r != null); return vals.length ? (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(2) : "—"; })() },
+              ].map(s => (
+                <div key={s.label}>
+                  <div className="text-2xl font-black text-white">{s.value}</div>
+                  <div className="text-xs text-slate-500 uppercase tracking-wider mt-0.5">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="sticky top-0 z-30 mb-4 sm:mb-6">
-        <div className="mx-auto max-w-2xl px-2">
-          <div className="relative group">
-            <div className="absolute -inset-[1.5px] rounded-2xl bg-gradient-to-r from-blue-500 via-cyan-400 to-fuchsia-500 opacity-40 blur-sm group-focus-within:opacity-70 transition" />
-            <div className="relative rounded-2xl bg-white/80 dark:bg-neutral-950/70 backdrop-blur border border-gray-200 dark:border-neutral-700 shadow-sm">
-              <div className="flex items-center gap-3 px-4 py-3">
-                <input
-                  value={rawQuery}
-                  onChange={(e) => setQuery?.(e.target.value)}
-                  placeholder="Search by name, park, manufacturer, rating, year…"
-                  className="w-full bg-transparent outline-none text-base placeholder:text-gray-400"
-                  aria-label="Search coasters"
-                />
-                {rawQuery && (
-                  <button
-                    onClick={() => setQuery?.("")}
-                    className="text-xs px-3 py-1 rounded-full border border-gray-300 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-900 cursor-pointer"
-                    aria-label="Clear search"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
+      {/* ── Controls ─────────────────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4 space-y-4">
+        {/* Search */}
+        <div className="relative group max-w-2xl mx-auto">
+          <div className="absolute -inset-[1.5px] rounded-xl bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 opacity-30 blur-sm group-focus-within:opacity-60 transition" />
+          <div className="relative rounded-xl bg-slate-900 border border-slate-700">
+            <div className="flex items-center gap-3 px-4 py-3">
+              <svg className="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+              </svg>
+              <input
+                value={rawQuery}
+                onChange={e => setQuery?.(e.target.value)}
+                placeholder="Search by name, park, manufacturer, rating, year…"
+                className="w-full bg-transparent outline-none text-sm text-slate-100 placeholder:text-slate-500"
+                aria-label="Search coasters"
+              />
+              {rawQuery && (
+                <button
+                  onClick={() => setQuery?.("")}
+                  className="text-xs px-2.5 py-1 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition cursor-pointer"
+                >
+                  Clear
+                </button>
+              )}
             </div>
+          </div>
+        </div>
+
+        {/* Column toggles + sort (sort hidden on mobile — click headers instead) */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex flex-wrap justify-center gap-1.5 flex-1">
+            {ALL_COLUMNS.map(({ key, label }) => {
+              const on = colOn(key);
+              return (
+                <button
+                  key={key}
+                  onClick={() => toggleCol(key)}
+                  aria-pressed={on}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${
+                    on
+                      ? "bg-orange-500/10 border-orange-500/40 text-orange-300"
+                      : "bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${on ? "bg-orange-400" : "bg-slate-600"}`} />
+                  {label}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {/* Controls row */}
-      <div className="max-w-7xl mx-auto mb-3 sm:mb-4 flex flex-col gap-3">
-        <div className="px-1">
-          <ColumnChips
-            columns={ALL_COLUMNS}
-            visibleCols={visibleCols}
-            onToggle={toggleColumn}
-          />
-          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-            Tip: On mobile, keep two columns visible (Name is always shown) for a clean 3-column view.
-          </p>
-        </div>
+      {/* ── Table ────────────────────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
 
-        <div className="flex items-center justify-center sm:justify-end">
-          <SortControl
-            sortBy={sortBy}
-            sortDirection={sortDirection}
-            onChangeField={(col) => handleSort(col)}
-            onToggleDir={() => setSortDirection((d) => (d === "asc" ? "desc" : "asc"))}
-          />
-        </div>
-      </div>
-
-      {/* ===== MOBILE ===== */}
-      <div className="sm:hidden">
-        <div className="relative max-w-7xl mx-auto rounded-2xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 shadow-sm">
-          <div
-            className="grid"
-            style={{
-              gridTemplateColumns: `${INDEX_COL_W_MOBILE + NAME_COL_W_MOBILE}px 1fr`,
-            }}
-          >
-            {/* Left: frozen # + Name */}
-            <div className="overflow-hidden">
-              <table className="w-full text-sm text-left border-separate border-spacing-0">
-                <thead className="sticky top-0 z-10 bg-white dark:bg-neutral-950 shadow-sm border-b border-gray-300 dark:border-neutral-700">
-                  <tr className="text-[11px] uppercase text-gray-600 dark:text-gray-300">
-                    <th
-                      className="px-0 text-center font-semibold"
-                      style={{ width: INDEX_COL_W_MOBILE, height: ROW_H }}
-                    >
-                      <div className="flex items-center justify-center" style={{ height: ROW_H }}>
-                        <span style={{ width: INDEX_COL_W_MOBILE, display: "inline-block" }}>#</span>
-                      </div>
-                    </th>
-                    <th
-                      className="pr-2 font-semibold"
-                      style={{ width: NAME_COL_W_MOBILE, height: ROW_H }}
-                    >
-                      <div className="flex items-center" style={{ height: ROW_H }}>
-                        Name
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedCoasters.map((c: Coaster, index: number) => (
-                    <tr
-                      key={c.id}
-                      className="hover:bg-gray-50/60 dark:hover:bg-neutral-900/70 border-b border-gray-100 dark:border-neutral-700"
-                    >
-                      <td className="px-0 text-center font-medium" style={{ width: INDEX_COL_W_MOBILE }}>
-                        <div className="flex items-center justify-center" style={{ height: ROW_H }}>
-                          <span style={{ width: INDEX_COL_W_MOBILE, display: "inline-block" }}>
-                            {index + 1}
-                          </span>
-                        </div>
-                      </td>
-                      <td
-                        className="pr-2 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap overflow-hidden text-ellipsis text-[13px]"
-                        style={{ width: NAME_COL_W_MOBILE }}
+        {/* MOBILE */}
+        <div className="sm:hidden">
+          <div className="rounded-2xl border border-slate-700 bg-slate-800/60 overflow-hidden">
+            <div className="grid" style={{ gridTemplateColumns: `${INDEX_W + NAME_W_M}px 1fr` }}>
+              {/* Frozen left */}
+              <div className="overflow-hidden">
+                <table className="w-full text-sm text-left border-separate border-spacing-0">
+                  <thead>
+                    <tr className="text-[10px] uppercase text-slate-400 border-b border-slate-700">
+                      <th style={{ width: INDEX_W, height: ROW_H }} className="text-center font-semibold">#</th>
+                      <th
+                        style={{ width: NAME_W_M, height: ROW_H }}
+                        className={`pr-2 font-semibold cursor-pointer select-none hover:text-white transition-colors ${sortBy === "name" ? "text-orange-400" : ""}`}
+                        onClick={() => handleSort("name")}
                       >
-                        <div className="flex items-center" style={{ height: ROW_H }}>
-                          <Link
-                            href={`/coasters/${c.slug}`}
-                            className="text-blue-600 dark:text-blue-400 hover:underline"
-                          >
-                            {c.name}
-                          </Link>
-                        </div>
-                      </td>
+                        Name {sortBy === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot className="border-t border-gray-300 dark:border-neutral-700">
-                  <tr className="bg-gray-50 dark:bg-neutral-900 text-gray-700 dark:text-gray-200 font-semibold">
-                    <td className="px-0 text-center" style={{ width: INDEX_COL_W_MOBILE }}>
-                      <div style={{ height: ROW_H }} />
-                    </td>
-                    <td className="pr-2" style={{ width: NAME_COL_W_MOBILE }}>
-                      <div className="flex items-center" style={{ height: ROW_H }}>
-                        Summary
-                      </div>
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-
-            {/* Right: horizontally scrollable extra columns */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left min-w-full border-separate border-spacing-0">
-                <thead className="sticky top-0 z-10 bg-white dark:bg-neutral-950 shadow-sm border-b border-gray-300 dark:border-neutral-700">
-                  <tr className="text-[11px] uppercase text-gray-600 dark:text-gray-300">
-                    {ALL_COLUMNS.map(({ key, label }) =>
-                      colIsVisible(key) ? (
-                        <th
-                          key={key}
-                          className="px-2 font-semibold whitespace-nowrap"
-                          style={{ minWidth: COL_MIN_W_MOBILE[key], height: ROW_H }}
-                        >
+                  </thead>
+                  <tbody>
+                    {sorted.map((c, i) => (
+                      <tr key={c.id} className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors">
+                        <td style={{ width: INDEX_W, height: ROW_H }} className="text-center text-slate-500 text-xs">{i + 1}</td>
+                        <td style={{ width: NAME_W_M }} className="pr-2 font-medium text-slate-100 text-[13px] truncate">
                           <div className="flex items-center" style={{ height: ROW_H }}>
-                            {label}
-                          </div>
-                        </th>
-                      ) : null
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedCoasters.map((c: Coaster) => (
-                    <tr
-                      key={c.id}
-                      className="hover:bg-gray-50/60 dark:hover:bg-neutral-900/70 border-b border-gray-100 dark:border-neutral-700"
-                    >
-                      {/* Rating */}
-                      {colIsVisible("rating") && (
-                        <td
-                          className={`px-2 font-semibold whitespace-nowrap ${c.rating !== null ? getRatingColor(c.rating) : ""
-                            }`}
-                          style={{ minWidth: COL_MIN_W_MOBILE.rating }}
-                        >
-                          <div className="flex items-center" style={{ height: ROW_H }}>
-                            {c.rating !== null ? c.rating.toFixed(1) : "—"}
-                          </div>
-                        </td>
-                      )}
-                      {/* Manufacturer */}
-                      {colIsVisible("manufacturer") && (
-                        <td
-                          className="px-2 whitespace-nowrap text-[13px] overflow-hidden text-ellipsis"
-                          style={{ minWidth: COL_MIN_W_MOBILE.manufacturer, maxWidth: 240 }}
-                        >
-                          <div className="flex items-center" style={{ height: ROW_H }}>
-                            <button
-                              onClick={() => setQuery?.(c.manufacturer)}
-                              className="underline text-blue-600 dark:text-blue-400 truncate cursor-pointer"
-                              style={{ maxWidth: 220 }}
-                            >
-                              {c.manufacturer}
-                            </button>
-                          </div>
-                        </td>
-                      )}
-                      {/* Park */}
-                      {colIsVisible("parkName") && (
-                        <td
-                          className="px-2 whitespace-nowrap overflow-hidden text-ellipsis"
-                          style={{ minWidth: COL_MIN_W_MOBILE.parkName, maxWidth: 240 }}
-                        >
-                          <div className="flex items-center" style={{ height: ROW_H }}>
-                            <Link
-                              href={`/park/${c.parkId}`}
-                              className="underline text-blue-600 dark:text-blue-400 truncate"
-                              style={{ maxWidth: 220 }}
-                            >
-                              {c.parkName}
+                            <Link href={`/coasters/${c.slug}`} className="text-indigo-400 hover:text-indigo-300 truncate hover:underline">
+                              {c.name}
                             </Link>
                           </div>
                         </td>
-                      )}
-                      {/* Ride Count */}
-                      {colIsVisible("rideCount") && (
-                        <td className="px-2 whitespace-nowrap" style={{ minWidth: COL_MIN_W_MOBILE.rideCount }}>
-                          <div className="flex items-center gap-1" style={{ height: ROW_H }}>
-                            <span>{c.rideCount}</span>
-                            {c.visitCount > 1 && (
-                              <span className="text-xs text-gray-400 font-normal">
-                                ({c.visitCount})
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      )}
-                      {/* Last Ridden */}
-                      {colIsVisible("lastVisitDate") && (
-                        <td className="px-2 whitespace-nowrap" style={{ minWidth: COL_MIN_W_MOBILE.lastVisitDate }}>
-                          <div className="flex items-center" style={{ height: ROW_H }}>
-                            {formatDate(c.lastVisitDate)}
-                          </div>
-                        </td>
-                      )}
-                      {/* Year */}
-                      {colIsVisible("year") && (
-                        <td className="px-2 whitespace-nowrap" style={{ minWidth: COL_MIN_W_MOBILE.year }}>
-                          <div className="flex items-center" style={{ height: ROW_H }}>
-                            {c.year || "—"}
-                          </div>
-                        </td>
-                      )}
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="border-t border-slate-700">
+                    <tr className="bg-slate-700/30 text-slate-300 font-semibold text-xs">
+                      <td style={{ width: INDEX_W, height: ROW_H }} />
+                      <td style={{ width: NAME_W_M }} className="pr-2">
+                        <div className="flex items-center" style={{ height: ROW_H }}>Summary</div>
+                      </td>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot className="border-t border-gray-300 dark:border-neutral-700">
-                  <tr className="bg-gray-50 dark:bg-neutral-900 text-gray-700 dark:text-gray-200 font-semibold">
-                    {ALL_COLUMNS.map(({ key }) =>
-                      colIsVisible(key) ? (
-                        <td key={key} className="px-2 whitespace-nowrap" style={{ minWidth: COL_MIN_W_MOBILE[key] }}>
+                  </tfoot>
+                </table>
+              </div>
+              {/* Scrollable right */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left min-w-full border-separate border-spacing-0">
+                  <thead>
+                    <tr className="text-[10px] uppercase text-slate-400 border-b border-slate-700">
+                      {ALL_COLUMNS.map(({ key, label }) => colOn(key) ? (
+                        <th
+                          key={key}
+                          className={`px-3 font-semibold whitespace-nowrap cursor-pointer select-none hover:text-white transition-colors ${sortBy === key ? "text-orange-400" : ""}`}
+                          style={{ minWidth: COL_MIN_W[key], height: ROW_H }}
+                          onClick={() => handleSort(key)}
+                        >
+                          {label} {sortBy === key ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                        </th>
+                      ) : null)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sorted.map(c => (
+                      <tr key={c.id} className="border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors">
+                        {colOn("rating") && (
+                          <td className="px-3 whitespace-nowrap" style={{ minWidth: COL_MIN_W.rating, height: ROW_H }}>
+                            <RatingBadge rating={c.rating} />
+                          </td>
+                        )}
+                        {colOn("manufacturer") && (
+                          <td className="px-3 whitespace-nowrap text-[13px]" style={{ minWidth: COL_MIN_W.manufacturer }}>
+                            <div className="flex items-center" style={{ height: ROW_H }}>
+                              <button onClick={() => setQuery?.(c.manufacturer)} className="text-slate-300 hover:text-indigo-300 hover:underline truncate cursor-pointer" style={{ maxWidth: 200 }}>
+                                {c.manufacturer}
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                        {colOn("parkName") && (
+                          <td className="px-3 whitespace-nowrap text-[13px]" style={{ minWidth: COL_MIN_W.parkName }}>
+                            <div className="flex items-center" style={{ height: ROW_H }}>
+                              <Link href={`/park/${c.parkId}`} className="text-slate-300 hover:text-indigo-300 hover:underline truncate" style={{ maxWidth: 200 }}>
+                                {c.parkName}
+                              </Link>
+                            </div>
+                          </td>
+                        )}
+                        {colOn("rideCount") && (
+                          <td className="px-3 whitespace-nowrap text-slate-300" style={{ minWidth: COL_MIN_W.rideCount }}>
+                            <div className="flex items-center gap-1" style={{ height: ROW_H }}>
+                              <span>{c.rideCount}</span>
+                              {c.visitCount > 1 && <span className="text-xs text-slate-600">({c.visitCount})</span>}
+                            </div>
+                          </td>
+                        )}
+                        {colOn("lastVisitDate") && (
+                          <td className="px-3 whitespace-nowrap text-slate-400 text-xs" style={{ minWidth: COL_MIN_W.lastVisitDate }}>
+                            <div className="flex items-center" style={{ height: ROW_H }}>{formatDate(c.lastVisitDate)}</div>
+                          </td>
+                        )}
+                        {colOn("year") && (
+                          <td className="px-3 whitespace-nowrap text-slate-400" style={{ minWidth: COL_MIN_W.year }}>
+                            <div className="flex items-center" style={{ height: ROW_H }}>{c.year || "—"}</div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="border-t border-slate-700">
+                    <tr className="bg-slate-700/30 text-slate-300 font-semibold text-xs">
+                      {ALL_COLUMNS.map(({ key }) => colOn(key) ? (
+                        <td key={key} className="px-3 whitespace-nowrap" style={{ minWidth: COL_MIN_W[key] }}>
                           <div className="flex items-center" style={{ height: ROW_H }}>
-                            {key === "rideCount"
-                              ? totalRideCount.toLocaleString()
-                              : key === "rating"
-                                ? avgRating !== null
-                                  ? avgRating.toFixed(2)
-                                  : "—"
-                                : ""}
+                            {key === "rideCount" ? totalRides.toLocaleString()
+                              : key === "rating" && avgRating != null ? avgRating.toFixed(2)
+                              : ""}
                           </div>
                         </td>
-                      ) : null
-                    )}
-                  </tr>
-                </tfoot>
-              </table>
+                      ) : null)}
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
           </div>
+          <p className="text-right text-xs text-slate-600 mt-2">{sorted.length} results</p>
         </div>
 
-        {/* Footer result count */}
-        <div className="max-w-7xl mx-auto flex justify-end text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-3">
-          {sortedCoasters.length} results
-        </div>
-      </div>
-
-      {/* ===== DESKTOP ===== */}
-      <div className="hidden sm:block">
-        <div className="relative max-w-7xl mx-auto overflow-x-auto overflow-y-hidden rounded-2xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 shadow-sm">
-          <table className="w-full table-fixed text-sm sm:text-base text-left">
-            {/* Head */}
-            <thead className="sticky top-0 z-20">
-              <tr className="bg-white dark:bg-neutral-950 text-xs uppercase text-gray-600 dark:text-gray-300 shadow-sm border-b border-gray-300 dark:border-neutral-700">
-                <th className="sticky left-0 z-[2] bg-white dark:bg-neutral-950 px-0 text-center font-semibold" style={{ width: 64 }}>
-                  <span className="inline-block w-16">#</span>
-                </th>
-                <ThSortableDesktop
-                  label="Name"
-                  active={sortBy === "name"}
-                  dir={sortDirection}
-                  onClick={() => handleSort("name")}
-                  sticky
-                  style={{ width: NAME_COL_W_SM }}
-                  styleLg={{ width: NAME_COL_W_LG }}
-                />
-                {ALL_COLUMNS.map(({ key, label }) =>
-                  colIsVisible(key) ? (
-                    <ThSortableDesktop
-                      key={key}
-                      label={label}
-                      active={sortBy === key}
-                      dir={sortDirection}
-                      onClick={() => handleSort(key)}
-                    />
-                  ) : null
-                )}
-              </tr>
-            </thead>
-
-            {/* Body */}
-            <tbody className="divide-y divide-gray-100 dark:divide-neutral-700">
-              {sortedCoasters.map((c: Coaster, index: number) => (
-                <tr key={c.id} className="hover:bg-gray-50/60 dark:hover:bg-neutral-900/70">
-                  <td className="sticky left-0 z-[1] bg-white dark:bg-neutral-950 px-0 text-center font-medium" style={{ width: 64 }}>
-                    <span className="inline-block w-16">{index + 1}</span>
-                  </td>
-                  <td
-                    className="sticky z-[1] bg-white dark:bg-neutral-950 py-3 pr-4 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap overflow-hidden text-ellipsis"
-                    style={{ left: 64, width: NAME_COL_W_SM }}
-                  >
-                    <Link href={`/coasters/${c.slug}`} className="text-blue-600 dark:text-blue-400 hover:underline">
-                      {c.name}
-                    </Link>
-                  </td>
-                  {colIsVisible("rating") && (
-                    <td className={`px-4 py-3 font-semibold whitespace-nowrap ${c.rating !== null ? getRatingColor(c.rating) : ""}`}>
-                      {c.rating !== null ? c.rating.toFixed(1) : "—"}
+        {/* DESKTOP */}
+        <div className="hidden sm:block">
+          <div className="rounded-2xl border border-slate-700 bg-slate-800/60 overflow-x-auto">
+            <table className="w-full table-fixed text-sm text-left">
+              <thead className="sticky top-0 z-20">
+                <tr className="bg-slate-900 text-[11px] uppercase text-slate-500 border-b border-slate-800">
+                  <th className="sticky left-0 z-[2] bg-slate-900 text-center font-semibold" style={{ width: INDEX_W }}>
+                    <span className="inline-block" style={{ width: INDEX_W }}>#</span>
+                  </th>
+                  <ThSort label="Name"  active={sortBy === "name"} dir={sortDir} onClick={() => handleSort("name")} sticky style={{ left: INDEX_W, width: NAME_W_D }} />
+                  {ALL_COLUMNS.map(({ key, label }) => colOn(key) ? (
+                    <ThSort key={key} label={label} active={sortBy === key} dir={sortDir} onClick={() => handleSort(key)} />
+                  ) : null)}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {sorted.map((c, i) => (
+                  <tr key={c.id} className="group hover:bg-slate-700/30 transition-colors">
+                    <td className="sticky left-0 z-[1] bg-slate-800/60 group-hover:bg-slate-700/40 text-center text-slate-600 text-xs font-medium" style={{ width: INDEX_W }}>
+                      <span className="inline-block" style={{ width: INDEX_W }}>{i + 1}</span>
                     </td>
-                  )}
-                  {colIsVisible("manufacturer") && (
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <button onClick={() => setQuery?.(c.manufacturer)} className="underline text-blue-600 dark:text-blue-400 cursor-pointer">
-                        {c.manufacturer}
-                      </button>
-                    </td>
-                  )}
-                  {colIsVisible("parkName") && (
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <Link href={`/park/${c.parkId}`} className="underline text-blue-600 dark:text-blue-400">
-                        {c.parkName}
+                    <td className="sticky z-[1] bg-slate-800/60 group-hover:bg-slate-700/40 py-0 pr-6 font-semibold text-slate-100 whitespace-nowrap overflow-hidden text-ellipsis" style={{ left: INDEX_W, width: NAME_W_D, height: ROW_H }}>
+                      <Link href={`/coasters/${c.slug}`} className="hover:text-indigo-300 transition-colors hover:underline">
+                        {c.name}
                       </Link>
                     </td>
-                  )}
-                  {/* Ride Count (Desktop) */}
-                  {colIsVisible("rideCount") && (
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="flex items-baseline gap-1">
-                        <span>{c.rideCount}</span>
-                        {c.visitCount > 1 && (
-                          <span className="text-xs text-gray-400 font-normal">
-                            ({c.visitCount})
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  )}
-                  {colIsVisible("lastVisitDate") && <td className="px-4 py-3 whitespace-nowrap">{formatDate(c.lastVisitDate)}</td>}
-                  {colIsVisible("year") && <td className="px-4 py-3 whitespace-nowrap">{c.year || "—"}</td>}
-                </tr>
-              ))}
-            </tbody>
-
-            {/* Footer summary */}
-            <tfoot className="border-t border-gray-300 dark:border-neutral-700">
-              <tr className="bg-gray-50 dark:bg-neutral-900 text-gray-700 dark:text-gray-200 font-semibold">
-                <td className="sticky z-[1] bg-gray-50 dark:bg-neutral-900 px-0 text-center" style={{ left: 0, width: 64 }} />
-                <td className="sticky z-[1] bg-gray-50 dark:bg-neutral-900 py-3 pr-4" style={{ left: 64, width: NAME_COL_W_SM }}>
-                  Summary
-                </td>
-                {ALL_COLUMNS.map(({ key }) =>
-                  colIsVisible(key) ? (
+                    {colOn("rating") && (
+                      <td className="px-4" style={{ height: ROW_H }}>
+                        <RatingBadge rating={c.rating} />
+                      </td>
+                    )}
+                    {colOn("manufacturer") && (
+                      <td className="px-4 whitespace-nowrap text-slate-300" style={{ height: ROW_H }}>
+                        <button onClick={() => setQuery?.(c.manufacturer)} className="hover:text-indigo-300 hover:underline cursor-pointer transition-colors">
+                          {c.manufacturer}
+                        </button>
+                      </td>
+                    )}
+                    {colOn("parkName") && (
+                      <td className="px-4 whitespace-nowrap" style={{ height: ROW_H }}>
+                        <Link href={`/park/${c.parkId}`} className="text-slate-300 hover:text-indigo-300 hover:underline transition-colors">
+                          {c.parkName}
+                        </Link>
+                      </td>
+                    )}
+                    {colOn("rideCount") && (
+                      <td className="px-4 whitespace-nowrap text-slate-300" style={{ height: ROW_H }}>
+                        <div className="flex items-baseline gap-1">
+                          <span>{c.rideCount}</span>
+                          {c.visitCount > 1 && <span className="text-xs text-slate-600">({c.visitCount})</span>}
+                        </div>
+                      </td>
+                    )}
+                    {colOn("lastVisitDate") && (
+                      <td className="px-4 whitespace-nowrap text-slate-500 text-xs" style={{ height: ROW_H }}>
+                        {formatDate(c.lastVisitDate)}
+                      </td>
+                    )}
+                    {colOn("year") && (
+                      <td className="px-4 whitespace-nowrap text-slate-400" style={{ height: ROW_H }}>
+                        {c.year || "—"}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t border-slate-700">
+                <tr className="bg-slate-700/30 text-slate-300 font-semibold text-xs">
+                  <td className="sticky left-0 z-[1] bg-slate-700/30" style={{ width: INDEX_W }} />
+                  <td className="sticky z-[1] bg-slate-700/30 py-3 pr-6 text-slate-400" style={{ left: INDEX_W, width: NAME_W_D }}>
+                    {sorted.length} coasters · {uniqueParks} parks
+                  </td>
+                  {ALL_COLUMNS.map(({ key }) => colOn(key) ? (
                     <td key={key} className="px-4 py-3 whitespace-nowrap">
-                      {key === "rideCount"
-                        ? totalRideCount.toLocaleString()
-                        : key === "rating"
-                          ? avgRating !== null
-                            ? avgRating.toFixed(2)
-                            : "—"
+                      {key === "rideCount" ? totalRides.toLocaleString()
+                        : key === "rating" && avgRating != null
+                          ? <span className={getRatingColor(avgRating)}>{avgRating.toFixed(2)}</span>
                           : ""}
                     </td>
-                  ) : null
-                )}
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-
-        {/* Footer result count */}
-        <div className="max-w-7xl mx-auto flex justify-end text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-3">
-          {sortedCoasters.length} results
+                  ) : null)}
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <p className="text-right text-xs text-slate-600 mt-2">{sorted.length} results</p>
         </div>
       </div>
     </div>
   );
 }
 
-// ——— Exported Components ———
+// ——— Small sub-components ———
 
-export default function CoasterRatingsPage() {
+function RatingBadge({ rating }: { rating: number | null }) {
+  if (rating == null) return <span className="text-slate-600">—</span>;
   return (
-    <Suspense fallback={<p className="p-10 text-center">Loading search...</p>}>
-      <CoasterRatingsContent />
-    </Suspense>
+    <span className={`inline-block tabular-nums font-bold text-sm ${getRatingColor(rating)}`}>
+      {rating.toFixed(1)}
+    </span>
   );
 }
 
-interface ThSortableProps {
+interface ThSortProps {
   label: string;
   active: boolean;
   dir: "asc" | "desc";
   onClick: () => void;
   sticky?: boolean;
-  className?: string;
   style?: React.CSSProperties;
-  styleLg?: React.CSSProperties;
 }
-
-function ThSortableDesktop({ label, active, dir, onClick, sticky, className, style, styleLg }: ThSortableProps) {
+function ThSort({ label, active, dir, onClick, sticky, style }: ThSortProps) {
   return (
     <th
       scope="col"
       onClick={onClick}
       aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
-      className={["px-4 py-3 select-none font-semibold hover:underline text-gray-700 dark:text-gray-200 cursor-pointer", sticky ? "sticky z-[2] bg-white dark:bg-neutral-950" : "", className].join(" ")}
+      className={`px-4 py-3 select-none font-semibold cursor-pointer hover:text-white transition-colors ${
+        active ? "text-orange-400" : "text-slate-500 hover:text-slate-300"
+      } ${sticky ? "sticky z-[2] bg-slate-800/60" : ""}`}
       style={style}
     >
-      <div className="inline-flex items-center">
+      <span className="inline-flex items-center gap-1">
         {label}
-        <span className={`ml-1 w-4 ${active ? "opacity-100" : "opacity-0"}`}>{dir === "asc" ? "▲" : "▼"}</span>
-      </div>
-      <style jsx>{`@media (min-width: 1024px) { th[aria-sort] { ${styleLg?.width !== undefined ? `width: ${Number(styleLg.width)}px !important;` : ""} } }`}</style>
+        <span className={`transition-opacity ${active ? "opacity-100 text-orange-400" : "opacity-0"}`}>
+          {dir === "asc" ? "↑" : "↓"}
+        </span>
+      </span>
     </th>
-  );
-}
-
-interface ColumnChipsProps {
-  columns: readonly { key: ColumnKey; label: string }[];
-  visibleCols: ColumnKey[];
-  onToggle: (c: ColumnKey) => void;
-}
-
-function ColumnChips({ columns, visibleCols, onToggle }: ColumnChipsProps) {
-  const isOn = (k: ColumnKey) => visibleCols.includes(k);
-  return (
-    <div className="w-full flex justify-center">
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 items-center justify-center">
-        {columns.map(({ key, label }) => {
-          const active = isOn(key);
-          return (
-            <button
-              key={key}
-              onClick={() => onToggle(key)}
-              aria-pressed={active}
-              className={["group inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs sm:text-sm border shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 cursor-pointer", active ? "bg-neutral-900 text-white border-neutral-900 dark:bg-neutral-800 dark:text-white dark:border-neutral-600" : "bg-white/90 dark:bg-neutral-950/80 border-gray-300/80 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-900"].join(" ")}
-            >
-              <span className={["inline-block h-2 w-2 rounded-full", active ? "bg-emerald-400 group-hover:bg-emerald-300" : "bg-gray-300 dark:bg-neutral-600 group-hover:bg-gray-400 dark:group-hover:bg-neutral-500"].join(" ")} aria-hidden />
-              <span className="whitespace-nowrap">{label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
   );
 }
 
 interface SortControlProps {
   sortBy: ColumnKey | "name";
-  sortDirection: "asc" | "desc";
+  sortDir: "asc" | "desc";
   onChangeField: (c: ColumnKey | "name") => void;
   onToggleDir: () => void;
 }
-
-function SortControl({ sortBy, sortDirection, onChangeField, onToggleDir }: SortControlProps) {
+function SortControl({ sortBy, sortDir, onChangeField, onToggleDir }: SortControlProps) {
   const [open, setOpen] = useState(false);
-
   useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
-    function onClick(e: MouseEvent) { const t = e.target as HTMLElement; if (!t.closest?.("#sort-popover")) setOpen(false); }
-    if (open) { window.addEventListener("keydown", onKey); window.addEventListener("click", onClick); }
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const onClick = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest?.("#sort-ctrl")) setOpen(false); };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("click", onClick);
     return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("click", onClick); };
   }, [open]);
 
   const OPTIONS: { key: ColumnKey | "name"; label: string }[] = [
-    { key: "name", label: "Name" },
-    { key: "rating", label: "Rating" },
-    { key: "manufacturer", label: "Manufacturer" },
-    { key: "parkName", label: "Park" },
-    { key: "rideCount", label: "Ride Count" },
-    { key: "lastVisitDate", label: "Last Ridden" },
+    { key: "name", label: "Name" }, { key: "rating", label: "Rating" },
+    { key: "manufacturer", label: "Manufacturer" }, { key: "parkName", label: "Park" },
+    { key: "rideCount", label: "Rides" }, { key: "lastVisitDate", label: "Last Ridden" },
     { key: "year", label: "Year" },
   ];
-
-  const activeLabel = OPTIONS.find((o) => o.key === sortBy)?.label ?? "Sort";
+  const activeLabel = OPTIONS.find(o => o.key === sortBy)?.label ?? "Sort";
 
   return (
-    <div id="sort-popover" className="relative inline-flex items-center gap-2">
-      <button onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open} className="inline-flex items-center gap-2 rounded-xl border border-gray-300 dark:border-neutral-700 bg-white/90 dark:bg-neutral-950/80 backdrop-blur px-3.5 py-2 text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-neutral-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 cursor-pointer">
-        <span className="font-medium">Sort</span>
-        <span className="text-gray-600 dark:text-gray-300">{activeLabel}</span>
-        <ChevronDown aria-hidden />
+    <div id="sort-ctrl" className="relative inline-flex items-center gap-2 flex-shrink-0">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-sm text-slate-300 hover:text-white hover:border-slate-600 transition cursor-pointer"
+      >
+        <span className="font-medium text-slate-500">Sort</span>
+        <span>{activeLabel}</span>
+        <svg className="w-3.5 h-3.5 text-slate-500" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.2l3.71-2.97a.75.75 0 011.04 1.08l-4.23 3.39a.75.75 0 01-.95 0L5.21 8.31a.75.75 0 01.02-1.1z" />
+        </svg>
       </button>
-      <button onClick={onToggleDir} className="inline-flex items-center justify-center rounded-xl border border-gray-300 dark:border-neutral-700 bg-white/90 dark:bg-neutral-950/80 backdrop-blur h-9 w-9 shadow-sm hover:bg-gray-50 dark:hover:bg-neutral-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 cursor-pointer" aria-label="Toggle sort direction" title={sortDirection === "asc" ? "Ascending" : "Descending"}>
-        {sortDirection === "asc" ? <ArrowUp aria-hidden /> : <ArrowDown aria-hidden />}
+      <button
+        onClick={onToggleDir}
+        className="inline-flex items-center justify-center rounded-xl border border-slate-700 bg-slate-900 h-9 w-9 text-slate-400 hover:text-white hover:border-slate-600 transition cursor-pointer"
+        aria-label="Toggle sort direction"
+      >
+        {sortDir === "asc" ? "↑" : "↓"}
       </button>
       {open && (
-        <div role="menu" aria-label="Sort by" className="absolute right-0 top-[115%] z-40 min-w-[220px] rounded-2xl border border-gray-200 dark:border-neutral-700 bg-white/95 dark:bg-neutral-950/95 backdrop-blur shadow-lg overflow-hidden">
-          <ul className="max-h-[320px] overflow-auto py-1">
-            {OPTIONS.map((opt) => {
+        <div
+          role="menu"
+          className="absolute right-0 top-[115%] z-40 min-w-[200px] rounded-2xl border border-slate-700 bg-slate-900/95 backdrop-blur shadow-xl overflow-hidden"
+        >
+          <ul className="py-1">
+            {OPTIONS.map(opt => {
               const active = opt.key === sortBy;
               return (
                 <li key={opt.key}>
-                  <button role="menuitemradio" aria-checked={active} onClick={() => { onChangeField(opt.key); setOpen(false); }} className={["w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left text-sm cursor-pointer", active ? "bg-gray-100/70 dark:bg-neutral-900/70 text-gray-900 dark:text-gray-100" : "hover:bg-gray-50 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-200"].join(" ")}>
-                    <span>{opt.label}</span>
-                    {active ? <Check aria-hidden /> : null}
+                  <button
+                    role="menuitemradio"
+                    aria-checked={active}
+                    onClick={() => { onChangeField(opt.key); setOpen(false); }}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left text-sm cursor-pointer transition-colors ${
+                      active ? "text-orange-300 bg-orange-500/10" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    }`}
+                  >
+                    {opt.label}
+                    {active && <span className="text-orange-400">✓</span>}
                   </button>
                 </li>
               );
@@ -796,15 +624,11 @@ function SortControl({ sortBy, sortDirection, onChangeField, onToggleDir }: Sort
   );
 }
 
-function ChevronDown(props: React.SVGProps<SVGSVGElement>) {
-  return <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-gray-500" {...props}><path d="M5.23 7.21a.75.75 0 011.06.02L10 10.2l3.71-2.97a.75.75 0 011.04 1.08l-4.23 3.39a.75.75 0 01-.95 0L5.21 8.31a.75.75 0 01.02-1.1z" /></svg>;
-}
-function ArrowUp(props: React.SVGProps<SVGSVGElement>) {
-  return <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-gray-600 dark:text-gray-300" {...props}><path d="M10 4l5 6H5l5-6zm-5 8h10v2H5v-2z" /></svg>;
-}
-function ArrowDown(props: React.SVGProps<SVGSVGElement>) {
-  return <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-gray-600 dark:text-gray-300" {...props}><path d="M5 8h10v2H5V8zm5 8l-5-6h10l-5 6z" /></svg>;
-}
-function Check(props: React.SVGProps<SVGSVGElement>) {
-  return <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-emerald-500" {...props}><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.364 7.364a1 1 0 01-1.414 0L3.293 9.435a1 1 0 111.414-1.414l3.222 3.222 6.657-6.657a1 1 0 011.414 0z" clipRule="evenodd" /></svg>;
+// ——— Exports ———
+export default function CoasterRatingsPage({ initialCoasters }: { initialCoasters?: any[] }) {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center"><LoadingSpinner /></div>}>
+      <CoasterRatingsContent initialCoasters={initialCoasters} />
+    </Suspense>
+  );
 }

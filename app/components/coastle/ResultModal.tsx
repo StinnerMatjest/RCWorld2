@@ -6,6 +6,7 @@ import Link from "next/link";
 import { XMarkIcon, ShareIcon } from "./Icons";
 import { CoastleCoaster, Guess } from "@/app/types";
 import { getTodayString } from "@/app/utils/coastle";
+import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 interface ResultModalProps {
   isOpen: boolean;
@@ -143,6 +144,7 @@ export function ResultModal({
   onShare,
   onReset,
 }: ResultModalProps) {
+  useScrollLock();
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   const isWon = gameState === "won";
@@ -422,7 +424,7 @@ export function ResultModal({
                   onClick={onClose}
                   className="w-full py-2 sm:py-3 md:py-3.5 rounded-2xl font-black text-sm sm:text-base text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 transition cursor-pointer text-center"
                 >
-                  Go to daily connections
+                  Go to Connections →
                 </Link>
               ) : (
                 <div className="w-full py-2 sm:py-3 md:py-3.5 rounded-2xl font-black text-sm sm:text-base text-center bg-slate-200 text-slate-500 dark:bg-neutral-800 dark:text-slate-400 cursor-not-allowed select-none">

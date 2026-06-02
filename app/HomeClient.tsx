@@ -20,6 +20,7 @@ import { useSearch } from "./context/SearchContext";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import LoadingSpinner from "./components/LoadingSpinner";
 import { getParkFlag, getRatingColor } from "@/app/utils/design";
+import { FocusedImage, parseFocusStr } from "./components/FocusedImage";
 
 const DOTS_OFFSET = 10;
 
@@ -45,8 +46,13 @@ const PendingParkCard = ({ park }: { park: Park }) => (
 const TeaserParkCard = ({ rating, park }: { rating: Rating; park: Park }) => (
   <div className="mx-auto w-full max-w-[400px] py-3 md:py-4 animate-fade-in-up">
     <div className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
-      {/* Full-bleed image */}
-      <Image src={park.imagepath || "/images/error.PNG"} alt={park.name} fill className="object-cover opacity-70"/>
+      <FocusedImage
+        src={park.cardImagepath || park.imagepath || "/images/error.PNG"}
+        alt={park.name}
+        focusStr={park.imageFocus}
+        className="absolute inset-0"
+        imgClassName="opacity-70"
+      />
 
       {/* Top: park name */}
       <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent px-4 pt-4 pb-14">
@@ -101,16 +107,34 @@ const CARD_CATS = ["coasters", "rides", "park", "food", "mgmt"] as const;
 type CardCat = typeof CARD_CATS[number];
 
 function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }: { rating: Rating; park: Park; isActive?: boolean; delayIndex?: number }) {
-  const headerSrc   = park.imagepath || "/images/error.PNG";
-  const headerFocus = park.imageFocus ?? "50% 50%";
+  const headerSrc    = park.imagepath || "/images/error.PNG";
+  const cardSrc      = park.cardImagepath || headerSrc;
+  const cardFocusStr = park.imageFocus || "0.5 0.5 1";
+
+  const imageContainerRef = useRef<HTMLDivElement>(null);
+  const slotAFocusRef     = useRef<string>(cardFocusStr);
+  const slotBFocusRef     = useRef<string>(cardFocusStr);
+
+  const applyFocusToImg = useCallback((img: HTMLImageElement, focusStr: string) => {
+    const c = imageContainerRef.current;
+    if (!c || !img.naturalWidth || !img.naturalHeight) return;
+    const { cx, cy, zoom } = parseFocusStr(focusStr);
+    const cs = Math.max(c.clientWidth / img.naturalWidth, c.clientHeight / img.naturalHeight);
+    const dw = img.naturalWidth  * cs * zoom;
+    const dh = img.naturalHeight * cs * zoom;
+    img.style.width  = `${dw}px`;
+    img.style.height = `${dh}px`;
+    img.style.left   = `${c.clientWidth  / 2 - cx * dw}px`;
+    img.style.top    = `${c.clientHeight / 2 - cy * dh}px`;
+  }, []);
 
   const getCardEntry = useCallback((label: string): { src: string; focus: string } | null => {
     const key = label.toLowerCase() as CardCat;
     const entry = park.cardImages?.[key];
     if (entry?.src) return entry;
-    if (key === "coasters") return { src: headerSrc, focus: headerFocus };
+    if (key === "coasters") return { src: cardSrc, focus: cardFocusStr };
     return null;
-  }, [park.cardImages, headerSrc, headerFocus]);
+  }, [park.cardImages, cardSrc, cardFocusStr]);
 
   const getCycleImages = useCallback(() =>
     FULL_BLEED_GROUPS
@@ -130,8 +154,15 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
     const a = slotARef.current;
     const b = slotBRef.current;
     if (!a || !b) return;
-    a.src = headerSrc; a.style.objectPosition = headerFocus; a.style.opacity = "0.88"; a.style.transition = "none";
-    b.src = headerSrc; b.style.objectPosition = headerFocus; b.style.opacity = "0";   b.style.transition = "none";
+    slotAFocusRef.current = cardFocusStr;
+    slotBFocusRef.current = cardFocusStr;
+    a.style.opacity = "0.88"; a.style.transition = "none";
+    b.style.opacity = "0";   b.style.transition = "none";
+    a.src = cardSrc;
+    b.src = cardSrc;
+    const tryApplyA = () => { if (a.naturalWidth) applyFocusToImg(a, cardFocusStr); };
+    if (a.complete && a.naturalWidth > 0) tryApplyA();
+    else a.onload = tryApplyA;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isHoveringRef = useRef(false);
@@ -156,7 +187,7 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
     cancelInFlight();
     setActiveLabel(label);
 
-    const target = entry ?? { src: headerSrc, focus: headerFocus };
+    const target = entry ?? { src: cardSrc, focus: cardFocusStr };
     const [inactiveRef, activeRef, nextSlot] = activeSlotRef.current === "A"
       ? [slotBRef, slotARef, "B" as const]
       : [slotARef, slotBRef, "A" as const];
@@ -166,12 +197,13 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
     if (!inactive || !active) return;
 
     inactive.src = target.src;
-    inactive.style.objectPosition = target.focus;
-    // Already at opacity 0 (reset by cancelInFlight), transition stays "none"
+    if (inactiveRef === slotARef) slotAFocusRef.current = target.focus;
+    else slotBFocusRef.current = target.focus;
 
     const startFade = () => {
       inactive.onload = null;
       inactive.onerror = null;
+      applyFocusToImg(inactive, target.focus);
       raf1Ref.current = requestAnimationFrame(() => {
         raf2Ref.current = requestAnimationFrame(() => {
           inactive.style.transition = "opacity 700ms ease-in-out";
@@ -189,7 +221,7 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
       inactive.onload  = startFade;
       inactive.onerror = startFade;
     }
-  }, [cancelInFlight, headerSrc, headerFocus]);
+  }, [cancelInFlight, cardSrc, cardFocusStr, applyFocusToImg]);
 
   const stopCycle = useCallback(() => {
     if (intervalRef.current)   { clearInterval(intervalRef.current);   intervalRef.current = null; }
@@ -228,6 +260,18 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
     }
   }, [isActive, startCycle, stopCycle, transitionTo]);
 
+  // Re-apply absolute positioning on container resize
+  useEffect(() => {
+    const c = imageContainerRef.current;
+    if (!c) return;
+    const ro = new ResizeObserver(() => {
+      if (slotARef.current) applyFocusToImg(slotARef.current, slotAFocusRef.current);
+      if (slotBRef.current) applyFocusToImg(slotBRef.current, slotBFocusRef.current);
+    });
+    ro.observe(c);
+    return () => ro.disconnect();
+  }, [applyFocusToImg]);
+
   useEffect(() => () => {
     stopCycle();
     cancelInFlight();
@@ -261,7 +305,7 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
     if (cycleRestartRef.current)   { clearTimeout(cycleRestartRef.current);   cycleRestartRef.current = null; }
     stopCycle();
     const activeEl = (activeSlotRef.current === "A" ? slotARef : slotBRef).current;
-    const isOnHeader = !activeEl || activeEl.src === headerSrc || activeEl.src === "";
+    const isOnHeader = !activeEl || activeEl.src === cardSrc || activeEl.src === "";
     if (isOnHeader) {
       // Already showing header — cancel silently, no visible transition
       cancelInFlight();
@@ -328,11 +372,11 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
         onPointerEnter={(e) => { if (e.pointerType === "mouse") handleCardEnter(); }}
         onPointerLeave={(e) => { if (e.pointerType === "mouse") handleCardLeave(); }}
       >
-        <div className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
+        <div ref={imageContainerRef} className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img ref={slotARef} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <img ref={slotARef} alt="" className="absolute max-w-none select-none" draggable={false} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img ref={slotBRef} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <img ref={slotBRef} alt="" className="absolute max-w-none select-none" draggable={false} />
 
           <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent px-4 pt-4 pb-16 pointer-events-none">
             <div className="flex items-center gap-2">
@@ -536,11 +580,16 @@ const Home = () => {
 
     const onTouchEnd = (e: TouchEvent) => {
       const deltaX = e.changedTouches[0].clientX - startX;
-      if (Math.abs(deltaX) < 50) return;
+      if (Math.abs(deltaX) < 60) return;
 
       const velocity = Math.abs(deltaX) / Math.max(1, Date.now() - startTime);
       const direction = deltaX < 0 ? 1 : -1;
-      const cards = velocity > 1.5 ? 3 : velocity > 0.8 ? 2 : 1;
+      let cards: number;
+      if (velocity > 14)     cards = Math.min(6, Math.round(velocity / 3));
+      else if (velocity > 9) cards = 3;
+      else if (velocity > 5) cards = 2;
+      else                   cards = 1;
+
       const maxIdx = el.children.length - 1;
       const target = Math.max(0, Math.min(maxIdx, currentIndexRef.current + direction * cards));
       scrollToIndex(target);

@@ -61,8 +61,14 @@ export async function GET(req: NextRequest) {
       pool.query("SELECT image_path, focal_index FROM zoomle_flags WHERE created_at::date < $1::date", [date]),
       pool.query(`
         SELECT DISTINCT rc.id, rc.name, p.name AS park_name, p.country AS park_country
-        FROM rollercoasters rc JOIN parks p ON p.id = rc.park_id
-        WHERE COALESCE(rc.zoomle_enabled, TRUE) = TRUE ORDER BY rc.id
+        FROM rollercoasters rc
+        JOIN parks p ON p.id = rc.park_id
+        JOIN parkgallery pg
+          ON  pg.park_id = rc.park_id
+          AND pg.title ILIKE '%' || rc.name || '%'
+          AND pg.title NOT ILIKE '%HEADER ONLY%'
+        WHERE COALESCE(rc.zoomle_enabled, TRUE) = TRUE
+        ORDER BY rc.id
       `),
     ]);
 

@@ -10,6 +10,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useSyncExternalStore } from "react";
 import { ratingsStore, type Ratings } from "@/app/utils/ratingStoreManager";
 import { getRatingColor } from "@/app/utils/design";
+import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 interface ModalProps {
   closeModal: () => void;
@@ -120,6 +121,7 @@ function SummaryList({
 const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks }) => {
   const searchParams = useSearchParams();
   const isOpen = searchParams?.get("modal") === "true";
+  useScrollLock(isOpen);
   const pendingParkId = searchParams?.get("pendingParkId");
 
 

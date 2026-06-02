@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 type ImageUploaderModalProps = {
   parkId: number;
@@ -15,6 +16,7 @@ export default function ImageUploaderModal({
   onClose,
   onUploadSuccess,
 }: ImageUploaderModalProps) {
+  useScrollLock();
   const [files, setFiles] = useState<File[]>([]);
   const [description, setDescription] = useState("");
   const [isHeader, setIsHeader] = useState(false);

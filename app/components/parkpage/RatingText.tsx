@@ -8,6 +8,7 @@ import { ratingCategories } from "@/app/utils/ratings";
 import RatingWarning from "../warnings/RatingWarning";
 import WarningCreatorModal from "../warnings/WarningCreatorModal";
 import { useAdminMode } from "../../context/AdminModeContext";
+import { MarkdownText } from "../MarkdownText";
 import type { GalleryImage } from "../parkpage/ParkGallery";
 
 interface RatingTextProps {
@@ -195,10 +196,10 @@ const RatingText: React.FC<RatingTextProps> = ({
                         </>
                       )}
                     </div>
-                    <p className="text-gray-700 dark:text-gray-400 leading-relaxed md:text-lg flex-1">{text}</p>
+                    <MarkdownText text={text} className="text-gray-700 dark:text-gray-400 leading-relaxed md:text-lg flex-1" />
                   </div>
                 ) : (
-                  <p className="text-gray-700 dark:text-gray-400 leading-relaxed md:text-lg">{text}</p>
+                  <MarkdownText text={text} className="text-gray-700 dark:text-gray-400 leading-relaxed md:text-lg" />
                 )}
               </div>
             );

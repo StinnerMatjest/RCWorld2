@@ -4,8 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Park, ChecklistItem } from "@/app/types";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
+import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
+    useScrollLock();
     const [isOpen, setIsOpen] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const router = useRouter();

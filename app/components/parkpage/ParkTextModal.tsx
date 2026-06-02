@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import type { GalleryImage } from "./ParkGallery";
+import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 interface ParkTextsModalProps {
   explanations: Record<string, string>;
@@ -13,7 +14,7 @@ interface ParkTextsModalProps {
   onSave?: (updatedText: Record<string, string>, updatedImages: Record<string, string>) => void;
 }
 
-const categories = [
+const CATEGORIES = [
   "description",
   "bestCoaster",
   "coasterDepth",
@@ -25,229 +26,267 @@ const categories = [
   "snacksAndDrinks",
   "rideOperations",
   "parkManagement",
-];
+] as const;
+type Category = typeof CATEGORIES[number];
 
-const humanizeLabel = (key: string) =>
-  key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase()).trim();
+const LABELS: Record<Category, string> = {
+  description:          "Description",
+  bestCoaster:          "Best Coaster",
+  coasterDepth:         "Coaster Depth",
+  waterRides:           "Water Rides",
+  flatridesAndDarkrides:"Flat & Darkrides",
+  parkAppearance:       "Appearance",
+  parkPracticality:     "Practicality",
+  food:                 "Food",
+  snacksAndDrinks:      "Snacks & Drinks",
+  rideOperations:       "Ride Operations",
+  parkManagement:       "Management",
+};
+
+const isVideo = (p: string) => /\.(mp4|webm|ogg)$/i.test(p);
 
 const ParkTextModal: React.FC<ParkTextsModalProps> = ({
-  explanations,
-  sectionImages,
-  galleryImages,
-  parkId,
-  ratingId,
-  onClose,
-  onSave,
+  explanations, sectionImages, galleryImages, parkId, ratingId, onClose, onSave,
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState(categories[0]);
-  const [text, setText] = useState("");
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [localExplanations, setLocalExplanations] = useState<Record<string, string>>(explanations);
-  const [localImages, setLocalImages] = useState<Record<string, string>>(sectionImages);
+  useScrollLock();
+  const [selectedCat, setSelectedCat] = useState<Category>(CATEGORIES[0]);
+  const [drafts, setDrafts] = useState<Record<string, { text: string; image: string | null }>>(() =>
+    Object.fromEntries(CATEGORIES.map(cat => [cat, {
+      text:  explanations[cat] ?? "",
+      image: sectionImages[cat] ?? null,
+    }]))
+  );
+  // Track which categories already exist on the server (PUT vs POST)
+  const [persisted, setPersisted] = useState<Set<string>>(
+    () => new Set(CATEGORIES.filter(c => explanations[c]))
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    setText(localExplanations[selectedCategory] || "");
-    setSelectedImage(localImages[selectedCategory] || null);
-  }, [selectedCategory, localExplanations, localImages]);
+  const cur = drafts[selectedCat];
 
-  const handleClose = () => {
-    onSave?.(localExplanations, localImages);
-    onClose();
+  const updateText  = useCallback((t: string) =>
+    setDrafts(d => ({ ...d, [selectedCat]: { ...d[selectedCat], text: t } })), [selectedCat]);
+  const updateImage = useCallback((img: string | null) =>
+    setDrafts(d => ({ ...d, [selectedCat]: { ...d[selectedCat], image: img } })), [selectedCat]);
+
+  // ── Markdown toolbar ────────────────────────────────────────────────────────
+  const wrapSelection = (before: string, after = before) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    const next = cur.text.slice(0, s) + before + cur.text.slice(s, e) + after + cur.text.slice(e);
+    updateText(next);
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(s + before.length, e + before.length); }, 0);
   };
 
-  const handleUnpublish = async () => {
-    if (!confirm("Are you sure you want to unpublish this review? It will be moved back to drafts.")) return;
-    try {
-      const res = await fetch(`/api/ratings/${ratingId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ published: false }),
-      });
-      if (res.ok) {
-        window.location.reload();
-      } else {
-        alert("Failed to unpublish rating.");
-      }
-    } catch (error) {
-      console.error("Failed to unpublish:", error);
-    }
+  const insertBullet = () => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const s = ta.selectionStart;
+    const lineStart = cur.text.lastIndexOf("\n", s - 1) + 1;
+    const next = cur.text.slice(0, lineStart) + "- " + cur.text.slice(lineStart);
+    updateText(next);
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(s + 2, s + 2); }, 0);
   };
 
-  const handleSave = async () => {
+  // ── Save all ────────────────────────────────────────────────────────────────
+  const handleSaveAll = async () => {
     setIsSaving(true);
-    setSaveSuccess(false);
+    const newPersisted = new Set(persisted);
+    const outTexts: Record<string, string>  = {};
+    const outImages: Record<string, string> = {};
 
     try {
-      const method = localExplanations[selectedCategory] ? "PUT" : "POST";
+      for (const cat of CATEGORIES) {
+        const { text, image } = drafts[cat];
+        if (!text && !image && !persisted.has(cat)) continue; // nothing to save
 
-      const res = await fetch(`/api/park/${parkId}/parkTexts`, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category: selectedCategory,
-          text,
-          ratingId,
-          imageUrl: selectedImage ?? null,
-        }),
-      });
-
-      if (!res.ok) {
-        console.error(`Failed to ${method} text`);
-        return;
+        const method = persisted.has(cat) ? "PUT" : "POST";
+        const res = await fetch(`/api/park/${parkId}/parkTexts`, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category: cat, text, ratingId, imageUrl: image ?? null }),
+        });
+        if (res.ok) {
+          const saved = await res.json();
+          newPersisted.add(cat);
+          if (saved.text)     outTexts[cat]  = saved.text;
+          if (saved.imageUrl) outImages[cat] = saved.imageUrl;
+        }
       }
-
-      const saved = await res.json();
-
-      const updatedTexts = { ...localExplanations, [selectedCategory]: saved.text };
-      const updatedImages = { ...localImages };
-      if (saved.imageUrl) {
-        updatedImages[selectedCategory] = saved.imageUrl;
-      } else {
-        delete updatedImages[selectedCategory];
-      }
-
-      setLocalExplanations(updatedTexts);
-      setLocalImages(updatedImages);
-      onSave?.(updatedTexts, updatedImages);
-
+      setPersisted(newPersisted);
+      onSave?.(outTexts, outImages);
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2000);
+      setTimeout(() => setSaveSuccess(false), 2500);
     } catch (err) {
-      console.error("Error submitting request:", err);
+      console.error("Save error:", err);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const imageOptions = galleryImages;
-  const isVideo = (path: string) => /\.(mp4|webm|ogg)$/i.test(path);
+  const handleClose = () => {
+    const texts  = Object.fromEntries(CATEGORIES.filter(c => drafts[c].text).map(c  => [c, drafts[c].text]));
+    const images = Object.fromEntries(CATEGORIES.filter(c => drafts[c].image).map(c => [c, drafts[c].image!]));
+    onSave?.(texts, images);
+    onClose();
+  };
+
+  const handleUnpublish = async () => {
+    if (!confirm("Unpublish this review?")) return;
+    const res = await fetch(`/api/ratings/${ratingId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ published: false }),
+    });
+    if (res.ok) window.location.reload();
+    else alert("Failed to unpublish.");
+  };
 
   return (
-    <div className="fixed inset-0 z-[1000] bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="relative bg-white dark:bg-gray-800 dark:text-gray-100 border border-transparent dark:border-white/10 p-6 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <button
-          onClick={handleClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white transition cursor-pointer"
-        >
-          ✕
-        </button>
+    <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl w-full max-w-4xl h-[93vh] flex flex-col overflow-hidden">
 
-        <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Edit Section</h2>
+        {/* ── Top bar ─────────────────────────────────────────────────────── */}
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-white/10 flex-shrink-0">
+          <h2 className="font-bold text-gray-900 dark:text-white text-base flex-1">Edit Sections</h2>
+          {saveSuccess && <span className="text-green-500 text-sm font-medium">Saved ✓</span>}
+          <button onClick={handleUnpublish}
+            className="px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900/50 text-red-500 dark:text-red-400 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors cursor-pointer">
+            Unpublish
+          </button>
+          <button onClick={handleSaveAll} disabled={isSaving}
+            className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold transition-colors cursor-pointer">
+            {isSaving ? "Saving…" : "Save all"}
+          </button>
+          <button onClick={handleClose}
+            className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors cursor-pointer">
+            <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/>
+            </svg>
+          </button>
+        </div>
 
-        {/* Category selector */}
-        <label className="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
-        <select
-          className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 mb-4"
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-        >
-          {categories.map((cat) => (
-            <option key={cat} value={cat}>{humanizeLabel(cat)}</option>
-          ))}
-        </select>
+        {/* ── Body ────────────────────────────────────────────────────────── */}
+        <div className="flex-1 min-h-0 flex overflow-hidden">
 
-        {/* Text */}
-        <label className="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Text</label>
-        <textarea
-          className="w-full p-3 h-36 resize-none rounded-md border border-gray-300 bg-white text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 mb-5"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
-
-        {/* Image picker */}
-        <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-          Section Image <span className="text-gray-400 font-normal">(optional)</span>
-        </label>
-
-        {imageOptions.length === 0 ? (
-          <p className="text-sm text-gray-400 mb-4">No gallery images available yet.</p>
-        ) : (
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-2">
-            {/* Clear option */}
-            <button
-              onClick={() => setSelectedImage(null)}
-              className={`aspect-square rounded-lg border-2 flex items-center justify-center text-xs font-medium transition-all ${selectedImage === null
-                ? "border-blue-500 bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400"
-                : "border-gray-200 dark:border-gray-700 text-gray-400 hover:border-gray-300"
-                }`}
-            >
-              None
-            </button>
-
-            {imageOptions.map((img) => {
-              const isSelected = selectedImage === img.path;
+          {/* Sidebar — desktop only */}
+          <div className="hidden sm:flex flex-col w-44 border-r border-gray-200 dark:border-white/10 overflow-y-auto flex-shrink-0 py-1">
+            {CATEGORIES.map(cat => {
+              const filled = !!(drafts[cat].text || drafts[cat].image);
               return (
-                <button
-                  key={img.id}
-                  onClick={() => setSelectedImage(img.path)}
-                  className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all ${isSelected
-                    ? "border-blue-500 ring-2 ring-blue-500/30"
-                    : "border-gray-200 dark:border-gray-700 hover:border-gray-400"
-                    }`}
-                >
-                  {isVideo(img.path) ? (
-                    <>
-                      <video src={img.path} className="w-full h-full object-cover" muted playsInline preload="metadata" />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
-                        <svg className="w-6 h-6 text-white drop-shadow" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      </div>
-                    </>
-                  ) : (
-                    <img src={img.path} alt={img.description || ""} className="w-full h-full object-cover" />
-                  )}
-                  {isSelected && (
-                    <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
-                      <svg className="w-6 h-6 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
+                <button key={cat} onClick={() => setSelectedCat(cat)}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium text-left w-full transition-colors cursor-pointer ${
+                    selectedCat === cat
+                      ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-r-2 border-blue-500"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5"
+                  }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${filled ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"}`} />
+                  {LABELS[cat]}
                 </button>
               );
             })}
           </div>
-        )}
 
-        {selectedImage && (
-          <p className="text-xs text-gray-400 mb-4 truncate">Selected: {selectedImage!.split("/").pop()}</p>
-        )}
+          {/* Right panel */}
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
 
-        {/* Action Buttons */}
-        <div className="mt-6 pt-4 border-t border-gray-100 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <button
-              onClick={handleUnpublish}
-              className="px-3 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/30 text-sm font-medium transition-colors cursor-pointer"
-            >
-              Unpublish
-            </button>
-            {saveSuccess && (
-              <span className="text-green-600 dark:text-green-400 text-sm font-medium">Saved!</span>
-            )}
-          </div>
+            {/* Category pills — mobile only */}
+            <div className="sm:hidden flex gap-1.5 px-3 py-2 overflow-x-auto flex-shrink-0 border-b border-gray-200 dark:border-white/10 no-scrollbar">
+              {CATEGORIES.map(cat => {
+                const filled = !!(drafts[cat].text || drafts[cat].image);
+                return (
+                  <button key={cat} onClick={() => setSelectedCat(cat)}
+                    className={`flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                      selectedCat === cat
+                        ? "bg-blue-600 border-blue-600 text-white"
+                        : filled
+                          ? "border-green-500 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20"
+                          : "border-gray-300 dark:border-gray-700 text-gray-500"
+                    }`}>
+                    {LABELS[cat]}
+                  </button>
+                );
+              })}
+            </div>
 
-          <div className="flex items-center justify-end w-full sm:w-auto gap-3">
-            <button
-              onClick={handleClose}
-              className="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300 text-gray-800 cursor-pointer dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 transition-colors"
-            >
-              Close
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className={`px-4 py-2 rounded-md text-white transition-colors ${isSaving ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 cursor-pointer"
-                }`}
-            >
-              {isSaving ? "Saving..." : "Save"}
-            </button>
+            {/* Scrollable editor area */}
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
+
+              {/* Toolbar */}
+              <div className="flex items-center gap-1">
+                <button type="button" onClick={() => wrapSelection("**")} title="Bold"
+                  className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 font-bold text-sm text-gray-700 dark:text-gray-200 cursor-pointer transition-colors">
+                  B
+                </button>
+                <button type="button" onClick={() => wrapSelection("*")} title="Italic"
+                  className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 italic text-sm text-gray-700 dark:text-gray-200 cursor-pointer transition-colors">
+                  I
+                </button>
+                <button type="button" onClick={insertBullet} title="Bullet list"
+                  className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 text-sm text-gray-700 dark:text-gray-200 cursor-pointer transition-colors">
+                  •—
+                </button>
+                <span className="text-xs text-gray-400 ml-1.5">**bold** &nbsp;*italic* &nbsp;- bullet</span>
+              </div>
+
+              {/* Textarea */}
+              <textarea
+                ref={textareaRef}
+                className="w-full p-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-gray-900 dark:text-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 resize-none text-sm leading-relaxed"
+                rows={10}
+                value={cur.text}
+                onChange={e => updateText(e.target.value)}
+                placeholder={`Write about ${LABELS[selectedCat].toLowerCase()}…`}
+              />
+
+              {/* Image picker */}
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Section Image <span className="text-gray-400 font-normal">(optional)</span>
+                </p>
+                {galleryImages.length === 0 ? (
+                  <p className="text-sm text-gray-400">No gallery images available.</p>
+                ) : (
+                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5">
+                    <button onClick={() => updateImage(null)}
+                      className={`aspect-square rounded-lg border-2 flex items-center justify-center text-xs font-medium transition-all cursor-pointer ${
+                        cur.image === null
+                          ? "border-blue-500 bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400"
+                          : "border-gray-200 dark:border-gray-700 text-gray-400 hover:border-gray-300"
+                      }`}>
+                      None
+                    </button>
+                    {galleryImages.map(img => {
+                      const sel = cur.image === img.path;
+                      return (
+                        <button key={img.id} onClick={() => updateImage(img.path)}
+                          className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all cursor-pointer ${
+                            sel ? "border-blue-500 ring-2 ring-blue-500/30" : "border-gray-200 dark:border-gray-700 hover:border-gray-400"
+                          }`}>
+                          {isVideo(img.path) ? (
+                            <video src={img.path} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+                          ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={img.path} alt="" className="w-full h-full object-cover" />
+                          )}
+                          {sel && (
+                            <div className="absolute inset-0 bg-blue-500/25 flex items-center justify-center">
+                              <svg className="w-5 h-5 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+                              </svg>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-
       </div>
     </div>
   );

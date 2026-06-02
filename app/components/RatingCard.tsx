@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { FocusedImage } from "./FocusedImage";
 import { AlertTriangle } from "lucide-react";
 import { getParkFlag, getRatingColor } from "@/app/utils/design";
 import { RatingWarningType, Park, Rating } from "@/app/types";
@@ -154,20 +155,19 @@ const RatingCard: React.FC<RatingCardProps> = ({
           </div>
           {/* Park Image */}
           <figure
-            className={`w-full aspect-[16/9] md:aspect-video overflow-hidden bg-gray-200 dark:bg-gray-800 will-change-transform transition-transform duration-350 ease-[cubic-bezier(0.33,1,0.68,1)]`}
+            className="w-full aspect-[16/9] md:aspect-video overflow-hidden bg-gray-200 dark:bg-gray-800 will-change-transform transition-transform duration-350 ease-[cubic-bezier(0.33,1,0.68,1)]"
             style={{
               transform: isMobile
                 ? "translateX(calc(var(--px, 0px) / 1))"
                 : "translateX(0px)",
             }}
           >
-            <Image
-              src={park.imagepath || "/images/error.PNG"}
+            <FocusedImage
+              src={park.cardImagepath || park.imagepath || "/images/error.PNG"}
               alt={park.name}
-              height={500}
-              width={500}
-              priority={typeof delayIndex === 'number' && delayIndex < 6}
-              className="w-full h-full object-cover"
+              focusStr={park.imageFocus}
+              className="relative w-full h-full"
+              priority={typeof delayIndex === "number" && delayIndex < 6}
             />
           </figure>
 

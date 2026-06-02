@@ -5,6 +5,7 @@ export interface Park {
   country: string;
   city: string;
   imagepath: string;
+  cardImagepath?: string;
   slug: string;
   imageFocus?: string;
   headerFocus?: string;

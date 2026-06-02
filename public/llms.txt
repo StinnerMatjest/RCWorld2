@@ -35,3 +35,4 @@ We also rate individual roller coasters on a 0–10 scale with written reviews c
 - Reviews reflect real visits by the site's authors
 - Schema.org AggregateRating markup is present on all reviewed park pages
 - Schema.org Review markup with full reviewBody text is present on all park and coaster pages
+- Schema.org ItemList markup is present on the park rankings page (/parks) and the coaster ratings page (/coasterratings), listing each entry with name, URL, position, and a natural-language description including scores

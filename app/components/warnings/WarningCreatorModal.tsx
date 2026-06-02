@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { ratingCategories } from "@/app/utils/ratings";
 import type { RatingWarningType, RollerCoaster } from "@/app/types";
+import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 interface WarningCreatorModalProps {
   ratingId: number;
@@ -19,6 +20,7 @@ export default function WarningCreatorModal({
   onSaved,
   coasters,
 }: WarningCreatorModalProps) {
+  useScrollLock();
   const [warnings, setWarnings] = useState<RatingWarningType[]>(existingWarnings);
   const [loading, setLoading] = useState(false);
 

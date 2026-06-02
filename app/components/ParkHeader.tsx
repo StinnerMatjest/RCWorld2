@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
 import type { Park } from "@/app/types";
 import ParkHeaderModal from "./parkpage/ParkHeaderModal";
+import { FocusedImage } from "./FocusedImage";
 
 interface ParkHeaderProps {
   park: Park;
@@ -34,18 +34,18 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
       <div className="relative w-full aspect-[16/8] md:aspect-[16/4] max-h-screen overflow-hidden bg-gray-200 dark:bg-gray-800">
         
         {/* LAYER 1: The Clickable Background Image */}
-        <div 
+        <div
           className="absolute inset-0 cursor-pointer group"
           onClick={() => park.imagepath && window.open(park.imagepath, '_blank')}
         >
-          <Image
+          <FocusedImage
             src={park.imagepath}
             alt={park.name}
-            fill
-            className={`object-cover transition-transform duration-750 group-hover:scale-105 ${
-              imageLoaded ? "opacity-100 blur-0" : "opacity-0 blur-lg"
+            focusStr={park.headerFocus}
+            className="absolute inset-0"
+            imgClassName={`transition-all duration-700 group-hover:scale-105 ${
+              imageLoaded ? "opacity-100" : "opacity-0"
             }`}
-            style={{ objectPosition: park.headerFocus ?? "50% 50%" }}
             priority
             onLoad={() => setImageLoaded(true)}
           />
@@ -96,6 +96,7 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
           parkName={park.name}
           parkCountry={park.country}
           currentImagePath={park.imagepath}
+          currentCardImagepath={park.cardImagepath}
           currentFocus={park.imageFocus}
           currentHeaderFocus={park.headerFocus}
           currentCardImages={park.cardImages}

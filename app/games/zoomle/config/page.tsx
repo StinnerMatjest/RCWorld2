@@ -235,6 +235,7 @@ function CoasterRow({ group, flags, onToggleFlag, onToggleCoaster, onFocalSaved 
 
 export default function ZoomleConfig() {
   const [groups, setGroups] = useState<CoasterGroup[]>([]);
+  const [missing, setMissing] = useState<{ id: number; name: string; slug: string; park_name: string }[]>([]);
   const [flags, setFlags] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -266,6 +267,7 @@ export default function ZoomleConfig() {
         });
       }
       setGroups(Array.from(map.values()));
+      setMissing(poolData.missing ?? []);
       setLoading(false);
     });
   }, []);
@@ -334,18 +336,49 @@ export default function ZoomleConfig() {
 
         {loading ? (
           <p className="text-center text-slate-400 py-12">Loading…</p>
-        ) : filtered.length === 0 ? (
-          <p className="text-center text-slate-400 py-12 text-sm">
-            {search ? "No matches." : "No coasters found."}
-          </p>
+        ) : filtered.length === 0 && !search ? (
+          <p className="text-center text-slate-400 py-12 text-sm">No coasters found.</p>
         ) : (
-          <div className="flex flex-col gap-3">
-            {filtered.map(g => (
-              <CoasterRow key={g.coaster_id} group={g} flags={flags}
-                onToggleFlag={toggleFlag} onToggleCoaster={toggleCoaster}
-                onFocalSaved={handleFocalSaved} />
-            ))}
-          </div>
+          <>
+            {filtered.length > 0 && (
+              <div className="flex flex-col gap-3">
+                {filtered.map(g => (
+                  <CoasterRow key={g.coaster_id} group={g} flags={flags}
+                    onToggleFlag={toggleFlag} onToggleCoaster={toggleCoaster}
+                    onFocalSaved={handleFocalSaved} />
+                ))}
+              </div>
+            )}
+            {search ? null : missing.length > 0 && (
+              <div className="mt-8">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-base">⚠️</span>
+                  <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">
+                    Not in Zoomle
+                  </h2>
+                  <span className="text-xs font-bold text-slate-400">{missing.length} coaster{missing.length !== 1 ? "s" : ""}</span>
+                </div>
+                <p className="text-xs text-slate-400 mb-3">
+                  These coasters have no gallery images whose title contains their name. Add a matching image title to include them.
+                </p>
+                <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 overflow-hidden">
+                  {missing.map((c, i) => (
+                    <Link key={c.id} href={`/coasters/${c.slug ?? c.id}`} target="_blank"
+                      className={`flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${i > 0 ? "border-t border-slate-100 dark:border-slate-800" : ""}`}>
+                      <div>
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{c.name}</p>
+                        <p className="text-xs text-slate-400">{c.park_name}</p>
+                      </div>
+                      <span className="text-slate-300 dark:text-slate-600 text-xs">↗</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+            {search && filtered.length === 0 && (
+              <p className="text-center text-slate-400 py-12 text-sm">No matches.</p>
+            )}
+          </>
         )}
       </div>
     </div>

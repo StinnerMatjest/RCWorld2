@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { getParkFlag } from "@/app/utils/design";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
+import { getTodayString } from "@/app/utils/coastle";
+import { MAX_MISTAKES } from "@/app/components/connections/ConnectionsGame";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -28,6 +30,53 @@ const STORAGE_KEY = (date: string) => `zoomle-${date}`;
 function getTodayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+function buildCombinedShareText(date: string, zoomleScores: (number | null)[], maxScore: number): string {
+  const colorEmoji = (c: string) => ({ yellow: "🟨", green: "🟩", blue: "🟦", purple: "🟪", orange: "🟧", red: "🟥", brown: "🟫" } as Record<string, string>)[c] ?? "⬜";
+
+  const sections: string[] = [`🎮 ParkRating Daily — ${date}`];
+
+  try {
+    const raw = localStorage.getItem("coastle-daily-state");
+    if (raw) {
+      const state = JSON.parse(raw);
+      if (state.status && state.status !== "playing") {
+        const won = state.status === "won";
+        const count = (state.guesses ?? []).length;
+        const grid = (state.guesses ?? []).map((g: any) => {
+          const m = g.matches ?? {};
+          return [m.manufacturer, m.country, m.length, m.height, m.speed, m.inversions]
+            .map((s: string) => s === "correct" ? "🟩" : s === "close" ? "🟨" : "🟥")
+            .join("");
+        }).join("\n");
+        sections.push(`🎢 Coastle — ${won ? `${count}/5` : "X/5"}\n${grid}`);
+      }
+    }
+  } catch {}
+
+  try {
+    const raw = localStorage.getItem(`connections-${getTodayString()}`);
+    if (raw) {
+      const state = JSON.parse(raw);
+      const solved = state.playerSolvedCount ?? 0;
+      const mistakes = state.mistakes ?? 0;
+      const grid = (state.guessHistory ?? []).map((row: any) =>
+        (row.colors ?? []).map(colorEmoji).join("")
+      ).join("\n");
+      sections.push(`🔗 Connections — ${solved}/4 · ${mistakes} mistake${mistakes !== 1 ? "s" : ""}\n${grid}`);
+    }
+  } catch {}
+
+  const total = zoomleScores.reduce<number>((s, p) => s + (p ?? 0), 0);
+  const grid = zoomleScores.map(p =>
+    p === null ? "⬛" : p >= 5 ? "🟩" : p >= 4 ? "🟨" : p >= 3 ? "🟧" : "🟥"
+  ).join("");
+  sections.push(`🔍 Zoomle — ${total}/${maxScore}\n${grid}`);
+
+  sections.push("parkrating.com/games");
+
+  return sections.join("\n\n");
 }
 
 function buildShareText(date: string, scores: (number|null)[], maxScore: number): string {
@@ -122,21 +171,21 @@ function FlagButton({ image, focalIndex, dark }: { image: string; focalIndex: nu
   const [flagged, setFlagged] = useState(false);
   const [sending, setSending] = useState(false);
 
-  async function flag() {
-    if (flagged || sending) return;
+  async function toggle() {
+    if (sending) return;
     setSending(true);
     await fetch("/api/zoomle/flag", {
-      method: "POST",
+      method: flagged ? "DELETE" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ image_path: image, focal_index: focalIndex }),
     });
-    setFlagged(true);
+    setFlagged(f => !f);
     setSending(false);
   }
 
   return (
-    <button onClick={flag} disabled={flagged || sending}
-      title={flagged ? "Flagged — won't appear again" : "Flag this zoom as bad"}
+    <button onClick={toggle} disabled={sending}
+      title={flagged ? "Flagged — click to unflag" : "Flag this zoom as bad"}
       className={`flex-shrink-0 text-base transition-all cursor-pointer disabled:cursor-default ${
         flagged ? "opacity-100" : dark ? "opacity-40 hover:opacity-80" : "opacity-40 hover:opacity-80"
       }`}>
@@ -180,12 +229,13 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
   const startTimeRef  = useRef<number>(0);
   const progressRef   = useRef<number>(0);
   const introTimers   = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const [paused, setPaused] = useState(false);
 
   const buildRounds = useCallback(() => {
     // Use pre-built daily rounds from the server
     setRounds(dailyRounds);
     setRound(0); setGuessedId(null); setVisibleCount(0);
-    setScore(0); setDone(false); setPointsEarned(null); setPhase("intro");
+    setScore(0); setDone(false); setPointsEarned(null); setPhase("intro"); setPaused(false);
     setSecsLeft(REVEAL_DURATION); setPtsAvail(5); setDailyScores([]); setRoundResults([]); setIntroSecs(null);
     progressRef.current = 0;
   }, [dailyRounds]);
@@ -198,17 +248,18 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
   }, []);
 
   // Start RAF-driven zoom + timer (no React re-renders for transform)
-  const startReveal = useCallback(() => {
+  const startReveal = useCallback((fromProgress = 0) => {
     stopReveal();
-    progressRef.current = 0;
-    startTimeRef.current = performance.now();
+    progressRef.current = fromProgress;
+    startTimeRef.current = performance.now() - fromProgress * 1000 * REVEAL_DURATION;
 
     if (imgRef.current) {
-      imgRef.current.style.transform = `scale(${START_SCALE})`;
+      const initialScale = START_SCALE - (START_SCALE - 1) * Math.pow(fromProgress, 1.6);
+      imgRef.current.style.transform = `scale(${initialScale})`;
       imgRef.current.style.transition = "none";
     }
     if (timerBarRef.current) {
-      timerBarRef.current.style.width = "100%";
+      timerBarRef.current.style.width = `${(1 - fromProgress) * 100}%`;
       timerBarRef.current.style.transition = "none";
     }
 
@@ -262,12 +313,24 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
     return () => introTimers.current.forEach(clearTimeout);
   }, [phase, round, done, rounds.length, gameKey]);
 
-  // Start reveal when playing
+  // Start reveal when playing (always from 0 for a new round)
   useEffect(() => {
-    if (phase !== "playing" || done || !rounds.length) return;
-    startReveal();
+    if (phase !== "playing" || done || !rounds.length || paused) return;
+    startReveal(0);
     return stopReveal;
-  }, [phase, round, done, rounds.length, startReveal, stopReveal]);
+  }, [phase, round, done, rounds.length, startReveal, stopReveal]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handlePause() {
+    if (phase !== "playing" || paused) return;
+    stopReveal();
+    setPaused(true);
+  }
+
+  function handleResume() {
+    if (!paused) return;
+    setPaused(false);
+    startReveal(progressRef.current);
+  }
 
   // Cleanup on unmount
   useEffect(() => () => stopReveal(), [stopReveal]);
@@ -392,6 +455,18 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
 
   const maxScore = rounds.length * 5;
 
+  const allGamesPlayed = (() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const coastle = localStorage.getItem("coastle-daily-state");
+      const connections = localStorage.getItem(`connections-${getTodayString()}`);
+      const coastleDone = !!coastle && JSON.parse(coastle).status !== "playing";
+      const parsed = connections ? JSON.parse(connections) : null;
+      const connectionsDone = !!parsed && (parsed.playerSolvedCount === 4 || parsed.mistakes >= MAX_MISTAKES);
+      return coastleDone && connectionsDone;
+    } catch { return false; }
+  })();
+
   if (done) return (
     <div className={`flex flex-col gap-0 ${isMobile ? "bg-slate-900 px-4 pt-8 pb-12" : "w-full py-6"}`}>
       {/* Total score — animated count-up */}
@@ -461,12 +536,24 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
           onClick={() => {
             navigator.clipboard?.writeText(buildShareText(dailyDate, dailyScores, maxScore));
           }}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black text-sm hover:opacity-80 transition-opacity cursor-pointer">
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-slate-800 text-white font-black text-sm hover:opacity-80 transition-opacity cursor-pointer">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
           </svg>
-          Share result
+          Share Zoomle
         </button>
+        {allGamesPlayed && (
+          <button
+            onClick={() => {
+              navigator.clipboard?.writeText(buildCombinedShareText(dailyDate, dailyScores, maxScore));
+            }}
+            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 text-white font-black text-sm hover:opacity-90 transition-opacity cursor-pointer">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            Share all 3 results
+          </button>
+        )}
       </motion.div>
     </div>
   );
@@ -552,10 +639,10 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
         {/* Left: image */}
         <div className="flex flex-col gap-3">
           {/* Timer */}
-          <div className={`flex items-center gap-3 transition-opacity duration-200 ${phase === "playing" ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+          <div className={`flex items-center gap-3 transition-opacity duration-200 ${phase === "playing" || paused ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
             <motion.span key={`secs-${round}-${secsLeft}`} initial={{ scale: 1.15 }} animate={{ scale: 1 }}
-              className={`text-4xl font-black tabular-nums w-14 text-center leading-none ${secsLeft <= 3 ? "text-rose-500" : secsLeft <= 7 ? "text-amber-500" : "text-slate-900 dark:text-white"}`}>
-              {secsLeft}
+              className={`text-4xl font-black tabular-nums w-14 text-center leading-none ${paused ? "text-slate-400 dark:text-slate-500" : secsLeft <= 3 ? "text-rose-500" : secsLeft <= 7 ? "text-amber-500" : "text-slate-900 dark:text-white"}`}>
+              {paused ? "—" : secsLeft}
             </motion.span>
             <div className="flex-1 h-3 rounded-full overflow-hidden bg-blue-100 dark:bg-slate-700">
               <div ref={timerBarRef} className="h-full rounded-full bg-blue-500" style={{ width: "100%", transition: "none" }} />
@@ -565,6 +652,13 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
               <span className={`text-xl font-black tabular-nums ${ptsAvail >= 4 ? "text-amber-500" : "text-slate-400 dark:text-slate-500"}`}>{ptsAvail}</span>
               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">pts</span>
             </motion.div>
+            <button onClick={paused ? handleResume : handlePause}
+              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer">
+              {paused
+                ? <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+                : <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z"/></svg>
+              }
+            </button>
           </div>
 
           {/* Image — aspect-[3/2] matches the focal point config editor exactly */}
@@ -599,14 +693,21 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
               <video ref={imgRef as React.RefObject<HTMLVideoElement>} src={current.image}
                 autoPlay muted loop playsInline
                 className="absolute inset-0 w-full h-full object-cover"
-                style={{ opacity: phase === "intro" ? 0 : 1, transform: `scale(${START_SCALE})`,
+                style={{ opacity: phase === "intro" || paused ? 0 : 1, transform: `scale(${START_SCALE})`,
                   transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease" }} />
             ) : (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img ref={imgRef as React.RefObject<HTMLImageElement>} src={current.image} alt=""
                 className="absolute inset-0 w-full h-full object-cover"
-                style={{ opacity: phase === "intro" ? 0 : 1, transform: `scale(${START_SCALE})`,
+                style={{ opacity: phase === "intro" || paused ? 0 : 1, transform: `scale(${START_SCALE})`,
                   transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease" }} />
+            )}
+            {paused && (
+              <button onClick={handleResume}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900/80 cursor-pointer">
+                <svg className="w-14 h-14 text-white/70 ml-1" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+                <span className="text-xs font-black uppercase tracking-widest text-white/50">Paused — click to resume</span>
+              </button>
             )}
           </div>
 
@@ -627,7 +728,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
         </div>
 
         {/* Right: round info + options — stretches to match image height */}
-        <div className="flex flex-col self-stretch gap-3">
+        <div className={`flex flex-col self-stretch gap-3 transition-opacity duration-200 ${paused ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
           {/* Round / score */}
           <div className="flex items-center justify-center flex-shrink-0">
             <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
@@ -683,9 +784,10 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
           <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-0.5">Guess the coaster · Round {round + 1} / {rounds.length}</p>
         </div>
         {/* Timer */}
-        <div className={`flex items-center gap-2.5 flex-shrink-0 transition-opacity duration-200 ${phase === "playing" ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+        <div className={`flex items-center gap-2.5 flex-shrink-0 transition-opacity duration-200 ${phase === "playing" || paused ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
           <motion.div key={`secs-${round}-${secsLeft}`} initial={{ scale: 1.15 }} animate={{ scale: 1 }}
-            className={`text-3xl font-black tabular-nums w-12 text-center leading-none ${secsLeft <= 3 ? "text-rose-400" : secsLeft <= 7 ? "text-amber-400" : "text-white"}`}>{secsLeft}
+            className={`text-3xl font-black tabular-nums w-12 text-center leading-none ${paused ? "text-slate-500" : secsLeft <= 3 ? "text-rose-400" : secsLeft <= 7 ? "text-amber-400" : "text-white"}`}>
+            {paused ? "—" : secsLeft}
           </motion.div>
           <div className="flex-1 h-2.5 rounded-full overflow-hidden bg-slate-800">
             <div ref={timerBarRef} className="h-full rounded-full bg-blue-500" style={{ width: "100%", transition: "none" }} />
@@ -695,6 +797,13 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
             <span className={`text-xl font-black tabular-nums ${ptsAvail >= 4 ? "text-amber-400" : "text-slate-500"}`}>{ptsAvail}</span>
             <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wide">pts</span>
           </motion.div>
+          <button onClick={paused ? handleResume : handlePause}
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-slate-800 text-slate-400 hover:bg-slate-700 transition-colors cursor-pointer">
+            {paused
+              ? <svg className="w-3.5 h-3.5 ml-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+              : <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z"/></svg>
+            }
+          </button>
         </div>
         {/* Image */}
         <div className="relative rounded-2xl overflow-hidden bg-slate-800 w-full flex-shrink-0" style={{ aspectRatio: "3/2" }}>
@@ -722,14 +831,21 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
             <video ref={imgRef as React.RefObject<HTMLVideoElement>} src={current.image}
               autoPlay muted loop playsInline
               className="absolute inset-0 w-full h-full object-cover"
-              style={{ opacity: phase === "intro" ? 0 : 1, transform: `scale(${START_SCALE})`,
+              style={{ opacity: phase === "intro" || paused ? 0 : 1, transform: `scale(${START_SCALE})`,
                 transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease" }} />
           ) : (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img ref={imgRef as React.RefObject<HTMLImageElement>} src={current.image} alt=""
               className="absolute inset-0 w-full h-full object-cover"
-              style={{ opacity: phase === "intro" ? 0 : 1, transform: `scale(${START_SCALE})`,
+              style={{ opacity: phase === "intro" || paused ? 0 : 1, transform: `scale(${START_SCALE})`,
                 transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease" }} />
+          )}
+          {paused && (
+            <button onClick={handleResume}
+              className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900/80 cursor-pointer">
+              <svg className="w-12 h-12 text-white/70 ml-1" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+              <span className="text-xs font-black uppercase tracking-widest text-white/50">Tap to resume</span>
+            </button>
           )}
         </div>
         {/* Result strip */}
@@ -745,7 +861,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
         </div>
         {/* Options */}
         <AnimatePresence mode="wait">
-          <motion.div key={`grid-${round}`} exit={{ opacity: 0, y: -8, transition: { duration: 0.4, ease: "easeIn" } }} className="grid grid-cols-2 gap-2 flex-shrink-0">
+          <motion.div key={`grid-${round}`} exit={{ opacity: 0, y: -8, transition: { duration: 0.4, ease: "easeIn" } }} className={`grid grid-cols-2 gap-2 flex-shrink-0 transition-opacity duration-200 ${paused ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
             {current.options.map((opt, i) => {
               const show = i < visibleCount || phase !== "intro";
               const isAnswer = opt.id === current.answer.id;

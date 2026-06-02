@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 interface CoasterTextEntry {
   id: number;
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEntry }: Props) {
+  useScrollLock();
   const [headline, setHeadline] = useState(textEntry?.headline || "");
   const [text, setText] = useState(textEntry?.text || "");
   const [loading, setLoading] = useState(false);

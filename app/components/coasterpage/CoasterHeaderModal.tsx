@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
+import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 interface GalleryImage {
   id: number;
@@ -19,6 +20,7 @@ interface ModalProps {
 }
 
 const CoasterHeaderModal: React.FC<ModalProps> = ({ coasterId, coasterName, parkId, onClose, onUpdate }) => {
+  useScrollLock();
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [activeHeader, setActiveHeader] = useState<GalleryImage | null>(null);
   const [allActiveHeaders, setAllActiveHeaders] = useState<GalleryImage[]>([]); // NEW STATE

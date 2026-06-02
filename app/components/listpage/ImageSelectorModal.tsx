@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
+import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 interface GalleryImage {
   id: number;
@@ -17,6 +18,7 @@ interface Props {
 }
 
 const ImageSelectorModal: React.FC<Props> = ({ onClose, onSelect }) => {
+  useScrollLock();
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");

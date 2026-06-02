@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import type { RollerCoasterHighlights } from "@/app/types";
 import { Trash2, Plus, ChevronDown } from "lucide-react";
+import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 interface CoasterHighlightsModalProps {
     isOpen: boolean;
@@ -61,6 +62,7 @@ const CoasterHighlightsModal: React.FC<CoasterHighlightsModalProps> = ({
     initialHighlights,
     coasterId,
 }) => {
+    useScrollLock(isOpen);
     const [items, setItems] = useState<RollerCoasterHighlights[]>([]);
     const [loading, setLoading] = useState(false);
 

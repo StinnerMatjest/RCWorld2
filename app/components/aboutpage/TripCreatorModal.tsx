@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Trip } from "./TripCard";
+import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 interface TripCreatorModalProps {
   trip?: Trip;
@@ -10,6 +11,7 @@ interface TripCreatorModalProps {
 }
 
 export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreatorModalProps) {
+  useScrollLock();
   const [countriesStr, setCountriesStr] = useState("");
   const [parksStr, setParksStr] = useState("");
   const [rcdbStr, setRcdbStr] = useState("");

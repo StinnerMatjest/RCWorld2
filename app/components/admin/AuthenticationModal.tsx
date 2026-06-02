@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 interface AuthenticationModalProps {
   onClose: () => void;
@@ -13,6 +14,7 @@ const AuthenticationModal: React.FC<AuthenticationModalProps> = ({
   onClose,
   onAuthenticated,
 }) => {
+  useScrollLock();
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [failedAttempts, setFailedAttempts] = useState(0);

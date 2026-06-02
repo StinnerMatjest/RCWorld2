@@ -166,6 +166,7 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
     if (process.env.NODE_ENV !== "development") {
       localStorage.setItem(persistKey, JSON.stringify(data));
     }
+
   }, [solved, playerSolvedCount, mistakes, failedGuesses, guessHistory, tiles]);
 
   // ── Loss reveal ────────────────────────────────────────────────────────────

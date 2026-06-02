@@ -15,6 +15,7 @@ import VisitPanelDropdown from "@/app/components/parkpage/VisitPanelDropdown";
 import type { Park, Rating, RatingWarningType, RollerCoaster } from "@/app/types";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
+import { MarkdownText } from "@/app/components/MarkdownText";
 
 type ParkPageClientProps = {
   initialId: string;
@@ -265,9 +266,10 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
             </div>
 
             <div className="w-12 h-1 bg-blue-500 rounded-full mt-3 mb-4" />
-            <p className="text-gray-700 dark:text-gray-400 text-base leading-relaxed">
-              {explanations.description ?? "No description available."}
-            </p>
+            <MarkdownText
+              text={explanations.description ?? "No description available."}
+              className="text-gray-700 dark:text-gray-400 text-base leading-relaxed"
+            />
           </div>
 
           <RatingText

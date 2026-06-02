@@ -18,11 +18,11 @@ export async function GET(
 
     const result = isNumeric
       ? await pool.query(
-        `SELECT id, name, continent, country, city, imagepath, slug, image_focus AS "imageFocus", header_focus AS "headerFocus", card_images AS "cardImages" FROM parks WHERE id = $1`,
+        `SELECT id, name, continent, country, city, imagepath, card_imagepath AS "cardImagepath", slug, image_focus AS "imageFocus", header_focus AS "headerFocus", card_images AS "cardImages" FROM parks WHERE id = $1`,
         [Number(id)]
       )
       : await pool.query(
-        `SELECT id, name, continent, country, city, imagepath, slug, image_focus AS "imageFocus", header_focus AS "headerFocus", card_images AS "cardImages" FROM parks WHERE slug = $1`,
+        `SELECT id, name, continent, country, city, imagepath, card_imagepath AS "cardImagepath", slug, image_focus AS "imageFocus", header_focus AS "headerFocus", card_images AS "cardImages" FROM parks WHERE slug = $1`,
         [id]
       );
 
@@ -58,7 +58,8 @@ export async function PATCH(
     if (body.imagepath) { fields.push(`imagepath = $${queryIdx++}`); values.push(body.imagepath); }
     if (body.imageFocus !== undefined) { fields.push(`image_focus = $${queryIdx++}`); values.push(body.imageFocus); }
     if (body.headerFocus  !== undefined) { fields.push(`header_focus = $${queryIdx++}`);  values.push(body.headerFocus); }
-    if (body.cardImages   !== undefined) { fields.push(`card_images = $${queryIdx++}`);   values.push(JSON.stringify(body.cardImages)); }
+    if (body.cardImages     !== undefined) { fields.push(`card_images = $${queryIdx++}`);     values.push(JSON.stringify(body.cardImages)); }
+    if (body.cardImagepath  !== undefined) { fields.push(`card_imagepath = $${queryIdx++}`); values.push(body.cardImagepath); }
 
     if (fields.length === 0) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });
@@ -81,9 +82,9 @@ export async function PATCH(
     }
 
     return NextResponse.json(result.rows[0], { status: 200 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Database update error:", error);
-    return NextResponse.json({ error: "Failed to update park" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to update park", detail: error?.message ?? String(error) }, { status: 500 });
   }
 }
 

@@ -319,6 +319,7 @@ export default function CoastlePage() {
         status: newStatus
       };
       localStorage.setItem("coastle-daily-state", JSON.stringify(stateToSave));
+
     }
   }
 

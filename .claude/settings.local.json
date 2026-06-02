@@ -11,7 +11,9 @@
       "Bash(Write-Host \"done\")",
       "Bash(grep -n \"VOICE\\\\|CTA RULES\\\\|HASHTAG RULES\" \"C:/Users/janni/.claude/projects/c--ParkRating-RCWorld2/9d84060f-824b-4ffb-b978-719e95d0cbe3.jsonl\" | head -5)",
       "Read(//c/Users/janni/.claude/projects/c--ParkRating-RCWorld2/**)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(sed -n '60,70p' \"c:/ParkRating/RCWorld2/app/components/coasterpage/CoasterHighlightsModal.tsx\")",
+      "Bash(sed -n '55,65p' \"c:/ParkRating/RCWorld2/app/components/coasterpage/CoasterSpecsModal.tsx\")"
     ],
     "additionalDirectories": [
       "c:\\ParkRating\\RCWorld2\\app"

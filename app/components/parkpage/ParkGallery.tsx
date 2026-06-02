@@ -89,6 +89,14 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
 
   const selected = selectedIndex !== null ? images[selectedIndex] : null;
 
+  useEffect(() => {
+    if (selectedIndex !== null) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [selectedIndex]);
+
   // Reset edit mode if they swipe to a new image
   useEffect(() => {
     setIsEditingDesc(false);
@@ -318,9 +326,22 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
                   </button>
                 )}
               </div>
-              <button onClick={(e) => { e.stopPropagation(); setSelectedIndex(null); }} className="pointer-events-auto text-white/80 hover:text-white text-4xl leading-none font-bold transition cursor-pointer">
-                &times;
-              </button>
+              <div className="pointer-events-auto flex items-center gap-3">
+                <a
+                  href={`/api/download?url=${encodeURIComponent(selected.path)}`}
+                  download
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-white/70 hover:text-white transition"
+                  title="Download image"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                  </svg>
+                </a>
+                <button onClick={(e) => { e.stopPropagation(); setSelectedIndex(null); }} className="text-white/80 hover:text-white text-4xl leading-none font-bold transition cursor-pointer">
+                  &times;
+                </button>
+              </div>
             </div>
 
             {selectedIndex !== null && selectedIndex > 0 && (

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { getRatingColor } from "@/app/utils/design";
 import { MAJOR_MANUFACTURERS, ALL_MANUFACTURERS } from "@/app/types";
+import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 interface CoasterCreatorModalProps {
   parkId: number;
@@ -41,6 +42,7 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
   onCoasterAdded,
   onDelete,
 }) => {
+  useScrollLock();
   const [name, setName] = useState(coaster?.name ?? "");
   const [year, setYear] = useState(coaster ? String(coaster.year) : "");
   const isValidYear = /^\d{4}$/.test(year);
