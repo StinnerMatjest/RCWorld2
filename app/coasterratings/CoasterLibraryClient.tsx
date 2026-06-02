@@ -204,11 +204,11 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <div className="border-b border-slate-800 px-4 sm:px-8 py-12 sm:py-16">
         <div className="max-w-5xl mx-auto">
-          <p className="text-orange-500 text-xs font-bold uppercase tracking-widest mb-3">
+          <p className="text-[#e9820e] text-xs font-bold uppercase tracking-widest mb-3">
             ParkRating · Coaster Library
           </p>
           <h1 className="text-4xl sm:text-5xl font-black mb-3 leading-tight">
-            Coaster <span className="text-orange-500">Rankings</span>
+            Coaster <span className="text-[#e9820e]">Rankings</span>
           </h1>
           <p className="text-slate-400 text-base max-w-xl">
             Every coaster we&apos;ve ridden, rated across ride quality, intensity and reridability.
@@ -275,11 +275,11 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                   aria-pressed={on}
                   className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${
                     on
-                      ? "bg-orange-500/10 border-orange-500/40 text-orange-300"
+                      ? "bg-[#e9820e]/10 border-[#e9820e]/40 text-[#e9820e]/80"
                       : "bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300"
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${on ? "bg-orange-400" : "bg-slate-600"}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${on ? "bg-[#e9820e]" : "bg-slate-600"}`} />
                   {label}
                 </button>
               );
@@ -303,7 +303,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                       <th style={{ width: INDEX_W, height: ROW_H }} className="text-center font-semibold">#</th>
                       <th
                         style={{ width: NAME_W_M, height: ROW_H }}
-                        className={`pr-2 font-semibold cursor-pointer select-none hover:text-white transition-colors ${sortBy === "name" ? "text-orange-400" : ""}`}
+                        className={`pr-2 font-semibold cursor-pointer select-none hover:text-white transition-colors ${sortBy === "name" ? "text-[#e9820e]" : ""}`}
                         onClick={() => handleSort("name")}
                       >
                         Name {sortBy === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
@@ -342,7 +342,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                       {ALL_COLUMNS.map(({ key, label }) => colOn(key) ? (
                         <th
                           key={key}
-                          className={`px-3 font-semibold whitespace-nowrap cursor-pointer select-none hover:text-white transition-colors ${sortBy === key ? "text-orange-400" : ""}`}
+                          className={`px-3 font-semibold whitespace-nowrap cursor-pointer select-none hover:text-white transition-colors ${sortBy === key ? "text-[#e9820e]" : ""}`}
                           style={{ minWidth: COL_MIN_W[key], height: ROW_H }}
                           onClick={() => handleSort(key)}
                         >
@@ -535,13 +535,13 @@ function ThSort({ label, active, dir, onClick, sticky, style }: ThSortProps) {
       onClick={onClick}
       aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
       className={`px-4 py-3 select-none font-semibold cursor-pointer hover:text-white transition-colors ${
-        active ? "text-orange-400" : "text-slate-500 hover:text-slate-300"
+        active ? "text-[#e9820e]" : "text-slate-500 hover:text-slate-300"
       } ${sticky ? "sticky z-[2] bg-slate-800/60" : ""}`}
       style={style}
     >
       <span className="inline-flex items-center gap-1">
         {label}
-        <span className={`transition-opacity ${active ? "opacity-100 text-orange-400" : "opacity-0"}`}>
+        <span className={`transition-opacity ${active ? "opacity-100 text-[#e9820e]" : "opacity-0"}`}>
           {dir === "asc" ? "↑" : "↓"}
         </span>
       </span>
@@ -608,11 +608,11 @@ function SortControl({ sortBy, sortDir, onChangeField, onToggleDir }: SortContro
                     aria-checked={active}
                     onClick={() => { onChangeField(opt.key); setOpen(false); }}
                     className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left text-sm cursor-pointer transition-colors ${
-                      active ? "text-orange-300 bg-orange-500/10" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      active ? "text-[#e9820e]/80 bg-[#e9820e]/10" : "text-slate-300 hover:bg-slate-800 hover:text-white"
                     }`}
                   >
                     {opt.label}
-                    {active && <span className="text-orange-400">✓</span>}
+                    {active && <span className="text-[#e9820e]">✓</span>}
                   </button>
                 </li>
               );
