@@ -369,15 +369,6 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
     }
   }, [parkInfo.image, parkInfo.existingImagePath]);
 
-  useEffect(() => {
-    if (isOpen) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = prev;
-      };
-    }
-  }, [isOpen]);
 
   const isFormValid =
     Boolean(parkInfo.name) &&

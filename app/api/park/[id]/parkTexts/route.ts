@@ -18,12 +18,21 @@ export async function GET(
       return NextResponse.json({ error: "ratingId is required" }, { status: 400 });
     }
 
-    const result = await pool.query(
-      `SELECT category, text, image_url AS "imageUrl", rating_id AS "ratingId"
-       FROM parktexts
-       WHERE rating_id = $1`,
-      [ratingId]
-    );
+    let result;
+    try {
+      result = await pool.query(
+        `SELECT category, text, image_url AS "imageUrl", image_layout AS "imageLayout", rating_id AS "ratingId"
+         FROM parktexts WHERE rating_id = $1`,
+        [ratingId]
+      );
+    } catch {
+      // image_layout column may not exist yet — fall back without it
+      result = await pool.query(
+        `SELECT category, text, image_url AS "imageUrl", rating_id AS "ratingId"
+         FROM parktexts WHERE rating_id = $1`,
+        [ratingId]
+      );
+    }
 
     return NextResponse.json(result.rows, { status: 200 });
   } catch (error) {
@@ -33,19 +42,29 @@ export async function GET(
 }
 
 export async function POST(req: NextRequest) {
-  const { category, text, ratingId, imageUrl } = await req.json();
+  const { category, text, ratingId, imageUrl, imageLayout } = await req.json();
 
   if (!category || !ratingId) {
     return NextResponse.json({ error: "Missing or invalid data" }, { status: 400 });
   }
 
   try {
-    const result = await pool.query(
-      `INSERT INTO parktexts (rating_id, category, text, image_url)
-       VALUES ($1, $2, $3, $4)
-       RETURNING category, text, image_url AS "imageUrl", rating_id AS "ratingId"`,
-      [ratingId, category, text ?? "", imageUrl ?? null]
-    );
+    let result;
+    try {
+      result = await pool.query(
+        `INSERT INTO parktexts (rating_id, category, text, image_url, image_layout)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING category, text, image_url AS "imageUrl", image_layout AS "imageLayout", rating_id AS "ratingId"`,
+        [ratingId, category, text ?? "", imageUrl ?? null, imageLayout ?? null]
+      );
+    } catch {
+      result = await pool.query(
+        `INSERT INTO parktexts (rating_id, category, text, image_url)
+         VALUES ($1, $2, $3, $4)
+         RETURNING category, text, image_url AS "imageUrl", rating_id AS "ratingId"`,
+        [ratingId, category, text ?? "", imageUrl ?? null]
+      );
+    }
 
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error) {
@@ -55,20 +74,31 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const { category, text, ratingId, imageUrl } = await req.json();
+  const { category, text, ratingId, imageUrl, imageLayout } = await req.json();
 
   if (!category || !ratingId) {
     return NextResponse.json({ error: "Missing data" }, { status: 400 });
   }
 
   try {
-    const result = await pool.query(
-      `UPDATE parktexts
-       SET text = $1, image_url = $2
-       WHERE rating_id = $3 AND category = $4
-       RETURNING category, text, image_url AS "imageUrl", rating_id AS "ratingId"`,
-      [text ?? "", imageUrl ?? null, ratingId, category]
-    );
+    let result;
+    try {
+      result = await pool.query(
+        `UPDATE parktexts
+         SET text = $1, image_url = $2, image_layout = $3
+         WHERE rating_id = $4 AND category = $5
+         RETURNING category, text, image_url AS "imageUrl", image_layout AS "imageLayout", rating_id AS "ratingId"`,
+        [text ?? "", imageUrl ?? null, imageLayout ?? null, ratingId, category]
+      );
+    } catch {
+      result = await pool.query(
+        `UPDATE parktexts
+         SET text = $1, image_url = $2
+         WHERE rating_id = $3 AND category = $4
+         RETURNING category, text, image_url AS "imageUrl", rating_id AS "ratingId"`,
+        [text ?? "", imageUrl ?? null, ratingId, category]
+      );
+    }
 
     if (result.rowCount === 0) {
       return NextResponse.json({ error: "Text entry not found for this specific visit" }, { status: 404 });

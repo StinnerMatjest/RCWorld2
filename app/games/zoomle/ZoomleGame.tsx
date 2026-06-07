@@ -22,7 +22,7 @@ type PhotoRound = { image: string; focus: string; focal_index: number; answer: C
 type DailyState = { date: string; scores: (number | null)[]; done: boolean };
 type RoundResult = {
   image: string; focus: string; focal_index: number;
-  answer: Coaster; guessedId: number | null; pts: number | null;
+  answer: Coaster; guessedId: number | null; guessedCoaster: Coaster | null; pts: number | null;
 };
 
 const STORAGE_KEY = (date: string) => `zoomle-${date}`;
@@ -32,47 +32,71 @@ function getTodayStr() {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
-function buildCombinedShareText(date: string, zoomleScores: (number | null)[], maxScore: number): string {
-  const colorEmoji = (c: string) => ({ yellow: "🟨", green: "🟩", blue: "🟦", purple: "🟪", orange: "🟧", red: "🟥", brown: "🟫" } as Record<string, string>)[c] ?? "⬜";
+function buildCombinedShareText(
+  date: string,
+  zoomleScores: (number | null)[],
+  maxScore: number,
+  roundResults: RoundResult[],
+): string {
+  const colorEmoji = (c: string) =>
+    ({ yellow: "🟨", green: "🟩", blue: "🟦", purple: "🟪", orange: "🟧", red: "🟥", brown: "🟫" } as Record<string, string>)[c] ?? "⬜";
+  const scoreEmoji = (p: number | null) =>
+    p === null ? "⬛" : p >= 5 ? "🟩" : p >= 4 ? "🟨" : p >= 3 ? "🟧" : "🟥";
 
   const sections: string[] = [`🎮 ParkRating Daily — ${date}`];
 
+  // ── Coastle ──────────────────────────────────────────────────────────────
   try {
     const raw = localStorage.getItem("coastle-daily-state");
     if (raw) {
       const state = JSON.parse(raw);
       if (state.status && state.status !== "playing") {
-        const won = state.status === "won";
-        const count = (state.guesses ?? []).length;
-        const grid = (state.guesses ?? []).map((g: any) => {
+        const won    = state.status === "won";
+        const guesses: any[] = state.guesses ?? [];
+        const count  = guesses.length;
+
+        const rows = guesses.map((g: any) => {
           const m = g.matches ?? {};
-          return [m.manufacturer, m.country, m.length, m.height, m.speed, m.inversions]
+          const emoji = [m.manufacturer, m.country, m.length, m.height, m.speed, m.inversions]
             .map((s: string) => s === "correct" ? "🟩" : s === "close" ? "🟨" : "🟥")
-            .join("");
-        }).join("\n");
-        sections.push(`🎢 Coastle — ${won ? `${count}/5` : "X/5"}\n${grid}`);
+            .join(" ");
+          const name: string = g.coaster?.name ?? "";
+          return `${emoji}  ${name}`;
+        });
+
+        sections.push(`🎢 Coastle — ${won ? `${count}/5` : "X/5"}\n${rows.join("\n")}`);
       }
     }
   } catch {}
 
+  // ── Connections ───────────────────────────────────────────────────────────
   try {
     const raw = localStorage.getItem(`connections-${getTodayString()}`);
     if (raw) {
       const state = JSON.parse(raw);
-      const solved = state.playerSolvedCount ?? 0;
+      const solved   = state.playerSolvedCount ?? 0;
       const mistakes = state.mistakes ?? 0;
-      const grid = (state.guessHistory ?? []).map((row: any) =>
-        (row.colors ?? []).map(colorEmoji).join("")
-      ).join("\n");
+      const grid = (state.guessHistory ?? [])
+        .map((row: any) => (row.colors ?? []).map(colorEmoji).join(" "))
+        .join("\n");
       sections.push(`🔗 Connections — ${solved}/4 · ${mistakes} mistake${mistakes !== 1 ? "s" : ""}\n${grid}`);
     }
   } catch {}
 
+  // ── Zoomle ────────────────────────────────────────────────────────────────
   const total = zoomleScores.reduce<number>((s, p) => s + (p ?? 0), 0);
-  const grid = zoomleScores.map(p =>
-    p === null ? "⬛" : p >= 5 ? "🟩" : p >= 4 ? "🟨" : p >= 3 ? "🟧" : "🟥"
-  ).join("");
-  sections.push(`🔍 Zoomle — ${total}/${maxScore}\n${grid}`);
+  const rows  = zoomleScores.map((p, i) => {
+    const result = roundResults[i];
+    if (!result) return `${scoreEmoji(p)} Round ${i + 1}`;
+    const correct = p !== null && p > 0;
+    if (correct) {
+      return `${scoreEmoji(p)} +${p} pts  ·  ${result.answer.name} (${result.answer.park_name})`;
+    } else {
+      const guessed = result.guessedCoaster?.name ?? "—";
+      return `${scoreEmoji(p)} 0 pts  ·  ${result.answer.name} ✗ (guessed ${guessed})`;
+    }
+  });
+  sections.push(`🔍 Zoomle — ${total}/${maxScore}\n${rows.join("\n")}`);
 
   sections.push("parkrating.com/games");
 
@@ -367,6 +391,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
       focal_index: rounds[round].focal_index,
       answer: rounds[round].answer,
       guessedId: coasterId,
+      guessedCoaster: rounds[round].options.find(o => o.id === coasterId) ?? null,
       pts: roundPts,
     }]);
 
@@ -545,7 +570,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
         {allGamesPlayed && (
           <button
             onClick={() => {
-              navigator.clipboard?.writeText(buildCombinedShareText(dailyDate, dailyScores, maxScore));
+              navigator.clipboard?.writeText(buildCombinedShareText(dailyDate, dailyScores, maxScore, roundResults));
             }}
             className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 text-white font-black text-sm hover:opacity-90 transition-opacity cursor-pointer">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">

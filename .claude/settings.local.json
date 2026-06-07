@@ -13,7 +13,11 @@
       "Read(//c/Users/janni/.claude/projects/c--ParkRating-RCWorld2/**)",
       "Bash(npx tsc *)",
       "Bash(sed -n '60,70p' \"c:/ParkRating/RCWorld2/app/components/coasterpage/CoasterHighlightsModal.tsx\")",
-      "Bash(sed -n '55,65p' \"c:/ParkRating/RCWorld2/app/components/coasterpage/CoasterSpecsModal.tsx\")"
+      "Bash(sed -n '55,65p' \"c:/ParkRating/RCWorld2/app/components/coasterpage/CoasterSpecsModal.tsx\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\ParkRating\\\\RCWorld2\" -Directory)",
+      "Bash(Select-Object -First 20)",
+      "Bash(curl -s \"http://localhost:3000/api/parks\")",
+      "Bash(python -c \"import sys,json; parks=json.load\\(sys.stdin\\)['parks']; [print\\(f\\\\\"{p['id']}|{p['name']}\\\\\"\\) for p in parks]\")"
     ],
     "additionalDirectories": [
       "c:\\ParkRating\\RCWorld2\\app"

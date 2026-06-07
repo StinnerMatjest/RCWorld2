@@ -39,6 +39,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
   const [editingCoaster, setEditingCoaster] = useState<RollerCoaster>();
   const [explanations, setExplanations] = useState<Record<string, string>>({});
   const [sectionImages, setSectionImages] = useState<Record<string, string>>({});
+  const [sectionLayouts, setSectionLayouts] = useState<Record<string, string>>({});
   const { isAdminMode } = useAdminMode();
 
   const handleCloseModal = () => {
@@ -150,17 +151,21 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
       try {
         const res = await fetch(`/api/park/${park.id}/parkTexts?ratingId=${activeRatingId}`);
         const explanationsData = await res.json();
+        if (!Array.isArray(explanationsData)) throw new Error("Unexpected response from parkTexts API");
 
         const explanationMap: Record<string, string> = {};
         const imageMap: Record<string, string> = {};
+        const layoutMap: Record<string, string> = {};
         for (const item of explanationsData) {
           if (!item.ratingId || item.ratingId === activeRatingId) {
             explanationMap[item.category] = item.text;
-            if (item.imageUrl) imageMap[item.category] = item.imageUrl;
+            if (item.imageUrl)    imageMap[item.category]  = item.imageUrl;
+            if (item.imageLayout) layoutMap[item.category] = item.imageLayout;
           }
         }
         setExplanations(explanationMap);
         setSectionImages(imageMap);
+        setSectionLayouts(layoutMap);
       } catch (error) {
         console.error("Failed to fetch explanations:", error);
       } finally {
@@ -276,6 +281,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
             rating={selectedRating ?? visibleRatings[0]}
             explanations={explanations}
             sectionImages={sectionImages}
+            sectionLayouts={sectionLayouts}
             galleryImages={galleryImages}
             parkId={park.id}
             parkName={park.name}

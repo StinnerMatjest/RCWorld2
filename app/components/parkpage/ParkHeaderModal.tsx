@@ -56,7 +56,7 @@ export interface ParkHeaderModalProps {
 //
 // Pinch+drag: tracks midpoint of 2 fingers for simultaneous pan+zoom.
 
-interface CropEditorProps {
+export interface CropEditorProps {
   src: string;
   aspectRatio?: string;
   focusStr: string;
@@ -64,9 +64,10 @@ interface CropEditorProps {
   editorRef?: React.MutableRefObject<{ getFocus: () => string } | null>;
   className?: string;
   children?: React.ReactNode;
+  maxZoom?: number;
 }
 
-function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, className = "", children }: CropEditorProps) {
+export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, className = "", children, maxZoom = 4 }: CropEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef       = useRef<HTMLImageElement>(null);
   const commitRef    = useRef(onCommit);
@@ -212,7 +213,7 @@ function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, className
         const a = ptrs.get(ids[0])!, b = ptrs.get(ids[1])!;
         const d  = Math.hypot(a.x - b.x, a.y - b.y);
         const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-        const newZ = clamp(pinch.z0 * (d / pinch.d0), 1, 4);
+        const newZ = clamp(pinch.z0 * (d / pinch.d0), 1, maxZoom);
         zoom.current = newZ;
         // simultaneous pan from midpoint movement
         const { tx: ntx, ty: nty } = clampTxy(
@@ -249,7 +250,7 @@ function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, className
 
     function onWheel(e: WheelEvent) {
       e.preventDefault();
-      zoom.current = clamp(zoom.current * (1 - e.deltaY * 0.001), 1, 4);
+      zoom.current = clamp(zoom.current * (1 - e.deltaY * 0.001), 1, maxZoom);
       const { tx: ntx, ty: nty } = clampTxy(tx.current, ty.current);
       tx.current = ntx; ty.current = nty;
       applyDOM();
@@ -498,6 +499,11 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
       if (mode === "header") {
         body.imagepath   = headerPath;
         body.headerFocus = headerEditorRef.current?.getFocus() ?? headerFocus;
+        // If no explicit card image is set, freeze it to the old header so
+        // changing the header doesn't silently change the card too.
+        if (cardPath === null && currentCardImagepath == null && headerPath !== currentImagePath) {
+          body.cardImagepath = currentImagePath;
+        }
       } else if (mode === "card") {
         body.cardImagepath = cardPath;
         body.imageFocus    = cardEditorRef.current?.getFocus() ?? cardFocus;

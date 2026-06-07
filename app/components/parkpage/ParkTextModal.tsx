@@ -7,11 +7,12 @@ import { useScrollLock } from "@/app/hooks/useScrollLock";
 interface ParkTextsModalProps {
   explanations: Record<string, string>;
   sectionImages: Record<string, string>;
+  sectionLayouts?: Record<string, string>;
   galleryImages: GalleryImage[];
   parkId: number;
   ratingId: number;
   onClose: () => void;
-  onSave?: (updatedText: Record<string, string>, updatedImages: Record<string, string>) => void;
+  onSave?: (updatedText: Record<string, string>, updatedImages: Record<string, string>, updatedLayouts: Record<string, string>) => void;
 }
 
 const CATEGORIES = [
@@ -46,14 +47,15 @@ const LABELS: Record<Category, string> = {
 const isVideo = (p: string) => /\.(mp4|webm|ogg)$/i.test(p);
 
 const ParkTextModal: React.FC<ParkTextsModalProps> = ({
-  explanations, sectionImages, galleryImages, parkId, ratingId, onClose, onSave,
+  explanations, sectionImages, sectionLayouts = {}, galleryImages, parkId, ratingId, onClose, onSave,
 }) => {
   useScrollLock();
   const [selectedCat, setSelectedCat] = useState<Category>(CATEGORIES[0]);
-  const [drafts, setDrafts] = useState<Record<string, { text: string; image: string | null }>>(() =>
+  const [drafts, setDrafts] = useState<Record<string, { text: string; image: string | null; layout: string | null }>>(() =>
     Object.fromEntries(CATEGORIES.map(cat => [cat, {
-      text:  explanations[cat] ?? "",
-      image: sectionImages[cat] ?? null,
+      text:   explanations[cat] ?? "",
+      image:  sectionImages[cat] ?? null,
+      layout: sectionLayouts[cat] ?? null,
     }]))
   );
   // Track which categories already exist on the server (PUT vs POST)
@@ -68,8 +70,10 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
   const updateText  = useCallback((t: string) =>
     setDrafts(d => ({ ...d, [selectedCat]: { ...d[selectedCat], text: t } })), [selectedCat]);
-  const updateImage = useCallback((img: string | null) =>
+  const updateImage  = useCallback((img: string | null) =>
     setDrafts(d => ({ ...d, [selectedCat]: { ...d[selectedCat], image: img } })), [selectedCat]);
+  const updateLayout = useCallback((layout: string | null) =>
+    setDrafts(d => ({ ...d, [selectedCat]: { ...d[selectedCat], layout } })), [selectedCat]);
 
   // ── Markdown toolbar ────────────────────────────────────────────────────────
   const wrapSelection = (before: string, after = before) => {
@@ -95,29 +99,32 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   const handleSaveAll = async () => {
     setIsSaving(true);
     const newPersisted = new Set(persisted);
-    const outTexts: Record<string, string>  = {};
-    const outImages: Record<string, string> = {};
+    const outTexts: Record<string, string>   = {};
+    const outImages: Record<string, string>  = {};
+    const outLayouts: Record<string, string> = {};
 
     try {
       for (const cat of CATEGORIES) {
-        const { text, image } = drafts[cat];
+        const { text, image, layout } = drafts[cat];
         if (!text && !image && !persisted.has(cat)) continue; // nothing to save
 
         const method = persisted.has(cat) ? "PUT" : "POST";
         const res = await fetch(`/api/park/${parkId}/parkTexts`, {
           method,
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ category: cat, text, ratingId, imageUrl: image ?? null }),
+          body: JSON.stringify({ category: cat, text, ratingId, imageUrl: image ?? null, imageLayout: layout ?? null }),
         });
         if (res.ok) {
           const saved = await res.json();
           newPersisted.add(cat);
-          if (saved.text)     outTexts[cat]  = saved.text;
-          if (saved.imageUrl) outImages[cat] = saved.imageUrl;
+          if (saved.text)        outTexts[cat]   = saved.text;
+          if (saved.imageUrl)   outImages[cat]  = saved.imageUrl;
+          if (saved.imageLayout) outLayouts[cat] = saved.imageLayout;
+          else if (drafts[cat].layout) outLayouts[cat] = drafts[cat].layout!;
         }
       }
       setPersisted(newPersisted);
-      onSave?.(outTexts, outImages);
+      onSave?.(outTexts, outImages, outLayouts);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2500);
     } catch (err) {
@@ -128,9 +135,10 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   };
 
   const handleClose = () => {
-    const texts  = Object.fromEntries(CATEGORIES.filter(c => drafts[c].text).map(c  => [c, drafts[c].text]));
-    const images = Object.fromEntries(CATEGORIES.filter(c => drafts[c].image).map(c => [c, drafts[c].image!]));
-    onSave?.(texts, images);
+    const texts   = Object.fromEntries(CATEGORIES.filter(c => drafts[c].text).map(c   => [c, drafts[c].text]));
+    const images  = Object.fromEntries(CATEGORIES.filter(c => drafts[c].image).map(c  => [c, drafts[c].image!]));
+    const layouts = Object.fromEntries(CATEGORIES.filter(c => drafts[c].layout).map(c => [c, drafts[c].layout!]));
+    onSave?.(texts, images, layouts);
     onClose();
   };
 
@@ -243,9 +251,28 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
               {/* Image picker */}
               <div>
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Section Image <span className="text-gray-400 font-normal">(optional)</span>
-                </p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Section Image <span className="text-gray-400 font-normal">(optional)</span>
+                  </p>
+                  {cur.image && (
+                    <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/10 rounded-lg p-0.5">
+                      {(["side", "center"] as const).map(opt => (
+                        <button
+                          key={opt}
+                          onClick={() => updateLayout(opt === "side" ? null : "center")}
+                          className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                            (opt === "center" ? cur.layout === "center" : cur.layout !== "center")
+                              ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                          }`}
+                        >
+                          {opt === "side" ? "⬛ Side" : "⬜ Center"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {galleryImages.length === 0 ? (
                   <p className="text-sm text-gray-400">No gallery images available.</p>
                 ) : (

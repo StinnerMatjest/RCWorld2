@@ -15,6 +15,7 @@ interface RatingTextProps {
   rating: Rating;
   explanations: Record<string, string>;
   sectionImages: Record<string, string>;
+  sectionLayouts?: Record<string, string>;
   galleryImages: GalleryImage[];
   parkId: number;
   parkName: string;
@@ -35,6 +36,7 @@ const RatingText: React.FC<RatingTextProps> = ({
   rating,
   explanations,
   sectionImages,
+  sectionLayouts = {},
   galleryImages,
   parkId,
   parkName,
@@ -47,6 +49,7 @@ const RatingText: React.FC<RatingTextProps> = ({
   const [showWarningManager, setShowWarningManager] = useState(false);
   const [localExplanations, setLocalExplanations] = useState(explanations);
   const [localImages, setLocalImages] = useState(sectionImages);
+  const [localLayouts, setLocalLayouts] = useState(sectionLayouts);
   const [lightbox, setLightbox] = useState<string | null>(null);
 
   // State for publishing
@@ -141,7 +144,8 @@ const RatingText: React.FC<RatingTextProps> = ({
             const text = localExplanations[key] ?? "";
             const mediaUrl = localImages[key] ?? null;
             const categoryWarnings = categoryWarningsMap[key.toLowerCase()] ?? [];
-            const imageOnRight = mediaUrl ? imageIndex++ % 2 !== 0 : false;
+            const isCentered = localLayouts[key] === "center";
+            const imageOnRight = (!isCentered && mediaUrl) ? imageIndex++ % 2 !== 0 : false;
 
             return (
               <div key={key} id={`section-${key}`} className="space-y-3 scroll-mt-6">
@@ -160,16 +164,19 @@ const RatingText: React.FC<RatingTextProps> = ({
                 </div>
 
                 {mediaUrl ? (
-                  <div className={`flex flex-col gap-6 items-start ${imageOnRight ? "md:flex-row-reverse" : "md:flex-row"}`}>
+                  <div className={isCentered
+                    ? "flex flex-col gap-4"
+                    : `flex flex-col gap-6 items-start ${imageOnRight ? "md:flex-row-reverse" : "md:flex-row"}`
+                  }>
                     <div
-                      className="w-full md:w-1/2 flex-shrink-0 rounded-2xl overflow-hidden cursor-zoom-in group relative mt-1.5 shadow-sm"
+                      className={`${isCentered ? "w-full" : "w-full md:w-1/2"} flex-shrink-0 rounded-2xl overflow-hidden cursor-zoom-in group relative mt-1.5 shadow-sm`}
                       onClick={() => setLightbox(mediaUrl)}
                     >
                       {isVideo(mediaUrl) ? (
                         <>
                           <video
                             src={mediaUrl}
-                            className="w-full h-64 xl:h-72 object-cover rounded-2xl"
+                            className={`w-full ${isCentered ? "h-72 xl:h-96" : "h-64 xl:h-72"} object-cover rounded-2xl`}
                             muted
                             loop
                             autoPlay
@@ -186,7 +193,7 @@ const RatingText: React.FC<RatingTextProps> = ({
                           <img
                             src={mediaUrl}
                             alt={humanizeLabel(key)}
-                            className="w-full h-64 xl:h-72 object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105"
+                            className={`w-full ${isCentered ? "h-72 xl:h-96" : "h-64 xl:h-72"} object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105`}
                           />
                           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-2xl">
                             <svg className="w-8 h-8 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -196,7 +203,7 @@ const RatingText: React.FC<RatingTextProps> = ({
                         </>
                       )}
                     </div>
-                    <MarkdownText text={text} className="text-gray-700 dark:text-gray-400 leading-relaxed md:text-lg flex-1" />
+                    <MarkdownText text={text} className={`text-gray-700 dark:text-gray-400 leading-relaxed md:text-lg ${isCentered ? "" : "flex-1"}`} />
                   </div>
                 ) : (
                   <MarkdownText text={text} className="text-gray-700 dark:text-gray-400 leading-relaxed md:text-lg" />
@@ -242,13 +249,15 @@ const RatingText: React.FC<RatingTextProps> = ({
         <ParkRatingsModal
           explanations={localExplanations}
           sectionImages={localImages}
+          sectionLayouts={localLayouts}
           galleryImages={galleryImages}
           parkId={Number(parkId)}
           ratingId={rating.id}
           onClose={() => setShowModal(false)}
-          onSave={(updatedText, updatedImages) => {
+          onSave={(updatedText, updatedImages, updatedLayouts) => {
             setLocalExplanations(updatedText);
             setLocalImages(updatedImages);
+            setLocalLayouts(updatedLayouts ?? {});
             onSectionImagesUpdate(updatedImages);
           }}
         />

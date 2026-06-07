@@ -22,71 +22,124 @@ type CoasterGroup = {
   images: CoasterImage[];
 };
 
-function FocalCellEditor({ img, fi, currentFocus, onSave, onClose }: {
+const FOCAL_COLORS = [
+  "#ef4444", "#f97316", "#eab308", "#22c55e",
+  "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899", "#94a3b8",
+];
+
+function parsePct(s: string): { x: number; y: number } {
+  const parts = s.split(" ");
+  const x = parseFloat(parts[0]) || 50;
+  const y = parseFloat(parts[1]) || 50;
+  return { x, y };
+}
+
+function FocalCellEditor({ img, fi, currentFocus, overrides, onSave, onClose }: {
   img: CoasterImage; fi: number; currentFocus: string;
+  overrides: Record<string, string>;
   onSave: (focus: string) => void; onClose: () => void;
 }) {
-  const [focus, setFocus] = useState(() => {
-    const [x, y] = currentFocus.split(" ").map(v => parseInt(v));
-    return { x: isNaN(x) ? 50 : x, y: isNaN(y) ? 50 : y };
-  });
+  const [focus, setFocus] = useState(() => parsePct(currentFocus));
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const dragging = useRef(false);
   const imgRef = useRef<HTMLImageElement>(null);
-  const focusStr = `${focus.x}% ${focus.y}%`;
 
-  const apply = (cx: number, cy: number) => {
+  const focusStr = `${focus.x.toFixed(1)}% ${focus.y.toFixed(1)}%`;
+
+  // All 9 focal positions (overrides applied)
+  const allFocals = GRID_FOCUSES.map((gf, i) =>
+    parsePct(i === fi ? focusStr : (overrides[String(i)] ?? gf))
+  );
+
+  function apply(cx: number, cy: number) {
     const rect = imgRef.current?.getBoundingClientRect();
     if (!rect) return;
     setFocus({
-      x: Math.max(0, Math.min(100, Math.round(((cx - rect.left) / rect.width) * 100))),
-      y: Math.max(0, Math.min(100, Math.round(((cy - rect.top) / rect.height) * 100))),
+      x: Math.max(0, Math.min(100, ((cx - rect.left) / rect.width) * 100)),
+      y: Math.max(0, Math.min(100, ((cy - rect.top) / rect.height) * 100)),
     });
-  };
+  }
 
   async function save() {
     setSaving(true);
-    await fetch("/api/zoomle/images", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        coaster_id: img.coaster_id, image_path: img.image_path,
-        focal_override: { focal_index: fi, focus: focusStr }
-      }),
-    });
-    setSaving(false);
-    onSave(focusStr);
+    setError("");
+    try {
+      const res = await fetch("/api/zoomle/images", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          coaster_id: img.coaster_id, image_path: img.image_path,
+          focal_override: { focal_index: fi, focus: focusStr },
+        }),
+      });
+      if (!res.ok) { setError("Save failed"); return; }
+      onSave(focusStr);
+    } catch {
+      setError("Network error");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <div className="border-t border-slate-200 dark:border-slate-700 p-3 bg-slate-50 dark:bg-slate-800/50 flex flex-col gap-2">
       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-        Edit focal {fi + 1} — drag to reposition
-        <span className="normal-case font-normal ml-2">{focusStr}</span>
+        Editing focal <span style={{ color: FOCAL_COLORS[fi] }}>#{fi + 1}</span>
+        <span className="normal-case font-normal ml-2 text-slate-500">{focusStr}</span>
       </p>
-      <div className="relative rounded-xl overflow-hidden cursor-crosshair select-none"
+
+      {/* Full image with all 9 focal dots overlaid */}
+      <div
+        className="relative rounded-xl overflow-hidden cursor-crosshair select-none"
+        style={{ aspectRatio: "3/2" }}
         onMouseDown={e => { dragging.current = true; apply(e.clientX, e.clientY); }}
         onMouseMove={e => { if (dragging.current) apply(e.clientX, e.clientY); }}
         onMouseUp={() => { dragging.current = false; }}
-        onMouseLeave={() => { dragging.current = false; }}>
+        onMouseLeave={() => { dragging.current = false; }}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img ref={imgRef} src={img.image_path} alt="" draggable={false}
-          className="w-full block select-none"
-          style={{ aspectRatio: "3/2", objectFit: "cover", display: "block" }} />
-        <div className="absolute pointer-events-none" style={{ left: `${focus.x}%`, top: `${focus.y}%`, transform: "translate(-50%,-50%)" }}>
-          <div className="w-5 h-5 rounded-full border-2 border-white shadow-lg bg-white/20" />
-          <div className="absolute top-1/2 left-1/2 h-px w-8 -translate-y-1/2 -translate-x-full bg-white/80" />
-          <div className="absolute top-1/2 left-1/2 h-px w-8 -translate-y-1/2 bg-white/80" />
-          <div className="absolute top-1/2 left-1/2 w-px h-8 -translate-x-1/2 -translate-y-full bg-white/80" />
-          <div className="absolute top-1/2 left-1/2 w-px h-8 -translate-x-1/2 bg-white/80" />
-        </div>
+          className="w-full h-full object-cover block select-none pointer-events-none" />
+
+        {/* All 9 focal dots */}
+        {allFocals.map((pos, i) => {
+          const isActive = i === fi;
+          const color = FOCAL_COLORS[i];
+          return (
+            <div key={i} className="absolute pointer-events-none"
+              style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%,-50%)" }}>
+              {isActive ? (
+                <>
+                  {/* Crosshair lines */}
+                  <div className="absolute top-1/2 left-1/2 h-px w-10 -translate-y-1/2 -translate-x-full" style={{ background: color }} />
+                  <div className="absolute top-1/2 left-1/2 h-px w-10 -translate-y-1/2" style={{ background: color }} />
+                  <div className="absolute top-1/2 left-1/2 w-px h-10 -translate-x-1/2 -translate-y-full" style={{ background: color }} />
+                  <div className="absolute top-1/2 left-1/2 w-px h-10 -translate-x-1/2" style={{ background: color }} />
+                  <div className="w-6 h-6 rounded-full border-2 flex items-center justify-center text-[8px] font-black shadow-lg"
+                    style={{ borderColor: color, background: `${color}33`, color }}>
+                    {i + 1}
+                  </div>
+                </>
+              ) : (
+                <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center text-[7px] font-black shadow"
+                  style={{ borderColor: color, background: `${color}55`, color: "#fff" }}>
+                  {i + 1}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
-      {/* Preview */}
+
+      {/* Preview at game zoom level */}
       <div className="relative rounded-lg overflow-hidden bg-slate-800" style={{ aspectRatio: "3/2" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={img.image_path} alt="" className="w-full h-full object-cover"
           style={{ transform: "scale(9)", transformOrigin: focusStr }} />
       </div>
+
+      {error && <p className="text-xs text-red-500">{error}</p>}
       <div className="flex gap-2">
         <button onClick={save} disabled={saving}
           className="flex-1 py-2 rounded-xl text-xs font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-80 transition-opacity cursor-pointer disabled:opacity-50">
@@ -177,6 +230,7 @@ function ImageFocalGrid({ img, flags, onToggleFlag, onFocalSaved }: {
               img={img}
               fi={editing}
               currentFocus={overrides[String(editing)] ?? GRID_FOCUSES[editing]}
+              overrides={overrides}
               onSave={(focus) => { onFocalSaved(img.image_path, editing, focus); setEditing(null); }}
               onClose={() => setEditing(null)}
             />

@@ -83,12 +83,18 @@ export async function PATCH(req: NextRequest) {
     // Save custom focal override for a specific grid position
     if (body.focal_override !== undefined) {
       const { coaster_id: cid, image_path: ip, focal_override: { focal_index: fi, focus: foc } } = body;
-      await pool.query(`
-        INSERT INTO zoomle_images (coaster_id, image_path, focuses_override)
-        VALUES ($1, $2, jsonb_build_object($3::text, $4::text))
-        ON CONFLICT (coaster_id, image_path) DO UPDATE
-          SET focuses_override = zoomle_images.focuses_override || jsonb_build_object($3::text, $4::text)
+      // Update first; if no row exists yet, insert — avoids relying on a unique constraint
+      const upd = await pool.query(`
+        UPDATE zoomle_images
+        SET focuses_override = COALESCE(focuses_override, '{}') || jsonb_build_object($3::text, $4::text)
+        WHERE coaster_id = $1 AND image_path = $2
       `, [cid, ip, String(fi), foc]);
+      if ((upd.rowCount ?? 0) === 0) {
+        await pool.query(`
+          INSERT INTO zoomle_images (coaster_id, image_path, focuses_override)
+          VALUES ($1, $2, jsonb_build_object($3::text, $4::text))
+        `, [cid, ip, String(fi), foc]);
+      }
       return NextResponse.json({ ok: true });
     }
 

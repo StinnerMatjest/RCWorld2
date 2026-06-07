@@ -1,78 +1,192 @@
-import React, { useRef, useEffect, useState } from "react";
-import { useSearch } from "../context/SearchContext";
+"use client";
+
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { getRatingColor } from "../utils/design";
+
+type SPark    = { id: number; name: string; country: string; slug: string; overall?: number };
+type SCoaster = { id: number; name: string; parkName: string; slug: string; rating?: number };
 
 const SearchBar = () => {
-  const { query, setQuery } = useSearch();
-  const [isVisible, setIsVisible] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [open, setOpen]           = useState(false);
+  const [val, setVal]             = useState("");
+  const [parks, setParks]         = useState<SPark[]>([]);
+  const [coasters, setCoasters]   = useState<SCoaster[]>([]);
+  const [loaded, setLoaded]       = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const router     = useRouter();
+  const inputRef   = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setQuery(e.target.value);
-  };
+  const loadData = useCallback(async () => {
+    if (loaded) return;
+    const [pr, cr] = await Promise.all([
+      fetch("/api/parks/ranked"),
+      fetch("/api/coasters"),
+    ]);
+    if (pr.ok) {
+      const d = await pr.json();
+      setParks((d.parks ?? []).map((p: any) => ({
+        id: p.id, name: p.name, country: p.country, slug: p.slug, overall: p.overall,
+      })));
+    }
+    if (cr.ok) {
+      const d = await cr.json();
+      setCoasters((d.coasters ?? [])
+        .filter((c: any) => c.rating && c.slug)
+        .map((c: any) => ({
+          id: c.id, name: c.name, parkName: c.parkName, slug: c.slug,
+          rating: typeof c.rating === "string" ? parseFloat(c.rating) : c.rating,
+        })));
+    }
+    setLoaded(true);
+  }, [loaded]);
 
-  const handleIconClick = () => {
-    setIsVisible(true);
-    setTimeout(() => inputRef.current?.focus(), 50);
-  };
+  const q = val.trim().toLowerCase();
+
+  const matchedParks = q.length < 1 ? [] : parks
+    .filter(p => p.name.toLowerCase().includes(q) || p.country.toLowerCase().includes(q))
+    .slice(0, 5);
+
+  const matchedCoasters = q.length < 1 ? [] : coasters
+    .filter(c => c.name.toLowerCase().includes(q) || c.parkName.toLowerCase().includes(q))
+    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+    .slice(0, 5);
+
+  const total      = matchedParks.length + matchedCoasters.length;
+  const hasResults = total > 0;
+  const showDrop   = open && q.length > 0;
+
+  function navigate(type: "park" | "coaster", slug: string) {
+    router.push(type === "park" ? `/park/${slug}` : `/coasters/${slug}`);
+    setVal("");
+    setOpen(false);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (!showDrop) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, total - 1)); }
+    if (e.key === "ArrowUp")   { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, -1)); }
+    if (e.key === "Escape")    { setOpen(false); inputRef.current?.blur(); }
+    if (e.key === "Enter" && activeIdx >= 0) {
+      if (activeIdx < matchedParks.length) navigate("park", matchedParks[activeIdx].slug);
+      else navigate("coaster", matchedCoasters[activeIdx - matchedParks.length].slug);
+    }
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setVal(e.target.value);
+    setActiveIdx(-1);
+    if (!open) setOpen(true);
+  }
+
+  function clear() { setVal(""); inputRef.current?.focus(); }
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target as Node)
-      ) {
-        setIsVisible(false);
-      }
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
     };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const itemCls = (idx: number) =>
+    `w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer ${
+      activeIdx === idx
+        ? "bg-slate-100 dark:bg-slate-800"
+        : "hover:bg-slate-50 dark:hover:bg-slate-800/60"
+    }`;
+
   return (
-    <div ref={wrapperRef} className="relative">
-      {isVisible ? (
-        <div className="flex items-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-full shadow-sm px-3 py-1 w-[180px] focus-within:ring-2 focus-within:ring-[#1e3a8a] transition">
-          <input
-            ref={inputRef}
-            type="text"
-            className="bg-transparent w-full text-sm focus:outline-none placeholder-gray-500 dark:placeholder-gray-400 text-gray-800 dark:text-white"
-            placeholder="Search"
-            value={query}
-            onChange={handleInputChange}
-          />
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 16 16"
-            fill="currentColor"
-            className="h-4 w-4 text-gray-500 dark:text-gray-400 ml-2"
-          >
-            <path
-              fillRule="evenodd"
-              d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </div>
-      ) : (
-        <button
-          onClick={handleIconClick}
-          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition"
+    <div ref={wrapperRef} className="relative w-full">
+      {/* Input */}
+      <div className="flex items-center bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-3 py-1.5 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all">
+        <svg className="w-4 h-4 text-slate-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+        </svg>
+        <input
+          ref={inputRef}
+          type="text"
+          value={val}
+          placeholder="Search parks & coasters…"
+          className="bg-transparent w-full text-sm focus:outline-none placeholder-slate-400 text-slate-800 dark:text-white min-w-0"
+          onFocus={() => { setOpen(true); loadData(); }}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          aria-label="Search parks and coasters"
+          aria-expanded={showDrop}
+          aria-haspopup="listbox"
+        />
+        {val && (
+          <button onClick={clear} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-1 flex-shrink-0 text-base leading-none">
+            ×
+          </button>
+        )}
+      </div>
+
+      {/* Dropdown */}
+      {showDrop && (
+        <div
+          role="listbox"
+          className="absolute top-[calc(100%+6px)] left-0 w-80 max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-[9999]"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 16 16"
-            fill="currentColor"
-            className="h-5 w-5 text-gray-600 dark:text-gray-300"
-          >
-            <path
-              fillRule="evenodd"
-              d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </button>
+          {!loaded && (
+            <p className="px-4 py-3 text-sm text-slate-400">Loading…</p>
+          )}
+
+          {loaded && !hasResults && (
+            <p className="px-4 py-3 text-sm text-slate-400">No results for &ldquo;{val}&rdquo;</p>
+          )}
+
+          {/* Parks */}
+          {loaded && matchedParks.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
+                <span className="text-base">🏔️</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Theme Parks</span>
+              </div>
+              {matchedParks.map((park, i) => (
+                <button key={park.id} role="option" className={itemCls(i)} onMouseEnter={() => setActiveIdx(i)} onClick={() => navigate("park", park.slug)}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{park.name}</p>
+                    <p className="text-xs text-slate-400">{park.country}</p>
+                  </div>
+                  {park.overall != null && (
+                    <span className={`text-sm font-bold tabular-nums flex-shrink-0 ${getRatingColor(park.overall)}`}>
+                      {park.overall.toFixed(2)}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Coasters */}
+          {loaded && matchedCoasters.length > 0 && (
+            <div className={matchedParks.length > 0 ? "border-t border-slate-100 dark:border-slate-800" : ""}>
+              <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
+                <span className="text-base">🎢</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Roller Coasters</span>
+              </div>
+              {matchedCoasters.map((c, i) => {
+                const idx = matchedParks.length + i;
+                return (
+                  <button key={c.id} role="option" className={itemCls(idx)} onMouseEnter={() => setActiveIdx(idx)} onClick={() => navigate("coaster", c.slug)}>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{c.name}</p>
+                      <p className="text-xs text-slate-400 truncate">{c.parkName}</p>
+                    </div>
+                    {c.rating != null && (
+                      <span className={`text-sm font-bold tabular-nums flex-shrink-0 ${getRatingColor(c.rating)}`}>
+                        {c.rating.toFixed(1)}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
