@@ -107,10 +107,10 @@ const RatingText: React.FC<RatingTextProps> = ({
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center gap-4">
-        <h2 className="text-3xl font-semibold dark:text-white flex items-center flex-wrap gap-3">
+        <h2 className="text-3xl font-semibold text-white flex items-center flex-wrap gap-3">
           {parkName} Review
           {!rating.published && (
-            <span className="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 text-sm uppercase font-bold px-3 py-1 rounded-md tracking-wider border border-red-200 dark:border-red-800">
+            <span className="bg-red-900/30 text-red-400 text-sm uppercase font-bold px-3 py-1 rounded-md tracking-wider border border-red-800">
               Unpublished Draft
             </span>
           )}
@@ -120,14 +120,14 @@ const RatingText: React.FC<RatingTextProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center justify-center p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10 rounded transition-colors text-[20px] leading-none cursor-pointer"
+              className="inline-flex items-center justify-center p-1 text-slate-400 hover:text-slate-100 hover:bg-white/10 rounded transition-colors text-[20px] leading-none cursor-pointer"
               title="Edit Explanations"
             >
               🔧
             </button>
             <button
               onClick={() => setShowWarningManager(true)}
-              className="bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800 px-3 py-1 rounded text-sm font-semibold transition-colors cursor-pointer"
+              className="bg-blue-900 text-blue-300 hover:bg-blue-800 px-3 py-1 rounded text-sm font-semibold transition-colors cursor-pointer"
             >
               Warnings
             </button>
@@ -150,7 +150,7 @@ const RatingText: React.FC<RatingTextProps> = ({
             return (
               <div key={key} id={`section-${key}`} className="space-y-3 scroll-mt-6">
                 <div className="flex items-baseline gap-3">
-                  <h3 className="text-xl font-semibold dark:text-white">{humanizeLabel(key)}</h3>
+                  <h3 className="text-xl font-semibold text-white">{humanizeLabel(key)}</h3>
                   <span className={`text-2xl font-bold ${getRatingColor(value)}`}>{value}</span>
                   {categoryWarnings.length > 0 && (
                     <RatingWarning
@@ -203,10 +203,10 @@ const RatingText: React.FC<RatingTextProps> = ({
                         </>
                       )}
                     </div>
-                    <MarkdownText text={text} className={`text-gray-700 dark:text-gray-400 leading-relaxed md:text-lg ${isCentered ? "" : "flex-1"}`} />
+                    <MarkdownText text={text} className={`text-slate-400 leading-relaxed md:text-lg ${isCentered ? "" : "flex-1"}`} />
                   </div>
                 ) : (
-                  <MarkdownText text={text} className="text-gray-700 dark:text-gray-400 leading-relaxed md:text-lg" />
+                  <MarkdownText text={text} className="text-slate-400 leading-relaxed md:text-lg" />
                 )}
               </div>
             );
@@ -275,11 +275,11 @@ const RatingText: React.FC<RatingTextProps> = ({
 
       {/* PUBLISH BUTTON */}
       {isAdminMode && !rating.published && (
-        <div className="flex justify-center pt-8 pb-4 mt-8 border-t border-gray-200 dark:border-gray-800">
+        <div className="flex justify-center pt-8 pb-4 mt-8 border-t border-slate-800">
           <button
             onClick={handlePublish}
             disabled={isPublishing}
-            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 text-white font-bold text-lg md:text-xl py-4 px-8 md:px-12 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-3 cursor-pointer"
+            className="bg-blue-500 hover:bg-blue-400 text-white font-bold text-lg md:text-xl py-4 px-8 md:px-12 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-3 cursor-pointer"
           >
             {isPublishing ? "PUBLISHING..." : "PUBLISH REVIEW"}
           </button>

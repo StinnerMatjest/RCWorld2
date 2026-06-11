@@ -158,9 +158,9 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] bg-black/40 dark:bg-black/60 backdrop-blur-sm flex justify-center items-center">
-      <div className="bg-white dark:bg-gray-800 dark:text-gray-100 border border-transparent dark:border-white/10 p-6 rounded-lg shadow-lg w-[400px]">
-        <h2 className="text-2xl font-semibold mb-6 text-center text-gray-900 dark:text-white">
+    <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex justify-center items-center">
+      <div className="bg-slate-800 text-slate-100 border border-slate-700 p-6 rounded-lg shadow-lg w-[400px]">
+        <h2 className="text-2xl font-semibold mb-6 text-center text-white">
           {coaster ? "Edit Roller Coaster" : "Add New Roller Coaster"}
         </h2>
 
@@ -168,9 +168,8 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
           {/* Name input */}
           <div>
             <input
-              className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
-                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                         dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
+              className="w-full p-2 rounded-md border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500
+                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               placeholder="Coaster Name"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -187,18 +186,16 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
               value={year}
               onChange={handleInput}
               maxLength={4}
-              className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
-                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                         dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
+              className="w-full p-2 rounded-md border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500
+                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             />
           </div>
 
           {/* Manufacturer dropdown */}
           <div>
             <select
-              className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900
-                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                         dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:focus-visible:ring-offset-gray-800"
+              className="w-full p-2 rounded-md border border-slate-700 bg-slate-900 text-slate-100
+                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               value={manufacturer}
               onChange={(e) => {
                 if (e.target.value === "SHOW_ALL") {
@@ -229,9 +226,8 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
           {/* Model input */}
           <div>
             <input
-              className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
-                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                         dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
+              className="w-full p-2 rounded-md border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500
+                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               placeholder="Coaster Model"
               value={model}
               onChange={(e) => setModel(e.target.value)}
@@ -241,9 +237,8 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
           {/* Scale dropdown */}
           <div>
             <select
-              className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900
-                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                         dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:focus-visible:ring-offset-gray-800"
+              className="w-full p-2 rounded-md border border-slate-700 bg-slate-900 text-slate-100
+                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               value={scale}
               onChange={(e) => setScale(e.target.value)}
             >
@@ -261,9 +256,8 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
           {/* RCDB Path input */}
           <div>
             <input
-              className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
-                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                         dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800"
+              className="w-full p-2 rounded-md border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500
+                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               placeholder="RCDB URL"
               value={rcdbpath}
               onChange={(e) => setRcdbPath(e.target.value)}
@@ -282,10 +276,8 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
                 if (val !== 10) setGoldenCoaster(false);
               }}
               disabled={!haveridden}
-              className={`w-full p-2 rounded-md border
-      ${!haveridden ? "italic text-sm text-gray-500" : "text-gray-900"}
-      bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
-      dark:bg-gray-900 dark:border-white/10 dark:text-gray-100`}
+              className={`w-full p-2 rounded-md border bg-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 border-slate-700
+      ${!haveridden ? "italic text-sm text-slate-500" : "text-slate-100"} `}
             >
               {haveridden ? (
                 <>
@@ -316,10 +308,9 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
                   type="checkbox"
                   checked={goldenCoaster}
                   onChange={(e) => setGoldenCoaster(e.target.checked)}
-                  className="h-5 w-5 rounded border-gray-300 text-yellow-400 focus:ring-yellow-400 cursor-pointer
-          dark:bg-gray-900 dark:border-white/10"
+                  className="h-5 w-5 rounded border-slate-700 bg-slate-900 text-yellow-400 focus:ring-yellow-400 cursor-pointer"
                 />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span className="text-sm font-medium text-slate-300">
                   GOLDEN RATING
                 </span>
               </div>
@@ -340,8 +331,8 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
               }
               disabled={!haveridden}
               className={`w-full p-2 rounded-md border 
-                ${!haveridden ? "bg-gray-100 text-gray-500 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600" : "bg-white text-gray-900 border-gray-300 dark:bg-gray-900 dark:text-gray-100"}
-                placeholder-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800`}
+                ${!haveridden ? "bg-slate-800 text-slate-600 border-slate-800 cursor-not-allowed" : "bg-slate-900 text-slate-100 border-slate-700"}
+                placeholder-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900`}
             />
           </div>
 
@@ -360,10 +351,9 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
                   setIsBestCoaster(false);
                 }
               }}
-              className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer
-                         dark:bg-gray-900 dark:border-white/10"
+              className="h-5 w-5 rounded border-slate-700 bg-slate-900 text-blue-500 focus:ring-blue-500 cursor-pointer"
             />
-            <span className="text-mg text-gray-800 dark:text-gray-200">
+            <span className="text-md text-slate-200">
               Have Ridden
             </span>
           </div>
@@ -374,10 +364,9 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
               type="checkbox"
               checked={isbestcoaster}
               onChange={() => setIsBestCoaster(!isbestcoaster)}
-              className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer
-                         dark:bg-gray-900 dark:border-white/10"
+              className="h-5 w-5 rounded border-slate-700 bg-slate-900 text-blue-500 focus:ring-blue-500 cursor-pointer"
             />
-            <span className="text-mg text-gray-800 dark:text-gray-200">
+            <span className="text-md text-slate-200">
               Best Coaster
             </span>
           </div>
@@ -387,9 +376,8 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
             <button
               onClick={onClose}
               className="h-9 w-20 text-lg font-semibold text-white rounded-lg transition duration-300 cursor-pointer
-                         bg-blue-600 hover:bg-blue-700
-                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                         dark:bg-blue-500 dark:hover:bg-blue-400 dark:focus-visible:ring-offset-gray-800"
+                         bg-blue-500 hover:bg-blue-400
+                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-800"
             >
               Cancel
             </button>
@@ -398,9 +386,8 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
               <button
                 onClick={handleDelete}
                 className="h-9 w-24 text-sm font-semibold text-white rounded-lg transition duration-300 cursor-pointer
-                           bg-red-600 hover:bg-red-700
-                           focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                           dark:bg-red-500 dark:hover:bg-red-400 dark:focus-visible:ring-offset-gray-800"
+                           bg-red-500 hover:bg-red-400
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-800"
               >
                 Delete
               </button>
@@ -409,18 +396,17 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
             <button
               onClick={handleSubmit}
               className={`h-9 w-20 text-lg font-semibold text-white rounded-lg transition duration-300
-                          focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                          dark:focus-visible:ring-offset-gray-800
+                          focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-800
                           ${loading
-                  ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed"
+                  ? "bg-blue-400 cursor-not-allowed"
                   : !name ||
                     !isValidYear ||
                     !manufacturer ||
                     !model ||
                     !scale ||
                     !rcdbpath
-                    ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 cursor-pointer"
+                    ? "bg-slate-600 cursor-not-allowed"
+                    : "bg-blue-500 hover:bg-blue-400 cursor-pointer"
                 }`}
               disabled={
                 loading ||

@@ -113,7 +113,7 @@ export default function CoastlePage() {
                 setGameState(parsed.status);
                 restored = true;
               }
-            } catch (e) {}
+            } catch (e) { }
           }
 
           if (!restored) {
@@ -137,7 +137,7 @@ export default function CoastlePage() {
     if (saved) {
       try {
         setStats(JSON.parse(saved));
-      } catch (e) {}
+      } catch (e) { }
     }
   }, []);
 
@@ -323,7 +323,6 @@ export default function CoastlePage() {
     }
   }
 
-  // Build the formatted result text used by both share + copy
   async function handleShare() {
     const text = buildCoastleShareText({
       gameMode,
@@ -434,7 +433,7 @@ export default function CoastlePage() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-900 p-2 sm:p-6 flex flex-col items-center overflow-x-hidden">
+    <div className="min-h-screen bg-[#0f172a] p-2 sm:p-6 flex flex-col items-center overflow-x-hidden">
       <style>{`
         @keyframes revealUp {
           0% { opacity: 0; transform: translateY(10px) scale(0.99); }
@@ -471,9 +470,8 @@ export default function CoastlePage() {
       )}
 
       <div
-        className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${
-          showMenu ? "max-h-[200px] opacity-100" : "max-h-0 opacity-0"
-        } md:max-h-none md:opacity-100`}
+        className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${showMenu ? "max-h-[200px] opacity-100" : "max-h-0 opacity-0"
+          } md:max-h-none md:opacity-100`}
       >
         <header className="mb-2 text-center mt-2 space-y-2 px-4 animate-reveal">
           <h1 className="text-4xl sm:text-6xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 drop-shadow-sm italic transform -skew-x-6 pr-4">
@@ -484,7 +482,7 @@ export default function CoastlePage() {
           </p>
         </header>
 
-        <div className="w-full max-w-sm grid grid-cols-3 gap-1 bg-slate-200 dark:bg-slate-800 p-1 rounded-xl mb-4 mx-auto animate-reveal">
+        <div className="w-full max-w-sm grid grid-cols-3 gap-1 bg-slate-800 p-1 rounded-xl mb-4 mx-auto animate-reveal">
           {[
             { id: "play", label: "Play", icon: PlayIcon },
             { id: "howto", label: "How To", icon: BookOpenIcon },
@@ -496,11 +494,10 @@ export default function CoastlePage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex flex-col items-center justify-center py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${
-                  isActive
-                    ? "bg-white dark:bg-neutral-700 text-blue-600 dark:text-blue-400 shadow-sm scale-100"
-                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-300/50 dark:hover:bg-neutral-700/50 hover:scale-95"
-                }`}
+                className={`flex flex-col items-center justify-center py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${isActive
+                    ? "bg-slate-700 text-blue-400 shadow-sm scale-100"
+                    : "text-slate-400 hover:bg-slate-700/50 hover:scale-95"
+                  }`}
               >
                 <Icon className="w-5 h-5 mb-0.5" />
                 {tab.label}
@@ -516,30 +513,27 @@ export default function CoastlePage() {
           className="w-full max-w-[1400px] flex flex-col items-center gap-4 sm:gap-6 animate-reveal"
         >
           <div
-            className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${
-              showMenu
+            className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${showMenu
                 ? "max-h-[50px] opacity-100 mb-0"
                 : "max-h-0 opacity-0 mb-0"
-            } md:max-h-none md:opacity-100 md:mb-0`}
+              } md:max-h-none md:opacity-100 md:mb-0`}
           >
-            <div className="bg-slate-200 dark:bg-slate-800 p-1 rounded-full flex gap-1 relative z-10 items-center mx-auto w-fit">
+            <div className="bg-slate-800 p-1 rounded-full flex gap-1 relative z-10 items-center mx-auto w-fit">
               <button
                 onClick={() => switchMode("daily")}
-                className={`px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  gameMode === "daily"
-                    ? "bg-white dark:bg-neutral-700 text-blue-600 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}
+                className={`px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${gameMode === "daily"
+                    ? "bg-slate-700 text-blue-400 shadow-sm"
+                    : "text-slate-500 hover:text-slate-300"
+                  }`}
               >
                 Daily
               </button>
               <button
                 onClick={() => switchMode("endless")}
-                className={`px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  gameMode === "endless"
-                    ? "bg-white dark:bg-neutral-700 text-fuchsia-600 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}
+                className={`px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${gameMode === "endless"
+                    ? "bg-slate-700 text-fuchsia-400 shadow-sm"
+                    : "text-slate-500 hover:text-slate-300"
+                  }`}
               >
                 Endless
               </button>
@@ -548,9 +542,8 @@ export default function CoastlePage() {
 
           <div
             ref={containerRef}
-            className={`w-full max-w-xl sticky top-0 z-40 py-2 px-2 sm:px-0 transition-all flex items-center gap-2 ${
-              !showMenu ? "bg-white dark:bg-slate-900 md:bg-transparent" : ""
-            }`}
+            className={`w-full max-w-xl sticky top-0 z-40 py-2 px-2 sm:px-0 transition-all flex items-center gap-2 ${!showMenu ? "bg-slate-900 md:bg-transparent" : ""
+              }`}
           >
             {gameMode === "daily" && gameState !== "playing" ? (
               <div className="w-full">
@@ -559,7 +552,7 @@ export default function CoastlePage() {
             ) : (
               <form onSubmit={handleSubmit} className="relative group w-full">
                 <div className="absolute -inset-[1.5px] rounded-2xl bg-gradient-to-r from-blue-500 via-cyan-400 to-fuchsia-500 opacity-40 blur-sm group-focus-within:opacity-70 transition duration-500" />
-                <div className="relative rounded-2xl bg-white/80 dark:bg-neutral-900/70 backdrop-blur border border-gray-200 dark:border-neutral-700 shadow-sm transition-all duration-300">
+                <div className="relative rounded-2xl bg-slate-900/70 backdrop-blur border border-slate-700 shadow-sm transition-all duration-300">
                   <div className="flex items-center gap-3 px-4 py-3">
                     <input
                       ref={inputRef}
@@ -572,17 +565,16 @@ export default function CoastlePage() {
                       placeholder={
                         gameState === "playing" ? "Search coaster..." : "Game Over"
                       }
-                      className="w-full bg-transparent outline-none text-base sm:text-lg font-medium placeholder:text-gray-400 text-slate-900 dark:text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-transparent outline-none text-base sm:text-lg font-medium placeholder:text-slate-500 text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <button
                       type={gameState === "playing" ? "submit" : "button"}
                       onClick={gameState !== "playing" ? resetGame : undefined}
                       disabled={gameState === "playing" && !input.trim()}
-                      className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wide transition border border-transparent shadow-sm flex items-center gap-2 cursor-pointer ${
-                        gameState !== "playing"
-                          ? "bg-blue-600 text-white hover:bg-blue-700 w-auto whitespace-nowrap"
-                          : "bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:opacity-80 disabled:opacity-30"
-                      }`}
+                      className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wide transition border border-transparent shadow-sm flex items-center gap-2 cursor-pointer ${gameState !== "playing"
+                          ? "bg-blue-600 text-white hover:bg-blue-500 w-auto whitespace-nowrap"
+                          : "bg-white text-slate-900 hover:opacity-80 disabled:opacity-30"
+                        }`}
                     >
                       {gameState === "playing" ? (
                         "Guess"
@@ -601,7 +593,7 @@ export default function CoastlePage() {
             {!showMenu && (
               <button
                 onClick={handleExitOrReset}
-                className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300 dark:bg-neutral-800 dark:text-slate-400 dark:hover:bg-neutral-700 transition-all shadow-sm md:hidden"
+                className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-slate-800 text-slate-400 hover:bg-slate-700 transition-all shadow-sm md:hidden"
                 title="Exit Game / Show Menu"
               >
                 <XMarkIcon className="w-5 h-5" />
@@ -609,16 +601,15 @@ export default function CoastlePage() {
             )}
 
             {suggestions.length > 0 && gameState === "playing" && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-100 dark:border-neutral-800 overflow-hidden z-40 max-h-[300px] overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 rounded-xl shadow-2xl border border-slate-800 overflow-hidden z-40 max-h-[300px] overflow-y-auto">
                 {suggestions.map((s, index) => (
                   <button
                     key={s.id}
                     onClick={() => handleGuess(s)}
-                    className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors border-b border-slate-100 dark:border-neutral-800 last:border-0 group cursor-pointer ${
-                      index === activeIndex
-                        ? "bg-slate-100 dark:bg-neutral-800"
-                        : "hover:bg-slate-50 dark:hover:bg-neutral-800"
-                    }`}
+                    className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors border-b border-slate-800 last:border-0 group cursor-pointer ${index === activeIndex
+                        ? "bg-slate-800"
+                        : "hover:bg-slate-800/50"
+                      }`}
                   >
                     {s.countryName && (
                       <div className="relative w-8 h-5 shadow-sm rounded-sm overflow-hidden shrink-0 group-hover:scale-110 transition">
@@ -632,10 +623,10 @@ export default function CoastlePage() {
                       </div>
                     )}
                     <div>
-                      <div className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100">
+                      <div className="font-bold text-sm sm:text-base text-slate-100">
                         {s.name}
                       </div>
-                      <div className="text-xs text-slate-400 font-medium">
+                      <div className="text-xs text-slate-500 font-medium">
                         {s.park}
                       </div>
                     </div>
@@ -648,7 +639,7 @@ export default function CoastlePage() {
           <div className="w-full flex justify-center pb-12 px-1">
             <table className="w-full table-fixed border-separate border-spacing-x-1 sm:border-spacing-x-2 sm:border-spacing-y-2">
               <thead>
-                <tr className="text-[9px] sm:text-xs uppercase tracking-widest text-slate-400 font-bold">
+                <tr className="text-[9px] sm:text-xs uppercase tracking-widest text-slate-500 font-bold">
                   <th className="hidden md:table-cell pb-2 text-center w-[200px]">Coaster</th>
 
                   <th className="pb-2 text-center">
@@ -691,11 +682,11 @@ export default function CoastlePage() {
                 }).map((_, i) => (
                   <tr key={`empty-${i}`} className="opacity-30">
                     <td className="hidden md:table-cell p-2 text-center align-middle">
-                      <div className="h-16 w-full bg-slate-300 dark:bg-neutral-800 rounded-lg animate-pulse" />
+                      <div className="h-16 w-full bg-slate-800 rounded-lg animate-pulse" />
                     </td>
                     {Array.from({ length: 6 }).map((_, cIdx) => (
                       <td key={cIdx} className="p-0.5 sm:p-2 align-middle">
-                        <div className="h-12 sm:h-16 w-full rounded-lg border-2 border-dashed border-slate-300 dark:border-neutral-700" />
+                        <div className="h-12 sm:h-16 w-full rounded-lg border-2 border-dashed border-slate-700" />
                       </td>
                     ))}
                   </tr>
@@ -708,10 +699,10 @@ export default function CoastlePage() {
             {guesses.map((g, i) => (
               <div
                 key={i}
-                className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 animate-reveal"
+                className="flex items-center gap-2 text-sm text-slate-300 animate-reveal"
                 style={{ animationDelay: `${i * 100}ms` }}
               >
-                <span className="text-slate-400 font-mono text-xs w-4">
+                <span className="text-slate-500 font-mono text-xs w-4">
                   {i + 1}.
                 </span>
                 <span className="font-bold truncate max-w-[250px]">

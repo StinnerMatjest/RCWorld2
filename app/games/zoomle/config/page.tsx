@@ -40,14 +40,14 @@ function ImageFocalGrid({ img, flags, onToggleFlag, onFocalSaved }: {
   onToggleFlag: (imagePath: string, fi: number) => void;
   onFocalSaved: (imagePath: string, fi: number, focus: string) => void;
 }) {
-  const [open, setOpen]       = useState(false);
+  const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
-  const [focus, setFocus]     = useState({ x: 50, y: 50 });
-  const [saving, setSaving]   = useState(false);
-  const [saved, setSaved]     = useState(false);
-  const [error, setError]     = useState("");
+  const [focus, setFocus] = useState({ x: 50, y: 50 });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
   const dragging = useRef(false);
-  const imgRef   = useRef<HTMLImageElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   const overrides: Record<string, string> = img.focuses_override ?? {};
 
@@ -91,21 +91,21 @@ function ImageFocalGrid({ img, flags, onToggleFlag, onFocalSaved }: {
     }
   }
 
-  const focusStr  = `${focus.x.toFixed(1)}% ${focus.y.toFixed(1)}%`;
+  const focusStr = `${focus.x.toFixed(1)}% ${focus.y.toFixed(1)}%`;
   const allFocals = editing !== null
     ? GRID_FOCUSES.map((gf, i) => parsePct(i === editing ? focusStr : (overrides[String(i)] ?? gf)))
     : [];
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div className="rounded-xl border border-slate-700 overflow-hidden">
       {/* Collapsed header */}
       <button onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-3 px-3 py-2 w-full text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer">
-        <div className="relative w-16 h-11 rounded-lg overflow-hidden flex-shrink-0 bg-slate-200 dark:bg-slate-700">
+        className="flex items-center gap-3 px-3 py-2 w-full text-left hover:bg-slate-800/50 transition-colors cursor-pointer">
+        <div className="relative w-16 h-11 rounded-lg overflow-hidden flex-shrink-0 bg-slate-700">
           <Image src={img.image_path} alt="" fill className="object-cover" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold text-slate-600 dark:text-slate-400 truncate">
+          <p className="text-xs font-bold text-slate-400 truncate">
             {GRID_FOCUSES.filter((_, fi) => flags.has(`${img.image_path}::${fi}`)).length > 0
               ? `${GRID_FOCUSES.filter((_, fi) => flags.has(`${img.image_path}::${fi}`)).length} flagged`
               : "All 9 active"}
@@ -116,35 +116,33 @@ function ImageFocalGrid({ img, flags, onToggleFlag, onFocalSaved }: {
       </button>
 
       {open && (
-        <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30">
+        <div className="border-t border-slate-800 bg-slate-800/30">
           <div className="flex flex-col md:flex-row md:items-stretch">
 
             {/* Col 1 — 3×3 grid, fixed width */}
             <div className="p-4 md:w-72 flex-shrink-0">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">
                 Click to flag · ✏️ to edit
               </p>
               <div className="grid grid-cols-3 gap-2">
                 {GRID_FOCUSES.map((gridFocus, fi) => {
-                  const key       = `${img.image_path}::${fi}`;
+                  const key = `${img.image_path}::${fi}`;
                   const isFlagged = flags.has(key);
-                  const custom    = overrides[String(fi)];
+                  const custom = overrides[String(fi)];
                   const isEditing = editing === fi;
-                  const color     = FOCAL_COLORS[fi];
-                  // Show live position while editing this cell
+                  const color = FOCAL_COLORS[fi];
                   const originStr = isEditing ? focusStr : (custom ?? gridFocus);
                   const originPos = parsePct(originStr);
                   return (
                     <div key={fi} className="flex flex-col gap-1">
                       <button
                         onClick={() => !isEditing && onToggleFlag(img.image_path, fi)}
-                        className={`relative rounded-lg overflow-hidden transition-all ${
-                          isEditing
+                        className={`relative rounded-lg overflow-hidden transition-all ${isEditing
                             ? "cursor-default ring-[3px]"
                             : isFlagged
-                            ? "cursor-pointer ring-2 ring-rose-500 opacity-50"
-                            : "cursor-pointer hover:ring-2 hover:ring-blue-400"
-                        }`}
+                              ? "cursor-pointer ring-2 ring-rose-500 opacity-50"
+                              : "cursor-pointer hover:ring-2 hover:ring-blue-400"
+                          }`}
                         style={{ aspectRatio: "3/2", ...(isEditing ? { boxShadow: `0 0 0 3px ${color}` } : {}) }}
                         title={isEditing ? `Editing focal #${fi + 1}` : isFlagged ? "Flagged — click to unflag" : "Click to flag"}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -155,14 +153,13 @@ function ImageFocalGrid({ img, flags, onToggleFlag, onFocalSaved }: {
                             <span className="text-lg">🚩</span>
                           </div>
                         )}
-                        <div className="absolute bottom-0.5 left-0.5 text-[8px] font-bold px-1 rounded"
-                          style={{ background: isEditing ? color : "rgba(0,0,0,0.5)", color: "#fff" }}>
+                        <div className="absolute bottom-0.5 left-0.5 text-[8px] font-bold px-1 rounded bg-black/50 text-white">
                           {fi + 1}{custom ? " ✏️" : ""}
                         </div>
                       </button>
                       <button
                         onClick={() => isEditing ? setEditing(null) : startEdit(fi)}
-                        className={`text-[9px] font-bold text-center transition-colors cursor-pointer ${isEditing ? "" : "text-slate-400 hover:text-slate-600"}`}
+                        className={`text-[9px] font-bold text-center transition-colors cursor-pointer ${isEditing ? "" : "text-slate-500 hover:text-slate-300"}`}
                         style={{ color: isEditing ? color : undefined }}>
                         {isEditing ? "close ✕" : "✏️ edit"}
                       </button>
@@ -173,10 +170,10 @@ function ImageFocalGrid({ img, flags, onToggleFlag, onFocalSaved }: {
             </div>
 
             {/* Col 2 — Always-visible overview; becomes selector when editing */}
-            <div className={`border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-700 p-4 flex flex-col gap-2 ${editing !== null ? "md:flex-1" : "md:w-72 flex-shrink-0"}`}>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <div className={`border-t md:border-t-0 md:border-l border-slate-700 p-4 flex flex-col gap-2 ${editing !== null ? "md:flex-1" : "md:w-72 flex-shrink-0"}`}>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                 {editing !== null
-                  ? <>Selector — focal <span style={{ color: FOCAL_COLORS[editing] }}>#{editing + 1}</span> <span className="normal-case font-normal text-slate-500 ml-1">{focusStr}</span></>
+                  ? <>Selector — focal <span style={{ color: FOCAL_COLORS[editing] }}>#{editing + 1}</span> <span className="normal-case font-normal text-slate-400 ml-1">{focusStr}</span></>
                   : "All focal points"}
               </p>
               <div
@@ -192,9 +189,9 @@ function ImageFocalGrid({ img, flags, onToggleFlag, onFocalSaved }: {
                   className="w-full h-full object-cover block select-none pointer-events-none" />
 
                 {GRID_FOCUSES.map((gf, i) => {
-                  const pos      = parsePct(i === editing ? focusStr : (overrides[String(i)] ?? gf));
+                  const pos = parsePct(i === editing ? focusStr : (overrides[String(i)] ?? gf));
                   const isActive = i === editing;
-                  const color    = FOCAL_COLORS[i];
+                  const color = FOCAL_COLORS[i];
                   return (
                     <div key={i} className="absolute pointer-events-none"
                       style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%,-50%)", zIndex: isActive ? 10 : 1 }}>
@@ -224,22 +221,22 @@ function ImageFocalGrid({ img, flags, onToggleFlag, onFocalSaved }: {
 
             {/* Col 3 — Game preview + save (only while editing) */}
             {editing !== null && (
-              <div className="border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-700 p-4 md:flex-1 flex flex-col gap-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Game preview</p>
-                <div className="relative rounded-2xl overflow-hidden bg-blue-50 dark:bg-slate-800 flex-1" style={{ aspectRatio: "3/2" }}>
+              <div className="border-t md:border-t-0 md:border-l border-slate-700 p-4 md:flex-1 flex flex-col gap-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Game preview</p>
+                <div className="relative rounded-2xl overflow-hidden bg-slate-800 flex-1" style={{ aspectRatio: "3/2" }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={img.image_path} alt=""
                     className="absolute inset-0 w-full h-full object-cover"
                     style={{ transform: `scale(9) translate(${50 - focus.x}%, ${50 - focus.y}%)`, transformOrigin: "50% 50%" }} />
                 </div>
-                {error && <p className="text-xs text-red-500">{error}</p>}
+                {error && <p className="text-xs text-red-400">{error}</p>}
                 <div className="flex gap-2 mt-auto">
                   <button onClick={save} disabled={saving}
-                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer disabled:opacity-50 ${saved ? "bg-emerald-500 text-white" : "bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-80"}`}>
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer disabled:opacity-50 ${saved ? "bg-emerald-500 text-white" : "bg-white text-slate-900 hover:opacity-80"}`}>
                     {saving ? "Saving…" : saved ? "Saved ✓" : "Save focal"}
                   </button>
                   <button onClick={() => setEditing(null)}
-                    className="px-4 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:text-slate-600 cursor-pointer">
+                    className="px-4 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:text-slate-200 cursor-pointer">
                     Cancel
                   </button>
                 </div>
@@ -262,31 +259,29 @@ function CoasterRow({ group, flags, onToggleFlag, onToggleCoaster, onFocalSaved 
   onFocalSaved: (imagePath: string, fi: number, focus: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const flaggedCount  = group.images.reduce((s, img) =>
+  const flaggedCount = group.images.reduce((s, img) =>
     s + GRID_FOCUSES.filter((_, fi) => flags.has(`${img.image_path}::${fi}`)).length, 0);
-  const totalFocals  = group.images.length * 9;
+  const totalFocals = group.images.length * 9;
   const activeFocals = totalFocals - flaggedCount;
 
   return (
-    <div className={`rounded-2xl border-2 overflow-hidden transition-all ${
-      group.coaster_enabled ? "border-slate-200 dark:border-slate-700" : "border-slate-100 dark:border-slate-800"
-    }`}>
-      <div className={`flex items-center gap-3 px-4 py-3 bg-white dark:bg-slate-900 ${!group.coaster_enabled ? "opacity-40" : ""}`}>
+    <div className={`rounded-2xl border-2 overflow-hidden transition-all ${group.coaster_enabled ? "border-slate-700" : "border-slate-800"
+      }`}>
+      <div className={`flex items-center gap-3 px-4 py-3 bg-slate-900 ${!group.coaster_enabled ? "opacity-40" : ""}`}>
         <button onClick={() => setOpen(o => !o)} className="flex-1 min-w-0 text-left cursor-pointer">
-          <p className="font-black text-sm text-slate-900 dark:text-white">{group.coaster_name}</p>
-          <p className="text-xs text-slate-400">{group.park_name} · {group.images.length} image{group.images.length !== 1 ? "s" : ""} · {activeFocals}/{totalFocals} focals active</p>
+          <p className="font-black text-sm text-white">{group.coaster_name}</p>
+          <p className="text-xs text-slate-500">{group.park_name} · {group.images.length} image{group.images.length !== 1 ? "s" : ""} · {activeFocals}/{totalFocals} focals active</p>
         </button>
-        <span className="text-slate-300 dark:text-slate-600 text-xs select-none">{open ? "▲" : "▼"}</span>
+        <span className="text-slate-600 text-xs select-none">{open ? "▲" : "▼"}</span>
         <button onClick={() => onToggleCoaster(group.coaster_id, !group.coaster_enabled)}
-          className={`flex-shrink-0 w-11 h-6 rounded-full relative transition-colors cursor-pointer ${
-            group.coaster_enabled ? "bg-emerald-500" : "bg-slate-200 dark:bg-slate-700"
-          }`}>
+          className={`flex-shrink-0 w-11 h-6 rounded-full relative transition-colors cursor-pointer ${group.coaster_enabled ? "bg-emerald-500" : "bg-slate-700"
+            }`}>
           <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${group.coaster_enabled ? "left-5" : "left-0.5"}`} />
         </button>
       </div>
 
       {open && (
-        <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-3 flex flex-col gap-2">
+        <div className="border-t border-slate-800 bg-slate-800/40 p-3 flex flex-col gap-2">
           {group.images.map(img => (
             <ImageFocalGrid key={img.gallery_id} img={img} flags={flags}
               onToggleFlag={onToggleFlag} onFocalSaved={onFocalSaved} />
@@ -300,11 +295,11 @@ function CoasterRow({ group, flags, onToggleFlag, onToggleCoaster, onFocalSaved 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ZoomleConfig() {
-  const [groups, setGroups]   = useState<CoasterGroup[]>([]);
+  const [groups, setGroups] = useState<CoasterGroup[]>([]);
   const [missing, setMissing] = useState<{ id: number; name: string; slug: string; park_name: string }[]>([]);
-  const [flags, setFlags]     = useState<Set<string>>(new Set());
+  const [flags, setFlags] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [search, setSearch]   = useState("");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -339,7 +334,7 @@ export default function ZoomleConfig() {
   }, []);
 
   async function toggleFlag(imagePath: string, fi: number) {
-    const key       = `${imagePath}::${fi}`;
+    const key = `${imagePath}::${fi}`;
     const wasFlagged = flags.has(key);
     setFlags(prev => {
       const next = new Set(prev);
@@ -384,20 +379,20 @@ export default function ZoomleConfig() {
   }, 0);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-900 px-6 py-8">
+    <div className="min-h-screen bg-[#0f172a] px-6 py-8">
       <div className="mb-6 flex items-center justify-between max-w-2xl">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-white">🔍 Zoomle Config</h1>
+          <h1 className="text-2xl font-black text-white">🔍 Zoomle Config</h1>
           <p className="text-sm text-slate-400 mt-1">
             {totalActive} active focal points · {groups.length} coasters
           </p>
         </div>
-        <Link href="/games/zoomle" className="text-sm font-bold text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">← Back</Link>
+        <Link href="/games/zoomle" className="text-sm font-bold text-slate-400 hover:text-white transition-colors">← Back</Link>
       </div>
 
       <input value={search} onChange={e => setSearch(e.target.value)}
         placeholder="Search coasters or parks…"
-        className="w-full max-w-2xl rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 mb-5" />
+        className="w-full max-w-2xl rounded-2xl border-2 border-slate-700 bg-[#0f172a] px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 mb-5" />
 
       {loading ? (
         <p className="text-center text-slate-400 py-12">Loading…</p>
@@ -418,7 +413,7 @@ export default function ZoomleConfig() {
             <div className="mt-8 max-w-2xl">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-base">⚠️</span>
-                <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">
+                <h2 className="text-sm font-black text-white uppercase tracking-widest">
                   Not in Zoomle
                 </h2>
                 <span className="text-xs font-bold text-slate-400">{missing.length} coaster{missing.length !== 1 ? "s" : ""}</span>
@@ -426,15 +421,15 @@ export default function ZoomleConfig() {
               <p className="text-xs text-slate-400 mb-3">
                 These coasters have no gallery images whose title contains their name. Add a matching image title to include them.
               </p>
-              <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 overflow-hidden">
+              <div className="rounded-2xl border-2 border-dashed border-slate-700 overflow-hidden">
                 {missing.map((c, i) => (
                   <Link key={c.id} href={`/coasters/${c.slug ?? c.id}`} target="_blank"
-                    className={`flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${i > 0 ? "border-t border-slate-100 dark:border-slate-800" : ""}`}>
+                    className={`flex items-center justify-between px-4 py-2.5 hover:bg-slate-800/50 transition-colors ${i > 0 ? "border-t border-slate-800" : ""}`}>
                     <div>
-                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{c.name}</p>
-                      <p className="text-xs text-slate-400">{c.park_name}</p>
+                      <p className="text-sm font-bold text-slate-300">{c.name}</p>
+                      <p className="text-xs text-slate-500">{c.park_name}</p>
                     </div>
-                    <span className="text-slate-300 dark:text-slate-600 text-xs">↗</span>
+                    <span className="text-slate-600 text-xs">↗</span>
                   </Link>
                 ))}
               </div>

@@ -93,11 +93,9 @@ const ParkRankLane: React.FC<Props> = ({
           .filter((p: Park) => p.value > 0)
           .sort((a: Park, b: Park) => b.value - a.value);
 
-        // Determine starting value for this category: cached > prop > 0.0
         const base = ratingCache.get(category) ?? startVal ?? 0;
         const newEntry: Park = { id: NEW_PARK_ID, name: newParkName || "New Park", value: base };
 
-        // If unrated (0), place at the very top; if rated, insert into correct position
         const nextOrder = base > 0 ? insertByValueDesc(existing, newEntry) : [newEntry, ...existing];
 
         if (cancelled) return;
@@ -168,7 +166,6 @@ const ParkRankLane: React.FC<Props> = ({
   const handleInputCommit = () => {
     const normalized = manualText.toUpperCase().trim().replace(",", ".");
 
-    // Golden rating
     if (normalized === "G" || normalized === "11") {
       const special = 11;
       setManualText("11");
@@ -189,7 +186,6 @@ const ParkRankLane: React.FC<Props> = ({
       return;
     }
 
-    // Empty input => 0
     if (normalized === "") {
       setManualText("");
       setCurrentRating(0);
@@ -209,7 +205,6 @@ const ParkRankLane: React.FC<Props> = ({
     const num = parseFloat(normalized);
     if (!Number.isFinite(num)) return;
 
-    // Snap to valid value
     const snapped = snapHalf(clamp(num, 0.5, 10));
     setManualText(snapped.toFixed(1));
     setCurrentRating(snapped);
@@ -238,9 +233,9 @@ const ParkRankLane: React.FC<Props> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-20 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex items-center justify-center rounded-lg"
+            className="absolute inset-0 z-20 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center rounded-lg"
           >
-            <div className="animate-pulse text-gray-500 dark:text-gray-400">Loading…</div>
+            <div className="animate-pulse text-slate-400">Loading…</div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -258,7 +253,7 @@ const ParkRankLane: React.FC<Props> = ({
         )}
       </AnimatePresence>
 
-      <h2 className="text-xl font-bold mb-4 text-center">
+      <h2 className="text-xl font-bold mb-4 text-center text-slate-200">
         Drag <span className="text-blue-400">{newParkName || "your park"}</span> to assign {label}
       </h2>
 
@@ -275,13 +270,13 @@ const ParkRankLane: React.FC<Props> = ({
             layoutScroll
             whileDrag={
               p.id === NEW_PARK_ID
-                ? { scale: 1.03, zIndex: 30, boxShadow: "0 0 12px rgba(0,150,255,0.65)" }
+                ? { scale: 1.03, zIndex: 30, boxShadow: "0 0 12px rgba(96,165,250,0.65)" }
                 : {}
             }
             transition={{ type: "spring", stiffness: 480, damping: 34 }}
             className={`flex items-center justify-between px-3 py-2 lg:px-4 lg:py-3 rounded-lg shadow-md border select-none ${p.id === NEW_PARK_ID
               ? "bg-blue-600/90 text-white border-blue-400"
-              : "bg-gray-800/70 border-gray-700 text-gray-100"
+              : "bg-slate-800/70 border-slate-700 text-slate-200"
               }`}
 
             style={{ cursor: p.id === NEW_PARK_ID ? "grab" : "default", willChange: "transform" }}
@@ -291,7 +286,7 @@ const ParkRankLane: React.FC<Props> = ({
                 <img
                   src={p.imagePath}
                   alt={p.name}
-                  className="w-8 h-8 object-cover rounded-md border border-gray-700"
+                  className="w-8 h-8 object-cover rounded-md border border-slate-700"
                   draggable={false}
                 />
               )}
@@ -319,7 +314,7 @@ const ParkRankLane: React.FC<Props> = ({
 
       <div className="mt-5 flex flex-col items-center">
         <div className="flex items-center gap-2 text-base lg:text-lg">
-          <label className="text-sm text-gray-500 dark:text-gray-400 lg:text-lg">Enter value:</label>
+          <label className="text-sm text-slate-400 lg:text-lg">Enter value:</label>
           <input
             type="text"                  // allows letters
             inputMode="decimal"          // numeric keyboard on mobile
@@ -329,7 +324,7 @@ const ParkRankLane: React.FC<Props> = ({
             onChange={(e) => handleInputChange(e.target.value)} // free typing
             onBlur={handleInputCommit}                         // snap & update on leaving input
             onKeyDown={(e) => e.key === "Enter" && handleInputCommit()} // snap & update on Enter
-            className="w-24 p-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-center"
+            className="w-24 p-2 rounded-md border border-slate-700 bg-slate-800 text-slate-200 text-center focus:outline-none focus:border-blue-500 transition-colors"
           />
         </div>
       </div>

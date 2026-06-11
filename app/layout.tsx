@@ -37,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <head>
         {/* Umami Cloud analytics */}
         <Script
@@ -48,7 +48,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${inter.variable} ${roboto.variable} antialiased min-h-screen flex flex-col`}
+        className={`${inter.variable} ${roboto.variable} antialiased min-h-screen flex flex-col bg-[#0f172a] text-slate-200`}
       >
         <AdminModeProvider>
           <ParksProvider>

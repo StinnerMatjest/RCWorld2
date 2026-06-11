@@ -54,22 +54,22 @@ const compare = (a: unknown, b: unknown, dir: "asc" | "desc"): number => {
 };
 
 const ALL_COLUMNS = [
-  { key: "rating",        label: "Rating"      },
-  { key: "manufacturer",  label: "Manufacturer" },
-  { key: "parkName",      label: "Park"         },
-  { key: "rideCount",     label: "Rides"        },
-  { key: "lastVisitDate", label: "Last Ridden"  },
-  { key: "year",          label: "Year"         },
+  { key: "rating", label: "Rating" },
+  { key: "manufacturer", label: "Manufacturer" },
+  { key: "parkName", label: "Park" },
+  { key: "year", label: "Year" },
+  { key: "rideCount", label: "Rides" },
+  { key: "lastVisitDate", label: "Last Ridden" },
 ] as const;
 
 type ColumnKey = (typeof ALL_COLUMNS)[number]["key"];
 
-const DESKTOP_DEFAULT: ColumnKey[] = ["rating", "manufacturer", "parkName", "rideCount", "year"];
-const MOBILE_DEFAULT:  ColumnKey[] = ["rating", "manufacturer"];
+const DESKTOP_DEFAULT: ColumnKey[] = ["rating", "manufacturer", "parkName", "year", "rideCount"];
+const MOBILE_DEFAULT: ColumnKey[] = ["rating", "manufacturer"];
 const DESC_BY_DEFAULT: ColumnKey[] = ["rating", "rideCount", "lastVisitDate"];
 
 const ROW_H = 48;
-const INDEX_W  = 52;
+const INDEX_W = 52;
 const NAME_W_M = 130;
 const NAME_W_D = 260;
 
@@ -87,7 +87,7 @@ function parseCoasterList(raw: any[]): Coaster[] {
     visitCount: c.visitCount ?? 1,
     rating:
       c.rating === null || c.rating === undefined ? null
-      : typeof c.rating === "string" ? parseFloat(c.rating) : c.rating,
+        : typeof c.rating === "string" ? parseFloat(c.rating) : c.rating,
     parkId: c.parkId, parkName: c.parkName,
     year: c.year ?? 0, lastVisitDate: c.lastVisitDate, slug: c.slug,
     specs: c.specs ? {
@@ -105,18 +105,18 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
   const [coasters, setCoasters] = useState<Coaster[]>(() =>
     initialCoasters ? parseCoasterList(initialCoasters) : []
   );
-  const [loading, setLoading]         = useState(!initialCoasters);
-  const [error, setError]             = useState("");
-  const [sortBy, setSortBy]           = useState<ColumnKey | "name">("rating");
-  const [sortDir, setSortDir]         = useState<"asc" | "desc">("desc");
+  const [loading, setLoading] = useState(!initialCoasters);
+  const [error, setError] = useState("");
+  const [sortBy, setSortBy] = useState<ColumnKey | "name">("rating");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [visibleCols, setVisibleCols] = useState<ColumnKey[]>(() =>
     typeof window !== "undefined" && window.innerWidth < 640 ? MOBILE_DEFAULT : DESKTOP_DEFAULT
   );
 
   const searchCtx = useSearch() as { query: string; setQuery?: (q: string) => void };
-  const rawQuery  = searchCtx?.query ?? "";
-  const q         = rawQuery.trim().toLowerCase();
-  const setQuery  = searchCtx?.setQuery;
+  const rawQuery = searchCtx?.query ?? "";
+  const q = rawQuery.trim().toLowerCase();
+  const setQuery = searchCtx?.setQuery;
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -130,7 +130,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
     if (initialCoasters) return;
     (async () => {
       try {
-        const res  = await fetch("/api/coasters");
+        const res = await fetch("/api/coasters");
         const data = await res.json();
         if (!data || !Array.isArray(data.coasters)) throw new Error("Unexpected data");
         setCoasters(parseCoasterList(data.coasters));
@@ -196,7 +196,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
   const colOn = (k: ColumnKey) => visibleCols.includes(k);
 
   if (loading) return <LoadingSpinner className="pt-24" />;
-  if (error)   return <p className="p-4 text-red-400">Error: {error}</p>;
+  if (error) return <p className="p-4 text-red-400">Error: {error}</p>;
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">
@@ -220,9 +220,9 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
             <div className="flex flex-wrap gap-6 mt-8">
               {[
                 { label: "Coasters rated", value: coasters.length.toLocaleString() },
-                { label: "Parks visited",  value: new Set(coasters.map(c => c.parkId)).size.toLocaleString() },
-                { label: "Total rides",    value: coasters.reduce((s, c) => s + (c.rideCount ?? 0), 0).toLocaleString() },
-                { label: "Avg rating",     value: (() => { const vals = coasters.map(c => c.rating).filter((r): r is number => r != null); return vals.length ? (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(2) : "—"; })() },
+                { label: "Parks visited", value: new Set(coasters.map(c => c.parkId)).size.toLocaleString() },
+                { label: "Total rides", value: coasters.reduce((s, c) => s + (c.rideCount ?? 0), 0).toLocaleString() },
+                { label: "Avg rating", value: (() => { const vals = coasters.map(c => c.rating).filter((r): r is number => r != null); return vals.length ? (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(2) : "—"; })() },
               ].map(s => (
                 <div key={s.label}>
                   <div className="text-2xl font-black text-white">{s.value}</div>
@@ -273,11 +273,10 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                   key={key}
                   onClick={() => toggleCol(key)}
                   aria-pressed={on}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${
-                    on
-                      ? "bg-[#e9820e]/10 border-[#e9820e]/40 text-[#e9820e]/80"
-                      : "bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300"
-                  }`}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${on
+                    ? "bg-[#e9820e]/10 border-[#e9820e]/40 text-[#e9820e]/80"
+                    : "bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300"
+                    }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${on ? "bg-[#e9820e]" : "bg-slate-600"}`} />
                   {label}
@@ -377,6 +376,11 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                             </div>
                           </td>
                         )}
+                        {colOn("year") && (
+                          <td className="px-3 whitespace-nowrap text-slate-400" style={{ minWidth: COL_MIN_W.year }}>
+                            <div className="flex items-center" style={{ height: ROW_H }}>{c.year || "—"}</div>
+                          </td>
+                        )}
                         {colOn("rideCount") && (
                           <td className="px-3 whitespace-nowrap text-slate-300" style={{ minWidth: COL_MIN_W.rideCount }}>
                             <div className="flex items-center gap-1" style={{ height: ROW_H }}>
@@ -390,11 +394,6 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                             <div className="flex items-center" style={{ height: ROW_H }}>{formatDate(c.lastVisitDate)}</div>
                           </td>
                         )}
-                        {colOn("year") && (
-                          <td className="px-3 whitespace-nowrap text-slate-400" style={{ minWidth: COL_MIN_W.year }}>
-                            <div className="flex items-center" style={{ height: ROW_H }}>{c.year || "—"}</div>
-                          </td>
-                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -405,7 +404,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                           <div className="flex items-center" style={{ height: ROW_H }}>
                             {key === "rideCount" ? totalRides.toLocaleString()
                               : key === "rating" && avgRating != null ? avgRating.toFixed(2)
-                              : ""}
+                                : ""}
                           </div>
                         </td>
                       ) : null)}
@@ -427,7 +426,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                   <th className="sticky left-0 z-[2] bg-slate-900 text-center font-semibold" style={{ width: INDEX_W }}>
                     <span className="inline-block" style={{ width: INDEX_W }}>#</span>
                   </th>
-                  <ThSort label="Name"  active={sortBy === "name"} dir={sortDir} onClick={() => handleSort("name")} sticky style={{ left: INDEX_W, width: NAME_W_D }} />
+                  <ThSort label="Name" active={sortBy === "name"} dir={sortDir} onClick={() => handleSort("name")} sticky style={{ left: INDEX_W, width: NAME_W_D }} />
                   {ALL_COLUMNS.map(({ key, label }) => colOn(key) ? (
                     <ThSort key={key} label={label} active={sortBy === key} dir={sortDir} onClick={() => handleSort(key)} />
                   ) : null)}
@@ -463,6 +462,11 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                         </Link>
                       </td>
                     )}
+                    {colOn("year") && (
+                      <td className="px-4 whitespace-nowrap text-slate-400" style={{ height: ROW_H }}>
+                        {c.year || "—"}
+                      </td>
+                    )}
                     {colOn("rideCount") && (
                       <td className="px-4 whitespace-nowrap text-slate-300" style={{ height: ROW_H }}>
                         <div className="flex items-baseline gap-1">
@@ -474,11 +478,6 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                     {colOn("lastVisitDate") && (
                       <td className="px-4 whitespace-nowrap text-slate-500 text-xs" style={{ height: ROW_H }}>
                         {formatDate(c.lastVisitDate)}
-                      </td>
-                    )}
-                    {colOn("year") && (
-                      <td className="px-4 whitespace-nowrap text-slate-400" style={{ height: ROW_H }}>
-                        {c.year || "—"}
                       </td>
                     )}
                   </tr>
@@ -534,9 +533,8 @@ function ThSort({ label, active, dir, onClick, sticky, style }: ThSortProps) {
       scope="col"
       onClick={onClick}
       aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
-      className={`px-4 py-3 select-none font-semibold cursor-pointer hover:text-white transition-colors ${
-        active ? "text-[#e9820e]" : "text-slate-500 hover:text-slate-300"
-      } ${sticky ? "sticky z-[2] bg-slate-800/60" : ""}`}
+      className={`px-4 py-3 select-none font-semibold cursor-pointer hover:text-white transition-colors ${active ? "text-[#e9820e]" : "text-slate-500 hover:text-slate-300"
+        } ${sticky ? "sticky z-[2] bg-slate-800/60" : ""}`}
       style={style}
     >
       <span className="inline-flex items-center gap-1">
@@ -566,11 +564,14 @@ function SortControl({ sortBy, sortDir, onChangeField, onToggleDir }: SortContro
     return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("click", onClick); };
   }, [open]);
 
-  const OPTIONS: { key: ColumnKey | "name"; label: string }[] = [
-    { key: "name", label: "Name" }, { key: "rating", label: "Rating" },
-    { key: "manufacturer", label: "Manufacturer" }, { key: "parkName", label: "Park" },
-    { key: "rideCount", label: "Rides" }, { key: "lastVisitDate", label: "Last Ridden" },
-    { key: "year", label: "Year" },
+const OPTIONS: { key: ColumnKey | "name"; label: string }[] = [
+    { key: "name", label: "Name" }, 
+    { key: "rating", label: "Rating" },
+    { key: "manufacturer", label: "Manufacturer" }, 
+    { key: "parkName", label: "Park" },
+    { key: "year", label: "Year" }, 
+    { key: "rideCount", label: "Rides" }, 
+    { key: "lastVisitDate", label: "Last Ridden" },
   ];
   const activeLabel = OPTIONS.find(o => o.key === sortBy)?.label ?? "Sort";
 
@@ -607,9 +608,8 @@ function SortControl({ sortBy, sortDir, onChangeField, onToggleDir }: SortContro
                     role="menuitemradio"
                     aria-checked={active}
                     onClick={() => { onChangeField(opt.key); setOpen(false); }}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left text-sm cursor-pointer transition-colors ${
-                      active ? "text-[#e9820e]/80 bg-[#e9820e]/10" : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                    }`}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left text-sm cursor-pointer transition-colors ${active ? "text-[#e9820e]/80 bg-[#e9820e]/10" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      }`}
                   >
                     {opt.label}
                     {active && <span className="text-[#e9820e]">✓</span>}

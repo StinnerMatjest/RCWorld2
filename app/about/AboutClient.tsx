@@ -29,11 +29,11 @@ export default function AboutPage() {
   const [showPast, setShowPast] = useState(false);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [editingTrip, setEditingTrip] = useState<Trip | undefined>(undefined);
-  
+
   // Admin Mode
   const { isAdminMode } = useAdminMode();
 
@@ -71,15 +71,15 @@ export default function AboutPage() {
   );
 
   const grouped = groupTripsByYear(decidedTrips);
-  
+
   const nextTrip = trips
     .filter((t) => t.status === "booked" && getDaysUntil(t.startDate))
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())[0];
 
   return (
-    <div className="w-full dark:bg-gray-900 relative">
+    <div className="w-full bg-[#0f172a] relative">
       <main className="max-w-5xl mx-auto px-6 py-12 space-y-20">
-        
+
         {/* Intro */}
         <section className="text-center space-y-6 animate-fade-in-up delay-0">
           <Image
@@ -90,10 +90,10 @@ export default function AboutPage() {
             className="mx-auto"
             priority
           />
-          <h1 className="text-4xl font-extrabold dark:text-white">About ParkRating</h1>
+          <h1 className="text-4xl font-extrabold text-white">About ParkRating</h1>
 
-          <div className="text-lg text-gray-700 dark:text-gray-400 max-w-2xl mx-auto space-y-4 text-center leading-relaxed">
-            <p className="text-1xl font-semibold text-black dark:text-white">
+          <div className="text-lg text-slate-400 max-w-2xl mx-auto space-y-4 text-center leading-relaxed">
+            <p className="text-1xl font-semibold text-white">
               We are two brothers with a passion for theme parks and thrilling
               coasters.
             </p>
@@ -108,7 +108,7 @@ export default function AboutPage() {
               more). For more information about this, visit our{" "}
               <Link
                 href="/info"
-                className="text-black dark:text-blue-300 hover:text-blue-400 dark:hover:text-blue-200 underline"
+                className="text-blue-400 hover:text-blue-300 underline transition-colors"
               >
                 Rating Evaluation
               </Link>{" "}
@@ -123,7 +123,7 @@ export default function AboutPage() {
 
         {/* Live Countdown */}
         {!isLoading && nextTrip && (
-          <p className="text-center text-green-700 dark:text-green-400 font-bold text-3xl -mt-12">
+          <p className="text-center text-green-400 font-bold text-3xl -mt-12">
             🎢 Next trip in {getDaysUntil(nextTrip.startDate)} days
           </p>
         )}
@@ -131,28 +131,26 @@ export default function AboutPage() {
         {/* Toggle + Trips Section */}
         <section className="animate-fade-in-up delay-1">
           <div className="flex flex-col items-center mb-10 gap-6">
-            
+
             {/* Toggles */}
             <div className="flex justify-center gap-4">
               <button
                 onClick={() => setShowPast(false)}
                 className={`px-4 py-2 rounded-full text-sm font-medium border transition cursor-pointer
-                ${
-                  !showPast
-                    ? "bg-black text-white border-black dark:bg-white dark:text-gray-900 dark:border-white"
-                    : "bg-white text-black border-gray-300 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:border-white/10 dark:hover:bg-gray-700"
-                }`}
+                ${!showPast
+                    ? "bg-white text-slate-900 border-white shadow-sm"
+                    : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+                  }`}
               >
                 Upcoming Trips
               </button>
               <button
                 onClick={() => setShowPast(true)}
                 className={`px-4 py-2 rounded-full text-sm font-medium border transition cursor-pointer
-                ${
-                  showPast
-                    ? "bg-black text-white border-black dark:bg-white dark:text-gray-900 dark:border-white"
-                    : "bg-white text-black border-gray-300 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:border-white/10 dark:hover:bg-gray-700"
-                }`}
+                ${showPast
+                    ? "bg-white text-slate-900 border-white shadow-sm"
+                    : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+                  }`}
               >
                 Past Trips
               </button>
@@ -165,7 +163,7 @@ export default function AboutPage() {
                   setEditingTrip(undefined);
                   setShowModal(true);
                 }}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow-lg transition cursor-pointer"
+                className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded shadow-lg transition cursor-pointer"
               >
                 + Add New Trip
               </button>
@@ -174,7 +172,7 @@ export default function AboutPage() {
 
           {isLoading ? (
             <div className="flex justify-center items-center py-10">
-              <p className="text-lg text-gray-500 dark:text-gray-400 font-medium animate-pulse">
+              <p className="text-lg text-slate-400 font-medium animate-pulse">
                 Loading trips...
               </p>
             </div>
@@ -183,16 +181,16 @@ export default function AboutPage() {
               {/* Dated Trips First */}
               {Object.entries(grouped).map(([year, yearTrips]) => (
                 <div key={year} className="space-y-4">
-                  <h3 className="text-2xl font-bold text-center text-gray-800 dark:text-white">
+                  <h3 className="text-2xl font-bold text-center text-white">
                     {year}
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {yearTrips.map((trip) => (
-                      <TripCard 
-                        key={trip.id} 
-                        trip={trip} 
-                        isAdminMode={isAdminMode} 
-                        onEdit={handleEditTrip} 
+                      <TripCard
+                        key={trip.id}
+                        trip={trip}
+                        isAdminMode={isAdminMode}
+                        onEdit={handleEditTrip}
                       />
                     ))}
                   </div>
@@ -202,16 +200,16 @@ export default function AboutPage() {
               {/* Undecided Trips Last */}
               {undecidedTrips.length > 0 && (
                 <div className="space-y-4 pt-10">
-                  <h3 className="text-2xl font-bold text-center text-gray-800 dark:text-white">
+                  <h3 className="text-2xl font-bold text-center text-white">
                     As Soon As Possible
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {undecidedTrips.map((trip) => (
-                      <TripCard 
-                        key={trip.id} 
-                        trip={trip} 
-                        isAdminMode={isAdminMode} 
-                        onEdit={handleEditTrip} 
+                      <TripCard
+                        key={trip.id}
+                        trip={trip}
+                        isAdminMode={isAdminMode}
+                        onEdit={handleEditTrip}
                       />
                     ))}
                   </div>

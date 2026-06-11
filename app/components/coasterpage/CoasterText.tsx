@@ -25,7 +25,6 @@ const CoasterText: React.FC<Props> = ({ coasterId, initialTexts, refreshTexts })
   const [editingText, setEditingText] = useState<CoasterTextEntry | null>(null);
   const [draggingId, setDraggingId] = useState<number | null>(null);
 
-  // Sync local state when parent fetches new data
   useEffect(() => {
     setTexts(initialTexts);
   }, [initialTexts]);
@@ -56,7 +55,7 @@ const CoasterText: React.FC<Props> = ({ coasterId, initialTexts, refreshTexts })
           texts.map((t, i) => ({ id: t.id, order: i }))
         ),
       });
-      refreshTexts(); // Notify parent of the new order
+      refreshTexts();
     } catch (err) {
       console.error("Failed to update text order:", err);
     }
@@ -69,7 +68,7 @@ const CoasterText: React.FC<Props> = ({ coasterId, initialTexts, refreshTexts })
         <div className="flex justify-end mb-6">
           <button
             onClick={() => setModalOpen(true)}
-            className="px-4 py-2 text-sm font-medium rounded bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-colors cursor-pointer"
+            className="px-4 py-2 text-sm font-medium rounded bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-colors cursor-pointer"
           >
             + Add Section
           </button>
@@ -77,7 +76,7 @@ const CoasterText: React.FC<Props> = ({ coasterId, initialTexts, refreshTexts })
       )}
 
       {!texts.length ? (
-        <p className="text-gray-500 italic dark:text-gray-400">
+        <p className="text-slate-500 italic">
           No experience description available yet.
         </p>
       ) : (
@@ -92,7 +91,7 @@ const CoasterText: React.FC<Props> = ({ coasterId, initialTexts, refreshTexts })
               className={`
                 relative group transition-all duration-200
                 ${isAdminMode
-                  ? "p-4 mb-4 border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-move rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+                  ? "p-4 mb-4 border-2 border-dashed border-slate-700 cursor-move rounded-lg hover:bg-slate-800"
                   : "mb-8 last:mb-0"
                 }
               `}
@@ -102,7 +101,7 @@ const CoasterText: React.FC<Props> = ({ coasterId, initialTexts, refreshTexts })
                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     title="Edit"
-                    className="p-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-600"
+                    className="p-1.5 bg-slate-700 text-slate-300 rounded hover:bg-blue-900 hover:text-blue-400"
                     onClick={() => setEditingText(entry)}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
@@ -115,20 +114,20 @@ const CoasterText: React.FC<Props> = ({ coasterId, initialTexts, refreshTexts })
               {/* Content */}
               <div>
                 {entry.headline && (
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
+                  <h3 className="text-xl font-bold text-white mb-3">
                     {entry.headline}
                   </h3>
                 )}
                 {entry.text && (
-                  <p className="whitespace-pre-wrap leading-relaxed text-base text-gray-700 dark:text-gray-300">
+                  <p className="whitespace-pre-wrap leading-relaxed text-base text-slate-300">
                     {entry.text}
                   </p>
                 )}
               </div>
 
-              {/* Separator Line (Visible only in public mode, and not on the last item) */}
+              {/* Separator Line */}
               {!isAdminMode && index !== texts.length - 1 && (
-                <div className="mt-8 border-b border-gray-200 dark:border-gray-800 w-full" />
+                <div className="mt-8 border-b border-slate-800 w-full" />
               )}
             </div>
           ))}

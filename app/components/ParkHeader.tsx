@@ -14,7 +14,7 @@ interface ParkHeaderProps {
 const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [showToast, setShowToast] = useState(false); 
+  const [showToast, setShowToast] = useState(false);
 
   // Auto-hide toast after 3 seconds
   useEffect(() => {
@@ -31,8 +31,8 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
 
   return (
     <>
-      <div className="relative w-full aspect-[16/8] md:aspect-[16/4] max-h-screen overflow-hidden bg-gray-200 dark:bg-gray-800">
-        
+      <div className="relative w-full aspect-[16/8] md:aspect-[16/4] max-h-screen overflow-hidden bg-slate-800">
+
         {/* LAYER 1: The Clickable Background Image */}
         <div
           className="absolute inset-0 cursor-pointer group"
@@ -43,9 +43,8 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
             alt={park.name}
             focusStr={park.headerFocus}
             className="absolute inset-0"
-            imgClassName={`transition-all duration-700 group-hover:scale-105 ${
-              imageLoaded ? "opacity-100" : "opacity-0"
-            }`}
+            imgClassName={`transition-all duration-700 group-hover:scale-105 ${imageLoaded ? "opacity-100" : "opacity-0"
+              }`}
             priority
             onLoad={() => setImageLoaded(true)}
           />
@@ -65,7 +64,7 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
         {/* LAYER 3: Admin UI */}
         {isAdminMode && (
           <div className="absolute top-4 right-4 z-50">
-            <button 
+            <button
               onClick={(e) => { e.stopPropagation(); setShowModal(true); }}
               className="p-2 bg-black/60 hover:bg-blue-600 text-white border border-white/20 rounded-md transition-all backdrop-blur-md shadow-2xl cursor-pointer pointer-events-auto"
             >
@@ -77,10 +76,9 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
         )}
 
         {/* Success Toast Notification */}
-        <div 
-          className={`absolute top-4 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-full shadow-2xl transition-all duration-500 pointer-events-none ${
-            showToast ? "translate-y-0 opacity-100" : "-translate-y-10 opacity-0"
-          }`}
+        <div
+          className={`absolute top-4 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-full shadow-2xl transition-all duration-500 pointer-events-none ${showToast ? "translate-y-0 opacity-100" : "-translate-y-10 opacity-0"
+            }`}
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
             <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />

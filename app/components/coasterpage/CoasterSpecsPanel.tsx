@@ -42,12 +42,12 @@ const SpecRow = ({ label, value, unit = "", isAdmin }: SpecRowProps) => {
   const displayUnit = isEmpty ? "" : unit;
 
   return (
-    <div className={`flex justify-between items-baseline py-2 border-b border-gray-100 dark:border-gray-800 last:border-0 ${isEmpty ? "opacity-60" : ""}`}>
-      <span className="text-sm font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide">
+    <div className={`flex justify-between items-baseline py-2 border-b border-slate-800 last:border-0 ${isEmpty ? "opacity-60" : ""}`}>
+      <span className="text-sm font-medium text-slate-500 uppercase tracking-wide">
         {label}
       </span>
-      <span className="text-base font-semibold text-gray-900 dark:text-gray-200 text-right">
-        {displayValue} <span className="text-xs text-gray-400 font-normal ml-0.5">{displayUnit}</span>
+      <span className="text-base font-semibold text-slate-200 text-right">
+        {displayValue} <span className="text-xs text-slate-400 font-normal ml-0.5">{displayUnit}</span>
       </span>
     </div>
   );
@@ -67,17 +67,16 @@ const CoasterSpecsPanel: React.FC<CoasterSpecsPanelProps> = ({ specs: initialSpe
   // Parse and sort tags based on TAG_ORDER
   const getSortedTags = () => {
     if (!displaySpecs.classification) return [];
-    
+
     const tags = displaySpecs.classification.split("|").map(t => t.trim()).filter(Boolean);
-    
+
     return tags.sort((a, b) => {
       const indexA = TAG_ORDER.indexOf(a);
       const indexB = TAG_ORDER.indexOf(b);
-      
-      // If a tag isn't in our predefined order, move it to the end
+
       const finalA = indexA === -1 ? 999 : indexA;
       const finalB = indexB === -1 ? 999 : indexB;
-      
+
       return finalA - finalB;
     });
   };
@@ -88,11 +87,11 @@ const CoasterSpecsPanel: React.FC<CoasterSpecsPanelProps> = ({ specs: initialSpe
     <>
       <div className="flex flex-col w-full relative group">
         <div className="flex justify-between items-center px-2 mb-2">
-          <h3 className="text-m text-gray-900 dark:text-white uppercase tracking-tight">Specifications</h3>
+          <h3 className="text-m text-white uppercase tracking-tight">Specifications</h3>
           {isAdminMode && (
             <button
               onClick={() => setIsModalOpen(true)}
-              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-gray-800 rounded-md transition-colors cursor-pointer"
+              className="p-2 text-slate-500 hover:text-blue-400 hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
@@ -105,9 +104,9 @@ const CoasterSpecsPanel: React.FC<CoasterSpecsPanelProps> = ({ specs: initialSpe
         {sortedTags.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-6">
             {sortedTags.map((tag) => (
-              <span 
-                key={tag} 
-                className="px-3 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-widest rounded-full border border-blue-100 dark:border-blue-800/50"
+              <span
+                key={tag}
+                className="px-3 py-1 bg-blue-900/20 text-blue-400 text-[10px] font-bold uppercase tracking-widest rounded-full border border-blue-800/50"
               >
                 {tag}
               </span>
@@ -127,12 +126,12 @@ const CoasterSpecsPanel: React.FC<CoasterSpecsPanelProps> = ({ specs: initialSpe
         <SpecRow label="Duration" value={displaySpecs.duration} unit="sec" isAdmin={isAdminMode} />
 
         {(displaySpecs.notes || isAdminMode) && (
-          <div className="pt-3 mt-1 border-t border-gray-100 dark:border-gray-800">
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-wide block mb-1">
+          <div className="pt-3 mt-1 border-t border-slate-800">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1">
               Notes
             </span>
-            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed min-h-[1.25rem]">
-              {displaySpecs.notes || (isAdminMode ? <span className="text-gray-300 italic">No notes added...</span> : null)}
+            <p className="text-sm text-slate-400 leading-relaxed min-h-[1.25rem]">
+              {displaySpecs.notes || (isAdminMode ? <span className="text-slate-600 italic">No notes added...</span> : null)}
             </p>
           </div>
         )}

@@ -81,7 +81,8 @@ const Header = () => {
         ${isAnimating || !isVisible ? "overflow-hidden" : "overflow-visible"}
       `}
     >
-      <header className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-4 md:py-6 px-4 md:px-6 relative animate-fade-in">
+      {/* 1. Locked header to slate-900 background and slate-100 text */}
+      <header className="w-full bg-slate-900 text-slate-100 py-4 md:py-6 px-4 md:px-6 relative animate-fade-in">
         <div className="relative grid grid-cols-2 items-center gap-x-3 lg:flex lg:items-center lg:justify-between">
           <div className="relative -ml-2 md:ml-0 h-14 sm:h-16 md:h-20 lg:h-20 w-36 sm:w-44 md:w-52 lg:w-56 z-10">
             <Link
@@ -89,19 +90,13 @@ const Header = () => {
               aria-label="Go to homepage"
               className="block h-full w-full"
             >
-              <Image
-                src="/logos/logolight.svg"
-                alt="Parkrating Logo"
-                fill
-                priority
-                className="object-contain dark:hidden"
-              />
+              {/* 2. Removed light-mode logo completely, keeping only the dark background logo */}
               <Image
                 src="/logos/logodark.svg"
                 alt="Parkrating Logo"
                 fill
                 priority
-                className="object-contain hidden dark:block"
+                className="object-contain"
               />
             </Link>
           </div>
@@ -122,7 +117,7 @@ const Header = () => {
             <Link
               href="/about"
               className={`
-                text-[#e9820e] dark:text-[#e9820e] font-semibold hover:underline whitespace-nowrap truncate px-2 leading-none
+                text-[#e9820e] font-semibold hover:underline whitespace-nowrap truncate px-2 leading-none
                 text-xs sm:text-sm lg:text-base xl:text-base
                 block text-center max-w-[90vw] lg:max-w-[50vw] xl:max-w-[60vw]
                 ${isLoading ? "opacity-0" : "opacity-100 transition-opacity duration-300"}
@@ -137,9 +132,10 @@ const Header = () => {
         {/* Parks Under Review */}
         {underReviewParks.length > 0 && (
           <div className="hidden md:flex absolute bottom-1 left-0 w-full justify-center pointer-events-none z-0">
+            {/* 3. Locked to a clean, readable dark mode slate text state */}
             <span
               className={`
-                italic text-gray-400 dark:text-gray-500 font-medium whitespace-nowrap truncate px-4 leading-none
+                italic text-slate-500 font-medium whitespace-nowrap truncate px-4 leading-none
                 text-[10px] sm:text-xs lg:text-sm tracking-wide
                 ${isLoading ? "opacity-0" : "opacity-100 transition-opacity duration-300 delay-100"}
               `}

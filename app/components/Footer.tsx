@@ -3,23 +3,23 @@ const FACEBOOK_URL = "https://www.facebook.com/profile.php?id=61587368730086";
 
 export default function Footer() {
   return (
-    <footer className="border-t border-gray-200 bg-white pt-4 dark:border-white/10 dark:bg-[#0f172a] md:pt-6">
+    <footer className="border-t border-slate-800 bg-[#0f172a] pt-4 md:pt-6">
       <div className="mx-auto w-full max-w-7xl px-4 pb-3 md:px-6 md:pb-8">
         <div className="grid gap-8 text-center md:grid-cols-2 md:items-start md:text-left">
           {/* Left: Contact + CVR */}
           <div className="space-y-2">
             {/* Brand */}
-            <div className="font-extrabold tracking-tight leading-none text-slate-900 dark:text-slate-100 text-lg sm:text-xl">
+            <div className="font-extrabold tracking-tight leading-none text-slate-100 text-lg sm:text-xl">
               Parkrating
             </div>
 
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              CVR: <span className="font-medium">46141822</span>
+            <div className="text-sm text-slate-400">
+              CVR: <span className="font-medium text-slate-300">46141822</span>
             </div>
 
             <a
               href="mailto:info@parkrating.com"
-              className="inline-flex items-center justify-center gap-2 text-sm text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white md:justify-start"
+              className="inline-flex items-center justify-center gap-2 text-sm text-slate-400 hover:text-white md:justify-start transition-colors"
             >
               <MailIcon className="h-4 w-4" />
               info@parkrating.com
@@ -28,7 +28,7 @@ export default function Footer() {
 
           {/* Right: Social */}
           <div className="space-y-3 md:text-right">
-            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            <div className="text-sm font-semibold text-slate-200">
               Follow Us
             </div>
 
@@ -38,7 +38,7 @@ export default function Footer() {
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Instagram"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-800 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-white/5 dark:text-gray-100"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-800/50 text-slate-300 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:text-white hover:border-slate-600 cursor-pointer"
               >
                 <InstagramIcon className="h-5 w-5" />
               </a>
@@ -48,13 +48,13 @@ export default function Footer() {
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Facebook"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-800 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-white/5 dark:text-gray-100"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-800/50 text-slate-300 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:text-white hover:border-slate-600 cursor-pointer"
               >
                 <FacebookIcon className="h-5 w-5" />
               </a>
             </div>
 
-            <div className="text-xs text-gray-500 dark:text-gray-400">
+            <div className="text-xs text-slate-500">
               © {new Date().getFullYear()} Parkrating
             </div>
           </div>

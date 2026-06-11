@@ -16,18 +16,18 @@ type Mode = "header" | "card" | "categories";
 
 const CARD_CATS: { key: CardCatKey; emoji: string; label: string }[] = [
   { key: "coasters", emoji: "🎢", label: "Coasters" },
-  { key: "rides",    emoji: "🎡", label: "Rides"    },
-  { key: "park",     emoji: "🏞️", label: "Park"     },
-  { key: "food",     emoji: "🍔", label: "Food"     },
-  { key: "mgmt",     emoji: "📋", label: "Mgmt"     },
+  { key: "rides", emoji: "🎡", label: "Rides" },
+  { key: "park", emoji: "🏞️", label: "Park" },
+  { key: "food", emoji: "🍔", label: "Food" },
+  { key: "mgmt", emoji: "📋", label: "Mgmt" },
 ];
 
 const CARD_PREVIEW_GROUPS = [
   { emoji: "🎢", label: "Coasters", value: "8.5" },
-  { emoji: "🎡", label: "Rides",    value: "7.3" },
-  { emoji: "🏞️", label: "Park",     value: "9.0" },
-  { emoji: "🍔", label: "Food",     value: "7.8" },
-  { emoji: "📋", label: "Mgmt",     value: "8.3" },
+  { emoji: "🎡", label: "Rides", value: "7.3" },
+  { emoji: "🏞️", label: "Park", value: "9.0" },
+  { emoji: "🍔", label: "Food", value: "7.8" },
+  { emoji: "📋", label: "Mgmt", value: "8.3" },
 ];
 
 export interface ParkHeaderModalProps {
@@ -45,16 +45,6 @@ export interface ParkHeaderModalProps {
 }
 
 // ─── CropEditor ───────────────────────────────────────────────────────────────
-//
-// Zoom fix: toFocusStr converts the current zoomed view to the equivalent
-// objectPosition at zoom=1 (cover scale) by preserving the centre point.
-//
-// Formula derivation:
-//   cx (image fraction) = 0.5 - tx / (nw * totalScale)
-//   objectPosition X%   = 50  - 100 * tx / (exW1 * zoom)
-//   where exW1 = nw * coverScale - containerW  (excess at zoom=1)
-//
-// Pinch+drag: tracks midpoint of 2 fingers for simultaneous pan+zoom.
 
 export interface CropEditorProps {
   src: string;
@@ -69,10 +59,10 @@ export interface CropEditorProps {
 
 export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, className = "", children, maxZoom = 4 }: CropEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const imgRef       = useRef<HTMLImageElement>(null);
-  const commitRef    = useRef(onCommit);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const commitRef = useRef(onCommit);
   useEffect(() => { commitRef.current = onCommit; });
-  // Expose getFocus() so the save button can read the live state without waiting for debounce
+
   useEffect(() => {
     if (editorRef) editorRef.current = { getFocus: () => toFocusStr() };
     return () => { if (editorRef) editorRef.current = null; };
@@ -80,8 +70,8 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, cl
 
   const nw = useRef(0);
   const nh = useRef(0);
-  const tx   = useRef(0);
-  const ty   = useRef(0);
+  const tx = useRef(0);
+  const ty = useRef(0);
   const zoom = useRef(1);
 
   function coverScale() {
@@ -95,36 +85,31 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, cl
   function clampTxy(dtx: number, dty: number, s = totalScale()) {
     const c = containerRef.current;
     if (!c) return { tx: dtx, ty: dty };
-    const mx = Math.max(0, (nw.current * s - c.clientWidth)  / 2);
+    const mx = Math.max(0, (nw.current * s - c.clientWidth) / 2);
     const my = Math.max(0, (nh.current * s - c.clientHeight) / 2);
     return { tx: clamp(dtx, -mx, mx), ty: clamp(dty, -my, my) };
   }
 
   function applyDOM(s = totalScale()) {
     const img = imgRef.current;
-    const c   = containerRef.current;
+    const c = containerRef.current;
     if (!img || !c || !nw.current) return;
     const w = nw.current * s, h = nh.current * s;
-    img.style.width     = `${w}px`;
-    img.style.height    = `${h}px`;
+    img.style.width = `${w}px`;
+    img.style.height = `${h}px`;
     img.style.transform = `translate(${(c.clientWidth - w) / 2 + tx.current}px,${(c.clientHeight - h) / 2 + ty.current}px)`;
   }
 
-  // Encodes current editor state as "cx cy zoom" where cx,cy ∈ [0,1] are the
-  // fractions of image width/height at the container centre. This works for all
-  // aspect-ratio combos, including when excessW=0 at zoom=1.
   function toFocusStr() {
     const c = containerRef.current;
     if (!c || !nw.current) return "0.5000 0.5000 1.000";
-    const z  = zoom.current;
+    const z = zoom.current;
     const ts = coverScale() * z;
     const cx = clamp(0.5 - tx.current / (nw.current * ts), 0, 1);
     const cy = clamp(0.5 - ty.current / (nh.current * ts), 0, 1);
     return `${cx.toFixed(4)} ${cy.toFixed(4)} ${z.toFixed(3)}`;
   }
 
-  // Inverse of toFocusStr — sets tx/ty from a saved focus string.
-  // Must be called AFTER zoom.current is set.
   function fromFocusStr(f: string) {
     const parts = (f || "0.5 0.5 1").split(" ");
     const c = containerRef.current;
@@ -132,10 +117,9 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, cl
     const ts = coverScale() * zoom.current;
     let cx: number, cy: number;
     if (parts[0]?.includes("%")) {
-      // Old "X% Y% zoom" format: convert via the zoom=1 excess formula
       const xPct = parseFloat(parts[0]) || 50;
       const yPct = parseFloat(parts[1]) || 50;
-      const cs   = coverScale();
+      const cs = coverScale();
       const ex1w = Math.max(0, nw.current * cs - c.clientWidth);
       const ex1h = Math.max(0, nh.current * cs - c.clientHeight);
       const oldTx = (0.5 - xPct / 100) * ex1w * zoom.current;
@@ -169,14 +153,12 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, cl
     return () => { cancelled = true; tmp.onload = null; };
   }, [src]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Native pointer events only ─────────────────────────────────────────────
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
     const ptrs = new Map<number, { x: number; y: number }>();
     let drag: { x0: number; y0: number; tx0: number; ty0: number } | null = null;
-    // Pinch tracks initial distance, zoom, midpoint and pan for simultaneous pinch+drag
     let pinch: { d0: number; z0: number; mx0: number; my0: number; tx0: number; ty0: number } | null = null;
     let wheelTimer = 0;
 
@@ -184,8 +166,8 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, cl
       const ids = Array.from(ptrs.keys());
       const a = ptrs.get(ids[0])!, b = ptrs.get(ids[1])!;
       pinch = {
-        d0:  Math.hypot(a.x - b.x, a.y - b.y),
-        z0:  zoom.current,
+        d0: Math.hypot(a.x - b.x, a.y - b.y),
+        z0: zoom.current,
         mx0: (a.x + b.x) / 2,
         my0: (a.y + b.y) / 2,
         tx0: tx.current,
@@ -211,11 +193,10 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, cl
       if (pinch && ptrs.size >= 2) {
         const ids = Array.from(ptrs.keys());
         const a = ptrs.get(ids[0])!, b = ptrs.get(ids[1])!;
-        const d  = Math.hypot(a.x - b.x, a.y - b.y);
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
         const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
         const newZ = clamp(pinch.z0 * (d / pinch.d0), 1, maxZoom);
         zoom.current = newZ;
-        // simultaneous pan from midpoint movement
         const { tx: ntx, ty: nty } = clampTxy(
           pinch.tx0 + (mx - pinch.mx0),
           pinch.ty0 + (my - pinch.my0),
@@ -258,25 +239,25 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, cl
       wheelTimer = window.setTimeout(() => commitRef.current(toFocusStr()), 250);
     }
 
-    el.addEventListener("pointerdown",   onPointerDown,  { passive: false });
-    el.addEventListener("pointermove",   onPointerMove,  { passive: false });
-    el.addEventListener("pointerup",     onPointerUp);
+    el.addEventListener("pointerdown", onPointerDown, { passive: false });
+    el.addEventListener("pointermove", onPointerMove, { passive: false });
+    el.addEventListener("pointerup", onPointerUp);
     el.addEventListener("pointercancel", onPointerUp);
-    el.addEventListener("wheel",         onWheel,        { passive: false });
+    el.addEventListener("wheel", onWheel, { passive: false });
     return () => {
       clearTimeout(wheelTimer);
-      el.removeEventListener("pointerdown",   onPointerDown);
-      el.removeEventListener("pointermove",   onPointerMove);
-      el.removeEventListener("pointerup",     onPointerUp);
+      el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerup", onPointerUp);
       el.removeEventListener("pointercancel", onPointerUp);
-      el.removeEventListener("wheel",         onWheel);
+      el.removeEventListener("wheel", onWheel);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div
       ref={containerRef}
-      className={`relative overflow-hidden bg-gray-800 cursor-grab active:cursor-grabbing select-none touch-none ${className}`}
+      className={`relative overflow-hidden bg-slate-900 cursor-grab active:cursor-grabbing select-none touch-none ${className}`}
       style={aspectRatio ? { aspectRatio } : { flex: 1, minHeight: 0 }}
     >
       {src && (
@@ -330,7 +311,7 @@ function CardOverlay({ parkName, parkCountry, overall }: { parkName: string; par
   </>;
 }
 
-// ─── Gallery view (replaces content area) ────────────────────────────────────
+// ─── Gallery view ────────────────────────────────────────────────────────────
 
 function GalleryView({
   images, loading, isSelected, onClick, onBack,
@@ -348,18 +329,17 @@ function GalleryView({
     <div className="flex-1 min-h-0 flex flex-col p-4 gap-3">
       <div className="flex items-center justify-between flex-shrink-0">
         <button onClick={onBack}
-          className="flex items-center gap-1.5 text-sm font-bold text-gray-400 hover:text-white transition-colors cursor-pointer">
+          className="flex items-center gap-1.5 text-sm font-bold text-slate-400 hover:text-white transition-colors cursor-pointer">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
           Back to editor
         </button>
         {onUpload && (
-          <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border cursor-pointer text-xs font-bold transition-all relative overflow-hidden ${
-            uploadProgress !== null
+          <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border cursor-pointer text-xs font-bold transition-all relative overflow-hidden ${uploadProgress !== null
               ? "border-blue-400 text-blue-400"
-              : "border-gray-700 text-gray-400 hover:border-blue-400 hover:text-blue-400"
-          }`}>
+              : "border-slate-700 text-slate-400 hover:border-blue-400 hover:text-blue-400"
+            }`}>
             {uploadProgress !== null && (
               <div className="absolute inset-0 bg-blue-900/40 transition-all" style={{ width: `${uploadProgress}%` }} />
             )}
@@ -382,9 +362,8 @@ function GalleryView({
               const sel = isSelected(img);
               return (
                 <div key={img.id} onClick={() => onClick(img)}
-                  className={`relative aspect-video rounded-xl overflow-hidden cursor-pointer border-2 transition-all group ${
-                    sel ? "border-blue-500 ring-2 ring-blue-500/20" : "border-transparent hover:border-blue-400"
-                  }`}>
+                  className={`relative aspect-video rounded-xl overflow-hidden cursor-pointer border-2 transition-all group ${sel ? "border-blue-500 ring-2 ring-blue-500/20" : "border-transparent hover:border-blue-400"
+                    }`}>
                   <Image src={img.path} alt="" fill className="object-cover" unoptimized />
                   {sel && <div className="absolute inset-0 bg-blue-600/25 flex items-center justify-center">
                     <div className="w-7 h-7 rounded-full bg-blue-600 shadow flex items-center justify-center">
@@ -413,9 +392,9 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   overall, onClose, onSuccess,
 }) => {
   useScrollLock();
-  const [mode, setMode]               = useState<Mode>("header");
+  const [mode, setMode] = useState<Mode>("header");
   const [galleryOpen, setGalleryOpen] = useState(false);
-  const [isMobile, setIsMobile]       = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
@@ -423,17 +402,17 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
     return () => window.removeEventListener("resize", check);
   }, []);
   const headerEditorRef = useRef<{ getFocus: () => string } | null>(null);
-  const cardEditorRef   = useRef<{ getFocus: () => string } | null>(null);
-  const catEditorRef    = useRef<{ getFocus: () => string } | null>(null);
-  const [images, setImages]           = useState<GalleryImage[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [saving, setSaving]           = useState(false);
+  const cardEditorRef = useRef<{ getFocus: () => string } | null>(null);
+  const catEditorRef = useRef<{ getFocus: () => string } | null>(null);
+  const [images, setImages] = useState<GalleryImage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
-  const [headerPath,  setHeaderPath]  = useState(currentImagePath ?? "");
+  const [headerPath, setHeaderPath] = useState(currentImagePath ?? "");
   const [headerFocus, setHeaderFocus] = useState(currentHeaderFocus ?? "50% 50%");
-  const [cardPath,    setCardPath]    = useState<string | null>(currentCardImagepath ?? null);
-  const [cardFocus,   setCardFocus]   = useState(currentFocus ?? "50% 50%");
+  const [cardPath, setCardPath] = useState<string | null>(currentCardImagepath ?? null);
+  const [cardFocus, setCardFocus] = useState(currentFocus ?? "50% 50%");
   const [cardEntries, setCardEntries] = useState<CardImagesMap>({
     coasters: { src: currentImagePath ?? "", focus: currentFocus ?? "50% 50%" },
     ...currentCardImages,
@@ -441,8 +420,8 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   const [activeCatKey, setActiveCatKey] = useState<CardCatKey>("coasters");
 
   const effectiveCardPath = cardPath ?? headerPath;
-  const activeEntry       = cardEntries[activeCatKey] ?? { src: "", focus: "50% 50%" };
-  const displayOverall    = overall ?? 8.5;
+  const activeEntry = cardEntries[activeCatKey] ?? { src: "", focus: "50% 50%" };
+  const displayOverall = overall ?? 8.5;
 
   useEffect(() => {
     fetch(`/api/park/${parkId}/gallery`)
@@ -465,8 +444,8 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   }
 
   function isSelected(img: GalleryImage) {
-    if (mode === "header")     return img.path === headerPath;
-    if (mode === "card")       return img.path === effectiveCardPath;
+    if (mode === "header") return img.path === headerPath;
+    if (mode === "card") return img.path === effectiveCardPath;
     return img.path === (cardEntries[activeCatKey]?.src ?? "");
   }
 
@@ -497,18 +476,15 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
     try {
       const body: Record<string, unknown> = {};
       if (mode === "header") {
-        body.imagepath   = headerPath;
+        body.imagepath = headerPath;
         body.headerFocus = headerEditorRef.current?.getFocus() ?? headerFocus;
-        // If no explicit card image is set, freeze it to the old header so
-        // changing the header doesn't silently change the card too.
         if (cardPath === null && currentCardImagepath == null && headerPath !== currentImagePath) {
           body.cardImagepath = currentImagePath;
         }
       } else if (mode === "card") {
         body.cardImagepath = cardPath;
-        body.imageFocus    = cardEditorRef.current?.getFocus() ?? cardFocus;
+        body.imageFocus = cardEditorRef.current?.getFocus() ?? cardFocus;
       } else {
-        // Commit the active category's latest state before saving
         const latestFocus = catEditorRef.current?.getFocus();
         body.cardImages = latestFocus
           ? { ...cardEntries, [activeCatKey]: { ...cardEntries[activeCatKey] ?? { src: "" }, focus: latestFocus } }
@@ -529,33 +505,32 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-start md:items-center justify-center bg-black/80 backdrop-blur-sm pt-3 md:pt-0 md:p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-7xl h-[97dvh] md:h-[92vh] flex flex-col overflow-hidden shadow-2xl border border-white/10">
+      <div className="bg-slate-900 rounded-2xl w-full max-w-7xl h-[97dvh] md:h-[92vh] flex flex-col overflow-hidden shadow-2xl border border-slate-700">
 
         {/* Top bar */}
-        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
+        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-800 flex-shrink-0">
           {galleryOpen ? (
-            <span className="text-sm font-bold text-gray-500 dark:text-gray-400">Select image</span>
+            <span className="text-sm font-bold text-slate-400">Select image</span>
           ) : (
             <>
-              <span className="font-bold text-sm text-gray-900 dark:text-white truncate hidden sm:block">{parkName}</span>
-              <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 gap-0.5">
+              <span className="font-bold text-sm text-white truncate hidden sm:block">{parkName}</span>
+              <div className="flex bg-slate-800 rounded-xl p-1 gap-0.5">
                 {([
-                  { id: "header"     as Mode, label: "🏔️ Header"    },
-                  { id: "card"       as Mode, label: "📍 Card"       },
+                  { id: "header" as Mode, label: "🏔️ Header" },
+                  { id: "card" as Mode, label: "📍 Card" },
                   { id: "categories" as Mode, label: "🖼️ Categories" },
                 ] as const).map(m => (
                   <button key={m.id} onClick={() => { setMode(m.id); setGalleryOpen(false); }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                      mode === m.id
-                        ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                        : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-200"
-                    }`}>{m.label}</button>
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${mode === m.id
+                        ? "bg-slate-700 text-blue-400 shadow-sm"
+                        : "text-slate-400 hover:text-slate-200"
+                      }`}>{m.label}</button>
                 ))}
               </div>
             </>
           )}
           <button onClick={galleryOpen ? () => setGalleryOpen(false) : onClose}
-            className="ml-auto p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-white transition-colors cursor-pointer flex-shrink-0">
+            className="ml-auto p-2 rounded-full hover:bg-slate-800 text-slate-500 hover:text-white transition-colors cursor-pointer flex-shrink-0">
             <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
               <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
             </svg>
@@ -589,11 +564,11 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                 </CropEditor>
                 <div className="flex gap-3 w-full">
                   <button onClick={() => setGalleryOpen(true)}
-                    className="px-5 py-2.5 rounded-xl text-sm font-bold border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-blue-400 hover:text-blue-500 transition-all cursor-pointer">
+                    className="px-5 py-2.5 rounded-xl text-sm font-bold border border-slate-700 text-slate-300 hover:border-blue-400 hover:text-blue-400 transition-all cursor-pointer">
                     Change image
                   </button>
                   <button onClick={save} disabled={saving}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-colors cursor-pointer">
+                    className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors cursor-pointer">
                     {saving ? "Saving…" : "Save changes"}
                   </button>
                 </div>
@@ -618,7 +593,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                 </div>
                 <div className="flex gap-3 flex-shrink-0">
                   <button onClick={() => setGalleryOpen(true)}
-                    className="px-5 py-2.5 rounded-xl text-sm font-bold border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-blue-400 hover:text-blue-500 transition-all cursor-pointer">
+                    className="px-5 py-2.5 rounded-xl text-sm font-bold border border-slate-700 text-slate-300 hover:border-blue-400 hover:text-blue-400 transition-all cursor-pointer">
                     Change image
                   </button>
                   {cardPath && (
@@ -628,7 +603,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                     </button>
                   )}
                   <button onClick={save} disabled={saving}
-                    className="px-8 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-colors cursor-pointer">
+                    className="px-8 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors cursor-pointer">
                     {saving ? "Saving…" : "Save changes"}
                   </button>
                 </div>
@@ -664,13 +639,12 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                           const has = !!(cardEntries[cat.key]?.src);
                           return (
                             <button key={cat.key} onClick={() => setActiveCatKey(cat.key)}
-                              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${
-                                activeCatKey === cat.key
+                              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${activeCatKey === cat.key
                                   ? "bg-blue-600 border-blue-600 text-white"
                                   : has
-                                    ? "border-green-500 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20"
-                                    : "border-gray-300 dark:border-gray-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
-                              }`}>
+                                    ? "border-green-500 text-green-400 bg-green-900/20"
+                                    : "border-slate-700 text-slate-500 hover:bg-slate-800"
+                                }`}>
                               {cat.emoji} {cat.label}
                               {has && activeCatKey !== cat.key && <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50 ml-0.5" />}
                             </button>
@@ -679,7 +653,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                       </div>
                       <div className="flex gap-3">
                         <button onClick={() => setGalleryOpen(true)}
-                          className="px-5 py-2.5 rounded-xl text-sm font-bold border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-blue-400 hover:text-blue-500 transition-all cursor-pointer">
+                          className="px-5 py-2.5 rounded-xl text-sm font-bold border border-slate-700 text-slate-300 hover:border-blue-400 hover:text-blue-400 transition-all cursor-pointer">
                           Change image
                         </button>
                         <button onClick={() => setCardEntries(prev => { const n = { ...prev }; delete n[activeCatKey]; return n; })}
@@ -687,7 +661,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                           Remove
                         </button>
                         <button onClick={save} disabled={saving}
-                          className="px-8 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-colors cursor-pointer">
+                          className="px-8 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors cursor-pointer">
                           {saving ? "Saving…" : "Save changes"}
                         </button>
                       </div>
@@ -701,25 +675,24 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                         const has = !!(cardEntries[cat.key]?.src);
                         return (
                           <button key={cat.key} onClick={() => setActiveCatKey(cat.key)}
-                            className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${
-                              activeCatKey === cat.key
+                            className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${activeCatKey === cat.key
                                 ? "bg-blue-600 border-blue-600 text-white"
                                 : has
-                                  ? "border-green-500 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20"
-                                  : "border-gray-300 dark:border-gray-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
-                            }`}>
+                                  ? "border-green-500 text-green-400 bg-green-900/20"
+                                  : "border-slate-700 text-slate-500 hover:bg-slate-800"
+                              }`}>
                             {cat.emoji} {cat.label}
                             {has && activeCatKey !== cat.key && <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50 ml-0.5" />}
                           </button>
                         );
                       })}
                     </div>
-                    <div className="w-32 h-32 rounded-2xl border-2 border-dashed border-gray-700 flex items-center justify-center">
-                      <span className="text-gray-600 text-3xl">{CARD_CATS.find(c => c.key === activeCatKey)?.emoji}</span>
+                    <div className="w-32 h-32 rounded-2xl border-2 border-dashed border-slate-700 flex items-center justify-center">
+                      <span className="text-slate-600 text-3xl">{CARD_CATS.find(c => c.key === activeCatKey)?.emoji}</span>
                     </div>
-                    <p className="text-sm text-gray-400">No image for <strong className="text-gray-300">{CARD_CATS.find(c => c.key === activeCatKey)?.label}</strong></p>
+                    <p className="text-sm text-slate-400">No image for <strong className="text-slate-300">{CARD_CATS.find(c => c.key === activeCatKey)?.label}</strong></p>
                     <button onClick={() => setGalleryOpen(true)}
-                      className="px-5 py-2.5 rounded-xl text-sm font-bold border border-gray-700 text-gray-300 hover:border-blue-400 hover:text-blue-400 transition-all cursor-pointer">
+                      className="px-5 py-2.5 rounded-xl text-sm font-bold border border-slate-700 text-slate-300 hover:border-blue-400 hover:text-blue-400 transition-all cursor-pointer">
                       Browse gallery
                     </button>
                   </div>

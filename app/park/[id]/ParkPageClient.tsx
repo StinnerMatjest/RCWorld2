@@ -159,7 +159,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
         for (const item of explanationsData) {
           if (!item.ratingId || item.ratingId === activeRatingId) {
             explanationMap[item.category] = item.text;
-            if (item.imageUrl)    imageMap[item.category]  = item.imageUrl;
+            if (item.imageUrl) imageMap[item.category] = item.imageUrl;
             if (item.imageLayout) layoutMap[item.category] = item.imageLayout;
           }
         }
@@ -237,7 +237,8 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
         isAdminMode={isAdminMode}
         onUpdate={fetchParkData}
       />
-      <div className="grid grid-cols-1 md:grid-cols-[1.4fr_5.5fr_3.5fr] [@media(min-width:2560px)]:grid-cols-[1.8fr_6fr_3.5fr] gap-6 w-full py-10 px-6 md:px-20 bg-base-200 dark:bg-gray-900">
+      {/* Locked background grid to #0f172a */}
+      <div className="grid grid-cols-1 md:grid-cols-[1.4fr_5.5fr_3.5fr] [@media(min-width:2560px)]:grid-cols-[1.8fr_6fr_3.5fr] gap-6 w-full py-10 px-6 md:px-20 bg-[#0f172a]">
         <div className="self-start md:sticky md:top-6 min-w-0 space-y-4">
           <VisitPanel
             ratings={visibleRatings}
@@ -253,14 +254,14 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
         <div className="space-y-8">
           <div>
             <div className="flex items-center justify-between">
-              <h2 className="text-4xl font-bold dark:text-white tracking-tight">Introduction</h2>
+              <h2 className="text-4xl font-bold text-white tracking-tight">Introduction</h2>
 
               {/* Edit Rating Button */}
               {isAdminMode && visibleRatings.length > 0 && (
                 <Link
                   href={`?modal=true&pendingParkId=${park.id}`}
                   scroll={false}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-colors shadow-sm cursor-pointer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg transition-colors shadow-sm cursor-pointer"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
@@ -271,9 +272,11 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
             </div>
 
             <div className="w-12 h-1 bg-blue-500 rounded-full mt-3 mb-4" />
+
+            {/* THIS FIXES THE INVISIBLE INTRODUCTION TEXT */}
             <MarkdownText
               text={explanations.description ?? "No description available."}
-              className="text-gray-700 dark:text-gray-400 text-base leading-relaxed"
+              className="text-slate-400 text-base leading-relaxed"
             />
           </div>
 

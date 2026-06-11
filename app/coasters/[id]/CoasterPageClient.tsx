@@ -19,12 +19,12 @@ import { ArrowLeft } from "lucide-react";
 
 // --- Skeleton Loader ---
 const CoasterSkeleton = () => (
-  <div className="min-h-screen bg-gray-50 dark:bg-slate-900 pb-20 font-sans animate-pulse">
+  <div className="min-h-screen bg-slate-900 pb-20 font-sans animate-pulse">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-      <div className="flex flex-col lg:flex-row justify-between items-end gap-6 mb-8 pb-6 border-b border-gray-200 dark:border-gray-800">
+      <div className="flex flex-col lg:flex-row justify-between items-end gap-6 mb-8 pb-6 border-b border-slate-800">
         <div className="w-full">
-          <div className="h-12 sm:h-16 md:h-24 bg-gray-200 dark:bg-gray-800 rounded-lg w-3/4 md:w-1/2 mb-4"></div>
-          <div className="h-6 sm:h-8 w-48 sm:w-64 bg-gray-200 dark:bg-gray-800 rounded-full"></div>
+          <div className="h-12 sm:h-16 md:h-24 bg-slate-800 rounded-lg w-3/4 md:w-1/2 mb-4"></div>
+          <div className="h-6 sm:h-8 w-48 sm:w-64 bg-slate-800 rounded-full"></div>
         </div>
 
         <div className="flex items-end gap-6 md:gap-12 w-full lg:w-auto justify-start lg:justify-end">
@@ -34,10 +34,10 @@ const CoasterSkeleton = () => (
         </div>
       </div>
 
-      <div className="w-full aspect-video md:aspect-[21/9] bg-gray-200 dark:bg-gray-800 rounded-2xl mb-8 md:mb-12"></div>
+      <div className="w-full aspect-video md:aspect-[21/9] bg-slate-800 rounded-2xl mb-8 md:mb-12"></div>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-        <div className="lg:col-span-8 h-96 bg-gray-200 dark:bg-gray-800 rounded-2xl"></div>
-        <div className="lg:col-span-4 h-96 bg-gray-200 dark:bg-gray-800 rounded-2xl"></div>
+        <div className="lg:col-span-8 h-96 bg-slate-800 rounded-2xl"></div>
+        <div className="lg:col-span-4 h-96 bg-slate-800 rounded-2xl"></div>
       </div>
     </div>
   </div>
@@ -164,11 +164,11 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
 
   const getSafeColorClass = (rating: number | null) => {
     try {
-      if (!rating) return "text-gray-900 dark:text-white";
+      if (!rating) return "text-white";
       const color = getRatingColor(Number(rating));
       return color.replace("bg-", "text-").replace("border-", "");
     } catch {
-      return "text-gray-900 dark:text-white";
+      return "text-white";
     }
   };
 
@@ -178,13 +178,13 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
   const visibleClass = "opacity-100 translate-y-0";
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-gray-100 pb-20 font-sans">
+    <div className="min-h-screen bg-[#0f172a] text-slate-100 pb-20 font-sans">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
         <div className="mb-6 hidden sm:block">
           <div className="mb-6 hidden sm:block">
             <Link
               href={parkSlug ? `/park/${parkSlug}` : coaster.parkId ? `/park/${coaster.parkId}` : "/"}
-              className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors group"
+              className="inline-flex items-center text-sm font-medium text-slate-400 hover:text-white transition-colors group"
             >
               <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
               Back to {parkName || "Park"}
@@ -192,20 +192,20 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row justify-between items-center lg:items-end gap-6 lg:gap-8 mb-8 pb-6 border-b border-gray-200 dark:border-gray-800">
+        <div className="flex flex-col lg:flex-row justify-between items-center lg:items-end gap-6 lg:gap-8 mb-8 pb-6 border-b border-slate-800">
           <div className="w-full lg:w-auto flex flex-col items-center lg:items-start gap-2 sm:gap-3">
-            <h1 className="text-4xl sm:text-6xl md:text-7xl xl:text-8xl font-black tracking-tighter uppercase italic text-gray-900 dark:text-white leading-none break-words max-w-full text-center lg:text-left">
+            <h1 className="text-4xl sm:text-6xl md:text-7xl xl:text-8xl font-black tracking-tighter uppercase italic text-white leading-none break-words max-w-full text-center lg:text-left">
               {coaster.name}
             </h1>
 
             <div className="flex flex-wrap justify-center lg:justify-start items-center gap-2 sm:gap-3 mt-1">
-              <span className="px-2 sm:px-3 py-1 bg-black text-white dark:bg-white dark:text-black rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest shadow-sm group-hover:bg-gray-800 dark:group-hover:bg-gray-200 transition-colors">
+              <span className="px-2 sm:px-3 py-1 bg-white text-black rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest shadow-sm group-hover:bg-slate-200 transition-colors">
                 {coaster.manufacturer}
               </span>
-              <span className="text-gray-300 dark:text-gray-700 hidden sm:inline">
+              <span className="text-slate-700 hidden sm:inline">
                 |
               </span>
-              <span className="text-xs sm:text-sm font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+              <span className="text-xs sm:text-sm font-bold uppercase tracking-widest text-slate-400">
                 {coaster.model || "Coaster Model"}
               </span>
             </div>
@@ -213,7 +213,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
 
           <Link
             href={`/coasters/${coaster.slug}/rankings`}
-            className="text-[10px] font-bold uppercase tracking-widest text-blue-500 hover:text-blue-600 transition-colors flex items-center gap-1"
+            className="text-[10px] font-bold uppercase tracking-widest text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
           >
             View Detailed Rankings
             <svg
@@ -259,7 +259,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
           </div>
         </div>
 
-        <div className="relative w-full aspect-video md:aspect-[32/9] rounded-2xl overflow-hidden shadow-sm mb-8 md:mb-12 bg-gray-200 dark:bg-gray-800 group">
+        <div className="relative w-full aspect-video md:aspect-[32/9] rounded-2xl overflow-hidden shadow-sm mb-8 md:mb-12 bg-slate-800 group">
           {isAdminMode && (
             <button
               onClick={(e) => {
@@ -321,7 +321,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 relative">
           <div className="lg:col-span-8 flex flex-col gap-8 md:gap-12 order-2 lg:order-1">
             <section>
-              <h3 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-gray-900 dark:text-white border-l-4 border-blue-600 pl-4">
+              <h3 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-white border-l-4 border-blue-600 pl-4">
                 The Experience
               </h3>
               <CoasterText
@@ -332,7 +332,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
             </section>
 
             <section>
-              <h3 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-gray-900 dark:text-white border-l-4 border-blue-600 pl-4">
+              <h3 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-white border-l-4 border-blue-600 pl-4">
                 Gallery
               </h3>
               <CoasterGallery
@@ -348,7 +348,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
               {((coaster.highlights && coaster.highlights.length > 0) ||
                 isAdminMode) && (
                   <div>
-                    <h4 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4 border-b border-gray-200 dark:border-gray-800 pb-2">
+                    <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2">
                       Strengths & Weaknesses
                     </h4>
                     <CoasterHighlightsPanel
@@ -359,14 +359,14 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
                 )}
 
               <div>
-                <h4 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4 border-b border-gray-200 dark:border-gray-800 pb-2">
+                <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2">
                   Information
                 </h4>
                 <CoasterInfo coaster={coaster} onUpdate={refreshCoasterData} />
               </div>
 
               <div>
-                <h4 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4 border-b border-gray-200 dark:border-gray-800 pb-2">
+                <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2">
                   Technical Specs
                 </h4>
                 <CoasterSpecsPanel
@@ -378,7 +378,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
           </div>
         </div>
 
-        <div className="flex justify-center mt-12 md:mt-20 pt-8 md:pt-10 border-t border-gray-200 dark:border-gray-800">
+        <div className="flex justify-center mt-12 md:mt-20 pt-8 md:pt-10 border-t border-slate-800">
           <BackToParkButton
             parkSlug={parkSlug}
             parkId={parkId}

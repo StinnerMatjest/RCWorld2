@@ -29,7 +29,7 @@ function safeParseStats(raw: string | null): GameStats | null {
     ) {
       return s as GameStats;
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -40,7 +40,7 @@ function safeParseDaily(raw: string | null): DailyState | null {
     if (typeof s?.date === "string" && typeof s?.status === "string") {
       return s as DailyState;
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -51,41 +51,20 @@ function safeParseConnectionsState(raw: string | null): ConnectionsSavedState | 
     if (Array.isArray(s?.solved) || typeof s?.mistakes === "number") {
       return s as ConnectionsSavedState;
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
 function ModeIcon({
-  lightSrc,
   darkSrc,
   className,
 }: {
-  lightSrc?: string;
   darkSrc: string;
   className: string;
 }) {
   return (
     <div className={`relative ${className}`}>
-      {lightSrc ? (
-        <>
-          <Image
-            src={lightSrc}
-            alt=""
-            fill
-            priority
-            className="object-contain dark:hidden"
-          />
-          <Image
-            src={darkSrc}
-            alt=""
-            fill
-            priority
-            className="object-contain hidden dark:block"
-          />
-        </>
-      ) : (
-        <Image src={darkSrc} alt="" fill priority className="object-contain" />
-      )}
+      <Image src={darkSrc} alt="" fill priority className="object-contain" />
     </div>
   );
 }
@@ -116,17 +95,17 @@ function StatsRow({
       <div className="w-full flex items-center justify-center gap-6 sm:gap-8">
         {items.map((it) => (
           <div key={it.label} className="text-center">
-            <div className="text-lg sm:text-xl font-black text-slate-800 dark:text-slate-100 leading-none">
+            <div className="text-lg sm:text-xl font-black text-slate-100 leading-none">
               {it.value === null ? "—" : it.value}
             </div>
-            <div className="mt-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-400">
+            <div className="mt-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-slate-400">
               {it.label}
             </div>
           </div>
         ))}
       </div>
 
-      <div className="mt-2 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-400">
+      <div className="mt-2 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-slate-400">
         {dailyText}
       </div>
     </div>
@@ -140,7 +119,6 @@ function ModeButton({
   stats,
   dailyDone,
   iconDarkSrc,
-  iconLightSrc,
 }: {
   href: string;
   label: string;
@@ -148,7 +126,6 @@ function ModeButton({
   stats: GameStats | null;
   dailyDone: boolean | null;
   iconDarkSrc: string;
-  iconLightSrc?: string;
 }) {
   return (
     <Link href={href} aria-label={label} className="group w-full min-w-0 cursor-pointer focus:outline-none">
@@ -163,7 +140,7 @@ function ModeButton({
             origin-center
           `}
         >
-          <ModeIcon lightSrc={iconLightSrc} darkSrc={iconDarkSrc} className="w-28 h-28 md:w-32 md:h-32" />
+          <ModeIcon darkSrc={iconDarkSrc} className="w-28 h-28 md:w-32 md:h-32" />
 
           <div className="mt-4 flex flex-col items-center">
             <div
@@ -212,7 +189,7 @@ function ModeButton({
           `}
         >
           <div className="flex items-center justify-center">
-            <ModeIcon lightSrc={iconLightSrc} darkSrc={iconDarkSrc} className="w-24 h-24" />
+            <ModeIcon darkSrc={iconDarkSrc} className="w-24 h-24" />
           </div>
 
           <div className="flex flex-col items-center">
@@ -265,7 +242,7 @@ export default function GamesLauncherPage() {
   useEffect(() => {
     setStandardStats(
       safeParseStats(localStorage.getItem("coastle-standard-stats")) ??
-        safeParseStats(localStorage.getItem("coastle-stats"))
+      safeParseStats(localStorage.getItem("coastle-stats"))
     );
 
     // Zoomle has no cumulative stats yet — future feature
@@ -298,25 +275,25 @@ export default function GamesLauncherPage() {
   const gradient = useMemo(() => "from-blue-600 via-indigo-600 to-fuchsia-600", []);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-900 px-4 py-6 sm:py-10 flex items-start justify-center">
+    <div className="min-h-screen bg-[#0f172a] px-4 py-6 sm:py-10 flex items-start justify-center">
       <div className="w-full max-w-7xl">
         <header className="text-center mt-2 md:mt-0 mb-4 sm:mb-12">
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 drop-shadow-sm italic transform -skew-x-6">
             Games
           </h1>
-          <p className="mt-2 text-xs sm:text-sm text-slate-500 dark:text-slate-300 font-bold uppercase tracking-widest">
+          <p className="mt-2 text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-widest">
             Choose a game below.
           </p>
 
-          <div className="hidden sm:block mt-4 text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium max-w-3xl mx-auto space-y-1">
+          <div className="hidden sm:block mt-4 text-sm sm:text-base text-slate-300 font-medium max-w-3xl mx-auto space-y-1">
             <span className="block">
-              <span className="font-bold text-slate-800 dark:text-slate-100">Coastle</span> = Focus on general coaster knowledge.
+              <span className="font-bold text-slate-100">Coastle</span> = Focus on general coaster knowledge.
             </span>
             <span className="block">
-              <span className="font-bold text-slate-800 dark:text-slate-100">Connections</span> = Group four coasters by 4 categories.
+              <span className="font-bold text-slate-100">Connections</span> = Group four coasters by 4 categories.
             </span>
             <span className="block">
-              <span className="font-bold text-slate-800 dark:text-slate-100">Zoomle</span> = Guess the coaster as the image slowly reveals.
+              <span className="font-bold text-slate-100">Zoomle</span> = Guess the coaster as the image slowly reveals.
             </span>
           </div>
         </header>
@@ -328,7 +305,6 @@ export default function GamesLauncherPage() {
             gradient={gradient}
             stats={standardStats}
             dailyDone={dailyCoastleDone}
-            iconLightSrc="/logos/favicon.svg"
             iconDarkSrc="/logos/faviconload.svg"
           />
 
@@ -339,7 +315,6 @@ export default function GamesLauncherPage() {
               gradient={gradient}
               stats={connectionsStats}
               dailyDone={connectionsDailyDone}
-              iconLightSrc="/logos/favicon.svg"
               iconDarkSrc="/logos/faviconbw.svg"
             />
 
@@ -347,13 +322,13 @@ export default function GamesLauncherPage() {
               <div className="sm:absolute sm:-bottom-14 left-0 right-0 flex justify-center gap-2 pb-2 sm:pb-0">
                 <Link
                   href="/ConnectionsData"
-                  className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:bg-blue-100 hover:text-blue-600 dark:hover:bg-slate-700 dark:hover:text-white transition-all shadow-sm cursor-pointer"
+                  className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-slate-800 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-slate-400 hover:bg-slate-700 hover:text-white transition-all shadow-sm cursor-pointer"
                 >
                   ⚙️ Manage
                 </Link>
                 <Link
                   href="/games/connections/practice"
-                  className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:bg-violet-100 hover:text-violet-600 dark:hover:bg-slate-700 dark:hover:text-violet-400 transition-all shadow-sm cursor-pointer"
+                  className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-slate-800 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-slate-400 hover:bg-slate-700 hover:text-violet-400 transition-all shadow-sm cursor-pointer"
                 >
                   🎮 Practice
                 </Link>
@@ -362,23 +337,22 @@ export default function GamesLauncherPage() {
           </div>
 
           <div className="flex flex-col h-full relative">
-          <ModeButton
-            href="/games/zoomle"
-            label="Zoomle"
-            gradient={gradient}
-            stats={zoomleStats}
-            dailyDone={zoomleDailyDone}
-            iconLightSrc="/logos/favicon.svg"
-            iconDarkSrc="/logos/faviconload.svg"
-          />
-          {isAdminMode && (
-            <div className="sm:absolute sm:-bottom-14 left-0 right-0 flex justify-center pb-2 sm:pb-0">
-              <Link href="/games/zoomle/config"
-                className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:bg-blue-100 hover:text-blue-600 dark:hover:bg-slate-700 dark:hover:text-white transition-all shadow-sm cursor-pointer">
-                ⚙️ Config
-              </Link>
-            </div>
-          )}
+            <ModeButton
+              href="/games/zoomle"
+              label="Zoomle"
+              gradient={gradient}
+              stats={zoomleStats}
+              dailyDone={zoomleDailyDone}
+              iconDarkSrc="/logos/faviconload.svg"
+            />
+            {isAdminMode && (
+              <div className="sm:absolute sm:-bottom-14 left-0 right-0 flex justify-center pb-2 sm:pb-0">
+                <Link href="/games/zoomle/config"
+                  className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-slate-800 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-slate-400 hover:bg-slate-700 hover:text-white transition-all shadow-sm cursor-pointer">
+                  ⚙️ Config
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>

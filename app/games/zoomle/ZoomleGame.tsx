@@ -29,7 +29,7 @@ const STORAGE_KEY = (date: string) => `zoomle-${date}`;
 
 function getTodayStr() {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function buildCombinedShareText(
@@ -51,9 +51,9 @@ function buildCombinedShareText(
     if (raw) {
       const state = JSON.parse(raw);
       if (state.status && state.status !== "playing") {
-        const won    = state.status === "won";
+        const won = state.status === "won";
         const guesses: any[] = state.guesses ?? [];
-        const count  = guesses.length;
+        const count = guesses.length;
 
         const rows = guesses.map((g: any) => {
           const m = g.matches ?? {};
@@ -67,25 +67,25 @@ function buildCombinedShareText(
         sections.push(`🎢 Coastle — ${won ? `${count}/5` : "X/5"}\n${rows.join("\n")}`);
       }
     }
-  } catch {}
+  } catch { }
 
   // ── Connections ───────────────────────────────────────────────────────────
   try {
     const raw = localStorage.getItem(`connections-${getTodayString()}`);
     if (raw) {
       const state = JSON.parse(raw);
-      const solved   = state.playerSolvedCount ?? 0;
+      const solved = state.playerSolvedCount ?? 0;
       const mistakes = state.mistakes ?? 0;
       const grid = (state.guessHistory ?? [])
         .map((row: any) => (row.colors ?? []).map(colorEmoji).join(" "))
         .join("\n");
       sections.push(`🔗 Connections — ${solved}/4 · ${mistakes} mistake${mistakes !== 1 ? "s" : ""}\n${grid}`);
     }
-  } catch {}
+  } catch { }
 
   // ── Zoomle ────────────────────────────────────────────────────────────────
   const total = zoomleScores.reduce<number>((s, p) => s + (p ?? 0), 0);
-  const rows  = zoomleScores.map((p, i) => {
+  const rows = zoomleScores.map((p, i) => {
     const result = roundResults[i];
     if (!result) return `${scoreEmoji(p)} Round ${i + 1}`;
     const correct = p !== null && p > 0;
@@ -103,7 +103,7 @@ function buildCombinedShareText(
   return sections.join("\n\n");
 }
 
-function buildShareText(date: string, scores: (number|null)[], maxScore: number): string {
+function buildShareText(date: string, scores: (number | null)[], maxScore: number): string {
   const total = scores.reduce<number>((s, p) => s + (p ?? 0), 0);
   const lines = scores.map((p, i) => {
     const sq = p === null ? "⬛" : p >= 5 ? "🟩" : p >= 4 ? "🟨" : p >= 3 ? "🟧" : "🟥";
@@ -121,18 +121,18 @@ function buildShareText(date: string, scores: (number|null)[], maxScore: number)
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const REVEAL_DURATION    = 20;
-const START_SCALE        = 9;
-const OPTION_STAGGER_MS    = 380;
+const REVEAL_DURATION = 20;
+const START_SCALE = 9;
+const OPTION_STAGGER_MS = 380;
 const OPTION_INITIAL_DELAY = 600;  // pause before first option appears
-const POST_OPTIONS_PAUSE   = 4500; // study time after all options visible
+const POST_OPTIONS_PAUSE = 4500; // study time after all options visible
 
 const POINT_BRACKETS = [
   { threshold: 0.22, points: 5, label: "INCREDIBLE! 🔥" },  // 0-4.4s
-  { threshold: 0.45, points: 4, label: "Sharp eye! 👁️"  },  // 4.4-9s
-  { threshold: 0.65, points: 3, label: "Nice one! 🎢"   },  // 9-13s
+  { threshold: 0.45, points: 4, label: "Sharp eye! 👁️" },  // 4.4-9s
+  { threshold: 0.65, points: 3, label: "Nice one! 🎢" },  // 9-13s
   { threshold: 0.82, points: 2, label: "Getting there!" },  // 13-16.4s
-  { threshold: 1.00, points: 1, label: "Close enough!"  },  // 16.4-20s
+  { threshold: 1.00, points: 1, label: "Close enough!" },  // 16.4-20s
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -141,12 +141,12 @@ function isVideo(path: string) { return /\.(mp4|webm|mov)$/i.test(path); }
 
 function pickRandom<T>(arr: T[], n: number): T[] {
   const c = [...arr];
-  for (let i = c.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [c[i], c[j]] = [c[j], c[i]]; }
+  for (let i = c.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[c[i], c[j]] = [c[j], c[i]]; }
   return c.slice(0, n);
 }
 
 function getPoints(p: number) { for (const b of POINT_BRACKETS) if (p <= b.threshold) return b.points; return 1; }
-function getLabel(p: number)  { for (const b of POINT_BRACKETS) if (p <= b.threshold) return b.label;  return "Close enough!"; }
+function getLabel(p: number) { for (const b of POINT_BRACKETS) if (p <= b.threshold) return b.label; return "Close enough!"; }
 
 // ─── Score counter ────────────────────────────────────────────────────────────
 
@@ -177,12 +177,12 @@ function ScoreCounter({ score, maxScore, date, isMobile }: { score: number; maxS
       transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
       className="text-center mb-8 flex-shrink-0">
       <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">{date}</p>
-      <p className={`text-8xl font-black tabular-nums leading-none ${isMobile ? "text-white" : "text-slate-900 dark:text-white"}`}>
+      <p className={`text-8xl font-black tabular-nums leading-none text-white`}>
         {display}
       </p>
-      <p className={`text-lg font-bold mt-1 ${isMobile ? "text-slate-500" : "text-slate-400"}`}>out of {maxScore}</p>
+      <p className={`text-lg font-bold mt-1 text-slate-400`}>out of {maxScore}</p>
       <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }}
-        className={`mt-2 text-base font-bold ${isMobile ? "text-slate-300" : "text-slate-600 dark:text-slate-300"}`}>
+        className={`mt-2 text-base font-bold text-slate-300`}>
         {label}
       </motion.p>
     </motion.div>
@@ -210,9 +210,8 @@ function FlagButton({ image, focalIndex, dark }: { image: string; focalIndex: nu
   return (
     <button onClick={toggle} disabled={sending}
       title={flagged ? "Flagged — click to unflag" : "Flag this zoom as bad"}
-      className={`flex-shrink-0 text-base transition-all cursor-pointer disabled:cursor-default ${
-        flagged ? "opacity-100" : dark ? "opacity-40 hover:opacity-80" : "opacity-40 hover:opacity-80"
-      }`}>
+      className={`flex-shrink-0 text-base transition-all cursor-pointer disabled:cursor-default ${flagged ? "opacity-100" : dark ? "opacity-40 hover:opacity-80" : "opacity-40 hover:opacity-80"
+        }`}>
       {flagged ? "🚩" : "🏳️"}
     </button>
   );
@@ -229,30 +228,30 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
   isMobile?: boolean;
 }) {
   const ROUNDS = dailyRounds.length || 10;
-  const [started, setStarted]           = useState(false);
-  const [countdown, setCountdown]       = useState<number | null>(null);
-  const [rounds, setRounds]             = useState<PhotoRound[]>([]);
-  const [round, setRound]               = useState(0);
-  const [dailyScores, setDailyScores]   = useState<(number|null)[]>([]);
+  const [started, setStarted] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [rounds, setRounds] = useState<PhotoRound[]>([]);
+  const [round, setRound] = useState(0);
+  const [dailyScores, setDailyScores] = useState<(number | null)[]>([]);
   const [roundResults, setRoundResults] = useState<RoundResult[]>([]);
-  const [phase, setPhase]               = useState<"intro" | "playing" | "guessed">("intro");
+  const [phase, setPhase] = useState<"intro" | "playing" | "guessed">("intro");
   const [visibleCount, setVisibleCount] = useState(0);
-  const [introSecs, setIntroSecs]       = useState<number | null>(null);
-  const [gameKey, setGameKey]           = useState(0); // increments each time game truly starts
-  const [guessedId, setGuessedId]       = useState<number | null>(null);
-  const [score, setScore]               = useState(0);
-  const [done, setDone]                 = useState(false);
-  const [secsLeft, setSecsLeft]         = useState(REVEAL_DURATION);
-  const [ptsAvail, setPtsAvail]         = useState(5);
+  const [introSecs, setIntroSecs] = useState<number | null>(null);
+  const [gameKey, setGameKey] = useState(0); // increments each time game truly starts
+  const [guessedId, setGuessedId] = useState<number | null>(null);
+  const [score, setScore] = useState(0);
+  const [done, setDone] = useState(false);
+  const [secsLeft, setSecsLeft] = useState(REVEAL_DURATION);
+  const [ptsAvail, setPtsAvail] = useState(5);
   const [pointsEarned, setPointsEarned] = useState<number | null>(null);
 
   // Direct DOM refs for smooth zoom — no React re-renders for the transform
-  const imgRef        = useRef<HTMLElement>(null);
-  const timerBarRef   = useRef<HTMLDivElement>(null);
-  const rafRef        = useRef<number | null>(null);
-  const startTimeRef  = useRef<number>(0);
-  const progressRef   = useRef<number>(0);
-  const introTimers   = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const imgRef = useRef<HTMLElement>(null);
+  const timerBarRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number>(0);
+  const progressRef = useRef<number>(0);
+  const introTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [paused, setPaused] = useState(false);
 
   const buildRounds = useCallback(() => {
@@ -365,7 +364,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
     showNav();
     if (dailyDate) {
       const state: DailyState = { date: dailyDate, scores: dailyScores, done: true };
-      try { localStorage.setItem(STORAGE_KEY(dailyDate), JSON.stringify(state)); } catch {}
+      try { localStorage.setItem(STORAGE_KEY(dailyDate), JSON.stringify(state)); } catch { }
     }
   }, [done]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -435,7 +434,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
   }
 
   if (isMobile && !started) return (
-    <div className="bg-slate-900 flex flex-col items-center justify-center overflow-hidden -mt-px" style={{ minHeight: "calc(100dvh - 56px)" }}>
+    <div className="bg-[#0f172a] flex flex-col items-center justify-center overflow-hidden -mt-px" style={{ minHeight: "calc(100dvh - 56px)" }}>
       <div className="flex flex-col items-center gap-8 px-6 text-center">
         <div>
           <motion.h1
@@ -493,7 +492,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
   })();
 
   if (done) return (
-    <div className={`flex flex-col gap-0 ${isMobile ? "bg-slate-900 px-4 pt-8 pb-12" : "w-full py-6"}`}>
+    <div className={`flex flex-col gap-0 ${isMobile ? "bg-[#0f172a] px-4 pt-8 pb-12" : "w-full py-6"}`}>
       {/* Total score — animated count-up */}
       <ScoreCounter score={score} maxScore={maxScore} date={dailyDate} isMobile={isMobile} />
 
@@ -509,9 +508,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, delay: 0.7 + i * 0.25, ease: [0.33, 1, 0.68, 1] }}
-              className={`flex items-center gap-4 rounded-2xl px-4 py-3.5 ${
-                isMobile ? "bg-slate-800" : "bg-blue-50 dark:bg-slate-800"
-              }`}>
+              className={`flex items-center gap-4 rounded-2xl px-4 py-3.5 bg-slate-800`}>
               {/* Thumbnail */}
               <div className="relative w-20 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-slate-700">
                 {isVideo(r.image) ? (
@@ -526,10 +523,8 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
               </div>
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className={`font-black text-base leading-tight truncate ${
-                  isMobile ? "text-white" : "text-slate-900 dark:text-white"
-                }`}>{r.answer.name}</p>
-                <p className={`text-sm truncate mt-0.5 ${isMobile ? "text-slate-400" : "text-slate-500"}`}>
+                <p className={`font-black text-base leading-tight truncate text-white`}>{r.answer.name}</p>
+                <p className={`text-sm truncate mt-0.5 text-slate-400`}>
                   {isMobile
                     ? guessedCoaster
                       ? <span className="text-rose-400">Guessed: {guessedCoaster.name}</span>
@@ -540,11 +535,10 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
                 </p>
               </div>
               {/* Score — plain coloured text, no box */}
-              <p className={`flex-shrink-0 text-2xl font-black tabular-nums ${
-                r.pts === null ? "text-rose-400"
-                : r.pts >= 4 ? "text-amber-400"
-                : "text-emerald-400"
-              }`}>
+              <p className={`flex-shrink-0 text-2xl font-black tabular-nums ${r.pts === null ? "text-rose-400"
+                  : r.pts >= 4 ? "text-amber-400"
+                    : "text-emerald-400"
+                }`}>
                 {r.pts === null ? "0" : `+${r.pts}`}
               </p>
               <FlagButton image={r.image} focalIndex={r.focal_index} dark={isMobile} />
@@ -583,12 +577,12 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
     </div>
   );
 
-  if (!rounds.length) return <p className="text-center text-slate-400 py-8">Need at least 4 coasters with header images.</p>;
+  if (!rounds.length) return <p className="text-center text-slate-500 py-8">Need at least 4 coasters with header images.</p>;
 
-  const current  = rounds[round];
+  const current = rounds[round];
   if (!current) return null;
   const revealed = phase === "guessed";
-  const correct  = guessedId === current.answer.id;
+  const correct = guessedId === current.answer.id;
 
   // ── Desktop start screen ────────────────────────────────────────────────────
   if (!isMobile && !started) {
@@ -599,7 +593,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
       <div className="w-full flex flex-col items-center gap-6 pt-4 pb-12">
         <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.25, type: "spring", stiffness: 200, damping: 20 }}
-          className="flex flex-col items-center gap-2 text-slate-500 dark:text-slate-400 text-sm">
+          className="flex flex-col items-center gap-2 text-slate-400 text-sm">
           <p>🔍 The image zooms out slowly</p>
           <p>⚡ Guess early for more points</p>
           <p>🖼️ {poolImages} images · {poolTotal} combinations</p>
@@ -620,231 +614,92 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
     const todayImgSet = new Set(dailyRounds.map(r => r.image));
     const countdownBg = zoomlePool.find(p => !todayImgSet.has(p.image))?.image;
     return isMobile ? (
-    <div className="bg-slate-900 flex items-center justify-center overflow-hidden" style={{ minHeight: "calc(100dvh - 56px)" }}>
-      <AnimatePresence mode="wait">
-        <motion.div key={countdown}
-          initial={{ scale: 2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.5, opacity: 0 }} transition={{ duration: 0.3, ease: "easeOut" }}
-          className="text-center">
-          {countdown > 0 ? (
-            <span className={`text-[10rem] font-black leading-none ${
-              countdown === 3 ? "text-white" : countdown === 2 ? "text-amber-500" : "text-rose-500"
-            }`}>{countdown}</span>
-          ) : (
-            <span className="text-7xl font-black text-emerald-500 tracking-tight">GO! 🎢</span>
-          )}
-        </motion.div>
-      </AnimatePresence>
-    </div>
-  ) : (
-    <div className="w-full flex items-center justify-center py-20">
-      <AnimatePresence mode="wait">
-        <motion.div key={countdown}
-          initial={{ scale: 1.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.4, opacity: 0 }} transition={{ duration: 0.3, ease: "easeOut" }}
-          className="text-center">
-          {countdown > 0 ? (
-            <span className={`text-[8rem] font-black leading-none ${
-              countdown === 3 ? "text-slate-900 dark:text-white" : countdown === 2 ? "text-amber-500" : "text-rose-500"
-            }`}>{countdown}</span>
-          ) : (
-            <span className="text-6xl font-black text-emerald-500 tracking-tight">GO! 🎢</span>
-          )}
-        </motion.div>
-      </AnimatePresence>
-    </div>
-  );}
+      <div className="bg-[#0f172a] flex items-center justify-center overflow-hidden" style={{ minHeight: "calc(100dvh - 56px)" }}>
+        <AnimatePresence mode="wait">
+          <motion.div key={countdown}
+            initial={{ scale: 2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.5, opacity: 0 }} transition={{ duration: 0.3, ease: "easeOut" }}
+            className="text-center">
+            {countdown > 0 ? (
+              <span className={`text-[10rem] font-black leading-none ${countdown === 3 ? "text-white" : countdown === 2 ? "text-amber-500" : "text-rose-500"
+                }`}>{countdown}</span>
+            ) : (
+              <span className="text-7xl font-black text-emerald-500 tracking-tight">GO! 🎢</span>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    ) : (
+      <div className="w-full flex items-center justify-center py-20">
+        <AnimatePresence mode="wait">
+          <motion.div key={countdown}
+            initial={{ scale: 1.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.4, opacity: 0 }} transition={{ duration: 0.3, ease: "easeOut" }}
+            className="text-center">
+            {countdown > 0 ? (
+              <span className={`text-[8rem] font-black leading-none ${countdown === 3 ? "text-white" : countdown === 2 ? "text-amber-500" : "text-rose-500"
+                }`}>{countdown}</span>
+            ) : (
+              <span className="text-6xl font-black text-emerald-500 tracking-tight">GO! 🎢</span>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    );
+  }
 
   // ── Desktop layout: two-column, fills the screen ──────────────────────────
   if (!isMobile) return (
-      <motion.div className="w-full grid grid-cols-[3fr_1.5fr] gap-8 items-start"
-        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}>
+    <motion.div className="w-full grid grid-cols-[3fr_1.5fr] gap-8 items-start"
+      initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}>
 
-        {/* Left: image */}
-        <div className="flex flex-col gap-3">
-          {/* Timer */}
-          <div className={`flex items-center gap-3 transition-opacity duration-200 ${phase === "playing" || paused ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-            <motion.span key={`secs-${round}-${secsLeft}`} initial={{ scale: 1.15 }} animate={{ scale: 1 }}
-              className={`text-4xl font-black tabular-nums w-14 text-center leading-none ${paused ? "text-slate-400 dark:text-slate-500" : secsLeft <= 3 ? "text-rose-500" : secsLeft <= 7 ? "text-amber-500" : "text-slate-900 dark:text-white"}`}>
-              {paused ? "—" : secsLeft}
-            </motion.span>
-            <div className="flex-1 h-3 rounded-full overflow-hidden bg-blue-100 dark:bg-slate-700">
-              <div ref={timerBarRef} className="h-full rounded-full bg-blue-500" style={{ width: "100%", transition: "none" }} />
-            </div>
-            <motion.div key={`pts-${round}-${ptsAvail}`} initial={{ scale: 1.3 }} animate={{ scale: 1 }}
-              className="flex-shrink-0 flex flex-col items-center leading-none">
-              <span className={`text-xl font-black tabular-nums ${ptsAvail >= 4 ? "text-amber-500" : "text-slate-400 dark:text-slate-500"}`}>{ptsAvail}</span>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">pts</span>
-            </motion.div>
-            <button onClick={paused ? handleResume : handlePause}
-              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer">
-              {paused
-                ? <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
-                : <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z"/></svg>
-              }
-            </button>
-          </div>
-
-          {/* Image — aspect-[3/2] matches the focal point config editor exactly */}
-          <div className="relative rounded-2xl overflow-hidden bg-blue-50 dark:bg-slate-800 w-full" style={{ aspectRatio: "3/2" }}>
-            <AnimatePresence>
-              {phase === "intro" && (
-                <motion.div key="ph" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
-                  <motion.span animate={{ scale: [1, 1.06, 1] }} transition={{ repeat: Infinity, duration: 2 }}
-                    className="text-5xl opacity-20">🎢</motion.span>
-                  <AnimatePresence mode="wait">
-                    {introSecs === null ? (
-                      <motion.p key="study"
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="text-sm font-black uppercase tracking-widest text-slate-400">
-                        See your options
-                      </motion.p>
-                    ) : (
-                      <motion.p key={`cd-${introSecs}`}
-                        initial={{ opacity: 0, scale: 1.15 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                        transition={{ duration: 0.25 }}
-                        className={`text-xl font-black uppercase tracking-widest ${introSecs > 0 ? "text-slate-900 dark:text-white" : "text-amber-400"}`}>
-                        {introSecs > 0 ? `Image in ${introSecs}` : "Image coming!"}
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            {isVideo(current.image) ? (
-              <video ref={imgRef as React.RefObject<HTMLVideoElement>} src={current.image}
-                autoPlay muted loop playsInline
-                className="absolute inset-0 w-full h-full object-cover"
-                style={{ opacity: phase === "intro" || paused ? 0 : 1, transform: `scale(${START_SCALE})`,
-                  transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease" }} />
-            ) : (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img ref={imgRef as React.RefObject<HTMLImageElement>} src={current.image} alt=""
-                className="absolute inset-0 w-full h-full object-cover"
-                style={{ opacity: phase === "intro" || paused ? 0 : 1, transform: `scale(${START_SCALE})`,
-                  transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease" }} />
-            )}
-            {paused && (
-              <button onClick={handleResume}
-                className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900/80 cursor-pointer">
-                <svg className="w-14 h-14 text-white/70 ml-1" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
-                <span className="text-xs font-black uppercase tracking-widest text-white/50">Paused — click to resume</span>
-              </button>
-            )}
-          </div>
-
-          {/* Result strip — below image, fixed height */}
-          <div className="h-10 flex-shrink-0">
-            <AnimatePresence>
-              {revealed && pointsEarned !== null && (
-                <motion.div key="res" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
-                  className={`h-full rounded-xl flex items-center justify-center px-4 ${correct ? "bg-emerald-500" : "bg-blue-50 dark:bg-slate-800"}`}>
-                  <p className={`font-black text-lg ${correct ? "text-white" : "text-slate-700 dark:text-slate-300"}`}>
-                    {correct ? `${getLabel(progressRef.current)} · +${pointsEarned} pts` : `It was ${current.answer.name}`}
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* Right: round info + options — stretches to match image height */}
-        <div className={`flex flex-col self-stretch gap-3 transition-opacity duration-200 ${paused ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
-          {/* Round / score */}
-          <div className="flex items-center justify-center flex-shrink-0">
-            <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-              Round {round + 1} / {rounds.length}
-            </p>
-          </div>
-
-          {/* Options — flex-1 so they fill remaining height = same as image */}
-          <AnimatePresence mode="wait">
-            <motion.div key={`grid-${round}`}
-              exit={{ opacity: 0, y: -8, transition: { duration: 0.4, ease: "easeIn" } }}
-              className="flex flex-col gap-3 flex-1">
-              {current.options.map((opt, i) => {
-                const show      = i < visibleCount || phase !== "intro";
-                const isAnswer  = opt.id === current.answer.id;
-                const isGuessed = guessedId === opt.id;
-                let cls = "bg-blue-50 dark:bg-slate-800 cursor-default";
-                if (phase === "playing") cls = "bg-blue-50 dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-slate-700 cursor-pointer";
-                if (revealed) cls = isAnswer ? "bg-emerald-500 cursor-default" : isGuessed ? "bg-rose-500 cursor-default" : "bg-blue-50 dark:bg-slate-800 opacity-30 cursor-default";
-                return (
-                  <div key={opt.id} className="flex-1 min-h-0">
-                    <AnimatePresence>
-                      {show && (
-                        <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                          transition={{ duration: 0.2 }}
-                          onClick={() => handleGuess(opt.id)} disabled={phase !== "playing"}
-                          className={`w-full h-full flex flex-col items-center justify-center gap-1.5 rounded-2xl px-4 text-center transition-all ${cls}`}>
-                          {opt.park_country && (
-                            <Image src={getParkFlag(opt.park_country)} alt="" width={30} height={21} className="rounded-sm flex-shrink-0" unoptimized />
-                          )}
-                          <p className={`font-black text-base leading-tight ${revealed && (isAnswer || isGuessed) ? "text-white" : "text-slate-900 dark:text-white"}`}>{opt.name}</p>
-                          <p className={`text-xs ${revealed && (isAnswer || isGuessed) ? "text-white/70" : "text-slate-500 dark:text-slate-400"}`}>{opt.park_name}</p>
-                        </motion.button>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                );
-              })}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </motion.div>
-    );
-
-    // ── Mobile layout: fullscreen ──────────────────────────────────────────────
-    return (
-      <div className="bg-slate-900 flex flex-col gap-2.5 px-3 pt-3 pb-3 -mt-px" style={{ minHeight: "calc(100dvh - 56px)" }}>
-        {/* Mobile title row */}
-        <div className="flex-shrink-0 text-center">
-          <h2 className="text-4xl sm:text-6xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 drop-shadow-sm italic transform -skew-x-6 pr-4">
-            ZOOMLE
-          </h2>
-          <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-0.5">Guess the coaster · Round {round + 1} / {rounds.length}</p>
-        </div>
+      {/* Left: image */}
+      <div className="flex flex-col gap-3">
         {/* Timer */}
-        <div className={`flex items-center gap-2.5 flex-shrink-0 transition-opacity duration-200 ${phase === "playing" || paused ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-          <motion.div key={`secs-${round}-${secsLeft}`} initial={{ scale: 1.15 }} animate={{ scale: 1 }}
-            className={`text-3xl font-black tabular-nums w-12 text-center leading-none ${paused ? "text-slate-500" : secsLeft <= 3 ? "text-rose-400" : secsLeft <= 7 ? "text-amber-400" : "text-white"}`}>
+        <div className={`flex items-center gap-3 transition-opacity duration-200 ${phase === "playing" || paused ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+          <motion.span key={`secs-${round}-${secsLeft}`} initial={{ scale: 1.15 }} animate={{ scale: 1 }}
+            className={`text-4xl font-black tabular-nums w-14 text-center leading-none ${paused ? "text-slate-500" : secsLeft <= 3 ? "text-rose-500" : secsLeft <= 7 ? "text-amber-500" : "text-white"}`}>
             {paused ? "—" : secsLeft}
-          </motion.div>
-          <div className="flex-1 h-2.5 rounded-full overflow-hidden bg-slate-800">
+          </motion.span>
+          <div className="flex-1 h-3 rounded-full overflow-hidden bg-slate-800">
             <div ref={timerBarRef} className="h-full rounded-full bg-blue-500" style={{ width: "100%", transition: "none" }} />
           </div>
           <motion.div key={`pts-${round}-${ptsAvail}`} initial={{ scale: 1.3 }} animate={{ scale: 1 }}
             className="flex-shrink-0 flex flex-col items-center leading-none">
-            <span className={`text-xl font-black tabular-nums ${ptsAvail >= 4 ? "text-amber-400" : "text-slate-500"}`}>{ptsAvail}</span>
-            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wide">pts</span>
+            <span className={`text-xl font-black tabular-nums ${ptsAvail >= 4 ? "text-amber-500" : "text-slate-500"}`}>{ptsAvail}</span>
+            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">pts</span>
           </motion.div>
           <button onClick={paused ? handleResume : handlePause}
-            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-slate-800 text-slate-400 hover:bg-slate-700 transition-colors cursor-pointer">
+            className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-slate-800 text-slate-400 hover:bg-slate-700 transition-colors cursor-pointer">
             {paused
-              ? <svg className="w-3.5 h-3.5 ml-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
-              : <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z"/></svg>
+              ? <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+              : <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" /></svg>
             }
           </button>
         </div>
-        {/* Image */}
-        <div className="relative rounded-2xl overflow-hidden bg-slate-800 w-full flex-shrink-0" style={{ aspectRatio: "3/2" }}>
+
+        {/* Image — aspect-[3/2] matches the focal point config editor exactly */}
+        <div className="relative rounded-2xl overflow-hidden bg-slate-800 w-full" style={{ aspectRatio: "3/2" }}>
           <AnimatePresence>
             {phase === "intro" && (
               <motion.div key="ph" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
                 className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
-                <motion.span animate={{ scale: [1, 1.06, 1] }} transition={{ repeat: Infinity, duration: 2 }} className="text-4xl opacity-20">🎢</motion.span>
+                <motion.span animate={{ scale: [1, 1.06, 1] }} transition={{ repeat: Infinity, duration: 2 }}
+                  className="text-5xl opacity-20">🎢</motion.span>
                 <AnimatePresence mode="wait">
                   {introSecs === null ? (
-                    <motion.p key="study" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}
-                      className="text-xs font-black uppercase tracking-widest text-slate-400">See your options</motion.p>
+                    <motion.p key="study"
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="text-sm font-black uppercase tracking-widest text-slate-500">
+                      See your options
+                    </motion.p>
                   ) : (
-                    <motion.p key={`cd-${introSecs}`} initial={{ opacity: 0, scale: 1.15 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
-                      className={`text-sm font-black uppercase tracking-widest ${introSecs > 0 ? "text-white" : "text-amber-400"}`}>
+                    <motion.p key={`cd-${introSecs}`}
+                      initial={{ opacity: 0, scale: 1.15 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className={`text-xl font-black uppercase tracking-widest ${introSecs > 0 ? "text-white" : "text-amber-400"}`}>
                       {introSecs > 0 ? `Image in ${introSecs}` : "Image coming!"}
                     </motion.p>
                   )}
@@ -856,37 +711,58 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
             <video ref={imgRef as React.RefObject<HTMLVideoElement>} src={current.image}
               autoPlay muted loop playsInline
               className="absolute inset-0 w-full h-full object-cover"
-              style={{ opacity: phase === "intro" || paused ? 0 : 1, transform: `scale(${START_SCALE})`,
-                transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease" }} />
+              style={{
+                opacity: phase === "intro" || paused ? 0 : 1, transform: `scale(${START_SCALE})`,
+                transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease"
+              }} />
           ) : (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img ref={imgRef as React.RefObject<HTMLImageElement>} src={current.image} alt=""
               className="absolute inset-0 w-full h-full object-cover"
-              style={{ opacity: phase === "intro" || paused ? 0 : 1, transform: `scale(${START_SCALE})`,
-                transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease" }} />
+              style={{
+                opacity: phase === "intro" || paused ? 0 : 1, transform: `scale(${START_SCALE})`,
+                transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease"
+              }} />
           )}
           {paused && (
             <button onClick={handleResume}
               className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900/80 cursor-pointer">
-              <svg className="w-12 h-12 text-white/70 ml-1" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
-              <span className="text-xs font-black uppercase tracking-widest text-white/50">Tap to resume</span>
+              <svg className="w-14 h-14 text-white/70 ml-1" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+              <span className="text-xs font-black uppercase tracking-widest text-white/50">Paused — click to resume</span>
             </button>
           )}
         </div>
-        {/* Result strip */}
-        <div className="flex-shrink-0 h-9">
+
+        {/* Result strip — below image, fixed height */}
+        <div className="h-10 flex-shrink-0">
           <AnimatePresence>
             {revealed && pointsEarned !== null && (
-              <motion.div key="res" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+              <motion.div key="res" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
                 className={`h-full rounded-xl flex items-center justify-center px-4 ${correct ? "bg-emerald-500" : "bg-slate-800"}`}>
-                <p className="text-white font-black text-base">{correct ? `${getLabel(progressRef.current)} · +${pointsEarned} pts` : `It was ${current.answer.name}`}</p>
+                <p className={`font-black text-lg text-white`}>
+                  {correct ? `${getLabel(progressRef.current)} · +${pointsEarned} pts` : `It was ${current.answer.name}`}
+                </p>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
-        {/* Options */}
+      </div>
+
+      {/* Right: round info + options — stretches to match image height */}
+      <div className={`flex flex-col self-stretch gap-3 transition-opacity duration-200 ${paused ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
+        {/* Round / score */}
+        <div className="flex items-center justify-center flex-shrink-0">
+          <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">
+            Round {round + 1} / {rounds.length}
+          </p>
+        </div>
+
+        {/* Options — flex-1 so they fill remaining height = same as image */}
         <AnimatePresence mode="wait">
-          <motion.div key={`grid-${round}`} exit={{ opacity: 0, y: -8, transition: { duration: 0.4, ease: "easeIn" } }} className={`grid grid-cols-2 gap-2 flex-shrink-0 transition-opacity duration-200 ${paused ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
+          <motion.div key={`grid-${round}`}
+            exit={{ opacity: 0, y: -8, transition: { duration: 0.4, ease: "easeIn" } }}
+            className="flex flex-col gap-3 flex-1">
             {current.options.map((opt, i) => {
               const show = i < visibleCount || phase !== "intro";
               const isAnswer = opt.id === current.answer.id;
@@ -895,17 +771,18 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
               if (phase === "playing") cls = "bg-slate-800 hover:bg-slate-700 cursor-pointer";
               if (revealed) cls = isAnswer ? "bg-emerald-500 cursor-default" : isGuessed ? "bg-rose-500 cursor-default" : "bg-slate-800 opacity-30 cursor-default";
               return (
-                <div key={opt.id} className="h-16">
+                <div key={opt.id} className="flex-1 min-h-0">
                   <AnimatePresence>
                     {show && (
-                      <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}
+                      <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2 }}
                         onClick={() => handleGuess(opt.id)} disabled={phase !== "playing"}
-                        className={`w-full h-full flex items-center gap-2.5 rounded-xl px-3 text-left transition-colors ${cls}`}>
-                        {opt.park_country && <Image src={getParkFlag(opt.park_country)} alt="" width={24} height={17} className="rounded flex-shrink-0" />}
-                        <div className="min-w-0">
-                          <p className="font-black text-sm leading-tight truncate text-white">{opt.name}</p>
-                          <p className={`text-xs truncate ${revealed && (isAnswer || isGuessed) ? "text-white/70" : "text-slate-400"}`}>{opt.park_name}</p>
-                        </div>
+                        className={`w-full h-full flex flex-col items-center justify-center gap-1.5 rounded-2xl px-4 text-center transition-all ${cls}`}>
+                        {opt.park_country && (
+                          <Image src={getParkFlag(opt.park_country)} alt="" width={30} height={21} className="rounded-sm flex-shrink-0" unoptimized />
+                        )}
+                        <p className={`font-black text-base leading-tight ${revealed && (isAnswer || isGuessed) ? "text-white" : "text-white"}`}>{opt.name}</p>
+                        <p className={`text-xs ${revealed && (isAnswer || isGuessed) ? "text-white/70" : "text-slate-400"}`}>{opt.park_name}</p>
                       </motion.button>
                     )}
                   </AnimatePresence>
@@ -915,19 +792,143 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
           </motion.div>
         </AnimatePresence>
       </div>
-    );
+    </motion.div>
+  );
+
+  // ── Mobile layout: fullscreen ──────────────────────────────────────────────
+  return (
+    <div className="bg-[#0f172a] flex flex-col gap-2.5 px-3 pt-3 pb-3 -mt-px" style={{ minHeight: "calc(100dvh - 56px)" }}>
+      {/* Mobile title row */}
+      <div className="flex-shrink-0 text-center">
+        <h2 className="text-4xl sm:text-6xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 drop-shadow-sm italic transform -skew-x-6 pr-4">
+          ZOOMLE
+        </h2>
+        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-0.5">Guess the coaster · Round {round + 1} / {rounds.length}</p>
+      </div>
+      {/* Timer */}
+      <div className={`flex items-center gap-2.5 flex-shrink-0 transition-opacity duration-200 ${phase === "playing" || paused ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+        <motion.div key={`secs-${round}-${secsLeft}`} initial={{ scale: 1.15 }} animate={{ scale: 1 }}
+          className={`text-3xl font-black tabular-nums w-12 text-center leading-none ${paused ? "text-slate-500" : secsLeft <= 3 ? "text-rose-400" : secsLeft <= 7 ? "text-amber-400" : "text-white"}`}>
+          {paused ? "—" : secsLeft}
+        </motion.div>
+        <div className="flex-1 h-2.5 rounded-full overflow-hidden bg-slate-800">
+          <div ref={timerBarRef} className="h-full rounded-full bg-blue-500" style={{ width: "100%", transition: "none" }} />
+        </div>
+        <motion.div key={`pts-${round}-${ptsAvail}`} initial={{ scale: 1.3 }} animate={{ scale: 1 }}
+          className="flex-shrink-0 flex flex-col items-center leading-none">
+          <span className={`text-xl font-black tabular-nums ${ptsAvail >= 4 ? "text-amber-400" : "text-slate-500"}`}>{ptsAvail}</span>
+          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wide">pts</span>
+        </motion.div>
+        <button onClick={paused ? handleResume : handlePause}
+          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-slate-800 text-slate-400 hover:bg-slate-700 transition-colors cursor-pointer">
+          {paused
+            ? <svg className="w-3.5 h-3.5 ml-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+            : <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" /></svg>
+          }
+        </button>
+      </div>
+      {/* Image */}
+      <div className="relative rounded-2xl overflow-hidden bg-slate-800 w-full flex-shrink-0" style={{ aspectRatio: "3/2" }}>
+        <AnimatePresence>
+          {phase === "intro" && (
+            <motion.div key="ph" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
+              <motion.span animate={{ scale: [1, 1.06, 1] }} transition={{ repeat: Infinity, duration: 2 }} className="text-4xl opacity-20">🎢</motion.span>
+              <AnimatePresence mode="wait">
+                {introSecs === null ? (
+                  <motion.p key="study" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}
+                    className="text-xs font-black uppercase tracking-widest text-slate-500">See your options</motion.p>
+                ) : (
+                  <motion.p key={`cd-${introSecs}`} initial={{ opacity: 0, scale: 1.15 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
+                    className={`text-sm font-black uppercase tracking-widest ${introSecs > 0 ? "text-white" : "text-amber-400"}`}>
+                    {introSecs > 0 ? `Image in ${introSecs}` : "Image coming!"}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {isVideo(current.image) ? (
+          <video ref={imgRef as React.RefObject<HTMLVideoElement>} src={current.image}
+            autoPlay muted loop playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{
+              opacity: phase === "intro" || paused ? 0 : 1, transform: `scale(${START_SCALE})`,
+              transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease"
+            }} />
+        ) : (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img ref={imgRef as React.RefObject<HTMLImageElement>} src={current.image} alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{
+              opacity: phase === "intro" || paused ? 0 : 1, transform: `scale(${START_SCALE})`,
+              transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease"
+            }} />
+        )}
+        {paused && (
+          <button onClick={handleResume}
+            className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900/80 cursor-pointer">
+            <svg className="w-12 h-12 text-white/70 ml-1" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+            <span className="text-xs font-black uppercase tracking-widest text-white/50">Tap to resume</span>
+          </button>
+        )}
+      </div>
+      {/* Result strip */}
+      <div className="flex-shrink-0 h-9">
+        <AnimatePresence>
+          {revealed && pointsEarned !== null && (
+            <motion.div key="res" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+              className={`h-full rounded-xl flex items-center justify-center px-4 ${correct ? "bg-emerald-500" : "bg-slate-800"}`}>
+              <p className="text-white font-black text-base">{correct ? `${getLabel(progressRef.current)} · +${pointsEarned} pts` : `It was ${current.answer.name}`}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      {/* Options */}
+      <AnimatePresence mode="wait">
+        <motion.div key={`grid-${round}`} exit={{ opacity: 0, y: -8, transition: { duration: 0.4, ease: "easeIn" } }} className={`grid grid-cols-2 gap-2 flex-shrink-0 transition-opacity duration-200 ${paused ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
+          {current.options.map((opt, i) => {
+            const show = i < visibleCount || phase !== "intro";
+            const isAnswer = opt.id === current.answer.id;
+            const isGuessed = guessedId === opt.id;
+            let cls = "bg-slate-800 cursor-default";
+            if (phase === "playing") cls = "bg-slate-800 hover:bg-slate-700 cursor-pointer";
+            if (revealed) cls = isAnswer ? "bg-emerald-500 cursor-default" : isGuessed ? "bg-rose-500 cursor-default" : "bg-slate-800 opacity-30 cursor-default";
+            return (
+              <div key={opt.id} className="h-16">
+                <AnimatePresence>
+                  {show && (
+                    <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}
+                      onClick={() => handleGuess(opt.id)} disabled={phase !== "playing"}
+                      className={`w-full h-full flex items-center gap-2.5 rounded-xl px-3 text-left transition-colors ${cls}`}>
+                      {opt.park_country && <Image src={getParkFlag(opt.park_country)} alt="" width={24} height={17} className="rounded flex-shrink-0" />}
+                      <div className="min-w-0">
+                        <p className="font-black text-sm leading-tight truncate text-white">{opt.name}</p>
+                        <p className={`text-xs truncate ${revealed && (isAnswer || isGuessed) ? "text-white/70" : "text-slate-400"}`}>{opt.park_name}</p>
+                      </div>
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TestGames() {
   const [dailyRounds, setDailyRounds] = useState<PhotoRound[]>([]);
-  const [dailyDate, setDailyDate]     = useState("");
-  const [poolTotal, setPoolTotal]       = useState(0);
-  const [poolImages, setPoolImages]     = useState(0);
-  const [zoomlePool, setZoomlePool]   = useState<{ image: string; focus: string; coaster_id: number }[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [isMobile, setIsMobile]       = useState(false);
+  const [dailyDate, setDailyDate] = useState("");
+  const [poolTotal, setPoolTotal] = useState(0);
+  const [poolImages, setPoolImages] = useState(0);
+  const [zoomlePool, setZoomlePool] = useState<{ image: string; focus: string; coaster_id: number }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     setIsMobile(window.innerWidth < 768);
@@ -950,13 +951,17 @@ export default function TestGames() {
       })));
       // Map API rounds → PhotoRound[]
       setDailyRounds((daily.rounds ?? []).map((r: any) => ({
-        image:       r.image,
-        focus:       r.focus ?? "50% 50%",
+        image: r.image,
+        focus: r.focus ?? "50% 50%",
         focal_index: r.focal_index ?? 4,
-        answer:  { id: r.answer_id, name: r.answer_name, park_name: r.park_name, park_country: r.park_country ?? null,
-                   year: null, height: null, speed: null, inversions: null, length: null, drop: null, gforce: null, duration: null, isbestcoaster: false },
-        options: (r.options ?? []).map((o: any) => ({ id: o.id, name: o.name, park_name: o.park_name, park_country: o.park_country ?? null,
-                   year: null, height: null, speed: null, inversions: null, length: null, drop: null, gforce: null, duration: null, isbestcoaster: false })),
+        answer: {
+          id: r.answer_id, name: r.answer_name, park_name: r.park_name, park_country: r.park_country ?? null,
+          year: null, height: null, speed: null, inversions: null, length: null, drop: null, gforce: null, duration: null, isbestcoaster: false
+        },
+        options: (r.options ?? []).map((o: any) => ({
+          id: o.id, name: o.name, park_name: o.park_name, park_country: o.park_country ?? null,
+          year: null, height: null, speed: null, inversions: null, length: null, drop: null, gforce: null, duration: null, isbestcoaster: false
+        })),
       })));
       setLoading(false);
     });

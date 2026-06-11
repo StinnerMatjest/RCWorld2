@@ -31,25 +31,16 @@ const LoadingSpinner: React.FC<Props> = ({ messages, className }) => {
 
   return (
     <div
-      className={`flex flex-col items-center justify-start min-h-screen pt-32 bg-white dark:bg-[#0f172a] ${
-        className ?? ""
-      }`}
+      className={`flex flex-col items-center justify-start min-h-screen pt-32 bg-[#0f172a] ${className ?? ""
+        }`}
     >
       <div className="relative w-36 h-36">
-        {/* Center favicon (light/dark swap) */}
+        {/* Center favicon (Locked to dark mode variant) */}
         <div className="absolute inset-0 flex items-center justify-center">
-          {/* Light mode */}
-          <img
-            src="/logos/favicon.svg"
-            alt="Loading"
-            className="w-20 h-20 drop-shadow-sm dark:hidden"
-            draggable={false}
-          />
-          {/* Dark mode */}
           <img
             src="/logos/faviconload.svg"
             alt="Loading"
-            className="hidden w-20 h-20 drop-shadow-sm dark:block"
+            className="w-20 h-20 drop-shadow-sm"
             draggable={false}
           />
         </div>
@@ -78,7 +69,7 @@ const LoadingSpinner: React.FC<Props> = ({ messages, className }) => {
       </div>
 
       <p
-        className="mt-7 text-gray-700 dark:text-gray-300 font-semibold tracking-wide text-lg"
+        className="mt-7 text-slate-300 font-semibold tracking-wide text-lg"
         aria-live="polite"
         suppressHydrationWarning
       >

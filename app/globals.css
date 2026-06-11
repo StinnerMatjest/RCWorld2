@@ -1,16 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* The exact rich navy/slate background from your live branch */
+  --background: #0f172a;
+  /* Crisp, legible slate-white text */
+  --foreground: #f8fafc;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* Make sure you completely deleted the 
+  @media (prefers-color-scheme: dark) { ... } block! 
+*/
 
 body {
   color: var(--foreground);
@@ -27,13 +26,16 @@ select {
     opacity: 0;
     transform: scale(0.95) translateY(20px);
   }
+
   60% {
     opacity: 1;
     transform: scale(1.02) translateY(-2px);
   }
+
   80% {
     transform: scale(0.98) translateY(2px);
   }
+
   100% {
     transform: scale(1) translateY(0);
   }
@@ -46,18 +48,23 @@ select {
 .delay-0 {
   animation-delay: 0s;
 }
+
 .delay-1 {
   animation-delay: 0.1s;
 }
+
 .delay-2 {
   animation-delay: 0.2s;
 }
+
 .delay-3 {
   animation-delay: 0.3s;
 }
+
 .delay-4 {
   animation-delay: 0.4s;
 }
+
 .delay-5 {
   animation-delay: 0.5s;
 }
@@ -92,6 +99,7 @@ select {
     opacity: 0;
     transform: translateY(12px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -100,28 +108,56 @@ select {
 
 /* Hide horizontal scrollbar in the mobile carousel */
 .no-scrollbar {
-  -ms-overflow-style: none; /* IE/Edge */
-  scrollbar-width: none;    /* Firefox */
+  -ms-overflow-style: none;
+  /* IE/Edge */
+  scrollbar-width: none;
+  /* Firefox */
 }
+
 .no-scrollbar::-webkit-scrollbar {
-  display: none;            /* Chrome/Safari */
+  display: none;
+  /* Chrome/Safari */
 }
 
 /* Hide horizontal scrollbar for the carousel */
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
 
 /* Edge bounce animation (respects reduced motion) */
 @keyframes edge-bounce {
-  0%   { transform: translateX(0); }
-  40%  { transform: translateX(8px); }
-  100% { transform: translateX(0); }
+  0% {
+    transform: translateX(0);
+  }
+
+  40% {
+    transform: translateX(8px);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
 }
-.edge-bounce-left  { animation: edge-bounce 180ms ease-out; }
-.edge-bounce-right { animation: edge-bounce 180ms ease-out reverse; }
+
+.edge-bounce-left {
+  animation: edge-bounce 180ms ease-out;
+}
+
+.edge-bounce-right {
+  animation: edge-bounce 180ms ease-out reverse;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .edge-bounce-left, .edge-bounce-right { animation: none !important; }
+
+  .edge-bounce-left,
+  .edge-bounce-right {
+    animation: none !important;
+  }
 }
 
 .animate-fade-in {
@@ -129,9 +165,17 @@ select {
 }
 
 @keyframes revealUp {
-  0%   { opacity: 0; transform: translateY(10px) scale(0.99); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
+
 .animate-reveal {
   animation: revealUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
   opacity: 0;
@@ -139,13 +183,28 @@ select {
 
 
 /* Modern minimal scrollbar */
-::-webkit-scrollbar { width: 10px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 ::-webkit-scrollbar-thumb {
   background: rgba(120, 120, 120, 0.4);
   border-radius: 10px;
   transition: background 0.2s ease-in-out;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(120, 120, 120, 0.6); }
-html.dark ::-webkit-scrollbar-thumb { background: rgba(180,180,180,0.25); }
-html.dark ::-webkit-scrollbar-thumb:hover { background: rgba(180,180,180,0.4); }
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 120, 120, 0.6);
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: rgba(180, 180, 180, 0.25);
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(180, 180, 180, 0.4);
+}

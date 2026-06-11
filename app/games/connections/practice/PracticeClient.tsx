@@ -23,7 +23,6 @@ type BoardRecord = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -41,16 +40,15 @@ export default function PracticeClient() {
   const { isAdminMode } = useAdminMode();
   const [genCount, setGenCount] = useState(0);
   const [boards, setBoards] = useState<BoardRecord[]>([]);
-  const [idx,    setIdx]    = useState(0);
+  const [idx, setIdx] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const dragRef   = useRef({ dragging: false, startX: 0, scrollLeft: 0 });
+  const dragRef = useRef({ dragging: false, startX: 0, scrollLeft: 0 });
 
   async function generate(count = genCount) {
     setLoading(true);
     setError(null);
-    // Each generation uses a date offset so the pool is fully different each time
     const base = new Date();
     base.setDate(base.getDate() + count);
     const seed = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}-${String(base.getDate()).padStart(2, "0")}`;
@@ -89,7 +87,7 @@ export default function PracticeClient() {
 
   if (!isAdminMode) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-900 text-slate-400">
+      <div className="min-h-screen flex items-center justify-center bg-[#0f172a] text-slate-400">
         Admin mode required.
       </div>
     );
@@ -98,10 +96,10 @@ export default function PracticeClient() {
   const board = boards[idx] ?? null;
 
   return (
-    <div>
+    <div className="min-h-screen bg-[#0f172a]">
       {/* Board picker strip */}
       {(boards.length > 0 || loading) && (
-        <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-2">
+        <div className="bg-slate-900 border-b border-slate-800 px-4 py-2">
           <div className="max-w-3xl mx-auto">
             {error && <p className="text-red-400 text-xs mb-1">{error}</p>}
             <div
@@ -124,28 +122,26 @@ export default function PracticeClient() {
                 <button
                   key={i}
                   onClick={() => setIdx(i)}
-                  className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg border text-xs font-bold tabular-nums transition cursor-pointer ${
-                    !b.completed
+                  className={`flex-shrink-0 px-2.5 py-1.5 rounded-lg border text-xs font-bold tabular-nums transition cursor-pointer ${!b.completed
                       ? i === idx
-                        ? "border-violet-500 bg-violet-50 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300"
-                        : "border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-400"
+                        ? "border-violet-500 bg-violet-500/20 text-violet-300"
+                        : "border-slate-700 text-slate-400 hover:border-slate-500"
                       : b.won && b.mistakes === 0
                         ? "border-amber-400 bg-amber-400 text-white"
                         : b.won
                           ? "border-emerald-500 bg-emerald-500 text-white"
                           : "border-red-500 bg-red-500 text-white"
-                  }`}
+                    }`}
                 >
                   {i + 1}
                 </button>
-
               ))}
 
               {/* + button appends a fresh batch */}
               <button
                 onClick={() => { const next = genCount + 1; setGenCount(next); generate(next); }}
                 disabled={loading}
-                className="flex-shrink-0 px-2.5 py-1.5 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 text-slate-400 hover:border-violet-400 hover:text-violet-500 text-xs font-bold transition cursor-pointer disabled:opacity-40"
+                className="flex-shrink-0 px-2.5 py-1.5 rounded-lg border border-dashed border-slate-600 text-slate-500 hover:border-violet-500 hover:text-violet-400 text-xs font-bold transition cursor-pointer disabled:opacity-40"
               >
                 {loading ? "…" : "+"}
               </button>
@@ -165,7 +161,7 @@ export default function PracticeClient() {
       )}
 
       {loading && !boards.length && (
-        <div className="min-h-[50vh] flex items-center justify-center text-slate-400 animate-pulse">
+        <div className="min-h-[50vh] flex items-center justify-center text-slate-500 animate-pulse">
           Generating boards...
         </div>
       )}

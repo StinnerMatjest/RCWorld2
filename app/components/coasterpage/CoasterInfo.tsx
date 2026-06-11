@@ -12,11 +12,11 @@ interface CoasterInfoProps {
 }
 
 const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div className="flex justify-between items-baseline py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
-    <span className="text-sm font-medium text-gray-500 dark:text-gray-500 uppercase tracking-wide">
+  <div className="flex justify-between items-baseline py-2 border-b border-slate-800 last:border-0">
+    <span className="text-sm font-medium text-slate-500 uppercase tracking-wide">
       {label}
     </span>
-    <span className="text-base font-semibold text-gray-900 dark:text-gray-200 text-right">
+    <span className="text-base font-semibold text-slate-200 text-right">
       {value}
     </span>
   </div>
@@ -52,12 +52,12 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster, onUpdate }) => {
           parkName ? (
             <Link
               href={`/park/${coaster.parkSlug || coaster.parkId}`}
-              className="text-blue-600 hover:underline dark:text-blue-400"
+              className="text-blue-400 hover:underline"
             >
               {parkName}
             </Link>
           ) : (
-            <span className="text-gray-400 italic text-sm">Loading...</span>
+            <span className="text-slate-500 italic text-sm">Loading...</span>
           )
         }
       />
@@ -72,7 +72,7 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster, onUpdate }) => {
               href={coaster.rcdbpath}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:underline dark:text-blue-400"
+              className="text-blue-400 hover:underline"
             >
               RCDB Entry
             </a>
@@ -87,7 +87,7 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster, onUpdate }) => {
       {isAdminMode && (
         <button
           onClick={() => setShowModal(true)}
-          className="absolute -top-10 right-0 p-1 text-gray-400 hover:text-blue-500 transition-colors cursor-pointer"
+          className="absolute -top-10 right-0 p-1 text-slate-500 hover:text-blue-400 transition-colors cursor-pointer"
           title="Edit Coaster Info"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">

@@ -412,7 +412,7 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
             </div>
 
             <div className="p-4 bg-gradient-to-t from-black/80 to-transparent z-50">
-              <div className="w-full max-w-2xl mx-auto mb-4" onClick={(e) => e.stopPropagation()}>
+              <div className="w-full max-w-2xl mx-auto mb-4" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
                 {isEditingDesc ? (
                   <div className="flex flex-col gap-2 animate-fadeIn">
                     <textarea

@@ -31,17 +31,17 @@ const CATEGORIES = [
 type Category = typeof CATEGORIES[number];
 
 const LABELS: Record<Category, string> = {
-  description:          "Description",
-  bestCoaster:          "Best Coaster",
-  coasterDepth:         "Coaster Depth",
-  waterRides:           "Water Rides",
-  flatridesAndDarkrides:"Flat & Darkrides",
-  parkAppearance:       "Appearance",
-  parkPracticality:     "Practicality",
-  food:                 "Food",
-  snacksAndDrinks:      "Snacks & Drinks",
-  rideOperations:       "Ride Operations",
-  parkManagement:       "Management",
+  description: "Description",
+  bestCoaster: "Best Coaster",
+  coasterDepth: "Coaster Depth",
+  waterRides: "Water Rides",
+  flatridesAndDarkrides: "Flat & Darkrides",
+  parkAppearance: "Appearance",
+  parkPracticality: "Practicality",
+  food: "Food",
+  snacksAndDrinks: "Snacks & Drinks",
+  rideOperations: "Ride Operations",
+  parkManagement: "Management",
 };
 
 const isVideo = (p: string) => /\.(mp4|webm|ogg)$/i.test(p);
@@ -53,12 +53,12 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   const [selectedCat, setSelectedCat] = useState<Category>(CATEGORIES[0]);
   const [drafts, setDrafts] = useState<Record<string, { text: string; image: string | null; layout: string | null }>>(() =>
     Object.fromEntries(CATEGORIES.map(cat => [cat, {
-      text:   explanations[cat] ?? "",
-      image:  sectionImages[cat] ?? null,
+      text: explanations[cat] ?? "",
+      image: sectionImages[cat] ?? null,
       layout: sectionLayouts[cat] ?? null,
     }]))
   );
-  // Track which categories already exist on the server (PUT vs POST)
+
   const [persisted, setPersisted] = useState<Set<string>>(
     () => new Set(CATEGORIES.filter(c => explanations[c]))
   );
@@ -68,9 +68,9 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
   const cur = drafts[selectedCat];
 
-  const updateText  = useCallback((t: string) =>
+  const updateText = useCallback((t: string) =>
     setDrafts(d => ({ ...d, [selectedCat]: { ...d[selectedCat], text: t } })), [selectedCat]);
-  const updateImage  = useCallback((img: string | null) =>
+  const updateImage = useCallback((img: string | null) =>
     setDrafts(d => ({ ...d, [selectedCat]: { ...d[selectedCat], image: img } })), [selectedCat]);
   const updateLayout = useCallback((layout: string | null) =>
     setDrafts(d => ({ ...d, [selectedCat]: { ...d[selectedCat], layout } })), [selectedCat]);
@@ -99,14 +99,14 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   const handleSaveAll = async () => {
     setIsSaving(true);
     const newPersisted = new Set(persisted);
-    const outTexts: Record<string, string>   = {};
-    const outImages: Record<string, string>  = {};
+    const outTexts: Record<string, string> = {};
+    const outImages: Record<string, string> = {};
     const outLayouts: Record<string, string> = {};
 
     try {
       for (const cat of CATEGORIES) {
         const { text, image, layout } = drafts[cat];
-        if (!text && !image && !persisted.has(cat)) continue; // nothing to save
+        if (!text && !image && !persisted.has(cat)) continue;
 
         const method = persisted.has(cat) ? "PUT" : "POST";
         const res = await fetch(`/api/park/${parkId}/parkTexts`, {
@@ -117,8 +117,8 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
         if (res.ok) {
           const saved = await res.json();
           newPersisted.add(cat);
-          if (saved.text)        outTexts[cat]   = saved.text;
-          if (saved.imageUrl)   outImages[cat]  = saved.imageUrl;
+          if (saved.text) outTexts[cat] = saved.text;
+          if (saved.imageUrl) outImages[cat] = saved.imageUrl;
           if (saved.imageLayout) outLayouts[cat] = saved.imageLayout;
           else if (drafts[cat].layout) outLayouts[cat] = drafts[cat].layout!;
         }
@@ -135,8 +135,8 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   };
 
   const handleClose = () => {
-    const texts   = Object.fromEntries(CATEGORIES.filter(c => drafts[c].text).map(c   => [c, drafts[c].text]));
-    const images  = Object.fromEntries(CATEGORIES.filter(c => drafts[c].image).map(c  => [c, drafts[c].image!]));
+    const texts = Object.fromEntries(CATEGORIES.filter(c => drafts[c].text).map(c => [c, drafts[c].text]));
+    const images = Object.fromEntries(CATEGORIES.filter(c => drafts[c].image).map(c => [c, drafts[c].image!]));
     const layouts = Object.fromEntries(CATEGORIES.filter(c => drafts[c].layout).map(c => [c, drafts[c].layout!]));
     onSave?.(texts, images, layouts);
     onClose();
@@ -153,25 +153,25 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl w-full max-w-4xl h-[93vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[1000] bg-black/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-4xl h-[93vh] flex flex-col overflow-hidden">
 
         {/* ── Top bar ─────────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-white/10 flex-shrink-0">
-          <h2 className="font-bold text-gray-900 dark:text-white text-base flex-1">Edit Sections</h2>
-          {saveSuccess && <span className="text-green-500 text-sm font-medium">Saved ✓</span>}
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 flex-shrink-0">
+          <h2 className="font-bold text-white text-base flex-1">Edit Sections</h2>
+          {saveSuccess && <span className="text-green-400 text-sm font-medium">Saved ✓</span>}
           <button onClick={handleUnpublish}
-            className="px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900/50 text-red-500 dark:text-red-400 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors cursor-pointer">
+            className="px-3 py-1.5 rounded-lg border border-red-900/50 text-red-400 text-sm font-medium hover:bg-red-900/20 transition-colors cursor-pointer">
             Unpublish
           </button>
           <button onClick={handleSaveAll} disabled={isSaving}
-            className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold transition-colors cursor-pointer">
+            className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-bold transition-colors cursor-pointer">
             {isSaving ? "Saving…" : "Save all"}
           </button>
           <button onClick={handleClose}
-            className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors cursor-pointer">
+            className="p-1.5 rounded-full hover:bg-slate-800 text-slate-500 hover:text-white transition-colors cursor-pointer">
             <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/>
+              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
             </svg>
           </button>
         </div>
@@ -180,17 +180,16 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
         <div className="flex-1 min-h-0 flex overflow-hidden">
 
           {/* Sidebar — desktop only */}
-          <div className="hidden sm:flex flex-col w-44 border-r border-gray-200 dark:border-white/10 overflow-y-auto flex-shrink-0 py-1">
+          <div className="hidden sm:flex flex-col w-44 border-r border-slate-800 overflow-y-auto flex-shrink-0 py-1">
             {CATEGORIES.map(cat => {
               const filled = !!(drafts[cat].text || drafts[cat].image);
               return (
                 <button key={cat} onClick={() => setSelectedCat(cat)}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium text-left w-full transition-colors cursor-pointer ${
-                    selectedCat === cat
-                      ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-r-2 border-blue-500"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5"
-                  }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${filled ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"}`} />
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium text-left w-full transition-colors cursor-pointer ${selectedCat === cat
+                      ? "bg-slate-800 text-blue-400 border-r-2 border-blue-500"
+                      : "text-slate-400 hover:bg-slate-800/50"
+                    }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${filled ? "bg-green-500" : "bg-slate-600"}`} />
                   {LABELS[cat]}
                 </button>
               );
@@ -201,18 +200,17 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
 
             {/* Category pills — mobile only */}
-            <div className="sm:hidden flex gap-1.5 px-3 py-2 overflow-x-auto flex-shrink-0 border-b border-gray-200 dark:border-white/10 no-scrollbar">
+            <div className="sm:hidden flex gap-1.5 px-3 py-2 overflow-x-auto flex-shrink-0 border-b border-slate-800 no-scrollbar">
               {CATEGORIES.map(cat => {
                 const filled = !!(drafts[cat].text || drafts[cat].image);
                 return (
                   <button key={cat} onClick={() => setSelectedCat(cat)}
-                    className={`flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${
-                      selectedCat === cat
+                    className={`flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${selectedCat === cat
                         ? "bg-blue-600 border-blue-600 text-white"
                         : filled
-                          ? "border-green-500 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20"
-                          : "border-gray-300 dark:border-gray-700 text-gray-500"
-                    }`}>
+                          ? "border-green-500 text-green-400 bg-green-900/20"
+                          : "border-slate-700 text-slate-500"
+                      }`}>
                     {LABELS[cat]}
                   </button>
                 );
@@ -225,24 +223,24 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
               {/* Toolbar */}
               <div className="flex items-center gap-1">
                 <button type="button" onClick={() => wrapSelection("**")} title="Bold"
-                  className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 font-bold text-sm text-gray-700 dark:text-gray-200 cursor-pointer transition-colors">
+                  className="w-8 h-8 flex items-center justify-center rounded-md border border-slate-700 hover:bg-slate-800 font-bold text-sm text-slate-200 cursor-pointer transition-colors">
                   B
                 </button>
                 <button type="button" onClick={() => wrapSelection("*")} title="Italic"
-                  className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 italic text-sm text-gray-700 dark:text-gray-200 cursor-pointer transition-colors">
+                  className="w-8 h-8 flex items-center justify-center rounded-md border border-slate-700 hover:bg-slate-800 italic text-sm text-slate-200 cursor-pointer transition-colors">
                   I
                 </button>
                 <button type="button" onClick={insertBullet} title="Bullet list"
-                  className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 text-sm text-gray-700 dark:text-gray-200 cursor-pointer transition-colors">
+                  className="w-8 h-8 flex items-center justify-center rounded-md border border-slate-700 hover:bg-slate-800 text-sm text-slate-200 cursor-pointer transition-colors">
                   •—
                 </button>
-                <span className="text-xs text-gray-400 ml-1.5">**bold** &nbsp;*italic* &nbsp;- bullet</span>
+                <span className="text-xs text-slate-500 ml-1.5">**bold** &nbsp;*italic* &nbsp;- bullet</span>
               </div>
 
               {/* Textarea */}
               <textarea
                 ref={textareaRef}
-                className="w-full p-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-gray-900 dark:text-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 resize-none text-sm leading-relaxed"
+                className="w-full p-3 rounded-xl border border-slate-700 bg-slate-800/50 text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 resize-none text-sm leading-relaxed"
                 rows={10}
                 value={cur.text}
                 onChange={e => updateText(e.target.value)}
@@ -252,20 +250,19 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
               {/* Image picker */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Section Image <span className="text-gray-400 font-normal">(optional)</span>
+                  <p className="text-sm font-medium text-slate-300">
+                    Section Image <span className="text-slate-500 font-normal">(optional)</span>
                   </p>
                   {cur.image && (
-                    <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/10 rounded-lg p-0.5">
+                    <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-0.5">
                       {(["side", "center"] as const).map(opt => (
                         <button
                           key={opt}
                           onClick={() => updateLayout(opt === "side" ? null : "center")}
-                          className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                            (opt === "center" ? cur.layout === "center" : cur.layout !== "center")
-                              ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                          }`}
+                          className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${(opt === "center" ? cur.layout === "center" : cur.layout !== "center")
+                              ? "bg-slate-700 text-blue-400 shadow-sm"
+                              : "text-slate-500 hover:text-slate-300"
+                            }`}
                         >
                           {opt === "side" ? "⬛ Side" : "⬜ Center"}
                         </button>
@@ -274,24 +271,22 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                   )}
                 </div>
                 {galleryImages.length === 0 ? (
-                  <p className="text-sm text-gray-400">No gallery images available.</p>
+                  <p className="text-sm text-slate-500">No gallery images available.</p>
                 ) : (
                   <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5">
                     <button onClick={() => updateImage(null)}
-                      className={`aspect-square rounded-lg border-2 flex items-center justify-center text-xs font-medium transition-all cursor-pointer ${
-                        cur.image === null
-                          ? "border-blue-500 bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400"
-                          : "border-gray-200 dark:border-gray-700 text-gray-400 hover:border-gray-300"
-                      }`}>
+                      className={`aspect-square rounded-lg border-2 flex items-center justify-center text-xs font-medium transition-all cursor-pointer ${cur.image === null
+                          ? "border-blue-500 bg-blue-500/20 text-blue-400"
+                          : "border-slate-700 text-slate-500 hover:border-slate-600"
+                        }`}>
                       None
                     </button>
                     {galleryImages.map(img => {
                       const sel = cur.image === img.path;
                       return (
                         <button key={img.id} onClick={() => updateImage(img.path)}
-                          className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all cursor-pointer ${
-                            sel ? "border-blue-500 ring-2 ring-blue-500/30" : "border-gray-200 dark:border-gray-700 hover:border-gray-400"
-                          }`}>
+                          className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all cursor-pointer ${sel ? "border-blue-500 ring-2 ring-blue-500/30" : "border-slate-700 hover:border-slate-500"
+                            }`}>
                           {isVideo(img.path) ? (
                             <video src={img.path} className="w-full h-full object-cover" muted playsInline preload="metadata" />
                           ) : (
@@ -301,7 +296,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                           {sel && (
                             <div className="absolute inset-0 bg-blue-500/25 flex items-center justify-center">
                               <svg className="w-5 h-5 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                               </svg>
                             </div>
                           )}

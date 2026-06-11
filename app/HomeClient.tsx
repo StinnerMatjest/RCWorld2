@@ -29,15 +29,15 @@ const PendingParkCard = ({ park }: { park: Park }) => (
     href={`/?modal=true&pendingParkId=${park.id}`}
     className="mx-auto flex flex-col justify-between w-full max-w-[400px] py-3 md:py-4 h-full animate-fade-in-up"
   >
-    <div className="flex flex-col justify-center items-center text-center w-full h-full min-h-[450px] bg-slate-50 dark:bg-[#1e293b]/40 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all duration-300 p-6 shadow-sm group cursor-pointer">
-      <div className="w-16 h-16 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+    <div className="flex flex-col justify-center items-center text-center w-full h-full min-h-[450px] bg-[#1e293b]/40 rounded-2xl border-2 border-dashed border-slate-700 hover:border-blue-500 hover:bg-blue-900/10 transition-all duration-300 p-6 shadow-md group cursor-pointer">
+      <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
         <span className="text-2xl">⏳</span>
       </div>
-      <h3 className="text-[1.75rem] font-bold text-slate-900 dark:text-white mb-4 px-2">{park.name}</h3>
-      <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs font-bold px-3 py-1.5 rounded uppercase tracking-wider">
+      <h3 className="text-[1.75rem] font-bold text-white mb-4 px-2">{park.name}</h3>
+      <span className="bg-amber-900/30 text-amber-400 text-xs font-bold px-3 py-1.5 rounded uppercase tracking-wider">
         Pending Setup
       </span>
-      <p className="mt-6 text-sm text-slate-500 dark:text-slate-400 font-medium">Click to finish setting up park details and log your first rating.</p>
+      <p className="mt-6 text-sm text-slate-400 font-medium">Click to finish setting up park details and log your first rating.</p>
     </div>
   </Link>
 );
@@ -84,7 +84,7 @@ const TeaserParkCard = ({ rating, park }: { rating: Rating; park: Park }) => (
           className="flex items-center gap-2 px-4 py-2 rounded-full text-white text-xs font-bold bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 hover:opacity-90 transition-opacity shadow-sm"
         >
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
           </svg>
           @parkratings
         </a>
@@ -97,35 +97,35 @@ const avg = (a: number, b: number) => ((a + b) / 2).toFixed(2);
 
 const FULL_BLEED_GROUPS = [
   { emoji: "🎢", label: "Coasters", getValue: (r: Rating) => avg(r.bestCoaster, r.coasterDepth) },
-  { emoji: "🎡", label: "Rides",    getValue: (r: Rating) => avg(r.waterRides, r.flatridesAndDarkrides) },
-  { emoji: "🏞️", label: "Park",     getValue: (r: Rating) => avg(r.parkAppearance, r.parkPracticality) },
-  { emoji: "🍔", label: "Food",     getValue: (r: Rating) => avg(r.food, r.snacksAndDrinks) },
-  { emoji: "📋", label: "Mgmt",     getValue: (r: Rating) => avg(r.rideOperations, r.parkManagement) },
+  { emoji: "🎡", label: "Rides", getValue: (r: Rating) => avg(r.waterRides, r.flatridesAndDarkrides) },
+  { emoji: "🏞️", label: "Park", getValue: (r: Rating) => avg(r.parkAppearance, r.parkPracticality) },
+  { emoji: "🍔", label: "Food", getValue: (r: Rating) => avg(r.food, r.snacksAndDrinks) },
+  { emoji: "📋", label: "Mgmt", getValue: (r: Rating) => avg(r.rideOperations, r.parkManagement) },
 ];
 
 const CARD_CATS = ["coasters", "rides", "park", "food", "mgmt"] as const;
 type CardCat = typeof CARD_CATS[number];
 
 function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }: { rating: Rating; park: Park; isActive?: boolean; delayIndex?: number }) {
-  const headerSrc    = park.imagepath || "/images/error.PNG";
-  const cardSrc      = park.cardImagepath || headerSrc;
+  const headerSrc = park.imagepath || "/images/error.PNG";
+  const cardSrc = park.cardImagepath || headerSrc;
   const cardFocusStr = park.imageFocus || "0.5 0.5 1";
 
   const imageContainerRef = useRef<HTMLDivElement>(null);
-  const slotAFocusRef     = useRef<string>(cardFocusStr);
-  const slotBFocusRef     = useRef<string>(cardFocusStr);
+  const slotAFocusRef = useRef<string>(cardFocusStr);
+  const slotBFocusRef = useRef<string>(cardFocusStr);
 
   const applyFocusToImg = useCallback((img: HTMLImageElement, focusStr: string) => {
     const c = imageContainerRef.current;
     if (!c || !img.naturalWidth || !img.naturalHeight) return;
     const { cx, cy, zoom } = parseFocusStr(focusStr);
     const cs = Math.max(c.clientWidth / img.naturalWidth, c.clientHeight / img.naturalHeight);
-    const dw = img.naturalWidth  * cs * zoom;
+    const dw = img.naturalWidth * cs * zoom;
     const dh = img.naturalHeight * cs * zoom;
-    img.style.width  = `${dw}px`;
+    img.style.width = `${dw}px`;
     img.style.height = `${dh}px`;
-    img.style.left   = `${c.clientWidth  / 2 - cx * dw}px`;
-    img.style.top    = `${c.clientHeight / 2 - cy * dh}px`;
+    img.style.left = `${c.clientWidth / 2 - cx * dw}px`;
+    img.style.top = `${c.clientHeight / 2 - cy * dh}px`;
   }, []);
 
   const getCardEntry = useCallback((label: string): { src: string; focus: string } | null => {
@@ -140,14 +140,14 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
     FULL_BLEED_GROUPS
       .map(g => { const e = getCardEntry(g.label); return e ? { label: g.label, ...e } : null; })
       .filter((x): x is { label: string; src: string; focus: string } => x !== null),
-  [getCardEntry]);
+    [getCardEntry]);
 
   // Two-slot cross-fade — both slots always sum to opacity 0.7, no black ever shows
-  const slotARef      = useRef<HTMLImageElement>(null);
-  const slotBRef      = useRef<HTMLImageElement>(null);
+  const slotARef = useRef<HTMLImageElement>(null);
+  const slotBRef = useRef<HTMLImageElement>(null);
   const activeSlotRef = useRef<"A" | "B">("A");
-  const raf1Ref       = useRef<number | null>(null);
-  const raf2Ref       = useRef<number | null>(null);
+  const raf1Ref = useRef<number | null>(null);
+  const raf2Ref = useRef<number | null>(null);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
 
   useLayoutEffect(() => {
@@ -157,7 +157,7 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
     slotAFocusRef.current = cardFocusStr;
     slotBFocusRef.current = cardFocusStr;
     a.style.opacity = "0.88"; a.style.transition = "none";
-    b.style.opacity = "0";   b.style.transition = "none";
+    b.style.opacity = "0"; b.style.transition = "none";
     a.src = cardSrc;
     b.src = cardSrc;
     const tryApplyA = () => { if (a.naturalWidth) applyFocusToImg(a, cardFocusStr); };
@@ -167,18 +167,18 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
 
   const isHoveringRef = useRef(false);
   const hoveredCatRef = useRef<string | null>(null);
-  const intervalRef    = useRef<ReturnType<typeof setInterval> | null>(null);
-  const cycleFirstRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cycleIdxRef   = useRef(0);
-  const cycleListRef  = useRef<{ label: string; src: string; focus: string }[]>([]);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cycleFirstRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cycleIdxRef = useRef(0);
+  const cycleListRef = useRef<{ label: string; src: string; focus: string }[]>([]);
 
   const cancelInFlight = useCallback(() => {
     if (raf1Ref.current) { cancelAnimationFrame(raf1Ref.current); raf1Ref.current = null; }
     if (raf2Ref.current) { cancelAnimationFrame(raf2Ref.current); raf2Ref.current = null; }
     // Snap slots back to a clean state so the next transition always starts correctly
-    const activeEl   = (activeSlotRef.current === "A" ? slotARef : slotBRef).current;
+    const activeEl = (activeSlotRef.current === "A" ? slotARef : slotBRef).current;
     const inactiveEl = (activeSlotRef.current === "A" ? slotBRef : slotARef).current;
-    if (activeEl)   { activeEl.style.transition = "none";   activeEl.style.opacity = "0.88"; }
+    if (activeEl) { activeEl.style.transition = "none"; activeEl.style.opacity = "0.88"; }
     if (inactiveEl) { inactiveEl.style.transition = "none"; inactiveEl.style.opacity = "0"; }
     [slotARef, slotBRef].forEach(r => { if (r.current) { r.current.onload = null; r.current.onerror = null; } });
   }, []);
@@ -193,7 +193,7 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
       : [slotARef, slotBRef, "A" as const];
 
     const inactive = inactiveRef.current;
-    const active   = activeRef.current;
+    const active = activeRef.current;
     if (!inactive || !active) return;
 
     inactive.src = target.src;
@@ -207,9 +207,9 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
       raf1Ref.current = requestAnimationFrame(() => {
         raf2Ref.current = requestAnimationFrame(() => {
           inactive.style.transition = "opacity 700ms ease-in-out";
-          inactive.style.opacity    = "0.88";
-          active.style.transition   = "opacity 700ms ease-in-out";
-          active.style.opacity      = "0";
+          inactive.style.opacity = "0.88";
+          active.style.transition = "opacity 700ms ease-in-out";
+          active.style.opacity = "0";
           activeSlotRef.current = nextSlot;
         });
       });
@@ -218,14 +218,14 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
     if (inactive.complete && inactive.naturalWidth > 0) {
       startFade();
     } else {
-      inactive.onload  = startFade;
+      inactive.onload = startFade;
       inactive.onerror = startFade;
     }
   }, [cancelInFlight, cardSrc, cardFocusStr, applyFocusToImg]);
 
   const stopCycle = useCallback(() => {
-    if (intervalRef.current)   { clearInterval(intervalRef.current);   intervalRef.current = null; }
-    if (cycleFirstRef.current) { clearTimeout(cycleFirstRef.current);  cycleFirstRef.current = null; }
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    if (cycleFirstRef.current) { clearTimeout(cycleFirstRef.current); cycleFirstRef.current = null; }
   }, []);
 
   const startCycle = useCallback((initialDelay = 1500) => {
@@ -276,15 +276,15 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
     stopCycle();
     cancelInFlight();
     if (cardEnterTimerRef.current) clearTimeout(cardEnterTimerRef.current);
-    if (catHoverTimerRef.current)  clearTimeout(catHoverTimerRef.current);
-    if (catLeaveTimerRef.current)  clearTimeout(catLeaveTimerRef.current);
-    if (cycleFirstRef.current)     clearTimeout(cycleFirstRef.current);
-    if (cycleRestartRef.current)   clearTimeout(cycleRestartRef.current);
+    if (catHoverTimerRef.current) clearTimeout(catHoverTimerRef.current);
+    if (catLeaveTimerRef.current) clearTimeout(catLeaveTimerRef.current);
+    if (cycleFirstRef.current) clearTimeout(cycleFirstRef.current);
+    if (cycleRestartRef.current) clearTimeout(cycleRestartRef.current);
   }, [stopCycle, cancelInFlight]);
 
   const cardEnterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const catHoverTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const catLeaveTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const catHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const catLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleCardEnter = useCallback(() => {
     isHoveringRef.current = true;
@@ -300,9 +300,9 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
     isHoveringRef.current = false;
     hoveredCatRef.current = null;
     if (cardEnterTimerRef.current) { clearTimeout(cardEnterTimerRef.current); cardEnterTimerRef.current = null; }
-    if (catHoverTimerRef.current)  { clearTimeout(catHoverTimerRef.current);  catHoverTimerRef.current = null; }
-    if (catLeaveTimerRef.current)  { clearTimeout(catLeaveTimerRef.current);  catLeaveTimerRef.current = null; }
-    if (cycleRestartRef.current)   { clearTimeout(cycleRestartRef.current);   cycleRestartRef.current = null; }
+    if (catHoverTimerRef.current) { clearTimeout(catHoverTimerRef.current); catHoverTimerRef.current = null; }
+    if (catLeaveTimerRef.current) { clearTimeout(catLeaveTimerRef.current); catLeaveTimerRef.current = null; }
+    if (cycleRestartRef.current) { clearTimeout(cycleRestartRef.current); cycleRestartRef.current = null; }
     stopCycle();
     const activeEl = (activeSlotRef.current === "A" ? slotARef : slotBRef).current;
     const isOnHeader = !activeEl || activeEl.src === cardSrc || activeEl.src === "";
@@ -321,7 +321,7 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
   const handleCatEnter = useCallback((label: string) => {
     if (catLeaveTimerRef.current) { clearTimeout(catLeaveTimerRef.current); catLeaveTimerRef.current = null; }
     if (catHoverTimerRef.current) { clearTimeout(catHoverTimerRef.current); catHoverTimerRef.current = null; }
-    if (cycleRestartRef.current)  { clearTimeout(cycleRestartRef.current);  cycleRestartRef.current = null; }
+    if (cycleRestartRef.current) { clearTimeout(cycleRestartRef.current); cycleRestartRef.current = null; }
     hoveredCatRef.current = label;
     stopCycle();
     // Only show image after intentional hover (500ms) — prevents accidental triggers
@@ -380,7 +380,7 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
 
           <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent px-4 pt-4 pb-16 pointer-events-none">
             <div className="flex items-center gap-2">
-              <Image src={getParkFlag(park.country)} alt="" width={20} height={14} className="rounded-sm shrink-0" unoptimized/>
+              <Image src={getParkFlag(park.country)} alt="" width={20} height={14} className="rounded-sm shrink-0" unoptimized />
               <h1 className="text-white font-bold text-xl leading-tight drop-shadow-md">{park.name}</h1>
             </div>
             <p className="text-white/50 text-xs mt-1">{new Date(rating.date).toLocaleDateString()}</p>
@@ -585,10 +585,10 @@ const Home = () => {
       const velocity = Math.abs(deltaX) / Math.max(1, Date.now() - startTime);
       const direction = deltaX < 0 ? 1 : -1;
       let cards: number;
-      if (velocity > 14)     cards = Math.min(6, Math.round(velocity / 3));
+      if (velocity > 14) cards = Math.min(6, Math.round(velocity / 3));
       else if (velocity > 9) cards = 3;
       else if (velocity > 5) cards = 2;
-      else                   cards = 1;
+      else cards = 1;
 
       const maxIdx = el.children.length - 1;
       const target = Math.max(0, Math.min(maxIdx, currentIndexRef.current + direction * cards));
@@ -611,7 +611,7 @@ const Home = () => {
   };
 
   return (
-    <main id="top" className="relative z-0 bg-white dark:bg-[#0f172a] overflow-visible">
+    <main id="top" className="relative z-0 bg-[#0f172a] overflow-visible min-h-screen">
       {/* Mobile: horizontal swipe carousel */}
       <div className="md:hidden px-4 py-3 relative">
         <div
@@ -653,22 +653,23 @@ const Home = () => {
           })}
         </div>
 
-        <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-white dark:from-[#0f172a] to-transparent" />
+        {/* Removed light mode color fallback on side-scrolling gradients */}
+        <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-[#0f172a] to-transparent" />
         <div
-          className="pointer-events-none absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full px-2 py-1 bg-black/20 dark:bg-white/10 backdrop-blur-sm"
+          className="pointer-events-none absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full px-2 py-1 bg-white/10 backdrop-blur-sm"
           style={{ bottom: `calc(env(safe-area-inset-bottom, 0px) + ${DOTS_OFFSET}px)` }}
         >
           {displayItems.map((_, i) => (
             <span
               key={i}
-              className={`h-2 rounded-full transition-all duration-300 ease-in-out ${i === currentIndex ? "w-5 bg-blue-600 dark:bg-blue-400" : "w-2 bg-gray-300 dark:bg-gray-600"}`}
+              className={`h-2 rounded-full transition-all duration-300 ease-in-out ${i === currentIndex ? "w-5 bg-blue-400" : "w-2 bg-gray-600"}`}
             />
           ))}
         </div>
       </div>
 
       {/* Tablet & up: normal grid */}
-      <div className="hidden md:grid relative z-10 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 px-6 flex-grow dark:bg-transparent py-2.5">
+      <div className="hidden md:grid relative z-10 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 px-6 flex-grow py-2.5">
         {displayItems.map((item, index) => {
           if (item.type === "pending") {
             return <PendingParkCard key={item.id} park={item.park} />;

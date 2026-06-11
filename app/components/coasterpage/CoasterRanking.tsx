@@ -15,7 +15,7 @@ export const StatBlock = ({
   subValue,
   label,
   subLabel,
-  colorClass = "text-gray-900 dark:text-white",
+  colorClass = "text-white",
   isLink = false
 }: {
   mainValue: string | number | null;
@@ -32,7 +32,7 @@ export const StatBlock = ({
         {mainValue}
       </span>
       {subValue && (
-        <span className="text-lg sm:text-xl md:text-2xl font-bold text-gray-400 dark:text-gray-600 ml-0.5">
+        <span className="text-lg sm:text-xl md:text-2xl font-bold text-slate-600 ml-0.5">
           /{subValue}
         </span>
       )}
@@ -40,13 +40,13 @@ export const StatBlock = ({
 
     <div className="flex flex-col items-end">
       {label && (
-        <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-gray-400 text-right">
+        <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-slate-500 text-right">
           {label}
         </span>
       )}
 
       {subLabel && (
-        <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 text-right ${isLink ? 'group-hover:text-blue-500 transition-colors' : ''}`}>
+        <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wide text-slate-400 text-right ${isLink ? 'group-hover:text-blue-400 transition-colors' : ''}`}>
           {subLabel}
         </span>
       )}
@@ -58,11 +58,11 @@ export const StatBlock = ({
 export const SkeletonStatBlock = () => (
   <div className="flex flex-col items-end animate-pulse">
     <div className="flex items-baseline mb-1">
-      <div className="h-8 w-12 sm:h-10 sm:w-16 md:h-14 md:w-20 bg-gray-200 dark:bg-gray-800 rounded-lg"></div>
-      <div className="h-5 w-6 sm:h-6 sm:w-8 md:h-8 md:w-10 bg-gray-200 dark:bg-gray-800 rounded-lg ml-1"></div>
+      <div className="h-8 w-12 sm:h-10 sm:w-16 md:h-14 md:w-20 bg-slate-800 rounded-lg"></div>
+      <div className="h-5 w-6 sm:h-6 sm:w-8 md:h-8 md:w-10 bg-slate-800 rounded-lg ml-1"></div>
     </div>
     <div className="flex flex-col items-end gap-1 mt-1">
-      <div className="h-2 w-16 sm:h-3 sm:w-24 bg-gray-200 dark:bg-gray-800 rounded"></div>
+      <div className="h-2 w-16 sm:h-3 sm:w-24 bg-slate-800 rounded"></div>
     </div>
   </div>
 );
@@ -124,10 +124,10 @@ const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, p
   }, []);
 
   const getRankColor = (rank: number) => {
-    if (rank === 1) return "text-yellow-500 dark:text-yellow-400";
-    if (rank === 2) return "text-gray-400 dark:text-gray-300";
-    if (rank === 3) return "text-orange-500 dark:text-orange-400";
-    return "text-gray-900 dark:text-white";
+    if (rank === 1) return "text-yellow-400";
+    if (rank === 2) return "text-slate-300";
+    if (rank === 3) return "text-orange-400";
+    return "text-white";
   };
 
   if (!stats) return null;

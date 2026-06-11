@@ -76,31 +76,31 @@ const CoasterList: React.FC<CoasterListProps> = ({
 
     return (
       <motion.li layout className="transition-colors duration-200">
-        <div className="grid grid-cols-[minmax(0,1.1fr)_3.9rem_minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_5.5rem_minmax(0,1fr)_auto] items-center gap-1.5 md:gap-2 py-2 md:py-0.5 text-[16px] md:text-[18px] md:hover:bg-gray-50 dark:md:hover:bg-white/5 transition-colors">
+        <div className="grid grid-cols-[minmax(0,1.1fr)_3.9rem_minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_5.5rem_minmax(0,1fr)_auto] items-center gap-1.5 md:gap-2 py-2 md:py-0.5 text-[16px] md:text-[18px] md:hover:bg-white/5 transition-colors">
 
           {/* Name */}
           <div className="min-w-0 flex items-center gap-2 cursor-pointer">
             <Link
               href={`/coasters/${c.slug}`}
-              className="font-medium text-blue-700 hover:underline truncate dark:text-blue-400"
+              className="font-medium text-blue-400 hover:underline truncate"
             >
               {c.name}
             </Link>
 
             {c.isbestcoaster && (
-              <span className="hidden md:inline-flex rounded px-1.5 py-0.5 text-[12px] font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+              <span className="hidden md:inline-flex rounded px-1.5 py-0.5 text-[12px] font-semibold bg-yellow-900/30 text-yellow-300">
                 Best
               </span>
             )}
           </div>
 
           {/* Year */}
-          <div className="tabular-nums text-gray-800 dark:text-gray-200 text-left cursor-pointer pl-1 md:pl-0 text-[15px] md:text-[17px]" onClick={toggleOpen}>
+          <div className="tabular-nums text-slate-200 text-left cursor-pointer pl-1 md:pl-0 text-[15px] md:text-[17px]" onClick={toggleOpen}>
             {c.year ?? "—"}
           </div>
 
           {/* Manufacturer */}
-          <div className="text-gray-700 dark:text-gray-300 truncate cursor-pointer text-left text-[15px] md:text-[17px]" onClick={toggleOpen}>
+          <div className="text-slate-300 truncate cursor-pointer text-left text-[15px] md:text-[17px]" onClick={toggleOpen}>
             {c.manufacturer ?? "—"}
           </div>
 
@@ -124,7 +124,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
                 toggleOpen();
               }}
               className={`transition-transform duration-200 ${open ? "rotate-90" : "rotate-0"
-                } text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100 text-sm md:text-base`}
+                } text-slate-400 hover:text-slate-200 text-sm md:text-base`}
             >
               ▸
             </button>
@@ -142,18 +142,18 @@ const CoasterList: React.FC<CoasterListProps> = ({
               transition={{ duration: 0.25 }}
               className="overflow-hidden px-1"
             >
-              <div className="mt-1 rounded-lg bg-gray-100 dark:bg-white/5">
-                <div className="border-t border-gray-100 dark:border-white/10 pt-2 pb-2 px-2 text-sm md:text-base text-gray-700 dark:text-gray-300 grid grid-cols-1 gap-y-1">
+              <div className="mt-1 rounded-lg bg-white/5">
+                <div className="border-t border-white/10 pt-2 pb-2 px-2 text-sm md:text-base text-slate-300 grid grid-cols-1 gap-y-1">
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">Type: </span>
+                    <span className="text-slate-400">Type: </span>
                     <span>{c.model ?? "—"}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">Scale: </span>
+                    <span className="text-slate-400">Scale: </span>
                     <span>{c.scale ?? "—"}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">Ride count: </span>
+                    <span className="text-slate-400">Ride count: </span>
                     <span className="tabular-nums">{c.ridecount ?? 0}</span>
                   </div>
                 </div>
@@ -168,9 +168,9 @@ const CoasterList: React.FC<CoasterListProps> = ({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl lg:text-3xl font-bold dark:text-white">
+        <h2 className="text-2xl lg:text-3xl font-bold text-white">
           Roller Coasters{" "}
-          <span className="font-medium text-gray-500 dark:text-gray-400">
+          <span className="font-medium text-slate-400">
             ({sorted.length})
           </span>
         </h2>
@@ -195,44 +195,44 @@ const CoasterList: React.FC<CoasterListProps> = ({
           {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
-              className="h-6 rounded bg-gray-100 dark:bg:white/10 overflow-hidden"
+              className="h-6 rounded bg-white/10 overflow-hidden"
             >
-              <span className="block h-full animate-[shimmer_1.2s_infinite] bg-gradient-to-r from-transparent via-black/5 to-transparent dark:via-white/10" />
+              <span className="block h-full animate-[shimmer_1.2s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
             </div>
           ))}
         </div>
       ) : (
         <>
-          <h3 className="text-lg lg:text-xl font-semibold mt-3 dark:text:white">
+          <h3 className="text-lg lg:text-xl font-semibold mt-3 text-white">
             Main Coasters{" "}
-            <span className="font-medium text-gray-500 dark:text-gray-400">
+            <span className="font-medium text-slate-400">
               ({sorted.length - optionalCoasters.length})
             </span>
           </h3>
 
           {mainCoasters.length ? (
-            <ul className="divide-y divide-gray-300 dark:divide-white/10">
+            <ul className="divide-y divide-white/10">
               {mainCoasters.map((c) => (
                 <Row key={c.id} c={c} showRating={true} />
               ))}
             </ul>
           ) : null}
 
-          <h3 className="text-lg lg:text-xl font-semibold mt-3 dark:text:white">
+          <h3 className="text-lg lg:text-xl font-semibold mt-3 text-white">
             Optional Coasters{" "}
-            <span className="font-medium text-gray-500 dark:text-gray-400">
+            <span className="font-medium text-slate-400">
               ({optionalCoasters.length})
             </span>
           </h3>
 
           {optionalCoasters.length ? (
-            <ul className="divide-y divide-gray-300 dark:divide-white/10">
+            <ul className="divide-y divide-white/10">
               {optionalCoasters.map((c) => (
                 <Row key={c.id} c={c} showRating={false} />
               ))}
             </ul>
           ) : (
-            <p className="text-base text-gray-600 dark:text-gray-400">No other coasters found.</p>
+            <p className="text-base text-slate-400">No other coasters found.</p>
           )}
         </>
       )}

@@ -23,7 +23,6 @@ const RatingCard: React.FC<RatingCardProps> = ({
   const cardRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Detect mobile once + on resize
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
@@ -31,7 +30,6 @@ const RatingCard: React.FC<RatingCardProps> = ({
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  // Close popup on outside click, and on scroll only for desktop
   useEffect(() => {
     const closeOnOutside = (e: MouseEvent) => {
       if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
@@ -40,8 +38,6 @@ const RatingCard: React.FC<RatingCardProps> = ({
     };
 
     document.addEventListener("click", closeOnOutside);
-
-    // Only close on scroll for non-mobile, to avoid fighting horizontal swipe
     let closeOnScroll: (() => void) | null = null;
 
     if (!isMobile) {
@@ -119,30 +115,17 @@ const RatingCard: React.FC<RatingCardProps> = ({
     <Link href={`/park/${park.slug}`}>
       <div
         ref={cardRef}
-        className={`mx-auto flex flex-col justify-between w-full max-w-[400px] ${isMobile ? "py-3" : "py-4"
-          } animate-fade-in-up ${delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""
-          }`}
+        className={`mx-auto flex flex-col justify-between w-full max-w-[400px] ${isMobile ? "py-3" : "py-4"} animate-fade-in-up ${delayIndex !== undefined ? `delay-${delayIndex % 6}` : ""}`}
       >
-        <div className="relative flex flex-col items-center justify-between
-    bg-blue-50 dark:bg-[#1e293b] rounded-2xl overflow-hidden
-    shadow-md dark:shadow-lg transition-transform duration-300 ease-in-out
-    hover:scale-105 hover:shadow-xl transform-gpu will-change-transform">
+        <div className="relative flex flex-col items-center justify-between bg-[#1e293b] rounded-2xl overflow-hidden shadow-lg transition-transform duration-300 ease-in-out hover:scale-105 hover:shadow-xl transform-gpu will-change-transform">
 
           {/* Park Name */}
-          <div
-            className={`flex flex-col items-center justify-center w-full ${isMobile ? "min-h-[56px] px-2" : "min-h-[80px]"
-              }`}
-          >
+          <div className={`flex flex-col items-center justify-center w-full ${isMobile ? "min-h-[56px] px-2" : "min-h-[80px]"}`}>
             <div className="flex items-center justify-center text-center min-w-0">
-              <h1
-                className={`${isMobile
-                  ? "text-[clamp(1.15rem,4vw,1.75rem)] truncate"
-                  : "text-[1.75rem]"
-                  } font-bold text-gray-900 dark:text-white flex items-center gap-2`}
-              >
+              <h1 className={`${isMobile ? "text-[clamp(1.15rem,4vw,1.75rem)] truncate" : "text-[1.75rem]"} font-bold text-white flex items-center gap-2`}>
                 <Image
                   src={getParkFlag(park.country)}
-                  alt={`${park.country} flag`}
+                  alt=""
                   width={isMobile ? 22 : 24}
                   height={16}
                   loading="lazy"
@@ -153,14 +136,11 @@ const RatingCard: React.FC<RatingCardProps> = ({
               </h1>
             </div>
           </div>
+
           {/* Park Image */}
           <figure
-            className="w-full aspect-[16/9] md:aspect-video overflow-hidden bg-gray-200 dark:bg-gray-800 will-change-transform transition-transform duration-350 ease-[cubic-bezier(0.33,1,0.68,1)]"
-            style={{
-              transform: isMobile
-                ? "translateX(calc(var(--px, 0px) / 1))"
-                : "translateX(0px)",
-            }}
+            className="w-full aspect-[16/9] md:aspect-video overflow-hidden bg-gray-800 will-change-transform transition-transform duration-350 ease-[cubic-bezier(0.33,1,0.68,1)]"
+            style={{ transform: isMobile ? "translateX(calc(var(--px, 0px) / 1))" : "translateX(0px)" }}
           >
             <FocusedImage
               src={park.cardImagepath || park.imagepath || "/images/error.PNG"}
@@ -173,36 +153,25 @@ const RatingCard: React.FC<RatingCardProps> = ({
 
           {/* Rating Date & Status */}
           <div className="flex items-center justify-center gap-3 py-1">
-            <div className="text-sm italic text-gray-600 dark:text-gray-400">
+            <div className="text-sm italic text-slate-400">
               Date: {new Date(rating.date).toLocaleDateString()}
             </div>
             {!rating.published && (
-              <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider border border-red-200 dark:border-red-800">
+              <span className="bg-red-900/30 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider border border-red-800">
                 Draft
               </span>
             )}
           </div>
 
           {/* Overall Score */}
-          <p
-            className={`${isMobile
-              ? "font-extrabold py-1 tabular-nums leading-none text-[clamp(2.25rem,7.5vw,3.25rem)]"
-              : "text-5xl font-bold py-2"
-              } ${getRatingColor(rating.overall)}`}
-          >
+          <p className={`${isMobile ? "font-extrabold py-1 tabular-nums leading-none text-[clamp(2.25rem,7.5vw,3.25rem)]" : "text-5xl font-bold py-2"} ${getRatingColor(rating.overall)}`}>
             {rating.overall.toFixed(2)}
           </p>
 
-          <div
-            className={`${isMobile ? "w-10/12 my-1.5" : "w-3/4 my-2"
-              } border-t border-gray-300 dark:border-gray-600`}
-          />
+          <div className={`${isMobile ? "w-10/12 my-1.5" : "w-3/4 my-2"} border-t border-slate-700`} />
 
           {/* Grouped Ratings */}
-          <div
-            className={`w-full max-w-[360px] flex flex-col ${isMobile ? "px-3 pb-3 space-y-1" : "px-4 pb-4"
-              }`}
-          >
+          <div className={`w-full max-w-[360px] flex flex-col ${isMobile ? "px-3 pb-3 space-y-1" : "px-4 pb-4"}`}>
             {[...groupedRow1, ...groupedRow2].map((group, idx) => {
               const isActive = activeIdx === idx;
 
@@ -223,29 +192,23 @@ const RatingCard: React.FC<RatingCardProps> = ({
 
               let warningColorClass = "";
               if (warningsForGroup.length === 1) {
-                if (highestSeverityLevel === 2) warningColorClass = "text-red-600 dark:text-red-400";
-                else if (highestSeverityLevel === 1) warningColorClass = "text-yellow-500 dark:text-yellow-400";
-                else warningColorClass = "text-gray-400 dark:text-gray-500";
+                if (highestSeverityLevel === 2) warningColorClass = "text-red-400";
+                else if (highestSeverityLevel === 1) warningColorClass = "text-yellow-400";
+                else warningColorClass = "text-slate-500";
               } else if (warningsForGroup.length >= 2) {
-                if (highestSeverityLevel === 2) warningColorClass = "text-slate-900 dark:text-white drop-shadow-sm";
-                else if (highestSeverityLevel === 1) warningColorClass = "text-red-600 dark:text-red-400";
-                else warningColorClass = "text-yellow-500 dark:text-yellow-400";
+                if (highestSeverityLevel === 2) warningColorClass = "text-white drop-shadow-sm";
+                else if (highestSeverityLevel === 1) warningColorClass = "text-red-400";
+                else warningColorClass = "text-yellow-400";
               }
 
               return (
                 <React.Fragment key={idx}>
                   {idx !== 0 && (
-                    <hr
-                      className={`${isMobile ? "my-1" : "my-2"
-                        } border-t border-gray-300 dark:border-gray-600`}
-                    />
+                    <hr className={`${isMobile ? "my-1" : "my-2"} border-t border-slate-700`} />
                   )}
 
                   <div
-                    className={`relative group cursor-pointer rounded-md ${isMobile
-                      ? "p-1 hover:bg-blue-100/60 dark:hover:bg-white/10"
-                      : "p-2 hover:bg-blue-100 dark:hover:bg-white/10"
-                      } transition duration-200 ease-in-out hover:shadow-md`}
+                    className={`relative group cursor-pointer rounded-md ${isMobile ? "p-1 hover:bg-white/10" : "p-2 hover:bg-white/10"} transition duration-200 ease-in-out hover:shadow-md`}
                     onClick={(e) => {
                       if (isMobile) {
                         e.preventDefault();
@@ -256,19 +219,15 @@ const RatingCard: React.FC<RatingCardProps> = ({
                   >
                     {/* Desktop hover tooltip */}
                     {!isMobile && (
-                      <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 text-sm shadow-xl rounded-lg p-3 z-[60] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border border-gray-300 dark:border-gray-700 min-w-[200px]">
-                        <div className="font-semibold mb-2 text-gray-800 dark:text-gray-200">
+                      <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-slate-800 text-sm shadow-xl rounded-lg p-3 z-[60] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border border-slate-700 min-w-[200px]">
+                        <div className="font-semibold mb-2 text-slate-200">
                           {group.label} Breakdown
                         </div>
-                        <div className="space-y-1 text-gray-700 dark:text-gray-300 text-sm">
+                        <div className="space-y-1 text-slate-300 text-sm">
                           {group.details.map((item, i) => (
                             <div key={i} className="flex justify-between gap-4">
                               <span>{item.label}</span>
-                              <span
-                                className={`font-semibold ${getRatingColor(
-                                  item.value
-                                )}`}
-                              >
+                              <span className={`font-semibold ${getRatingColor(item.value)}`}>
                                 {item.value.toFixed(1)}
                               </span>
                             </div>
@@ -276,21 +235,17 @@ const RatingCard: React.FC<RatingCardProps> = ({
                         </div>
 
                         {hasWarnings && (
-                          <div className="mt-3 space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                            <div className="text-gray-800 dark:text-gray-200 font-semibold">
+                          <div className="mt-3 space-y-2 text-sm text-slate-300">
+                            <div className="text-slate-200 font-semibold">
                               Rating warning{warningsForGroup.length > 1 ? "s" : ""}
                             </div>
-
                             {warningsForGroup.map((w, i) => {
-                              const indColor = w.severity === "Major" ? "text-red-600 dark:text-red-400" :
-                                w.severity === "Minor" ? "text-gray-500 dark:text-gray-400" :
-                                  "text-yellow-500 dark:text-yellow-400";
+                              const indColor = w.severity === "Major" ? "text-red-400" :
+                                w.severity === "Minor" ? "text-slate-400" : "text-yellow-400";
                               return (
                                 <div key={i} className="space-y-0.5 whitespace-pre-line">
                                   <div className="flex items-center gap-1">
-                                    <p className={`font-semibold ${indColor}`}>
-                                      {w.ride}
-                                    </p>
+                                    <p className={`font-semibold ${indColor}`}>{w.ride}</p>
                                     <AlertTriangle className={`ml-1 w-3.5 h-3.5 ${indColor}`} />
                                   </div>
                                   <p className="opacity-90">{w.note}</p>
@@ -304,19 +259,15 @@ const RatingCard: React.FC<RatingCardProps> = ({
 
                     {/* Mobile click tooltip */}
                     {isMobile && isActive && (
-                      <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 text-sm shadow-xl rounded-lg p-3 z-[60] border border-gray-300 dark:border-gray-700 min-w-[200px]">
-                        <div className="font-semibold mb-2 text-gray-800 dark:text-gray-200">
+                      <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-slate-800 text-sm shadow-xl rounded-lg p-3 z-[60] border border-slate-700 min-w-[200px]">
+                        <div className="font-semibold mb-2 text-slate-200">
                           {group.label} Breakdown
                         </div>
-                        <div className="space-y-1 text-gray-700 dark:text-gray-300 text-sm">
+                        <div className="space-y-1 text-slate-300 text-sm">
                           {group.details.map((item, i) => (
                             <div key={i} className="flex justify-between gap-4">
                               <span>{item.label}</span>
-                              <span
-                                className={`font-semibold ${getRatingColor(
-                                  item.value
-                                )}`}
-                              >
+                              <span className={`font-semibold ${getRatingColor(item.value)}`}>
                                 {item.value.toFixed(1)}
                               </span>
                             </div>
@@ -324,21 +275,17 @@ const RatingCard: React.FC<RatingCardProps> = ({
                         </div>
 
                         {hasWarnings && (
-                          <div className="mt-3 space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                            <div className="text-gray-800 dark:text-gray-200 font-semibold">
+                          <div className="mt-3 space-y-2 text-sm text-slate-300">
+                            <div className="text-slate-200 font-semibold">
                               Rating warning{warningsForGroup.length > 1 ? "s" : ""}
                             </div>
-
                             {warningsForGroup.map((w, i) => {
-                              const indColor = w.severity === "Major" ? "text-red-600 dark:text-red-400" :
-                                w.severity === "Minor" ? "text-gray-500 dark:text-gray-400" :
-                                  "text-yellow-500 dark:text-yellow-400";
+                              const indColor = w.severity === "Major" ? "text-red-400" :
+                                w.severity === "Minor" ? "text-slate-400" : "text-yellow-400";
                               return (
                                 <div key={i} className="space-y-0.5 whitespace-pre-line">
                                   <div className="flex items-center gap-1">
-                                    <p className={`font-semibold ${indColor}`}>
-                                      {w.ride}
-                                    </p>
+                                    <p className={`font-semibold ${indColor}`}>{w.ride}</p>
                                     <AlertTriangle className={`ml-1 w-3.5 h-3.5 ${indColor}`} />
                                   </div>
                                   <p className="opacity-90">{w.note}</p>
@@ -353,7 +300,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
                     {/* Row Content */}
                     {isMobile ? (
                       <div className="grid grid-cols-[1fr_auto] items-baseline gap-2 w-full min-w-0">
-                        <span className="text-[1.05rem] font-semibold truncate flex items-center gap-1">
+                        <span className="text-[1.05rem] font-semibold truncate flex items-center gap-1 text-slate-200">
                           {group.emoji} {group.label}
                           {hasWarnings && (
                             <AlertTriangle className={`ml-1 w-4 h-4 ${warningColorClass}`} />
@@ -364,7 +311,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
                         </span>
                       </div>
                     ) : (
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-gray-800 dark:text-gray-200">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-slate-200">
                         <span className="text-3xl hidden sm:inline">{group.emoji}</span>
                         <div className="flex items-center gap-6 w-full justify-between">
                           <span className="text-lg font-semibold flex items-center gap-1">
