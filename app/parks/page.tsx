@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://parkrating.com/parks" },
 };
 
+// Render at request time, not build time (Docker build has no env/API).
+export const dynamic = "force-dynamic";
+
 async function getRankedParks(): Promise<RankedPark[]> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}api/parks/ranked`, { cache: "force-cache", next: { tags: ["content"] } });
   if (!res.ok) return [];

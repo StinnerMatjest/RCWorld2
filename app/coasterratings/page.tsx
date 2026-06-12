@@ -8,6 +8,9 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://parkrating.com/coasterratings" },
 };
 
+// Render at request time, not build time (Docker build has no env/API).
+export const dynamic = "force-dynamic";
+
 async function getCoasters() {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}api/coasters`, {

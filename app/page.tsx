@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://parkrating.com" },
 };
 
+// Render at request time, not build time: the Docker build has no env vars and
+// no running API, so a build-time prerender would bake in the empty fallback.
+export const dynamic = "force-dynamic";
+
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 async function getInitialData(): Promise<{ ratings?: Rating[]; parks?: Park[] }> {

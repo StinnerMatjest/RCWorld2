@@ -1,3 +1,7 @@
+// Render at request time, not build time: the Docker build has no env vars and
+// no running API to fetch from. The tagged data cache below keeps this fast.
+export const dynamic = "force-dynamic";
+
 export default async function sitemap() {
   const baseUrl = "https://parkrating.com";
   const API = process.env.NEXT_PUBLIC_API_BASE_URL;
