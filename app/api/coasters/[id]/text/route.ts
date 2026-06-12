@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
+import { revalidateContent } from "@/app/lib/revalidate";
+import { pool } from "@/app/lib/db";
+import { diffFields, getCoasterContext, logChange } from "@/app/lib/changelog";
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-});
 
 // Helper function to resolve slug OR id to a numeric coaster ID
 async function resolveCoasterId(identifier: string): Promise<number | null> {
@@ -60,6 +58,7 @@ export async function POST(
     req: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
+  revalidateContent();
     const { id } = await context.params;
     const coasterId = await resolveCoasterId(id);
 
@@ -98,10 +97,33 @@ export async function POST(
 
         if (textId) {
             // UPDATE existing
+            const oldRes = await pool.query(
+                `SELECT * FROM coastertext WHERE id = $1 AND coaster_id = $2`,
+                [textId, coasterId]
+            );
+            const oldRow = oldRes.rows[0];
+
             const updateRes = await pool.query(
                 `UPDATE coastertext SET headline = $1, text = $2 WHERE id = $3 AND coaster_id = $4 RETURNING *`,
                 [headline, text, textId, coasterId]
             );
+
+            if (oldRow) {
+                const diff = diffFields(oldRow, { headline, text });
+                if (Object.keys(diff).length > 0) {
+                    const ctx = await getCoasterContext(coasterId);
+                    logChange({
+                        parkId: ctx.parkId,
+                        entityType: "coaster_text",
+                        entityId: textId,
+                        label: ctx.name,
+                        action: "update",
+                        summary: `Edited "${headline ?? oldRow.headline}" text on ${ctx.name ?? `coaster #${coasterId}`}`,
+                        details: diff,
+                    });
+                }
+            }
+
             return NextResponse.json({ text: updateRes.rows[0] });
         } else {
             // CREATE new
@@ -116,6 +138,17 @@ export async function POST(
                 [coasterId, headline, text, newOrder]
             );
 
+            const ctx = await getCoasterContext(coasterId);
+            logChange({
+                parkId: ctx.parkId,
+                entityType: "coaster_text",
+                entityId: insertRes.rows[0]?.id,
+                label: ctx.name,
+                action: "create",
+                summary: `Added "${headline}" text on ${ctx.name ?? `coaster #${coasterId}`}`,
+                details: { headline, text },
+            });
+
             return NextResponse.json({ text: insertRes.rows[0] });
         }
     } catch (error) {
@@ -126,6 +159,7 @@ export async function POST(
 
 // DELETE
 export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  revalidateContent();
     const { id } = await context.params;
     const coasterId = await resolveCoasterId(id);
     const body = await req.json();
@@ -140,10 +174,25 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
     }
 
     try {
-        await pool.query(
-            `DELETE FROM coastertext WHERE id = $1 AND coaster_id = $2`,
+        const deleteRes = await pool.query(
+            `DELETE FROM coastertext WHERE id = $1 AND coaster_id = $2 RETURNING *`,
             [textId, coasterId]
         );
+
+        const deleted = deleteRes.rows[0];
+        if (deleted) {
+            const ctx = await getCoasterContext(coasterId);
+            logChange({
+                parkId: ctx.parkId,
+                entityType: "coaster_text",
+                entityId: textId,
+                label: ctx.name,
+                action: "delete",
+                summary: `Deleted "${deleted.headline}" text on ${ctx.name ?? `coaster #${coasterId}`}`,
+                details: { headline: deleted.headline, text: deleted.text },
+            });
+        }
+
         return NextResponse.json({ success: true });
     } catch (err) {
         console.error(err);

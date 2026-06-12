@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { getRatingColor } from "@/app/utils/design";
 
@@ -212,19 +212,33 @@ const SCORING_TIERS: Tier[] = [
   { score: "0.5 - 1.5", color: getRatingColor(0.5), unified: "Completely worthless" },
 ];
 
+const SECTION_IDS = ["introduction", "how-scoring-works", ...groups.map((g) => g.name)];
+
 export default function EvaluationCriteriaPage() {
+  const [activeSection, setActiveSection] = useState<string>("introduction");
+
+  useEffect(() => {
+    const onScroll = () => {
+      let current = SECTION_IDS[0];
+      for (const id of SECTION_IDS) {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top <= 120) current = id;
+      }
+      setActiveSection(current);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <div className="min-h-screen w-full bg-[#0f172a] text-slate-200">
       <style>{`
         :root { --anchor-offset: 80px; }
-        :root { --desc-min: 3.75rem; }
 
         html { scroll-behavior: smooth; }
         .group-anchor { scroll-margin-top: var(--anchor-offset); }
 
-        .collapsible {
-          transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease;
-        }
         .scroll-buffer { height: calc(100vh - var(--anchor-offset)); }
       `}</style>
 
@@ -232,47 +246,55 @@ export default function EvaluationCriteriaPage() {
 
         {/* TOC (left) */}
         <aside className="hidden md:block md:col-span-3">
-          <nav className="sticky top-24 rounded-2xl bg-slate-800/40 border border-slate-700/50 p-6 shadow-xl backdrop-blur-sm">
-            <p className="text-xs font-bold uppercase tracking-widest text-[#e9820e] mb-4">
-              Jump to section
+          <nav className="sticky top-24">
+            <p className="text-xs font-bold uppercase tracking-widest text-brand mb-4">
+              On this page
             </p>
-            <ul className="space-y-2 text-sm font-medium">
+            <ul className="text-sm border-l border-slate-800">
               <li>
                 <a
                   href="#introduction"
-                  className="block rounded-lg px-3 py-2 text-slate-300 hover:bg-slate-700/50 hover:text-white transition-colors"
+                  className={`block border-l-2 -ml-px pl-4 py-1.5 transition-colors ${
+                    activeSection === "introduction"
+                      ? "border-brand text-brand font-semibold"
+                      : "border-transparent text-slate-400 hover:text-white hover:border-slate-500"
+                  }`}
                 >
-                  📖 Introduction
+                  Introduction
                 </a>
               </li>
               <li>
                 <a
                   href="#how-scoring-works"
-                  className="block rounded-lg px-3 py-2 text-slate-300 hover:bg-slate-700/50 hover:text-white transition-colors"
+                  className={`block border-l-2 -ml-px pl-4 py-1.5 transition-colors ${
+                    activeSection === "how-scoring-works"
+                      ? "border-brand text-brand font-semibold"
+                      : "border-transparent text-slate-400 hover:text-white hover:border-slate-500"
+                  }`}
                 >
-                  📊 How scoring works
+                  How scoring works
                 </a>
               </li>
 
-              <li className="pt-3 pb-1">
-                <div className="border-t border-slate-700/50" />
-              </li>
-
               {groups.map((group) => (
-                <li key={group.name} className="pt-1">
+                <li key={group.name} className="mt-2">
                   <a
                     href={`#${group.name}`}
-                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-slate-300 hover:bg-slate-700/50 hover:text-white transition-colors"
+                    className={`flex items-center gap-2 border-l-2 -ml-px pl-4 py-1.5 transition-colors ${
+                      activeSection === group.name
+                        ? "border-brand text-brand font-semibold"
+                        : "border-transparent text-slate-400 hover:text-white hover:border-slate-500"
+                    }`}
                   >
-                    <span>{GROUP_ICON[group.name]}</span>
+                    <span className="text-base leading-none">{GROUP_ICON[group.name]}</span>
                     {group.name}
                   </a>
-                  <ul className="mt-1 space-y-1 pl-8 border-l-2 border-slate-700/50 ml-5">
+                  <ul>
                     {group.categories.map((c) => (
                       <li key={c.id}>
                         <a
-                          href={`#${group.name}`}
-                          className="block rounded-md px-2 py-1.5 text-xs text-slate-400 hover:text-indigo-300 hover:bg-slate-700/30 transition-colors truncate"
+                          href={`#${c.id}`}
+                          className="block border-l-2 border-transparent -ml-px pl-10 py-1 text-xs text-slate-500 hover:text-brand transition-colors truncate"
                           title={c.title}
                         >
                           {c.title}
@@ -291,13 +313,13 @@ export default function EvaluationCriteriaPage() {
 
           {/* Hero/Introduction */}
           <section id="introduction" className="pt-4 text-left">
-            <p className="text-[#e9820e] text-sm font-bold uppercase tracking-widest mb-3">
-              ParkRating Methodology
+            <p className="text-brand text-xs font-bold uppercase tracking-widest mb-3">
+              ParkRating · Methodology
             </p>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-white mb-6 leading-tight">
-              Evaluation <span className="text-[#e9820e]">Criteria</span>
+            <h1 className="text-4xl sm:text-5xl font-black mb-3 leading-tight text-white">
+              Evaluation <span className="text-brand">Criteria</span>
             </h1>
-            <div className="max-w-3xl text-lg text-slate-400 leading-relaxed space-y-4">
+            <div className="max-w-3xl text-base text-slate-400 leading-relaxed space-y-4">
               <p>
                 Our park ratings are split into five main categories:{" "}
                 <strong className="text-slate-200">Coasters</strong>, <strong className="text-slate-200">Rides</strong>,{" "}
@@ -307,7 +329,7 @@ export default function EvaluationCriteriaPage() {
                 all five categories.
               </p>
               <p>
-                <em className="text-slate-500 text-base">
+                <em className="text-slate-500 text-sm">
                   Disclaimer: These reviews reflect our personal experiences and opinions from the day of our visit. Please do not hold us liable if you suddenly find yourself falling
                   in love with a new manufacturer or swearing by a ride we did not
                   love quite as much!
@@ -319,11 +341,11 @@ export default function EvaluationCriteriaPage() {
           {/* How scoring works */}
           <section id="how-scoring-works" className="scroll-mt-24">
             <div className="mb-8">
-              <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
                 How scoring works
               </h2>
-              <div className="w-12 h-1 bg-indigo-500 rounded-full mt-4 mb-6" />
-              <p className="text-slate-400 text-lg max-w-3xl mb-8">
+              <div className="w-12 h-1 bg-brand rounded-full mt-4 mb-6" />
+              <p className="text-slate-400 text-base max-w-3xl mb-8">
                 Every coaster and category is scored from 0–10 based on our experience. Because different ride types aim for different experiences, our expectations shift depending on whether we are reviewing a <strong className="text-slate-200">Thrill Coaster</strong> or a <strong className="text-slate-200">Family Coaster</strong>.
                 <br className="mb-2" />
                 In extremely rare cases, a truly standout criterion may break the scale and earn a <span className={getRatingColor(11)}>Golden 11</span>.
@@ -332,28 +354,49 @@ export default function EvaluationCriteriaPage() {
 {/* Coaster Ratings */}
               <div className="max-w-3xl rounded-2xl bg-slate-800/20 border border-slate-800 p-6 md:p-8 mb-10 space-y-6">
                 <div>
-                  <h4 className="text-sm font-black uppercase tracking-widest text-[#e9820e] mb-2">
+                  <h4 className="text-sm font-black uppercase tracking-widest text-brand mb-2">
                     Our coaster ratings
                   </h4>
-                  <p className="text-sm md:text-base text-slate-300 leading-relaxed">
-                    Our rating system spans the entire spectrum of coaster experiences. You might find our scores stricter than typical review sites or YouTubers, but that is by design. We do not just hand out a <span className={`font-bold ${getRatingColor(7)}`}>7</span> or <span className={`font-bold ${getRatingColor(8)}`}>8</span> because we had fun; we critically weigh a ride's strengths against every coaster we have ridden globally. Similarly, we reserve a <span className={`font-bold ${getRatingColor(1)}`}>1</span> or <span className={`font-bold ${getRatingColor(2)}`}>2</span> exclusively for the absolute worst thrill rides or the most mundane junior coasters. Think of our scale like IMDb or Metacritic: anything above a <span className={`font-bold ${getRatingColor(6)}`}>6</span> is a genuinely solid ride, an <span className={`font-bold ${getRatingColor(8)}`}>8</span> is incredibly hard to achieve, and dipping below a <span className={`font-bold ${getRatingColor(4)}`}>4</span> requires serious flaws.
-                  </p>
+                  <div className="text-sm md:text-base text-slate-300 leading-relaxed space-y-3">
+                    <p>
+                      Our rating system spans the entire spectrum of coaster experiences. You might find our scores stricter than typical review sites or YouTubers, but that is by design.
+                    </p>
+                    <p>
+                      We do not just hand out a <span className={`font-bold ${getRatingColor(7)}`}>7</span> or <span className={`font-bold ${getRatingColor(8)}`}>8</span> because we had fun; we critically weigh a ride's strengths against every coaster we have ridden globally. Similarly, we reserve a <span className={`font-bold ${getRatingColor(1)}`}>1</span> or <span className={`font-bold ${getRatingColor(2)}`}>2</span> exclusively for the absolute worst thrill rides or the most mundane junior coasters.
+                    </p>
+                    <p>Think of our scale like IMDb or Metacritic:</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+                    <div className="rounded-xl bg-slate-900/50 border border-slate-700/40 px-4 py-3">
+                      <div className={`text-xl font-black tabular-nums ${getRatingColor(6)}`}>6+</div>
+                      <div className="text-xs text-slate-400 mt-1">A genuinely solid ride</div>
+                    </div>
+                    <div className="rounded-xl bg-slate-900/50 border border-slate-700/40 px-4 py-3">
+                      <div className={`text-xl font-black tabular-nums ${getRatingColor(8)}`}>8</div>
+                      <div className="text-xs text-slate-400 mt-1">Incredibly hard to achieve</div>
+                    </div>
+                    <div className="rounded-xl bg-slate-900/50 border border-slate-700/40 px-4 py-3">
+                      <div className={`text-xl font-black tabular-nums ${getRatingColor(3)}`}>Below 4</div>
+                      <div className="text-xs text-slate-400 mt-1">Requires serious flaws</div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-800/60">
                   <div>
-                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
+                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
                       Thrill Dynamics
                     </h5>
-                    <p className="text-xs text-slate-400 leading-relaxed">
+                    <p className="text-sm text-slate-300 leading-relaxed">
                       Thrill coasters naturally score higher due to their intensity. Even a flawed, rough thrill ride usually stays above a <span className={`font-bold ${getRatingColor(4)}`}>4.0</span> simply because the baseline thrill still provides enjoyment. Our perfect thrill coaster combines long duration, high intensity, relentless pacing, and forceful elements.
                     </p>
                   </div>
                   <div>
-                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
+                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
                       Family Appeal
                     </h5>
-                    <p className="text-xs text-slate-400 leading-relaxed">
+                    <p className="text-sm text-slate-300 leading-relaxed">
                       Because they lack extreme intensity, family coasters generally score lower. Standard family rides usually sit in the <span className={`font-bold ${getRatingColor(4)}`}>4</span>–<span className={`font-bold ${getRatingColor(5)}`}>5</span> range, while smaller junior coasters fall into the <span className={`font-bold ${getRatingColor(2)}`}>2</span>–<span className={`font-bold ${getRatingColor(3)}`}>3</span> range. Elite 'family-thrill' coasters can reach the <span className={`font-bold ${getRatingColor(6)}`}>6</span>–<span className={`font-bold ${getRatingColor(7)}`}>7</span> range, but exceeding a <span className={`font-bold ${getRatingColor(7)}`}>7</span> is rare. Our ideal family coaster delivers a long, incredibly smooth ride with immersive theming and unique elements.
                     </p>
                   </div>
@@ -364,34 +407,34 @@ export default function EvaluationCriteriaPage() {
             {/* Detailed Tier Table */}
             <div className="w-full overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-800/30 shadow-2xl">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm whitespace-nowrap sm:whitespace-normal table-fixed">
+                <table className="w-full text-xs sm:text-sm whitespace-normal table-fixed">
                   <thead>
-                    <tr className="bg-slate-900 border-b border-slate-700 text-slate-400 uppercase tracking-wider text-xs font-bold">
-                      <th className="px-4 py-4 w-[20%] text-center border-r border-slate-700/50">Score</th>
-                      <th className="py-4 px-6 w-[40%] text-right border-r border-slate-700/50">Thrill Coasters</th>
-                      <th className="py-4 px-6 w-[40%] text-left">Family Coasters</th>
+                    <tr className="bg-slate-900 border-b border-slate-700 text-slate-400 uppercase tracking-wider text-[10px] sm:text-xs font-bold">
+                      <th className="px-2 sm:px-4 py-3 sm:py-4 w-[22%] text-center border-r border-slate-700/50">Score</th>
+                      <th className="py-3 sm:py-4 px-3 sm:px-6 w-[39%] text-right border-r border-slate-700/50">Thrill Coasters</th>
+                      <th className="py-3 sm:py-4 px-3 sm:px-6 w-[39%] text-left">Family Coasters</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-700/50">
                     {SCORING_TIERS.map((tier, i) => (
                       <tr key={i} className="hover:bg-slate-800/50 transition-colors">
                         {/* Score Cell */}
-                        <td className="px-4 py-4 text-center border-r border-slate-700/50">
-                          <span className={`font-black text-lg md:text-xl tabular-nums ${tier.color}`}>
+                        <td className="px-2 sm:px-4 py-3 sm:py-4 text-center border-r border-slate-700/50">
+                          <span className={`font-black text-sm sm:text-lg md:text-xl tabular-nums ${tier.color}`}>
                             {tier.score}
                           </span>
                         </td>
                         {tier.unified ? (
-                          <td colSpan={2} className="px-6 py-5 text-center text-lg text-slate-300">
+                          <td colSpan={2} className="px-3 sm:px-6 py-4 sm:py-5 text-center text-sm sm:text-lg text-slate-300">
                             {tier.unified}
                           </td>
                         ) : (
                           /* Split Row */
                           <>
-                            <td className="py-4 px-6 text-slate-300 text-right border-r border-slate-700/50">
+                            <td className="py-3 sm:py-4 px-3 sm:px-6 text-slate-300 text-right border-r border-slate-700/50">
                               {tier.thrill}
                             </td>
-                            <td className="py-4 px-6 text-slate-300 text-left">
+                            <td className="py-3 sm:py-4 px-3 sm:px-6 text-slate-300 text-left">
                               {tier.family}
                             </td>
                           </>
@@ -409,20 +452,20 @@ export default function EvaluationCriteriaPage() {
           </div>
 
           <section className="text-center pb-8">
-            <h2 className="text-4xl md:text-5xl font-black tracking-tight text-white">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
               Category Breakdown
             </h2>
-            <p className="mt-4 text-slate-400 text-lg">The detailed metrics behind the numbers.</p>
+            <p className="mt-3 text-slate-400 text-base">The detailed metrics behind the numbers.</p>
           </section>
 
           {groups.map((group, gi) => (
             <section key={group.name} className="relative">
               <div id={group.name} className="group-anchor mb-10">
                 <div className="flex items-center gap-4 border-b border-slate-800 pb-4">
-                  <span className="text-4xl drop-shadow-md">
+                  <span className="text-3xl drop-shadow-md">
                     {GROUP_ICON[group.name]}
                   </span>
-                  <h3 className="text-3xl md:text-4xl font-bold text-white tracking-tight">
+                  <h3 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
                     {group.name}
                   </h3>
                 </div>
@@ -447,13 +490,15 @@ export default function EvaluationCriteriaPage() {
                     </button>
                     <Link
                       href="/"
-                      className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-lg shadow-indigo-900/20 transition-all cursor-pointer"
+                      className="px-6 py-3 rounded-xl bg-brand hover:bg-brand-light text-white font-bold shadow-lg shadow-orange-900/20 transition-all cursor-pointer"
                     >
                       Browse Park Reviews →
                     </Link>
                   </div>
 
-                  <div className="scroll-buffer" aria-hidden="true" />
+                  {/* Buffer exists so TOC anchor jumps can scroll the last
+                      section to the top — pointless on mobile (no TOC) */}
+                  <div className="scroll-buffer hidden md:block" aria-hidden="true" />
                 </>
               )}
             </section>
@@ -469,96 +514,32 @@ function CategoryMinimal({
 }: {
   data: { id: string; title: string; description: string; bullets: string[]; rules?: string[] };
 }) {
-  const [openCriteria, setOpenCriteria] = useState(false);
-  const [openRules, setOpenRules] = useState(false);
-
   return (
-    <div id={data.id} className="h-full rounded-2xl bg-slate-800/40 border border-slate-700/50 p-6 sm:p-8 hover:bg-slate-800/80 transition-colors shadow-lg">
+    <div id={data.id} className="h-full scroll-mt-24 rounded-2xl bg-slate-800/40 border border-slate-700/50 p-6 sm:p-8 hover:bg-slate-800/80 transition-colors shadow-lg">
       <h4 className="text-xl font-bold text-white mb-2 tracking-tight">
         {data.title}
       </h4>
-      <p
-        className="text-slate-400 text-sm leading-relaxed mb-4"
-        style={{ minHeight: "var(--desc-min)" }}
-      >
+      <p className="text-slate-400 text-sm leading-relaxed mb-5">
         {data.description}
       </p>
 
-      <div>
-        {/* Buttons Row */}
-        <div className="flex flex-wrap gap-6">
-          <button
-            type="button"
-            onClick={() => setOpenCriteria((v) => !v)}
-            className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-400 hover:text-indigo-300 transition-colors focus:outline-none cursor-pointer"
-            aria-expanded={openCriteria}
-            aria-controls={`${data.id}-criteria-panel`}
-          >
-            <span
-              className={`transform transition-transform duration-200 ${openCriteria ? "rotate-90" : ""
-                }`}
-              aria-hidden
-            >
-              ▶
-            </span>
-            {openCriteria ? "Hide criteria" : `View criteria (${data.bullets.length})`}
-          </button>
+      <h5 className="text-xs font-bold text-brand uppercase tracking-wider mb-2">Criteria</h5>
+      <ul className="list-disc list-outside pl-5 text-sm marker:text-brand/50 text-slate-300 space-y-1.5">
+        {data.bullets.map((b) => (
+          <li key={b} className="leading-snug">{b}</li>
+        ))}
+      </ul>
 
-          {/* Only render Rules button if rules actually exist in the data */}
-          {data.rules && data.rules.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setOpenRules((v) => !v)}
-              className="inline-flex items-center gap-2 text-sm font-semibold text-rose-400 hover:text-rose-300 transition-colors focus:outline-none cursor-pointer"
-              aria-expanded={openRules}
-              aria-controls={`${data.id}-rules-panel`}
-            >
-              <span
-                className={`transform transition-transform duration-200 ${openRules ? "rotate-90" : ""
-                  }`}
-                aria-hidden
-              >
-                ▶
-              </span>
-              {openRules ? "Hide rules" : `Rules (${data.rules.length})`}
-            </button>
-          )}
+      {data.rules && data.rules.length > 0 && (
+        <div className="mt-5 pt-4 border-t border-slate-700/50">
+          <h5 className="text-xs font-bold text-rose-400 uppercase tracking-wider mb-2">Rules</h5>
+          <ul className="list-disc list-outside pl-5 text-sm marker:text-rose-800 text-slate-400 space-y-1.5">
+            {data.rules.map((r) => (
+              <li key={r} className="leading-snug">{r}</li>
+            ))}
+          </ul>
         </div>
-
-        {/* Criteria Panel */}
-        <div
-          id={`${data.id}-criteria-panel`}
-          className={`collapsible overflow-hidden ${openCriteria ? "max-h-96 opacity-100 mt-4" : "max-h-0 opacity-0 mt-0"
-            }`}
-        >
-          <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700/50">
-            <h5 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2">Criteria</h5>
-            <ul className="list-disc list-outside pl-5 text-sm marker:text-slate-600 text-slate-300 space-y-2">
-              {data.bullets.map((b) => (
-                <li key={b} className="leading-snug">{b}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        {/* Rules Panel */}
-        {data.rules && data.rules.length > 0 && (
-          <div
-            id={`${data.id}-rules-panel`}
-            className={`collapsible overflow-hidden ${openRules ? "max-h-96 opacity-100 mt-4" : "max-h-0 opacity-0 mt-0"
-              }`}
-          >
-            <div className="p-4 bg-rose-900/10 rounded-lg border border-rose-900/30">
-              <h5 className="text-xs font-bold text-rose-400 uppercase tracking-wider mb-2">Rules</h5>
-              <ul className="list-disc list-outside pl-5 text-sm marker:text-rose-800 text-slate-300 space-y-2">
-                {data.rules.map((r) => (
-                  <li key={r} className="leading-snug">{r}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

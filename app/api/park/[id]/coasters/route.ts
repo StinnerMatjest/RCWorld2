@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
+import { revalidateContent } from "@/app/lib/revalidate";
+import { pool } from "@/app/lib/db";
+import { getParkName, logChange } from "@/app/lib/changelog";
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false,
-    },
-});
 
 export async function GET(
     req: NextRequest,
@@ -77,6 +73,7 @@ export async function POST(
     req: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
+  revalidateContent();
     try {
         const { id: parkId } = await context.params;
         const body = await req.json();
@@ -157,7 +154,18 @@ export async function POST(
             generatedSlug,
         ]);
 
-        return NextResponse.json(result.rows[0], { status: 201 });
+        const created = result.rows[0];
+        logChange({
+            parkId: Number(parkId),
+            entityType: "coaster",
+            entityId: created.id,
+            label: created.name,
+            action: "create",
+            summary: `Added coaster ${created.name}`,
+            details: { name, year, manufacturer, model, scale, haveridden, rating: ratingInitial, rideCount: rideCountInitial },
+        });
+
+        return NextResponse.json(created, { status: 201 });
     } catch (error) {
         console.error("Database insert error:", error);
         return NextResponse.json(
@@ -171,6 +179,7 @@ export async function PATCH(
     req: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
+  revalidateContent();
     try {
         const { id } = await context.params;
         const parkId = Number(id);
@@ -205,6 +214,20 @@ export async function PATCH(
             throw e;
         } finally {
             client.release();
+        }
+
+        const applied = updates.filter((u) => u.id && u.count);
+        if (applied.length > 0) {
+            const totalRides = applied.reduce((sum, u) => sum + Number(u.count), 0);
+            logChange({
+                parkId,
+                entityType: "coaster",
+                entityId: null,
+                label: await getParkName(parkId),
+                action: "update",
+                summary: `Synced ride counts (+${totalRides} ride${totalRides === 1 ? "" : "s"} across ${applied.length} coaster${applied.length === 1 ? "" : "s"})`,
+                details: { updates: applied },
+            });
         }
 
         return NextResponse.json({ success: true }, { status: 200 });

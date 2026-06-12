@@ -1,16 +1,15 @@
 // app/api/coasters/[id]/highlights/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
+import { pool } from "@/app/lib/db";
+import { revalidateContent } from "@/app/lib/revalidate";
+import { getCoasterContext, logChange } from "@/app/lib/changelog";
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-});
 
 export async function POST(
     req: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
+  revalidateContent();
     const { id } = await context.params;
     const coasterId = Number(id);
 
@@ -21,8 +20,14 @@ export async function POST(
             return NextResponse.json({ error: "Body must be an array" }, { status: 400 });
         }
 
+        const oldResult = await pool.query(
+            `SELECT category, severity FROM rollercoasterhighlights WHERE coaster_id = $1 ORDER BY category, severity`,
+            [coasterId]
+        );
+        const oldList = oldResult.rows;
+
         const client = await pool.connect();
-        
+
         try {
             await client.query("BEGIN");
 
@@ -46,10 +51,26 @@ export async function POST(
             
             // 3. Fetch the fresh list to return to frontend
             const result = await client.query(
-                "SELECT * FROM rollercoasterhighlights WHERE coaster_id = $1", 
+                "SELECT * FROM rollercoasterhighlights WHERE coaster_id = $1",
                 [coasterId]
             );
-            
+
+            const newList = result.rows
+                .map((r) => ({ category: r.category, severity: r.severity }))
+                .sort((a, b) => a.category.localeCompare(b.category) || String(a.severity).localeCompare(String(b.severity)));
+            if (JSON.stringify(oldList) !== JSON.stringify(newList)) {
+                const ctx = await getCoasterContext(coasterId);
+                logChange({
+                    parkId: ctx.parkId,
+                    entityType: "coaster_highlight",
+                    entityId: coasterId,
+                    label: ctx.name,
+                    action: "update",
+                    summary: `Updated highlights for ${ctx.name ?? `coaster #${coasterId}`} (${newList.length})`,
+                    details: { old: oldList, new: newList },
+                });
+            }
+
             return NextResponse.json({ highlights: result.rows, success: true });
 
         } catch (err) {

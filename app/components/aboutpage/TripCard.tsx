@@ -19,13 +19,13 @@ export type Trip = {
 
 const getCardStyle = (status: Trip["status"]) => {
   if (status === "past" || !status)
-    return "bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-500 border";
+    return " bg-gray-800 border-gray-500 border";
   if (status === "booked")
-    return "bg-green-50 border-green-300 dark:bg-green-950 dark:border-green-500 border";
+    return " bg-green-950 border-green-500 border";
   if (status === "planned")
-    return "bg-yellow-50 border-yellow-300 dark:bg-yellow-950 dark:border-yellow-500 border";
+    return " bg-yellow-950 border-yellow-500 border";
   if (status === "backlog")
-    return "bg-blue-50 border-blue-300 dark:bg-blue-950 dark:border-blue-500 border";
+    return " bg-blue-950 border-blue-500 border";
 };
 
 const getDateRangeLabel = (start: string, end: string) => {
@@ -104,25 +104,25 @@ export default function TripCard({
       <span
         className={`absolute -top-3 -left-3 px-3 py-1 text-xs font-bold rounded-full shadow-md ${
           trip.status === "past"
-            ? "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100"
+            ? " bg-gray-700 text-gray-100"
             : trip.status === "booked"
-            ? "bg-green-500 text-white dark:bg-green-600 dark:text-white"
+            ? " bg-green-600 text-white"
             : trip.status === "planned"
-            ? "bg-yellow-400 text-black dark:bg-yellow-500 dark:text-black"
-            : "bg-blue-500 text-white dark:bg-blue-600 dark:text-white"
+            ? " bg-yellow-500 text-black"
+            : " bg-blue-600 text-white"
         }`}
       >
         {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
       </span>
 
       {/* Trip Summary Top Right */}
-      <div className="absolute top-4 right-5 text-sm text-gray-600 dark:text-gray-300 font-medium">
+      <div className="absolute top-4 right-5 text-sm text-gray-300 font-medium">
         {getDurationSummary(trip.startDate, trip.endDate, parkCount)}
       </div>
 
       {/* Chevron */}
       <div
-        className="absolute bottom-4 right-5 text-gray-700 dark:text-gray-300 text-sm transition-transform duration-300 ease-in-out"
+        className="absolute bottom-4 right-5 text-gray-300 text-sm transition-transform duration-300 ease-in-out"
         style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
       >
         ▼
@@ -163,7 +163,7 @@ export default function TripCard({
       </div>
 
       {/* Park Links */}
-      <ul className="list-disc list-inside text-gray-800 dark:text-gray-200 space-y-1 mb-3">
+      <ul className="list-disc list-inside text-gray-200 space-y-1 mb-3">
         {visibleParks.map((park, idx) => {
           const rcdbUrl = trip.rcdb?.[idx];
           return (
@@ -173,7 +173,7 @@ export default function TripCard({
                   href={rcdbUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-600 dark:text-gray-300 hover:underline"
+                  className=" text-gray-300 hover:underline"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {park}
@@ -185,14 +185,14 @@ export default function TripCard({
           );
         })}
         {!expanded && trip.parks.length > 2 && (
-          <li className="text-sm text-gray-600 dark:text-gray-400 italic">
+          <li className="text-sm text-gray-400 italic">
             ...and {trip.parks.length - 2} more park{trip.parks.length - 2 > 1 ? "s" : ""}
           </li>
         )}
       </ul>
 
       {/* Date Range */}
-      <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-1">
+      <p className="text-sm text-gray-300 flex items-center gap-1">
         📅 {getDateRangeLabel(trip.startDate, trip.endDate)}
       </p>
 
@@ -200,7 +200,7 @@ export default function TripCard({
       <div className={`expandable mt-4 ${expanded ? "expanded" : "collapsed"}`}>
         <div className="space-y-3">
           {trip.notes && (
-            <p className="text-sm text-gray-700 dark:text-gray-300">
+            <p className="text-sm text-gray-300">
               📝 <span className="font-medium dark:text-white">Notes:</span>{" "}
               <span className="whitespace-pre-line leading-relaxed">{trip.notes}</span>
             </p>
@@ -211,14 +211,14 @@ export default function TripCard({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="text-blue-600 dark:text-blue-300 text-sm hover:underline dark:hover:text-blue-200 inline-block"
+              className=" text-blue-300 text-sm hover:underline dark:hover:text-blue-200 inline-block"
             >
               🗺️ View on Google Maps
             </a>
           )}
 
           {trip.tripLog?.length ? (
-            <div className="text-sm text-gray-800 dark:text-gray-200 space-y-1 pt-2">
+            <div className="text-sm text-gray-200 space-y-1 pt-2">
               <p className="font-medium dark:text-white">📅 Trip Log:</p>
               {trip.tripLog.map((entry, i) => (
                 <div key={i} className="pl-2">

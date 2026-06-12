@@ -96,15 +96,15 @@ export default function ImageUploaderModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center">
-      <div className="relative bg-white dark:bg-gray-800 dark:text-gray-100 border border-transparent dark:border-white/10 rounded-lg shadow-lg w-full max-w-md mx-4 p-6">
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
+    <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center">
+      <div className="relative bg-gray-800 dark:text-gray-100 border border-white/10 rounded-lg shadow-lg w-full max-w-md mx-4 p-6">
+        <h2 className="text-xl font-semibold mb-4 text-white">
           Add Gallery Image
         </h2>
 
         <form onSubmit={handleUploadClick} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+            <label className="block text-sm font-medium mb-1 text-gray-300">
               Image Files
             </label>
             <input
@@ -117,14 +117,14 @@ export default function ImageUploaderModal({
                          dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:file:bg-gray-800 dark:file:text-gray-100 dark:focus-visible:ring-offset-gray-800"
             />
             {files.length > 0 && (
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              <p className="mt-2 text-sm text-gray-400">
                 {files.length} file{files.length > 1 ? "s" : ""} selected.
               </p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+            <label className="block text-sm font-medium mb-1 text-gray-300">
               Description
             </label>
             <textarea
@@ -133,10 +133,10 @@ export default function ImageUploaderModal({
               disabled={files.length > 1}
               placeholder={files.length > 1 ? "Descriptions are disabled for bulk uploads" : "Image description (optional)"}
               rows={3}
-              className={`block w-full p-3 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
-                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                         dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800
-                         ${files.length > 1 ? "opacity-50 cursor-not-allowed bg-gray-50 dark:bg-gray-800/50" : ""}`}
+              className={`block w-full p-3 rounded-md border 
+ focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 
+ bg-gray-900 text-gray-100 border-white/10 placeholder-gray-500 focus-visible:ring-offset-gray-800
+ ${files.length > 1 ? "opacity-50 cursor-not-allowed bg-gray-800/50" : ""}`}
             />
           </div>
 
@@ -151,22 +151,22 @@ export default function ImageUploaderModal({
             />
             <label
               htmlFor="isHeader"
-              className={`text-sm ${files.length > 1 ? "text-gray-400 dark:text-gray-500" : "text-gray-700 dark:text-gray-300"}`}
+              className={`text-sm ${files.length > 1 ? " text-gray-500" : " text-gray-300"}`}
             >
               Header image {files.length > 1 && "(Disabled for bulk uploads)"}
             </label>
           </div>
 
-          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-400">{error}</p>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="submit"
               disabled={loading}
               className={`px-4 py-2 rounded-md text-white transition cursor-pointer
-                        focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                        dark:focus-visible:ring-offset-gray-800
-                        ${loading ? "bg-blue-300 dark:bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"}`}
+ focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 
+ focus-visible:ring-offset-gray-800
+ ${loading ? " bg-blue-400 cursor-not-allowed" : " bg-blue-500 hover:bg-blue-400"}`}
             >
               {loading ? "Uploading..." : "Upload"}
             </button>

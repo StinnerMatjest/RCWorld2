@@ -1,12 +1,6 @@
-import { Pool } from "pg";
+import { pool } from "@/app/lib/db";
 import { NextResponse } from "next/server";
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false,
-    },
-});
 
 // Fetch all currently disabled categories
 export async function GET() {

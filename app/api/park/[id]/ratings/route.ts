@@ -1,16 +1,21 @@
-import { Pool } from "pg";
+import { pool } from "@/app/lib/db";
+import { revalidateContent } from "@/app/lib/revalidate";
+import { getParkName, logChange } from "@/app/lib/changelog";
 import { NextResponse } from "next/server";
 import { Rating, RatingWarningType } from "@/app/types";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-});
 
-export async function GET() {
+export async function GET(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
+    const { id } = await context.params;
+    const parkId = parseInt(id, 10);
+    if (!Number.isFinite(parkId)) {
+      return NextResponse.json({ error: "Invalid park id" }, { status: 400 });
+    }
+
     const query = `
       SELECT 
         ratings.id AS rating_id,
@@ -50,11 +55,12 @@ export async function GET() {
       FROM ratings
       JOIN parks ON ratings.park_id = parks.id
       LEFT JOIN ratingwarning ON ratingwarning.ratingid = ratings.id
+      WHERE ratings.park_id = $1
       GROUP BY ratings.id, parks.id
       ORDER BY ratings.date DESC;
     `;
 
-    const result = await pool.query(query);
+    const result = await pool.query(query, [parkId]);
 
     const ratings: Rating[] = result.rows.map((row) => ({
       id: row.rating_id,
@@ -88,6 +94,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  revalidateContent();
   try {
     const body = await request.json();
     console.log("Received body:", body);
@@ -175,6 +182,20 @@ export async function POST(request: Request) {
     const result = await pool.query(query, values);
 
     const newRatingId = result.rows[0].id;
+
+    logChange({
+      parkId,
+      entityType: "rating",
+      entityId: newRatingId,
+      label: await getParkName(parkId),
+      action: "create",
+      summary: `New rating${published ? " (published)" : ""}`,
+      details: {
+        date, parkAppearance, parkPracticality, bestCoaster, coasterDepth,
+        waterRides, flatridesAndDarkrides, food, snacksAndDrinks,
+        rideOperations, parkManagement, published: published ?? false,
+      },
+    });
 
     return NextResponse.json(
       { message: "Park rated successfully", ratingId: newRatingId },

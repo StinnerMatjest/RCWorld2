@@ -167,14 +167,14 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-white dark:bg-gray-950 rounded-none w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className=" bg-gray-950 rounded-none w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
                     <div className="p-8 md:p-10 overflow-y-auto flex-1 min-h-0 custom-scrollbar">
                         <header className="mb-10">
-                            <h2 className="text-4xl font-black text-gray-900 dark:text-white uppercase italic tracking-tighter leading-none">
+                            <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
                                 Edit Specs
                             </h2>
-                            <p className="text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-[0.3em] mt-2">
+                            <p className=" text-blue-400 text-[10px] font-black uppercase tracking-[0.3em] mt-2">
                                 Data Configuration
                             </p>
                         </header>
@@ -184,7 +184,7 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
                             <div className="columns-1 sm:columns-2 gap-x-12">
                                 {Object.entries(TAG_CATEGORIES).map(([categoryName, data]) => (
                                     <div key={categoryName} className="break-inside-avoid flex flex-col mb-8">
-                                        <div className="flex justify-between items-end border-b border-gray-200 dark:border-gray-800 pb-1 mb-2.5">
+                                        <div className="flex justify-between items-end border-b border-gray-800 pb-1 mb-2.5">
                                             <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] leading-none">
                                                 {categoryName}
                                             </h4>
@@ -206,10 +206,10 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
                                                         onClick={() => toggleTag(tag, categoryName)}
                                                         disabled={isDisabled}
                                                         className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border ${isDisabled
-                                                            ? "bg-gray-100 border-gray-100 text-gray-300 dark:bg-gray-800 dark:border-gray-800 dark:text-gray-600 cursor-not-allowed opacity-60"
+                                                            ? " bg-gray-800 border-gray-800 text-gray-600 cursor-not-allowed opacity-60"
                                                             : isSelected
                                                                 ? "bg-blue-600 border-blue-600 text-white"
-                                                                : "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-blue-400 dark:hover:border-blue-500 cursor-pointer"
+                                                                : " bg-gray-900 border-gray-800 text-gray-400 hover:border-blue-500 cursor-pointer"
                                                             }`}
                                                     >
                                                         {tag}
@@ -231,7 +231,7 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
                                         name="type"
                                         value={formData.type || ""}
                                         onChange={handleChange}
-                                        className="w-full rounded-none border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2.5 text-xs font-bold focus:border-blue-600 outline-none transition-all appearance-none cursor-pointer"
+                                        className="w-full rounded-none border border-gray-700 bg-gray-900 p-2.5 text-xs font-bold focus:border-blue-600 outline-none transition-all appearance-none cursor-pointer"
                                     >
                                         <option value="">Select</option>
                                         {MATERIAL_OPTIONS.map(opt => (
@@ -259,18 +259,18 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
                             <textarea
                                 name="notes"
                                 rows={2}
-                                className="w-full rounded-none border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-sm font-medium focus:border-blue-600 outline-none transition-all resize-none"
+                                className="w-full rounded-none border border-gray-700 bg-gray-900 p-3 text-sm font-medium focus:border-blue-600 outline-none transition-all resize-none"
                                 value={formData.notes || ""}
                                 onChange={handleChange}
                             />
                         </div>
                     </div>
 
-                    <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex shrink-0 justify-end gap-6">
+                    <div className="p-6 bg-gray-900 border-t border-gray-800 flex shrink-0 justify-end gap-6">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-6 py-2 text-xs font-black text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors uppercase tracking-[0.2em] cursor-pointer"
+                            className="px-6 py-2 text-xs font-black text-gray-400 hover:text-white transition-colors uppercase tracking-[0.2em] cursor-pointer"
                         >
                             Cancel
                         </button>
@@ -297,7 +297,7 @@ const Input = ({ label, name, value, onChange, type = "number", step = "0.1" }: 
             name={name}
             value={value ?? ""}
             onChange={onChange}
-            className="w-full rounded-none border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2.5 text-xs font-bold focus:border-blue-600 outline-none transition-all"
+            className="w-full rounded-none border border-gray-700 bg-gray-900 p-2.5 text-xs font-bold focus:border-blue-600 outline-none transition-all"
         />
     </div>
 );

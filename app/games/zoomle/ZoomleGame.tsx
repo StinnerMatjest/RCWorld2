@@ -42,6 +42,12 @@ function buildCombinedShareText(
     ({ yellow: "🟨", green: "🟩", blue: "🟦", purple: "🟪", orange: "🟧", red: "🟥", brown: "🟫" } as Record<string, string>)[c] ?? "⬜";
   const scoreEmoji = (p: number | null) =>
     p === null ? "⬛" : p >= 5 ? "🟩" : p >= 4 ? "🟨" : p >= 3 ? "🟧" : "🟥";
+  // Discord spoiler with ideographic-space padding so the bar length doesn't
+  // hint at the hidden name — same trick as the individual Coastle share
+  const spoiler = (s: string) => {
+    const needed = Math.max(0, Math.ceil((22 - s.length) / 1.7));
+    return `||${s + "　".repeat(needed)}||`;
+  };
 
   const sections: string[] = [`🎮 ParkRating Daily — ${date}`];
 
@@ -61,7 +67,7 @@ function buildCombinedShareText(
             .map((s: string) => s === "correct" ? "🟩" : s === "close" ? "🟨" : "🟥")
             .join(" ");
           const name: string = g.coaster?.name ?? "";
-          return `${emoji}  ${name}`;
+          return `${emoji}  ${spoiler(name)}`;
         });
 
         sections.push(`🎢 Coastle — ${won ? `${count}/5` : "X/5"}\n${rows.join("\n")}`);
@@ -90,10 +96,10 @@ function buildCombinedShareText(
     if (!result) return `${scoreEmoji(p)} Round ${i + 1}`;
     const correct = p !== null && p > 0;
     if (correct) {
-      return `${scoreEmoji(p)} +${p} pts  ·  ${result.answer.name} (${result.answer.park_name})`;
+      return `${scoreEmoji(p)} +${p} pts  ·  ${spoiler(`${result.answer.name} (${result.answer.park_name})`)}`;
     } else {
       const guessed = result.guessedCoaster?.name ?? "—";
-      return `${scoreEmoji(p)} 0 pts  ·  ${result.answer.name} ✗ (guessed ${guessed})`;
+      return `${scoreEmoji(p)} 0 pts  ·  ${spoiler(result.answer.name)} ✗ (guessed ${spoiler(guessed)})`;
     }
   });
   sections.push(`🔍 Zoomle — ${total}/${maxScore}\n${rows.join("\n")}`);
@@ -138,6 +144,18 @@ const POINT_BRACKETS = [
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function isVideo(path: string) { return /\.(mp4|webm|mov)$/i.test(path); }
+
+function parsePct(s: string): { x: number; y: number } {
+  const parts = s.split(" ");
+  return { x: parseFloat(parts[0]) || 50, y: parseFloat(parts[1]) || 50 };
+}
+
+// Transform that keeps the focal point centered at full zoom and eases back to the
+// natural image as it zooms out (k = 1 at START_SCALE, k = 0 at scale 1).
+function zoomTransform(scale: number, focus: { x: number; y: number }) {
+  const k = (scale - 1) / (START_SCALE - 1);
+  return `scale(${scale}) translate(${(50 - focus.x) * k}%, ${(50 - focus.y) * k}%)`;
+}
 
 function pickRandom<T>(arr: T[], n: number): T[] {
   const c = [...arr];
@@ -251,8 +269,17 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const progressRef = useRef<number>(0);
+  const focusRef = useRef<{ x: number; y: number }>({ x: 50, y: 50 });
   const introTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [paused, setPaused] = useState(false);
+
+  // Preload every round image up front so changing rounds never shows a
+  // stale frame or swaps the picture mid-zoom while the new one loads.
+  useEffect(() => {
+    dailyRounds.forEach(r => {
+      if (!isVideo(r.image)) { const im = new window.Image(); im.src = r.image; }
+    });
+  }, [dailyRounds]);
 
   const buildRounds = useCallback(() => {
     // Use pre-built daily rounds from the server
@@ -278,7 +305,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
 
     if (imgRef.current) {
       const initialScale = START_SCALE - (START_SCALE - 1) * Math.pow(fromProgress, 1.6);
-      imgRef.current.style.transform = `scale(${initialScale})`;
+      imgRef.current.style.transform = zoomTransform(initialScale, focusRef.current);
       imgRef.current.style.transition = "none";
     }
     if (timerBarRef.current) {
@@ -292,7 +319,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
 
       // Non-linear zoom: stays tight longer, opens faster near the end
       const scale = START_SCALE - (START_SCALE - 1) * Math.pow(p, 1.6);
-      if (imgRef.current) imgRef.current.style.transform = `scale(${scale})`;
+      if (imgRef.current) imgRef.current.style.transform = zoomTransform(scale, focusRef.current);
 
       // Timer bar — direct DOM
       if (timerBarRef.current) {
@@ -339,6 +366,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
   // Start reveal when playing (always from 0 for a new round)
   useEffect(() => {
     if (phase !== "playing" || done || !rounds.length || paused) return;
+    focusRef.current = parsePct(rounds[round]?.focus ?? "50% 50%");
     startReveal(0);
     return stopReveal;
   }, [phase, round, done, rounds.length, startReveal, stopReveal]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -373,7 +401,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
     stopReveal();
 
     // Snap image to full reveal
-    if (imgRef.current) { imgRef.current.style.transition = "transform 0.9s cubic-bezier(0.33,1,0.68,1)"; imgRef.current.style.transform = "scale(1)"; }
+    if (imgRef.current) { imgRef.current.style.transition = "transform 0.9s cubic-bezier(0.33,1,0.68,1)"; imgRef.current.style.transform = "scale(1) translate(0%, 0%)"; }
     if (timerBarRef.current) { timerBarRef.current.style.width = "0%"; }
 
     const p = progressRef.current;
@@ -514,11 +542,11 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
                 {isVideo(r.image) ? (
                   <video src={r.image} muted playsInline
                     className="absolute inset-0 w-full h-full object-cover"
-                    style={{ transform: `scale(${START_SCALE})`, transformOrigin: r.focus }} />
+                    style={{ transform: zoomTransform(START_SCALE, parsePct(r.focus)), transformOrigin: "50% 50%" }} />
                 ) : (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={r.image} alt="" className="absolute inset-0 w-full h-full object-cover"
-                    style={{ transform: `scale(${START_SCALE})`, transformOrigin: r.focus }} />
+                    style={{ transform: zoomTransform(START_SCALE, parsePct(r.focus)), transformOrigin: "50% 50%" }} />
                 )}
               </div>
               {/* Info */}
@@ -708,20 +736,20 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
             )}
           </AnimatePresence>
           {isVideo(current.image) ? (
-            <video ref={imgRef as React.RefObject<HTMLVideoElement>} src={current.image}
+            <video key={`v-${round}`} ref={imgRef as React.RefObject<HTMLVideoElement>} src={current.image}
               autoPlay muted loop playsInline
               className="absolute inset-0 w-full h-full object-cover"
               style={{
-                opacity: phase === "intro" || paused ? 0 : 1, transform: `scale(${START_SCALE})`,
-                transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease"
+                opacity: phase === "intro" || paused ? 0 : 1, transform: zoomTransform(START_SCALE, parsePct(current.focus)),
+                transformOrigin: "50% 50%", willChange: "transform", transition: "opacity 0.9s ease"
               }} />
           ) : (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img ref={imgRef as React.RefObject<HTMLImageElement>} src={current.image} alt=""
+            <img key={`i-${round}`} ref={imgRef as React.RefObject<HTMLImageElement>} src={current.image} alt=""
               className="absolute inset-0 w-full h-full object-cover"
               style={{
-                opacity: phase === "intro" || paused ? 0 : 1, transform: `scale(${START_SCALE})`,
-                transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease"
+                opacity: phase === "intro" || paused ? 0 : 1, transform: zoomTransform(START_SCALE, parsePct(current.focus)),
+                transformOrigin: "50% 50%", willChange: "transform", transition: "opacity 0.9s ease"
               }} />
           )}
           {paused && (
@@ -850,20 +878,20 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
           )}
         </AnimatePresence>
         {isVideo(current.image) ? (
-          <video ref={imgRef as React.RefObject<HTMLVideoElement>} src={current.image}
+          <video key={`v-${round}`} ref={imgRef as React.RefObject<HTMLVideoElement>} src={current.image}
             autoPlay muted loop playsInline
             className="absolute inset-0 w-full h-full object-cover"
             style={{
-              opacity: phase === "intro" || paused ? 0 : 1, transform: `scale(${START_SCALE})`,
-              transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease"
+              opacity: phase === "intro" || paused ? 0 : 1, transform: zoomTransform(START_SCALE, parsePct(current.focus)),
+              transformOrigin: "50% 50%", willChange: "transform", transition: "opacity 0.9s ease"
             }} />
         ) : (
           /* eslint-disable-next-line @next/next/no-img-element */
-          <img ref={imgRef as React.RefObject<HTMLImageElement>} src={current.image} alt=""
+          <img key={`i-${round}`} ref={imgRef as React.RefObject<HTMLImageElement>} src={current.image} alt=""
             className="absolute inset-0 w-full h-full object-cover"
             style={{
-              opacity: phase === "intro" || paused ? 0 : 1, transform: `scale(${START_SCALE})`,
-              transformOrigin: current.focus, willChange: "transform", transition: "opacity 0.9s ease"
+              opacity: phase === "intro" || paused ? 0 : 1, transform: zoomTransform(START_SCALE, parsePct(current.focus)),
+              transformOrigin: "50% 50%", willChange: "transform", transition: "opacity 0.9s ease"
             }} />
         )}
         {paused && (
@@ -968,19 +996,19 @@ export default function TestGames() {
   }, []);
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-900">
+    <div className="min-h-screen flex items-center justify-center bg-slate-900">
       <LoadingSpinner />
     </div>
   );
 
   // Desktop: matches Connections/Coastle layout exactly
   if (!isMobile) return (
-    <div className="min-h-screen bg-white dark:bg-slate-900 p-2 sm:p-6 flex flex-col items-center overflow-x-hidden select-none">
+    <div className="min-h-screen bg-slate-900 p-2 sm:p-6 flex flex-col items-center overflow-x-hidden select-none">
       <header className="mb-2 text-center mt-2 space-y-2 px-4 animate-reveal">
         <h1 className="text-4xl sm:text-6xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 drop-shadow-sm italic transform -skew-x-6 pr-4">
           ZOOMLE
         </h1>
-        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">
+        <p className="text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-widest">
           Guess the coaster
         </p>
       </header>

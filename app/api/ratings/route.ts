@@ -1,13 +1,9 @@
-import { Pool } from "pg";
+import { pool } from "@/app/lib/db";
+import { revalidateContent } from "@/app/lib/revalidate";
+import { getParkName, logChange } from "@/app/lib/changelog";
 import { NextResponse } from "next/server";
 import { Rating, RatingWarningType } from "@/app/types";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-});
 
 export async function GET() {
   try {
@@ -88,6 +84,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  revalidateContent();
   try {
     const body = await request.json();
     console.log("Received body:", body);
@@ -175,6 +172,20 @@ export async function POST(request: Request) {
     const result = await pool.query(query, values);
 
     const newRatingId = result.rows[0].id;
+
+    logChange({
+      parkId,
+      entityType: "rating",
+      entityId: newRatingId,
+      label: await getParkName(parkId),
+      action: "create",
+      summary: `New rating${published ? " (published)" : ""}`,
+      details: {
+        date, parkAppearance, parkPracticality, bestCoaster, coasterDepth,
+        waterRides, flatridesAndDarkrides, food, snacksAndDrinks,
+        rideOperations, parkManagement, published: published ?? false,
+      },
+    });
 
     return NextResponse.json(
       { message: "Park rated successfully", ratingId: newRatingId },

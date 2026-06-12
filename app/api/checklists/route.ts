@@ -1,18 +1,12 @@
-import { Pool } from "pg";
+import { pool } from "@/app/lib/db";
 import { NextResponse } from "next/server";
 import { Checklist } from "@/app/types";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-});
 
 export async function GET() {
   try {
     const query = `
-      SELECT 
+      SELECT
         id,
         title,
         slug,
@@ -21,7 +15,10 @@ export async function GET() {
         visit_start,
         visit_end,
         duration,
-        is_finished
+        is_finished,
+        park_id,
+        COALESCE(sessions, '[]'::jsonb) AS sessions,
+        COALESCE(notes, '{}'::jsonb)    AS notes
       FROM checklists
       ORDER BY id DESC
     `;
@@ -37,6 +34,9 @@ export async function GET() {
       visit_end: row.visit_end,
       duration: row.duration,
       is_finished: row.is_finished,
+      park_id: row.park_id,
+      sessions: row.sessions,
+      notes: row.notes,
     }));
 
     return NextResponse.json({ checklists }, { status: 200 });

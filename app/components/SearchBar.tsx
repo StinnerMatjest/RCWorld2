@@ -7,8 +7,9 @@ import { getRatingColor } from "../utils/design";
 type SPark = { id: number; name: string; country: string; slug: string; overall?: number };
 type SCoaster = { id: number; name: string; parkName: string; slug: string; rating?: number };
 
-const SearchBar = () => {
+const SearchBar = ({ collapsible = false }: { collapsible?: boolean }) => {
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(!collapsible);
   const [val, setVal] = useState("");
   const [parks, setParks] = useState<SPark[]>([]);
   const [coasters, setCoasters] = useState<SCoaster[]>([]);
@@ -20,24 +21,11 @@ const SearchBar = () => {
 
   const loadData = useCallback(async () => {
     if (loaded) return;
-    const [pr, cr] = await Promise.all([
-      fetch("/api/parks/ranked"),
-      fetch("/api/coasters"),
-    ]);
-    if (pr.ok) {
-      const d = await pr.json();
-      setParks((d.parks ?? []).map((p: any) => ({
-        id: p.id, name: p.name, country: p.country, slug: p.slug, overall: p.overall,
-      })));
-    }
-    if (cr.ok) {
-      const d = await cr.json();
-      setCoasters((d.coasters ?? [])
-        .filter((c: any) => c.rating && c.slug)
-        .map((c: any) => ({
-          id: c.id, name: c.name, parkName: c.parkName, slug: c.slug,
-          rating: typeof c.rating === "string" ? parseFloat(c.rating) : c.rating,
-        })));
+    const res = await fetch("/api/search-index");
+    if (res.ok) {
+      const d = await res.json();
+      setParks(d.parks ?? []);
+      setCoasters(d.coasters ?? []);
     }
     setLoaded(true);
   }, [loaded]);
@@ -61,13 +49,19 @@ const SearchBar = () => {
     router.push(type === "park" ? `/park/${slug}` : `/coasters/${slug}`);
     setVal("");
     setOpen(false);
+    if (collapsible) setExpanded(false);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Escape") {
+      setOpen(false);
+      if (collapsible) setExpanded(false);
+      inputRef.current?.blur();
+      return;
+    }
     if (!showDrop) return;
     if (e.key === "ArrowDown") { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, total - 1)); }
     if (e.key === "ArrowUp") { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, -1)); }
-    if (e.key === "Escape") { setOpen(false); inputRef.current?.blur(); }
     if (e.key === "Enter" && activeIdx >= 0) {
       if (activeIdx < matchedParks.length) navigate("park", matchedParks[activeIdx].slug);
       else navigate("coaster", matchedCoasters[activeIdx - matchedParks.length].slug);
@@ -84,11 +78,24 @@ const SearchBar = () => {
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        if (collapsible) setExpanded(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  }, [collapsible]);
+
+  useEffect(() => {
+    if (collapsible && expanded) inputRef.current?.focus();
+  }, [collapsible, expanded]);
+
+  function expand() {
+    setExpanded(true);
+    setOpen(true);
+    loadData();
+  }
 
   const itemCls = (idx: number) =>
     `w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer ${activeIdx === idx
@@ -97,10 +104,20 @@ const SearchBar = () => {
     }`;
 
   return (
-    <div ref={wrapperRef} className="relative w-full">
-      {/* Input */}
-      <div className="flex items-center bg-slate-800 border border-slate-700 rounded-full px-3 py-1.5 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all">
-        <svg className="w-4 h-4 text-slate-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+    <div ref={wrapperRef} className={`relative ${collapsible ? "" : "w-full"}`}>
+      {/* Input — collapses to an icon button when `collapsible` */}
+      <div
+        role={collapsible && !expanded ? "button" : undefined}
+        tabIndex={collapsible && !expanded ? 0 : undefined}
+        aria-label={collapsible && !expanded ? "Open search" : undefined}
+        onClick={() => { if (collapsible && !expanded) expand(); }}
+        onKeyDown={(e) => { if (collapsible && !expanded && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); expand(); } }}
+        className={`flex items-center h-9 rounded-full transition-all duration-300 ${expanded
+          ? `${collapsible ? "w-64" : "w-full"} bg-slate-800 border border-slate-600 px-3 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/25`
+          : "w-9 justify-center cursor-pointer text-brand hover:text-brand-light"
+          }`}
+      >
+        <svg className={`flex-shrink-0 ${expanded ? "w-4 h-4 mr-2 text-brand" : "w-5 h-5"}`} fill="none" stroke="currentColor" strokeWidth={expanded ? 2 : 2.75} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
         </svg>
         <input
@@ -108,7 +125,8 @@ const SearchBar = () => {
           type="text"
           value={val}
           placeholder="Search parks & coasters…"
-          className="bg-transparent w-full text-sm focus:outline-none placeholder-slate-400 text-white min-w-0"
+          className={`bg-transparent text-sm focus:outline-none placeholder-slate-400 text-white min-w-0 ${expanded ? "w-full" : "w-0 opacity-0 pointer-events-none"}`}
+          tabIndex={expanded ? 0 : -1}
           onFocus={() => { setOpen(true); loadData(); }}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
@@ -116,7 +134,7 @@ const SearchBar = () => {
           aria-expanded={showDrop}
           aria-haspopup="listbox"
         />
-        {val && (
+        {expanded && val && (
           <button onClick={clear} className="text-slate-400 hover:text-slate-200 ml-1 flex-shrink-0 text-base leading-none">
             ×
           </button>

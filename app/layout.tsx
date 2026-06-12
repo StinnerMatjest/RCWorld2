@@ -2,13 +2,14 @@ import "./globals.css";
 import { ParksProvider } from "./context/ParksContext";
 import { SearchProvider } from "./context/SearchContext";
 import { AdminModeProvider } from "./context/AdminModeContext";
-import { Inter, Roboto } from "next/font/google";
+import { Roboto } from "next/font/google";
 import Header from "./components/Header";
 import AdminToggle from "./components/admin/AdminToggle";
 import Footer from "./components/Footer";
 import Script from "next/script";
 
 export const metadata = {
+  metadataBase: new URL("https://parkrating.com"),
   title: "ParkRating – ThemePark Reviews",
   description:
     "Explore theme park reviews and coaster rankings from dedicated enthusiasts 🎢 Discover top rides and plan your next visit with ParkRating.",
@@ -17,13 +18,22 @@ export const metadata = {
     shortcut: ["/logos/favicon.svg"],
     apple: ["/logos/favicon.svg"],
   },
+  openGraph: {
+    siteName: "ParkRating",
+    type: "website",
+    title: "ParkRating – ThemePark Reviews",
+    description:
+      "Explore theme park reviews and coaster rankings from dedicated enthusiasts 🎢 Discover top rides and plan your next visit with ParkRating.",
+    images: ["/images/Parkrating.png"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ParkRating – ThemePark Reviews",
+    description:
+      "Explore theme park reviews and coaster rankings from dedicated enthusiasts 🎢 Discover top rides and plan your next visit with ParkRating.",
+    images: ["/images/Parkrating.png"],
+  },
 };
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  weight: "400",
-});
 
 const roboto = Roboto({
   variable: "--font-roboto",
@@ -48,7 +58,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${inter.variable} ${roboto.variable} antialiased min-h-screen flex flex-col bg-[#0f172a] text-slate-200`}
+        className={`${roboto.variable} antialiased min-h-screen flex flex-col bg-[#0f172a] text-slate-200`}
       >
         <AdminModeProvider>
           <ParksProvider>

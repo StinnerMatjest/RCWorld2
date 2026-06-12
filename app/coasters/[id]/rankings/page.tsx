@@ -140,7 +140,7 @@ export default function DetailedRankingsPage() {
         return (
             <div className="min-h-screen bg-slate-900 flex items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin"></div>
                     <p className="text-slate-500 font-bold uppercase tracking-widest text-sm">Analyzing Rankings...</p>
                 </div>
             </div>
@@ -170,7 +170,7 @@ export default function DetailedRankingsPage() {
                             <h1 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter mb-2 leading-none text-white">
                                 {coaster.name}
                             </h1>
-                            <p className="text-lg text-blue-400 font-bold uppercase tracking-[0.2em]">
+                            <p className="text-lg text-brand font-bold uppercase tracking-[0.2em]">
                                 Detailed Standings
                             </p>
                         </header>
@@ -180,10 +180,10 @@ export default function DetailedRankingsPage() {
                                 <button
                                     key={idx}
                                     onClick={() => handleRankClick(res)}
-                                    className="bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-[2rem] flex justify-between items-center shadow-sm hover:border-blue-500 transition-all text-left group cursor-pointer"
+                                    className="bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-[2rem] flex justify-between items-center shadow-sm hover:border-brand/60 transition-all text-left group cursor-pointer"
                                 >
                                     <div className="flex items-center gap-4">
-                                        <div className="p-3 bg-blue-900/20 rounded-2xl text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                                        <div className="p-3 bg-brand/10 rounded-2xl text-brand group-hover:bg-brand group-hover:text-white transition-colors">
                                             {React.cloneElement(res.icon, { size: 24, strokeWidth: 2.5 })}
                                         </div>
                                         <div>
@@ -193,7 +193,7 @@ export default function DetailedRankingsPage() {
                                             <p className="text-sm md:text-base font-bold text-slate-300 line-clamp-1">
                                                 {res.subLabel}
                                             </p>
-                                            <span className="text-[9px] font-bold text-blue-400 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <span className="text-[9px] font-bold text-brand uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">
                                                 {res.isLarge ? "Open in Library" : "View Local List"}
                                             </span>
                                         </div>
@@ -209,7 +209,7 @@ export default function DetailedRankingsPage() {
                                                             "text-white"
                                             }
                                         />
-                                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-blue-400 transition-colors" />
+                                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-brand transition-colors" />
                                     </div>
                                 </button>
                             ))}
@@ -218,7 +218,7 @@ export default function DetailedRankingsPage() {
                 ) : (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <header className="mb-8 border-b border-slate-800 pb-4">
-                            <h2 className="text-3xl md:text-4xl font-black uppercase italic tracking-tight text-blue-400">
+                            <h2 className="text-3xl md:text-4xl font-black uppercase italic tracking-tight text-brand">
                                 {viewingCategory.label}
                             </h2>
                             <p className="text-slate-500 text-sm font-bold uppercase tracking-widest mt-1">
@@ -231,12 +231,12 @@ export default function DetailedRankingsPage() {
                                     href={`/coasters/${(c as any).slug}`}
                                     key={c.id}
                                     className={`flex items-center justify-between p-4 md:p-6 rounded-2xl border transition-all cursor-pointer ${String(c.id) === String(coaster.id)
-                                        ? "bg-blue-600 border-blue-500 text-white shadow-lg scale-[1.02] z-10"
-                                        : "bg-slate-900 border-slate-800 hover:border-blue-500"
+                                        ? "bg-brand border-brand-light text-white shadow-lg scale-[1.02] z-10"
+                                        : "bg-slate-900 border-slate-800 hover:border-brand/60"
                                         }`}
                                 >
                                     <div className="flex items-center gap-4">
-                                        <span className={`text-xl md:text-2xl font-black italic w-10 ${String(c.id) === String(coaster.id) ? "text-blue-200" : "text-slate-600"
+                                        <span className={`text-xl md:text-2xl font-black italic w-10 ${String(c.id) === String(coaster.id) ? "text-orange-100" : "text-slate-600"
                                             }`}>
                                             #{i + 1}
                                         </span>
@@ -244,7 +244,7 @@ export default function DetailedRankingsPage() {
                                             <p className="font-bold uppercase tracking-tight text-sm md:text-base">
                                                 {c.name}
                                             </p>
-                                            <p className={`text-[10px] md:text-xs uppercase font-bold tracking-widest ${String(c.id) === String(coaster.id) ? "text-blue-200" : "text-slate-500"
+                                            <p className={`text-[10px] md:text-xs uppercase font-bold tracking-widest ${String(c.id) === String(coaster.id) ? "text-orange-100" : "text-slate-500"
                                                 }`}>
                                                 {c.manufacturer} • {c.year}
                                             </p>
@@ -252,7 +252,7 @@ export default function DetailedRankingsPage() {
                                     </div>
                                     <div className="flex items-center gap-3">
                                         {String(c.id) === String(coaster.id) && (
-                                            <span className="bg-white text-blue-600 text-[9px] font-black px-2 py-1 rounded-full uppercase tracking-tighter shadow-sm">
+                                            <span className="bg-white text-brand text-[9px] font-black px-2 py-1 rounded-full uppercase tracking-tighter shadow-sm">
                                                 Current
                                             </span>
                                         )}

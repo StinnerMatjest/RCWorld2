@@ -1,14 +1,10 @@
-import { Pool } from "pg";
+import { pool } from "@/app/lib/db";
+import { revalidateContent } from "@/app/lib/revalidate";
 import { NextResponse } from "next/server";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-});
 
 export async function POST(request: Request) {
+  revalidateContent();
   try {
     const { ratingId, ride, note, category, severity } = await request.json();
 
@@ -31,6 +27,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  revalidateContent();
   try {
     const { id, ride, note, category, severity } = await request.json();
 
@@ -58,6 +55,7 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  revalidateContent();
   try {
     const { id } = await request.json();
 

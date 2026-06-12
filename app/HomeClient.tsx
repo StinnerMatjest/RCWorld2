@@ -29,7 +29,7 @@ const PendingParkCard = ({ park }: { park: Park }) => (
     href={`/?modal=true&pendingParkId=${park.id}`}
     className="mx-auto flex flex-col justify-between w-full max-w-[400px] py-3 md:py-4 h-full animate-fade-in-up"
   >
-    <div className="flex flex-col justify-center items-center text-center w-full h-full min-h-[450px] bg-[#1e293b]/40 rounded-2xl border-2 border-dashed border-slate-700 hover:border-blue-500 hover:bg-blue-900/10 transition-all duration-300 p-6 shadow-md group cursor-pointer">
+    <div className="flex flex-col justify-center items-center text-center w-full h-full min-h-[450px] bg-[#1e293b]/40 rounded-2xl border-2 border-dashed border-slate-700 hover:border-brand hover:bg-brand/5 transition-all duration-300 p-6 shadow-md group cursor-pointer">
       <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
         <span className="text-2xl">⏳</span>
       </div>
@@ -43,7 +43,7 @@ const PendingParkCard = ({ park }: { park: Park }) => (
 );
 
 
-const TeaserParkCard = ({ rating, park }: { rating: Rating; park: Park }) => (
+const TeaserParkCard = React.memo(({ rating, park }: { rating: Rating; park: Park }) => (
   <div className="mx-auto w-full max-w-[400px] py-3 md:py-4 animate-fade-in-up">
     <div className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
       <FocusedImage
@@ -58,7 +58,7 @@ const TeaserParkCard = ({ rating, park }: { rating: Rating; park: Park }) => (
       <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent px-4 pt-4 pb-14">
         <div className="flex items-center gap-2">
           <Image src={getParkFlag(park.country)} alt="" width={20} height={14} className="rounded-sm shrink-0" unoptimized />
-          <h1 className="text-white font-bold text-xl leading-tight drop-shadow-md">{park.name}</h1>
+          <h2 className="text-white font-bold text-xl leading-tight drop-shadow-md">{park.name}</h2>
         </div>
       </div>
 
@@ -91,7 +91,8 @@ const TeaserParkCard = ({ rating, park }: { rating: Rating; park: Park }) => (
       </div>
     </div>
   </div>
-);
+));
+TeaserParkCard.displayName = "TeaserParkCard";
 
 const avg = (a: number, b: number) => ((a + b) / 2).toFixed(2);
 
@@ -106,7 +107,7 @@ const FULL_BLEED_GROUPS = [
 const CARD_CATS = ["coasters", "rides", "park", "food", "mgmt"] as const;
 type CardCat = typeof CARD_CATS[number];
 
-function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }: { rating: Rating; park: Park; isActive?: boolean; delayIndex?: number }) {
+const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }: { rating: Rating; park: Park; isActive?: boolean; delayIndex?: number }) {
   const headerSrc = park.imagepath || "/images/error.PNG";
   const cardSrc = park.cardImagepath || headerSrc;
   const cardFocusStr = park.imageFocus || "0.5 0.5 1";
@@ -146,6 +147,9 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
   const slotARef = useRef<HTMLImageElement>(null);
   const slotBRef = useRef<HTMLImageElement>(null);
   const activeSlotRef = useRef<"A" | "B">("A");
+  // True while a category image (not the header) is displayed — lets us skip
+  // pointless fade-to-header transitions that made the carousel blink on swipe
+  const showingCategoryRef = useRef(false);
   const raf1Ref = useRef<number | null>(null);
   const raf2Ref = useRef<number | null>(null);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
@@ -186,6 +190,7 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
   const transitionTo = useCallback((entry: { src: string; focus: string } | null, label: string | null) => {
     cancelInFlight();
     setActiveLabel(label);
+    showingCategoryRef.current = entry != null;
 
     const target = entry ?? { src: cardSrc, focus: cardFocusStr };
     const [inactiveRef, activeRef, nextSlot] = activeSlotRef.current === "A"
@@ -256,7 +261,9 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
       startCycle(3000);
     } else {
       stopCycle();
-      transitionTo(null, null);
+      // Only fade back if a category image is actually showing — blindly
+      // transitioning re-faded the header onto itself on every swipe
+      if (showingCategoryRef.current) transitionTo(null, null);
     }
   }, [isActive, startCycle, stopCycle, transitionTo]);
 
@@ -381,9 +388,9 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
           <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent px-4 pt-4 pb-16 pointer-events-none">
             <div className="flex items-center gap-2">
               <Image src={getParkFlag(park.country)} alt="" width={20} height={14} className="rounded-sm shrink-0" unoptimized />
-              <h1 className="text-white font-bold text-xl leading-tight drop-shadow-md">{park.name}</h1>
+              <h2 className="text-white font-bold text-xl leading-tight drop-shadow-md">{park.name}</h2>
             </div>
-            <p className="text-white/50 text-xs mt-1">{new Date(rating.date).toLocaleDateString()}</p>
+            <p className="text-white/50 text-xs mt-1">{new Date(rating.date).toLocaleDateString("en-GB")}</p>
           </div>
 
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent px-5 pt-16 pb-4 flex flex-col items-center gap-3">
@@ -413,22 +420,26 @@ function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }:
       </div>
     </Link>
   );
-}
+});
 
-const Home = () => {
+type HomeProps = {
+  initialRatings?: Rating[];
+  initialParks?: Park[];
+};
+
+const Home = ({ initialRatings, initialParks }: HomeProps) => {
   const router = useRouter();
   const { query } = useSearch();
   const { isAdminMode } = useAdminMode();
 
-  const [ratings, setRatings] = useState<Rating[]>([]);
-  const [parks, setParks] = useState<Park[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [ratings, setRatings] = useState<Rating[]>(initialRatings ?? []);
+  const [parks, setParks] = useState<Park[]>(initialParks ?? []);
+  const [isLoading, setIsLoading] = useState(!initialRatings || !initialParks);
   const [error, setError] = useState<string | null>(null);
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [parallaxByIndex, setParallaxByIndex] = useState<number[]>([]);
   const carouselRef = useRef<HTMLDivElement>(null);
-  const currentIndexRef = useRef(0);
+  const scrollRafRef = useRef<number | null>(null);
 
   const pendingParks = React.useMemo(() => {
     if (!isAdminMode) return [];
@@ -490,22 +501,30 @@ const Home = () => {
 
   const fetchRatingsAndParks = async () => {
     try {
-      const ratingsResponse = await fetch("/api/ratings");
-      const ratingsData = await ratingsResponse.json();
-
-      const parksResponse = await fetch("/api/parks");
-      const parksData = await parksResponse.json();
+      const [ratingsResponse, parksResponse] = await Promise.all([
+        fetch("/api/ratings"),
+        fetch("/api/parks"),
+      ]);
+      if (!ratingsResponse.ok || !parksResponse.ok) throw new Error("Request failed");
+      const [ratingsData, parksData] = await Promise.all([
+        ratingsResponse.json(),
+        parksResponse.json(),
+      ]);
 
       setParks(Array.isArray(parksData.parks) ? parksData.parks : []);
       setRatings(Array.isArray(ratingsData.ratings) ? ratingsData.ratings : []);
+      setError(null);
     } catch (err) {
       console.error(err);
+      setError("Could not load the park reviews. Check your connection and try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
+    // Server-rendered data already present — skip the duplicate client fetch
+    if (initialRatings && initialParks) return;
     fetchRatingsAndParks();
   }, []);
 
@@ -525,8 +544,6 @@ const Home = () => {
     let closestDist = Number.POSITIVE_INFINITY;
     const kids = Array.from(el.children) as HTMLElement[];
 
-    const nextParallax: number[] = new Array(kids.length).fill(0);
-
     kids.forEach((child, idx) => {
       const childCenter = child.offsetLeft + child.offsetWidth / 2;
       const dist = childCenter - containerCenter;
@@ -536,75 +553,48 @@ const Home = () => {
         closestIdx = idx;
       }
 
+      // Parallax via direct DOM write — routing this through React state
+      // re-rendered every card on every scroll frame and made swiping lag
       const ratio = dist / el.clientWidth;
       const px = Math.max(-14, Math.min(14, -ratio * 28));
-      nextParallax[idx] = Math.round(px);
+      child.style.setProperty("--px", `${Math.round(px)}px`);
     });
 
     setCurrentIndex(closestIdx);
-    setParallaxByIndex(nextParallax);
   };
 
   const handleScroll = (e: UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
-    handleScrollInternal(el);
+    if (scrollRafRef.current != null) return;
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = null;
+      handleScrollInternal(el);
+    });
   };
 
-  useEffect(() => {
-    currentIndexRef.current = currentIndex;
-  }, [currentIndex]);
-
-  function scrollToIndex(idx: number) {
-    const el = carouselRef.current;
-    if (!el) return;
-    const children = Array.from(el.children) as HTMLElement[];
-    const child = children[Math.max(0, Math.min(idx, children.length - 1))];
-    if (!child) return;
-    el.scrollTo({
-      left: child.offsetLeft + child.offsetWidth / 2 - el.clientWidth / 2,
-      behavior: "smooth",
-    });
-  }
-
-  useEffect(() => {
-    const el = carouselRef.current;
-    if (!el) return;
-
-    let startX = 0;
-    let startTime = 0;
-
-    const onTouchStart = (e: TouchEvent) => {
-      startX = e.touches[0].clientX;
-      startTime = Date.now();
-    };
-
-    const onTouchEnd = (e: TouchEvent) => {
-      const deltaX = e.changedTouches[0].clientX - startX;
-      if (Math.abs(deltaX) < 60) return;
-
-      const velocity = Math.abs(deltaX) / Math.max(1, Date.now() - startTime);
-      const direction = deltaX < 0 ? 1 : -1;
-      let cards: number;
-      if (velocity > 14) cards = Math.min(6, Math.round(velocity / 3));
-      else if (velocity > 9) cards = 3;
-      else if (velocity > 5) cards = 2;
-      else cards = 1;
-
-      const maxIdx = el.children.length - 1;
-      const target = Math.max(0, Math.min(maxIdx, currentIndexRef.current + direction * cards));
-      scrollToIndex(target);
-    };
-
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchend", onTouchEnd, { passive: true });
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchend", onTouchEnd);
-    };
+  useEffect(() => () => {
+    if (scrollRafRef.current != null) cancelAnimationFrame(scrollRafRef.current);
   }, []);
 
+  // Swiping is handled entirely by native CSS scroll-snap (snap-x snap-mandatory
+  // on the container, snap-center on cards). A JS velocity/fling layer used to
+  // force-scroll N cards on touchend, but it fought the native momentum snap and
+  // made swipes overshoot and jump.
+
   if (isLoading) return <LoadingSpinner />;
-  if (error) return <div>Error: {error}</div>;
+  if (error)
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <span className="text-4xl">🎢</span>
+        <p className="text-slate-300 font-semibold">{error}</p>
+        <button
+          onClick={() => { setIsLoading(true); fetchRatingsAndParks(); }}
+          className="px-5 py-2.5 rounded-xl bg-brand hover:bg-brand-light text-white font-bold transition-colors cursor-pointer"
+        >
+          Try again
+        </button>
+      </div>
+    );
 
   const closeModal = () => {
     router.push("/", undefined);
@@ -625,7 +615,6 @@ const Home = () => {
             return (
               <div
                 key={item.id}
-                style={{ "--px": `${parallaxByIndex[index] ?? 0}px` } as React.CSSProperties}
                 className={`snap-center shrink-0 transition-all duration-200 ease-in-out ${active ? "scale-100 opacity-100" : "scale-95 opacity-80"} w-[78vw] min-[400px]:w-[72vw] min-[480px]:w-[68vw] min-[560px]:w-[64vw] max-w-sm`}
               >
                 {item.type === "pending" ? (
@@ -662,7 +651,7 @@ const Home = () => {
           {displayItems.map((_, i) => (
             <span
               key={i}
-              className={`h-2 rounded-full transition-all duration-300 ease-in-out ${i === currentIndex ? "w-5 bg-blue-400" : "w-2 bg-gray-600"}`}
+              className={`h-2 rounded-full transition-all duration-300 ease-in-out ${i === currentIndex ? "w-5 bg-brand" : "w-2 bg-gray-600"}`}
             />
           ))}
         </div>

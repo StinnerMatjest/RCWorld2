@@ -3,8 +3,8 @@ export default async function sitemap() {
   const API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   const [rankedRes, coastersRes] = await Promise.all([
-    fetch(`${API}api/parks/ranked`, { cache: "no-store" }),
-    fetch(`${API}api/coasters`, { cache: "no-store" }),
+    fetch(`${API}api/parks/ranked`, { cache: "force-cache", next: { tags: ["content"] } }),
+    fetch(`${API}api/coasters`, { cache: "force-cache", next: { tags: ["content"] } }),
   ]);
 
   const rankedData = await rankedRes.json();
@@ -23,8 +23,16 @@ export default async function sitemap() {
   }));
 
   return [
-    { url: baseUrl,            lastModified: new Date() },
-    { url: `${baseUrl}/parks`, lastModified: new Date() },
+    { url: baseUrl,                      lastModified: new Date() },
+    { url: `${baseUrl}/parks`,           lastModified: new Date() },
+    { url: `${baseUrl}/coasterratings`,  lastModified: new Date() },
+    { url: `${baseUrl}/manufacturers`,   lastModified: new Date() },
+    { url: `${baseUrl}/info` },
+    { url: `${baseUrl}/about` },
+    { url: `${baseUrl}/games` },
+    { url: `${baseUrl}/games/coastle` },
+    { url: `${baseUrl}/games/zoomle` },
+    { url: `${baseUrl}/games/connections` },
     ...parkUrls,
     ...coasterUrls,
   ];

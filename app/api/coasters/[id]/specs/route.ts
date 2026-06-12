@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
+import { revalidateContent } from "@/app/lib/revalidate";
+import { pool } from "@/app/lib/db";
+import { diffFields, describeDiff, getCoasterContext, logChange } from "@/app/lib/changelog";
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-});
 
 export async function POST(
     req: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
+  revalidateContent();
     const { id } = await context.params;
     const coasterId = Number(id);
 
@@ -36,6 +35,12 @@ export async function POST(
             classification,
             notes
         } = body;
+
+        const oldResult = await pool.query(
+            `SELECT * FROM rollercoasterspecs WHERE coaster_id = $1`,
+            [coasterId]
+        );
+        const oldRow = oldResult.rows[0];
 
         const query = `
             INSERT INTO rollercoasterspecs (
@@ -75,6 +80,34 @@ export async function POST(
         ];
 
         const result = await pool.query(query, values);
+
+        const newRow = result.rows[0];
+        const diff = diffFields(oldRow ?? {}, {
+            length: newRow.length,
+            height: newRow.height,
+            drop: newRow.drop,
+            speed: newRow.speed,
+            inversions: newRow.inversions,
+            verticalAngle: newRow.vertical_angle,
+            gforce: newRow.gforce,
+            duration: newRow.duration_sec,
+            type: newRow.type,
+            classification: newRow.classification,
+            notes: newRow.notes,
+        }, { verticalAngle: "vertical_angle", duration: "duration_sec" });
+
+        if (Object.keys(diff).length > 0) {
+            const ctx = await getCoasterContext(coasterId);
+            logChange({
+                parkId: ctx.parkId,
+                entityType: "coaster_spec",
+                entityId: coasterId,
+                label: ctx.name,
+                action: oldRow ? "update" : "create",
+                summary: `${oldRow ? "Updated" : "Added"} specs for ${ctx.name ?? `coaster #${coasterId}`}: ${describeDiff(diff)}`,
+                details: diff,
+            });
+        }
 
         return NextResponse.json({ specs: result.rows[0], success: true });
 

@@ -213,7 +213,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
 
           <Link
             href={`/coasters/${coaster.slug}/rankings`}
-            className="text-[10px] font-bold uppercase tracking-widest text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
+            className="text-[10px] font-bold uppercase tracking-widest text-brand hover:text-brand-light transition-colors flex items-center gap-1"
           >
             View Detailed Rankings
             <svg
@@ -266,7 +266,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
                 e.stopPropagation();
                 setIsHeaderModalOpen(true);
               }}
-              className="absolute top-4 right-4 z-40 p-3 bg-black/60 hover:bg-blue-600 text-white rounded-xl backdrop-blur-md border border-white/20 transition-all shadow-xl cursor-pointer"
+              className="absolute top-4 right-4 z-40 p-3 bg-black/60 hover:bg-brand text-white rounded-xl backdrop-blur-md border border-white/20 transition-all shadow-xl cursor-pointer"
               title="Select Header Image"
             >
               <svg
@@ -321,7 +321,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 relative">
           <div className="lg:col-span-8 flex flex-col gap-8 md:gap-12 order-2 lg:order-1">
             <section>
-              <h3 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-white border-l-4 border-blue-600 pl-4">
+              <h3 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-white border-l-4 border-brand pl-4">
                 The Experience
               </h3>
               <CoasterText
@@ -332,7 +332,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
             </section>
 
             <section>
-              <h3 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-white border-l-4 border-blue-600 pl-4">
+              <h3 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-white border-l-4 border-brand pl-4">
                 Gallery
               </h3>
               <CoasterGallery

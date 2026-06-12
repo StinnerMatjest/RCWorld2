@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ParkRating — Rating Palette</title>
+<style>
+  body { background: #0f172a; color: #e2e8f0; font-family: system-ui, sans-serif; padding: 40px; }
+  h1 { font-size: 22px; } h2 { font-size: 15px; margin-top: 40px; color: #94a3b8; text-transform: uppercase; letter-spacing: 2px; }
+  .row { display: flex; align-items: center; gap: 16px; padding: 9px 14px; border-radius: 12px; }
+  .row:hover { background: rgba(255,255,255,0.04); }
+  .score { width: 90px; font-weight: 900; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .label { width: 200px; font-size: 13px; color: #94a3b8; }
+  .hex { font-family: monospace; font-size: 12px; color: #64748b; width: 90px; }
+  .chip { width: 54px; height: 28px; border-radius: 8px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; max-width: 1300px; }
+  .note { font-size: 12px; color: #f59e0b; width: 240px; }
+  .glow { text-shadow: 0 0 6px rgba(252,211,77,.45); }
+</style>
+</head>
+<body>
+<h1>🎢 ParkRating — rating colour palette <span style="color:#64748b;font-weight:400;font-size:14px">(on #0f172a)</span></h1>
+<div class="cols">
+<div>
+  <h2>Before (replaced June 2026)</h2>
+  <div class="row"><span class="score glow" style="color:#FCD34D">11</span><span class="hex">#FCD34D</span><span class="chip" style="background:#FCD34D"></span><span class="label">GOATED (gold + glow)</span></div>
+  <div class="row"><span class="score" style="color:#F472B6">10</span><span class="hex">#F472B6</span><span class="chip" style="background:#F472B6"></span><span class="label">World Class (mythic pink)</span></div>
+  <div class="row"><span class="score" style="color:#C4B5FD">9.0–9.5</span><span class="hex">#C4B5FD</span><span class="chip" style="background:#C4B5FD"></span><span class="label">Elite (epic purple)</span></div>
+  <div class="row"><span class="score" style="color:#60A5FA">8.0–8.5</span><span class="hex">#60A5FA</span><span class="chip" style="background:#60A5FA"></span><span class="label">Fantastic (rare blue)</span></div>
+  <div class="row"><span class="score" style="color:#4ADE80">7.0–7.5</span><span class="hex">#4ADE80</span><span class="chip" style="background:#4ADE80"></span><span class="label">Great (green)</span></div>
+  <div class="row"><span class="score" style="color:#BEF264">6.0–6.5</span><span class="hex">#BEF264</span><span class="chip" style="background:#BEF264"></span><span class="label">Solid (lime)</span></div>
+  <div class="row"><span class="score" style="color:#FDE047">5.0–5.5</span><span class="hex">#FDE047</span><span class="chip" style="background:#FDE047"></span><span class="label">Okay (yellow)</span></div>
+  <div class="row"><span class="score" style="color:#FFB58A">4.0–4.5</span><span class="hex">#FFB58A</span><span class="chip" style="background:#FFB58A"></span><span class="label">Mediocre (peach)</span><span class="note">⚠ weak step from yellow</span></div>
+  <div class="row"><span class="score" style="color:#FC8181">3.0–3.5</span><span class="hex">#FC8181</span><span class="chip" style="background:#FC8181"></span><span class="label">Poor (coral)</span><span class="note">⚠ nearly identical to tier below</span></div>
+  <div class="row"><span class="score" style="color:#FB7185">1.5–2.5</span><span class="hex">#FB7185</span><span class="chip" style="background:#FB7185"></span><span class="label">Terrible (rose)</span><span class="note">⚠ nearly identical to tier above</span></div>
+  <div class="row"><span class="score" style="color:#94A3B8">0.5–1.0</span><span class="hex">#94A3B8</span><span class="chip" style="background:#94A3B8"></span><span class="label">Worthless (slate)</span><span class="note">⚠ same colour as "no rating" placeholder</span></div>
+  <div class="row"><span class="score" style="color:#94A3B8">—</span><span class="hex">slate-400</span><span class="chip" style="background:#94A3B8"></span><span class="label">No rating / placeholder</span></div>
+</div>
+<div>
+  <h2>Live palette</h2>
+  <div class="row"><span class="score glow" style="color:#FCD34D">11</span><span class="hex">#FCD34D</span><span class="chip" style="background:#FCD34D"></span><span class="label">GOATED — unchanged</span></div>
+  <div class="row"><span class="score" style="color:#F472B6">10</span><span class="hex">#F472B6</span><span class="chip" style="background:#F472B6"></span><span class="label">World Class — unchanged</span></div>
+  <div class="row"><span class="score" style="color:#C4B5FD">9.0–9.5</span><span class="hex">#C4B5FD</span><span class="chip" style="background:#C4B5FD"></span><span class="label">Elite — unchanged</span></div>
+  <div class="row"><span class="score" style="color:#60A5FA">8.0–8.5</span><span class="hex">#60A5FA</span><span class="chip" style="background:#60A5FA"></span><span class="label">Fantastic — unchanged</span></div>
+  <div class="row"><span class="score" style="color:#4ADE80">7.0–7.5</span><span class="hex">#4ADE80</span><span class="chip" style="background:#4ADE80"></span><span class="label">Great — unchanged</span></div>
+  <div class="row"><span class="score" style="color:#BEF264">6.0–6.5</span><span class="hex">#BEF264</span><span class="chip" style="background:#BEF264"></span><span class="label">Solid — unchanged</span></div>
+  <div class="row"><span class="score" style="color:#FDE047">5.0–5.5</span><span class="hex">#FDE047</span><span class="chip" style="background:#FDE047"></span><span class="label">Okay — unchanged</span></div>
+  <div class="row"><span class="score" style="color:#FB923C">4.0–4.5</span><span class="hex">#FB923C</span><span class="chip" style="background:#FB923C"></span><span class="label">Mediocre — proper orange (orange-400)</span></div>
+  <div class="row"><span class="score" style="color:#F87171">3.0–3.5</span><span class="hex">#F87171</span><span class="chip" style="background:#F87171"></span><span class="label">Poor — light red (red-400)</span></div>
+  <div class="row"><span class="score" style="color:#E64558">1.5–2.5</span><span class="hex">#E64558</span><span class="chip" style="background:#E64558"></span><span class="label">Terrible — deep red, clearly worse</span></div>
+  <div class="row"><span class="score" style="color:#9B7E83">0.5–1.0</span><span class="hex">#9B7E83</span><span class="chip" style="background:#9B7E83"></span><span class="label">Worthless — "dead" desaturated rose-grey</span></div>
+  <div class="row"><span class="score" style="color:#64748B;font-style:italic">—</span><span class="hex">slate-500</span><span class="chip" style="background:#64748B"></span><span class="label">No rating — dimmer + italic, can't be confused with a score</span></div>
+</div>
+</div>
+<p style="margin-top:48px;color:#64748b;font-size:13px;max-width:760px">
+Top half (8–11) is a <b>rarity ladder</b> (blue → purple → pink → gold), bottom half (0.5–7.5) is a <b>traffic-light heat scale</b>.
+The proposal keeps that identity and only fixes the bottom: a real orange step at 4, and three clearly distinct "bad" tiers instead of two identical corals and a grey that collides with the unrated placeholder.
+</p>
+</body>
+</html>

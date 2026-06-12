@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 async function getCoasters() {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}api/coasters`, {
-      cache: "no-store",
+      cache: "force-cache", next: { tags: ["content"] },
     });
     if (!res.ok) return [];
     const data = await res.json();

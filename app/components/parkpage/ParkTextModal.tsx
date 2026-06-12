@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback } from "react";
+import Image from "next/image";
 import type { GalleryImage } from "./ParkGallery";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
 
@@ -45,6 +46,52 @@ const LABELS: Record<Category, string> = {
 };
 
 const isVideo = (p: string) => /\.(mp4|webm|ogg)$/i.test(p);
+
+// Memoized so typing in the textarea doesn't re-render the whole grid, and
+// served as real thumbnails via next/image instead of decoding R2 originals.
+const ImagePickerGrid = React.memo(function ImagePickerGrid({
+  galleryImages, selected, onSelect,
+}: {
+  galleryImages: GalleryImage[];
+  selected: string | null;
+  onSelect: (path: string | null) => void;
+}) {
+  if (galleryImages.length === 0) {
+    return <p className="text-sm text-slate-500">No gallery images available.</p>;
+  }
+  return (
+    <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5">
+      <button onClick={() => onSelect(null)}
+        className={`aspect-square rounded-lg border-2 flex items-center justify-center text-xs font-medium transition-all cursor-pointer ${selected === null
+            ? "border-blue-500 bg-blue-500/20 text-blue-400"
+            : "border-slate-700 text-slate-500 hover:border-slate-600"
+          }`}>
+        None
+      </button>
+      {galleryImages.map(img => {
+        const sel = selected === img.path;
+        return (
+          <button key={img.id} onClick={() => onSelect(img.path)}
+            className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all cursor-pointer ${sel ? "border-blue-500 ring-2 ring-blue-500/30" : "border-slate-700 hover:border-slate-500"
+              }`}>
+            {isVideo(img.path) ? (
+              <video src={img.path} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+            ) : (
+              <Image src={img.path} alt="" fill sizes="(max-width: 640px) 25vw, 160px" quality={55} className="object-cover" />
+            )}
+            {sel && (
+              <div className="absolute inset-0 bg-blue-500/25 flex items-center justify-center">
+                <svg className="w-5 h-5 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+});
 
 const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   explanations, sectionImages, sectionLayouts = {}, galleryImages, parkId, ratingId, onClose, onSave,
@@ -270,41 +317,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                     </div>
                   )}
                 </div>
-                {galleryImages.length === 0 ? (
-                  <p className="text-sm text-slate-500">No gallery images available.</p>
-                ) : (
-                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5">
-                    <button onClick={() => updateImage(null)}
-                      className={`aspect-square rounded-lg border-2 flex items-center justify-center text-xs font-medium transition-all cursor-pointer ${cur.image === null
-                          ? "border-blue-500 bg-blue-500/20 text-blue-400"
-                          : "border-slate-700 text-slate-500 hover:border-slate-600"
-                        }`}>
-                      None
-                    </button>
-                    {galleryImages.map(img => {
-                      const sel = cur.image === img.path;
-                      return (
-                        <button key={img.id} onClick={() => updateImage(img.path)}
-                          className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all cursor-pointer ${sel ? "border-blue-500 ring-2 ring-blue-500/30" : "border-slate-700 hover:border-slate-500"
-                            }`}>
-                          {isVideo(img.path) ? (
-                            <video src={img.path} className="w-full h-full object-cover" muted playsInline preload="metadata" />
-                          ) : (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={img.path} alt="" className="w-full h-full object-cover" />
-                          )}
-                          {sel && (
-                            <div className="absolute inset-0 bg-blue-500/25 flex items-center justify-center">
-                              <svg className="w-5 h-5 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                <ImagePickerGrid galleryImages={galleryImages} selected={cur.image} onSelect={updateImage} />
               </div>
             </div>
           </div>

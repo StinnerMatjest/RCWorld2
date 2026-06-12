@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 
 type Post = {
@@ -27,12 +28,15 @@ function GalleryImageButton({ img, onClick }: { img: GalleryImage; onClick: () =
   const [ok, setOk] = useState<boolean | null>(null);
   return (
     <button className="relative aspect-video overflow-hidden rounded-lg group cursor-pointer" onClick={onClick}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <Image
         src={img.path}
         alt={img.title}
-        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+        fill
+        sizes="(max-width: 640px) 50vw, 320px"
+        quality={60}
+        className="object-cover group-hover:scale-105 transition-transform"
         onLoad={e => {
+          // Thumbnail keeps the original aspect ratio, so the IG check still holds.
           const el = e.currentTarget;
           const ratio = el.naturalWidth / el.naturalHeight;
           setOk(ratio >= 0.8 && ratio <= 1.91);

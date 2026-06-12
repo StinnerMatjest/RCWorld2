@@ -26,6 +26,7 @@ We also rate individual roller coasters on a 0–10 scale with written reviews c
 - Individual park reviews: https://parkrating.com/park/{slug}
 - Coaster ratings and rankings: https://parkrating.com/coasterratings
 - Individual coaster reviews: https://parkrating.com/coasters/{slug}
+- Manufacturer hall of fame (makers ranked by Best Coaster awards and average score): https://parkrating.com/manufacturers
 - About: https://parkrating.com/about
 
 ## Data notes
@@ -35,4 +36,4 @@ We also rate individual roller coasters on a 0–10 scale with written reviews c
 - Reviews reflect real visits by the site's authors
 - Schema.org AggregateRating markup is present on all reviewed park pages
 - Schema.org Review markup with full reviewBody text is present on all park and coaster pages
-- Schema.org ItemList markup is present on the park rankings page (/parks) and the coaster ratings page (/coasterratings), listing each entry with name, URL, position, and a natural-language description including scores
+- Schema.org ItemList markup is present on the park rankings page (/parks), the coaster ratings page (/coasterratings), and the manufacturers page (/manufacturers), listing each entry with name, URL, position, and a natural-language description including scores

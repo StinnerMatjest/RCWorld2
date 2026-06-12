@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
+import { revalidateContent } from "@/app/lib/revalidate";
+import { pool } from "@/app/lib/db";
+import { diffFields, logChange, FieldDiff } from "@/app/lib/changelog";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-});
+// Friendly wording for park field changes in the changelog timeline.
+const PARK_FIELD_LABELS: Record<string, string> = {
+  imagepath: "header image",
+  cardImagepath: "card image",
+  imageFocus: "image focus",
+  headerFocus: "header focus",
+  cardImages: "card images",
+};
+
+function summarizeParkDiff(diff: FieldDiff): string {
+  return Object.keys(diff)
+    .map((f) => PARK_FIELD_LABELS[f] ?? f)
+    .join(", ");
+}
+
 
 export async function GET(
   req: NextRequest,
@@ -41,10 +52,17 @@ export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  revalidateContent();
   try {
     const { id } = await context.params;
     const body = await req.json();
     const isNumeric = /^\d+$/.test(id);
+
+    const oldResult = await pool.query(
+      `SELECT * FROM parks WHERE ${isNumeric ? "id" : "slug"} = $1`,
+      [isNumeric ? Number(id) : id]
+    );
+    const oldRow = oldResult.rows[0];
 
     // Build dynamic query to update only the fields provided in the body
     const fields = [];
@@ -81,6 +99,40 @@ export async function PATCH(
       return NextResponse.json({ error: "Park not found" }, { status: 404 });
     }
 
+    if (oldRow) {
+      const diff = diffFields(
+        oldRow,
+        {
+          name: body.name || undefined,
+          continent: body.continent || undefined,
+          country: body.country || undefined,
+          city: body.city || undefined,
+          imagepath: body.imagepath || undefined,
+          imageFocus: body.imageFocus,
+          headerFocus: body.headerFocus,
+          cardImages: body.cardImages,
+          cardImagepath: body.cardImagepath,
+        },
+        {
+          imageFocus: "image_focus",
+          headerFocus: "header_focus",
+          cardImages: "card_images",
+          cardImagepath: "card_imagepath",
+        }
+      );
+      if (Object.keys(diff).length > 0) {
+        logChange({
+          parkId: oldRow.id,
+          entityType: "park",
+          entityId: oldRow.id,
+          label: oldRow.name,
+          action: "update",
+          summary: `Updated ${summarizeParkDiff(diff)}`,
+          details: diff,
+        });
+      }
+    }
+
     return NextResponse.json(result.rows[0], { status: 200 });
   } catch (error: any) {
     console.error("Database update error:", error);
@@ -92,6 +144,7 @@ export async function DELETE(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  revalidateContent();
   try {
     const { id } = await context.params;
     const isNumeric = /^\d+$/.test(id);
@@ -107,6 +160,16 @@ export async function DELETE(
     if (result.rowCount === 0) {
       return NextResponse.json({ error: "Park not found" }, { status: 404 });
     }
+
+    const deleted = result.rows[0];
+    logChange({
+      parkId: deleted.id,
+      entityType: "park",
+      entityId: deleted.id,
+      label: deleted.name,
+      action: "delete",
+      summary: `Deleted park ${deleted.name}`,
+    });
 
     return NextResponse.json({ message: "Park deleted successfully" }, { status: 200 });
   } catch (error) {

@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
+import { pool } from "@/app/lib/db";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
 
 export async function GET(
   request: Request,
@@ -14,9 +10,11 @@ export async function GET(
     const { slug } = await context.params;
 
     const query = `
-      SELECT 
-        id, title, slug, description, items, visit_start, visit_end, duration, is_finished, park_id
-      FROM checklists 
+      SELECT
+        id, title, slug, description, items, visit_start, visit_end, duration, is_finished, park_id,
+        COALESCE(sessions, '[]'::jsonb) AS sessions,
+        COALESCE(notes, '{}'::jsonb)    AS notes
+      FROM checklists
       WHERE slug = $1
     `;
     const result = await pool.query(query, [slug]);
@@ -41,18 +39,20 @@ export async function PATCH(
     const body = await request.json();
 
     // Destructure all the new timing properties sent from ChecklistClient
-    const { items, visit_start, visit_end, duration, is_finished } = body;
+    const { items, visit_start, visit_end, duration, is_finished, sessions, notes } = body;
 
     // Update the database to actually save the new columns
     const query = `
-      UPDATE checklists 
-      SET 
+      UPDATE checklists
+      SET
         items = $1::jsonb,
         visit_start = $2,
         visit_end = $3,
         duration = $4,
-        is_finished = $5
-      WHERE slug = $6
+        is_finished = $5,
+        sessions = COALESCE($6::jsonb, sessions),
+        notes = COALESCE($7::jsonb, notes)
+      WHERE slug = $8
       RETURNING *;
     `;
 
@@ -62,6 +62,8 @@ export async function PATCH(
       visit_end || null,
       duration || 0,
       is_finished || false,
+      sessions !== undefined ? JSON.stringify(sessions) : null,
+      notes !== undefined ? JSON.stringify(notes) : null,
       slug
     ];
 

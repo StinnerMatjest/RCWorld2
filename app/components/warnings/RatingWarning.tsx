@@ -54,7 +54,7 @@ const RatingWarning: React.FC<RatingWarningProps> = ({
     else if (highestSeverityLevel === 1) colorClass = "text-yellow-500";
     else colorClass = "text-gray-400";
   } else {
-    if (highestSeverityLevel === 2) colorClass = "text-slate-900 dark:text-white drop-shadow-sm";
+    if (highestSeverityLevel === 2) colorClass = " text-white drop-shadow-sm";
     else if (highestSeverityLevel === 1) colorClass = "text-red-600";
     else colorClass = "text-yellow-500";
   }

@@ -1,15 +1,25 @@
 @import "tailwindcss";
 
+/* Tailwind v4 defaults the dark: variant to the OS prefers-color-scheme media
+   query. The site forces dark mode via class="dark" on <html>, so rebind the
+   variant to that class — otherwise light-OS users see light pages. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Brand accent — use as text-brand, bg-brand, border-brand, ring-brand etc.
+   brand-light is the hover companion. */
+@theme {
+  --color-brand: #e9820e;
+  --color-brand-light: #f8941e;
+}
+
 :root {
+  /* Render native UI (form controls, scrollbars, pickers) dark too */
+  color-scheme: dark;
   /* The exact rich navy/slate background from your live branch */
   --background: #0f172a;
   /* Crisp, legible slate-white text */
   --foreground: #f8fafc;
 }
-
-/* Make sure you completely deleted the 
-  @media (prefers-color-scheme: dark) { ... } block! 
-*/
 
 body {
   color: var(--foreground);
@@ -117,16 +127,6 @@ select {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
   /* Chrome/Safari */
-}
-
-/* Hide horizontal scrollbar for the carousel */
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
 }
 
 /* Edge bounce animation (respects reduced motion) */

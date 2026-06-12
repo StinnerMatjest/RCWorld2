@@ -178,12 +178,12 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-6">
-        <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-4">
+      <div className=" bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-6">
+        <div className="flex justify-between items-center border-b border-gray-700 pb-4">
           <h2 className="text-2xl font-bold dark:text-white">
             {trip ? "Edit Trip" : "Create New Trip"}
           </h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:hover:text-white text-2xl font-bold cursor-pointer">
+          <button onClick={onClose} className="text-gray-500 hover:text-white text-2xl font-bold cursor-pointer">
             ×
           </button>
         </div>
@@ -218,9 +218,9 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
                   setEndDate("");
                 }
               }}
-              className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 cursor-pointer"
+              className="w-4 h-4 text-blue-600 rounded border-gray-600 dark:bg-gray-700 cursor-pointer"
             />
-            <label htmlFor="undecided-checkbox" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+            <label htmlFor="undecided-checkbox" className="text-sm font-medium text-gray-300 cursor-pointer">
               Dates are currently undecided (TBD / Backlog)
             </label>
           </div>
@@ -272,7 +272,7 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
           </div>
 
           {/* Trip Logs */}
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3 bg-gray-50 dark:bg-gray-800/50">
+          <div className="border border-gray-700 rounded-lg p-4 space-y-3 bg-gray-800/50">
             <div className="flex justify-between items-center">
               <h3 className="font-semibold dark:text-white">
                 Trip Log {tripDays > 0 && !isUndecided && <span className={`text-sm font-normal ${isOverLogLimit ? "text-red-500 font-bold" : "text-gray-500"}`}>({tripLog.length}/{maxLogs})</span>}
@@ -281,24 +281,24 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
                 type="button" 
                 onClick={addLogEntry} 
                 disabled={!canAddMoreLogs}
-                className="text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="text-sm px-3 py-1 rounded hover:bg-blue-200 bg-blue-900 text-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
               >
                 + Add Entry
               </button>
             </div>
 
             {!hasValidDatesForLogs && (
-              <p className="text-sm text-red-500 dark:text-red-400">
+              <p className="text-sm text-red-400">
                 ⚠️ Please select a valid Start and End date to add trip logs.
               </p>
             )}
             {hasValidDatesForLogs && !isUndecided && tripLog.length === maxLogs && (
-              <p className="text-sm text-amber-500 dark:text-amber-400">
+              <p className="text-sm text-amber-400">
                 ⚠️ Maximum of {maxLogs} logs reached for a {tripDays}-day trip.
               </p>
             )}
             {isOverLogLimit && (
-              <p className="text-sm text-red-500 dark:text-red-400 font-bold">
+              <p className="text-sm text-red-400 font-bold">
                 🚨 You have {tripLog.length} logs, but the maximum for a {tripDays}-day trip is {maxLogs}. Please remove {tripLog.length - maxLogs} log(s) to save.
               </p>
             )}
@@ -334,13 +334,13 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
             ))}
             
             {hasValidDatesForLogs && !isUndecided && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 pt-1">
+              <p className="text-xs text-gray-400 pt-1">
                 💡 Tip: Type "Day 1", "Day 2", etc. and click away to automatically calculate the date.
               </p>
             )}
           </div>
 
-          <div className="pt-4 flex justify-between items-center border-t border-gray-200 dark:border-gray-700 mt-4">
+          <div className="pt-4 flex justify-between items-center border-t border-gray-700 mt-4">
             {/* Delete Button */}
             <div>
               {trip?.id && (
@@ -348,7 +348,7 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
                   type="button"
                   onClick={handleDelete}
                   disabled={isDeleting || loading}
-                  className="px-4 py-2 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50 disabled:opacity-50 transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-red-900/30 text-red-400 rounded hover:bg-red-900/50 disabled:opacity-50 transition-colors cursor-pointer"
                 >
                   {isDeleting ? "Deleting..." : "Delete Trip"}
                 </button>
@@ -357,7 +357,7 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
 
             {/* Cancel and Save Buttons */}
             <div className="flex gap-3">
-              <button type="button" onClick={onClose} className="px-4 py-2 border rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer cursor-pointer">
+              <button type="button" onClick={onClose} className="px-4 py-2 border rounded text-gray-300 hover:bg-gray-700 cursor-pointer cursor-pointer">
                 Cancel
               </button>
               <button 

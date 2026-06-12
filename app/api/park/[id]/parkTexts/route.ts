@@ -1,10 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
+import { revalidateContent } from "@/app/lib/revalidate";
+import { pool } from "@/app/lib/db";
+import { diffFields, logChange } from "@/app/lib/changelog";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+// parktexts rows hang off a rating; resolve the owning park for the changelog.
+async function ratingContext(ratingId: number | string) {
+  try {
+    const r = await pool.query(
+      `SELECT p.id AS park_id, p.name AS park_name
+       FROM ratings JOIN parks p ON p.id = ratings.park_id
+       WHERE ratings.id = $1`,
+      [ratingId]
+    );
+    return { parkId: r.rows[0]?.park_id ?? null, parkName: r.rows[0]?.park_name ?? null };
+  } catch {
+    return { parkId: null, parkName: null };
+  }
+}
+
 
 export async function GET(
   req: NextRequest,
@@ -42,6 +55,7 @@ export async function GET(
 }
 
 export async function POST(req: NextRequest) {
+  revalidateContent();
   const { category, text, ratingId, imageUrl, imageLayout } = await req.json();
 
   if (!category || !ratingId) {
@@ -66,6 +80,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const ctx = await ratingContext(ratingId);
+    logChange({
+      parkId: ctx.parkId,
+      entityType: "park_text",
+      entityId: ratingId,
+      label: ctx.parkName,
+      action: "create",
+      summary: `Added "${category}" text`,
+      details: { category, text: text ?? "", imageUrl: imageUrl ?? null, imageLayout: imageLayout ?? null },
+    });
+
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error) {
     console.error("Database insert error:", error);
@@ -74,6 +99,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  revalidateContent();
   const { category, text, ratingId, imageUrl, imageLayout } = await req.json();
 
   if (!category || !ratingId) {
@@ -81,6 +107,12 @@ export async function PUT(req: NextRequest) {
   }
 
   try {
+    const oldResult = await pool.query(
+      `SELECT * FROM parktexts WHERE rating_id = $1 AND category = $2`,
+      [ratingId, category]
+    );
+    const oldRow = oldResult.rows[0];
+
     let result;
     try {
       result = await pool.query(
@@ -102,6 +134,29 @@ export async function PUT(req: NextRequest) {
 
     if (result.rowCount === 0) {
       return NextResponse.json({ error: "Text entry not found for this specific visit" }, { status: 404 });
+    }
+
+    if (oldRow) {
+      const diff = diffFields(
+        oldRow,
+        { text: text ?? "", imageUrl: imageUrl ?? null, imageLayout: imageLayout ?? null },
+        { imageUrl: "image_url", imageLayout: "image_layout" }
+      );
+      if (Object.keys(diff).length > 0) {
+        const ctx = await ratingContext(ratingId);
+        const changed = Object.keys(diff)
+          .map((f) => (f === "text" ? "text" : f === "imageUrl" ? "image" : "layout"))
+          .join(", ");
+        logChange({
+          parkId: ctx.parkId,
+          entityType: "park_text",
+          entityId: ratingId,
+          label: ctx.parkName,
+          action: "update",
+          summary: `Edited "${category}" ${changed}`,
+          details: { category, ...diff },
+        });
+      }
     }
 
     return NextResponse.json(result.rows[0], { status: 200 });

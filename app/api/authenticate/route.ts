@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ADMIN_COOKIE, adminToken } from "@/app/lib/adminAuth";
 
 export async function POST(req: Request) {
   const { password } = await req.json();
@@ -14,8 +15,16 @@ export async function POST(req: Request) {
   }
 
   if (password === correctPassword) {
-    // Optionally: Set a secure cookie here
-    return NextResponse.json({ success: true });
+    // The cookie is what actually authorizes admin API calls (see middleware.ts)
+    const res = NextResponse.json({ success: true });
+    res.cookies.set(ADMIN_COOKIE, await adminToken(correctPassword), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      path: "/",
+    });
+    return res;
   }
 
   return NextResponse.json(

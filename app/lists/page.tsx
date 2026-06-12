@@ -41,15 +41,15 @@ const RankingsPage = () => {
     if (error) return <div className="text-center py-20 text-red-500">{error}</div>;
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-[#0f172a] py-12 px-6">
+        <div className="min-h-screen bg-[#0f172a] py-12 px-6">
             <div className="max-w-6xl mx-auto">
 
                 {/* Page Header */}
                 <div className="mb-12 text-center">
-                    <h1 className="text-4xl md:text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-4">
+                    <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tight mb-4">
                         Parkrating's Curated Lists & Rankings
                     </h1>
-                    <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                    <p className="text-lg text-gray-400 max-w-2xl mx-auto">
                         This is where we post rankings and lists of all types of themepark-related content such as best parks, coasters, waterrides, darkrides, flatrides or even in-park rankings of attractions.
                     </p>
                 </div>
@@ -67,7 +67,7 @@ const RankingsPage = () => {
 
                 {/* Grid of Lists */}
                 {lists.length === 0 ? (
-                    <div className="text-center text-gray-500 dark:text-gray-400 py-10">
+                    <div className="text-center text-gray-400 py-10">
                         No lists available yet. Check back soon!
                     </div>
                 ) : (
@@ -76,16 +76,16 @@ const RankingsPage = () => {
                             <Link
                                 key={list.id}
                                 href={`/lists/${list.slug}`}
-                                className="group flex flex-col bg-white dark:bg-slate-800 rounded-2xl shadow-sm hover:shadow-xl border border-gray-200 dark:border-slate-700 overflow-hidden transition-all duration-300 hover:-translate-y-1"
+                                className="group flex flex-col bg-slate-800 rounded-2xl shadow-sm hover:shadow-xl border border-slate-700 overflow-hidden transition-all duration-300 hover:-translate-y-1"
                             >
                                 <div className="p-6 flex flex-col flex-grow">
-                                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                    <h2 className="text-2xl font-bold text-white mb-3 group-hover:text-blue-400 transition-colors">
                                         {list.title}
                                     </h2>
-                                    <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed flex-grow line-clamp-3">
+                                    <p className=" text-gray-400 text-sm leading-relaxed flex-grow line-clamp-3">
                                         {list.introText}
                                     </p>
-                                    <div className="mt-6 pt-4 border-t border-gray-100 dark:border-slate-700 flex items-center justify-between">
+                                    <div className="mt-6 pt-4 border-t border-slate-700 flex items-center justify-between">
                                         <span className="text-xs font-semibold uppercase tracking-wider text-blue-500">
                                             Read List
                                         </span>

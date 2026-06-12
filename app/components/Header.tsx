@@ -16,36 +16,16 @@ const Header = () => {
   useEffect(() => {
     const fetchHeaderData = async () => {
       try {
-        // Fetch both trips and ratings simultaneously
-        const [tripsRes, ratingsRes] = await Promise.all([
-          fetch("/api/trips"),
-          fetch("/api/ratings")
-        ]);
+        const res = await fetch("/api/header-status");
+        if (res.ok) {
+          const data = await res.json();
 
-        if (tripsRes.ok) {
-          const tripsData = await tripsRes.json();
-          const next = tripsData.trips
-            ?.filter((t: any) => t.status === "booked" && getDaysUntil(t.startDate))
-            .sort(
-              (a: any, b: any) =>
-                new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-            )[0];
+          const nextStart = (data.tripStartDates ?? [])
+            .filter((d: string) => getDaysUntil(d))
+            .sort((a: string, b: string) => new Date(a).getTime() - new Date(b).getTime())[0];
+          if (nextStart) setDays(getDaysUntil(nextStart));
 
-          if (next) {
-            setDays(getDaysUntil(next.startDate));
-          }
-        }
-
-        if (ratingsRes.ok) {
-          const ratingsData = await ratingsRes.json();
-          // Filter for unpublished ratings, grab the park name, and remove duplicates
-          if (ratingsData.ratings) {
-            const unpublishedParks = ratingsData.ratings
-              .filter((r: any) => r.published === false)
-              .map((r: any) => r.park);
-
-            setUnderReviewParks(Array.from(new Set(unpublishedParks)));
-          }
+          setUnderReviewParks(data.underReviewParks ?? []);
         }
       } catch (error) {
         console.error("Failed to fetch header data:", error);
@@ -117,7 +97,7 @@ const Header = () => {
             <Link
               href="/about"
               className={`
-                text-[#e9820e] font-semibold hover:underline whitespace-nowrap truncate px-2 leading-none
+                text-brand font-semibold hover:underline whitespace-nowrap truncate px-2 leading-none
                 text-xs sm:text-sm lg:text-base xl:text-base
                 block text-center max-w-[90vw] lg:max-w-[50vw] xl:max-w-[60vw]
                 ${isLoading ? "opacity-0" : "opacity-100 transition-opacity duration-300"}

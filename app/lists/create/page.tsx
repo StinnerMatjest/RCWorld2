@@ -148,7 +148,7 @@ function ListEditorForm() {
     if (isLoading) return <div className="p-20 text-center dark:text-white">Loading editor...</div>;
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-10 px-4 sm:px-6">
+        <div className="min-h-screen bg-gray-900 py-10 px-4 sm:px-6">
             {activeImageTarget && (
                 <ImageSelectorModal
                     onClose={() => setActiveImageTarget(null)}
@@ -166,7 +166,7 @@ function ListEditorForm() {
 
                 <form onSubmit={handleSubmit} className="space-y-12">
                     {/* Main List Info */}
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 space-y-4">
+                    <div className=" bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-700 space-y-4">
                         <h2 className="text-xl font-bold dark:text-white mb-4 border-b pb-2">List Details</h2>
 
                         <div>
@@ -190,7 +190,7 @@ function ListEditorForm() {
                         <h2 className="text-2xl font-bold dark:text-white">List Items (Sections)</h2>
 
                         {items.map((item, index) => (
-                            <div key={item.id} className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border-l-4 border-teal-500 relative">
+                            <div key={item.id} className=" bg-gray-800 p-6 rounded-xl shadow-md border-l-4 border-teal-500 relative">
                                 <button type="button" onClick={() => removeItem(index)} className="absolute top-4 right-4 text-red-500 hover:text-red-700 font-bold cursor-pointer">
                                     Remove
                                 </button>
@@ -211,14 +211,14 @@ function ListEditorForm() {
                                 </div>
 
                                 {/* Item Content Block */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 dark:bg-gray-900 p-4 rounded-lg mb-4 border border-gray-200 dark:border-gray-700">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-900 p-4 rounded-lg mb-4 border border-gray-700">
                                     <div>
                                         <label className="block text-sm font-semibold mb-1 dark:text-gray-300">Text Block 1</label>
                                         <textarea required value={item.textBlock1} onChange={(e) => updateItem(index, "textBlock1", e.target.value)} rows={6} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
                                     </div>
                                     <div className="flex flex-col">
                                         <label className="block text-sm font-semibold mb-1 dark:text-gray-300">Image 1</label>
-                                        <div className="flex-grow min-h-[160px] border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center justify-center p-4 bg-white dark:bg-gray-800 relative overflow-hidden group">
+                                        <div className="flex-grow min-h-[160px] border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center p-4 bg-gray-800 relative overflow-hidden group">
                                             {item.image1 ? (
                                                 <>
                                                     <img src={item.image1} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
@@ -237,10 +237,10 @@ function ListEditorForm() {
                                 </div>
 
                                 {/* Optional Content Block */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-900 p-4 rounded-lg border border-gray-700">
                                     <div className="flex flex-col">
                                         <label className="block text-sm font-semibold mb-1 dark:text-gray-300">Image 2 (Optional)</label>
-                                        <div className="flex-grow min-h-[160px] border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center justify-center p-4 bg-white dark:bg-gray-800 relative overflow-hidden group">
+                                        <div className="flex-grow min-h-[160px] border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center p-4 bg-gray-800 relative overflow-hidden group">
                                             {item.image2 ? (
                                                 <>
                                                     <img src={item.image2} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
@@ -264,13 +264,13 @@ function ListEditorForm() {
                             </div>
                         ))}
 
-                        <button type="button" onClick={handleAddItem} className="w-full py-4 border-2 border-dashed border-teal-500 text-teal-600 dark:text-teal-400 font-bold rounded-xl hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors cursor-pointer">
+                        <button type="button" onClick={handleAddItem} className="w-full py-4 border-2 border-dashed border-teal-500 text-teal-400 font-bold rounded-xl hover:bg-teal-900/20 transition-colors cursor-pointer">
                             + Add New Section (Item)
                         </button>
                     </div>
 
                     {/* Bottom Action Bar */}
-                    <div className="sticky bottom-0 bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-md py-4 border-t border-gray-200 dark:border-gray-800 flex justify-between gap-4">
+                    <div className="sticky bottom-0 bg-gray-900/80 backdrop-blur-md py-4 border-t border-gray-800 flex justify-between gap-4">
                         {isEditing && (
                             <button
                                 type="button"
@@ -282,7 +282,7 @@ function ListEditorForm() {
                             </button>
                         )}
                         <div className="flex gap-4 ml-auto">
-                            <button type="button" onClick={() => router.back()} className="px-6 py-3 font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-xl transition-colors cursor-pointer">
+                            <button type="button" onClick={() => router.back()} className="px-6 py-3 font-semibold text-gray-300 hover:bg-gray-800 rounded-xl transition-colors cursor-pointer">
                                 Cancel
                             </button>
                             <button type="submit" disabled={isSubmitting} className="w-full md:w-auto px-10 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-lg rounded-xl shadow-lg transition-all disabled:opacity-50 cursor-pointer">

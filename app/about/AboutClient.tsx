@@ -3,30 +3,13 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import TripCard, { Trip } from "../components/aboutpage/TripCard";
+import { Trip } from "../components/aboutpage/TripCard";
 import TripCreatorModal from "../components/aboutpage/TripCreatorModal";
+import VisitTimeline from "../components/aboutpage/VisitTimeline";
 import { getDaysUntil } from "@/app/utils/trips";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 
-const groupTripsByYear = (filteredTrips: Trip[]) => {
-  const grouped: { [year: string]: Trip[] } = {};
-
-  filteredTrips
-    .sort(
-      (a, b) =>
-        new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-    )
-    .forEach((trip) => {
-      const year = new Date(trip.startDate).getFullYear().toString();
-      if (!grouped[year]) grouped[year] = [];
-      grouped[year].push(trip);
-    });
-
-  return grouped;
-};
-
 export default function AboutPage() {
-  const [showPast, setShowPast] = useState(false);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -59,18 +42,6 @@ export default function AboutPage() {
     setEditingTrip(trip);
     setShowModal(true);
   };
-
-  const filtered = trips.filter((t) =>
-    showPast ? t.status === "past" : t.status !== "past"
-  );
-  const undecidedTrips = filtered.filter(
-    (t) => t.startDate === "undecided" || t.endDate === "undecided"
-  );
-  const decidedTrips = filtered.filter(
-    (t) => t.startDate !== "undecided" && t.endDate !== "undecided"
-  );
-
-  const grouped = groupTripsByYear(decidedTrips);
 
   const nextTrip = trips
     .filter((t) => t.status === "booked" && getDaysUntil(t.startDate))
@@ -108,7 +79,7 @@ export default function AboutPage() {
               more). For more information about this, visit our{" "}
               <Link
                 href="/info"
-                className="text-blue-400 hover:text-blue-300 underline transition-colors"
+                className="text-brand hover:text-brand-light underline transition-colors"
               >
                 Rating Evaluation
               </Link>{" "}
@@ -128,42 +99,23 @@ export default function AboutPage() {
           </p>
         )}
 
-        {/* Toggle + Trips Section */}
+        {/* Visit timeline — the future flows down into every park we've reviewed */}
         <section className="animate-fade-in-up delay-1">
-          <div className="flex flex-col items-center mb-10 gap-6">
-
-            {/* Toggles */}
-            <div className="flex justify-center gap-4">
-              <button
-                onClick={() => setShowPast(false)}
-                className={`px-4 py-2 rounded-full text-sm font-medium border transition cursor-pointer
-                ${!showPast
-                    ? "bg-white text-slate-900 border-white shadow-sm"
-                    : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
-                  }`}
-              >
-                Upcoming Trips
-              </button>
-              <button
-                onClick={() => setShowPast(true)}
-                className={`px-4 py-2 rounded-full text-sm font-medium border transition cursor-pointer
-                ${showPast
-                    ? "bg-white text-slate-900 border-white shadow-sm"
-                    : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
-                  }`}
-              >
-                Past Trips
-              </button>
-            </div>
-
-            {/* Admin Controls */}
+          <div className="text-center mb-10">
+            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+              Our Journey
+            </h2>
+            <p className="mt-3 text-slate-400 max-w-xl mx-auto">
+              Every park we&apos;ve visited and reviewed — and where we&apos;re headed next.
+              Click a visit to read the full review.
+            </p>
             {isAdminMode && (
               <button
                 onClick={() => {
                   setEditingTrip(undefined);
                   setShowModal(true);
                 }}
-                className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded shadow-lg transition cursor-pointer"
+                className="mt-5 bg-brand hover:bg-brand-light text-white font-bold py-2 px-6 rounded-xl shadow-lg transition cursor-pointer"
               >
                 + Add New Trip
               </button>
@@ -173,49 +125,11 @@ export default function AboutPage() {
           {isLoading ? (
             <div className="flex justify-center items-center py-10">
               <p className="text-lg text-slate-400 font-medium animate-pulse">
-                Loading trips...
+                Loading journey…
               </p>
             </div>
           ) : (
-            <div className="space-y-16 animate-fade-in-up delay-2">
-              {/* Dated Trips First */}
-              {Object.entries(grouped).map(([year, yearTrips]) => (
-                <div key={year} className="space-y-4">
-                  <h3 className="text-2xl font-bold text-center text-white">
-                    {year}
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {yearTrips.map((trip) => (
-                      <TripCard
-                        key={trip.id}
-                        trip={trip}
-                        isAdminMode={isAdminMode}
-                        onEdit={handleEditTrip}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              {/* Undecided Trips Last */}
-              {undecidedTrips.length > 0 && (
-                <div className="space-y-4 pt-10">
-                  <h3 className="text-2xl font-bold text-center text-white">
-                    As Soon As Possible
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {undecidedTrips.map((trip) => (
-                      <TripCard
-                        key={trip.id}
-                        trip={trip}
-                        isAdminMode={isAdminMode}
-                        onEdit={handleEditTrip}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            <VisitTimeline trips={trips} isAdminMode={isAdminMode} onEditTrip={handleEditTrip} />
           )}
         </section>
       </main>

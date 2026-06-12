@@ -101,9 +101,9 @@ const AuthenticationModal: React.FC<AuthenticationModalProps> = ({
   const isLocked = !!(lockUntil && Date.now() < lockUntil);
 
   return (
-    <div className="fixed inset-0 z-[1000] bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center">
-      <div className="bg-white dark:bg-gray-800 dark:text-gray-100 border border-transparent dark:border-white/10 p-6 rounded-lg shadow-lg w-80 text-center space-y-4">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+    <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center">
+      <div className=" bg-gray-800 dark:text-gray-100 border border-white/10 p-6 rounded-lg shadow-lg w-80 text-center space-y-4">
+        <h2 className="text-xl font-bold text-white">
           Enter Access Password
         </h2>
 
@@ -123,17 +123,17 @@ const AuthenticationModal: React.FC<AuthenticationModalProps> = ({
         />
 
         {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          <p className="text-sm text-red-400">{error}</p>
         )}
 
         {isLocked && (
-          <p className="text-sm text-gray-600 dark:text-gray-300">
+          <p className="text-sm text-gray-300">
             Try again in <span className="font-semibold">{timeLeft}</span>s
           </p>
         )}
 
         {justUnlocked && (
-          <p className="text-sm font-semibold text-green-600 dark:text-green-400">
+          <p className="text-sm font-semibold text-green-400">
             You can now try again
           </p>
         )}

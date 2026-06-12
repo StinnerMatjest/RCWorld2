@@ -240,13 +240,13 @@ export default function ConnectionsTestPage() {
     return (
       <LoadingSpinner
         messages={["Fetching categories from the database...", "Aligning the coaster tracks..."]}
-        className="min-h-[50vh] pt-0 justify-center bg-transparent dark:bg-transparent"
+        className="min-h-[50vh] pt-0 justify-center bg-transparent"
       />
     );
   }
 
   return (
-    <div className="p-10 text-slate-900 dark:text-white">
+    <div className="p-10 text-white">
       <h1 className="text-xl font-bold mb-4">Connections Test</h1>
 
       {error ? (
@@ -259,10 +259,10 @@ export default function ConnectionsTestPage() {
           <p className="mb-2">All categories: {allCategories.length}</p>
           <p className="mb-2">Visible usable categories: {visibleUsableCategories.length}</p>
           <p className="mb-2">Admin usable categories: {adminUsableCategories.length}</p>
-          <p className="mb-2 text-green-600 dark:text-green-400 font-bold">
+          <p className="mb-2 text-green-400 font-bold">
             Enabled categories: {actuallyEnabledCount}
           </p>
-          <p className="mb-2 text-red-600 dark:text-red-400 font-bold">
+          <p className="mb-2 text-red-400 font-bold">
             Disabled categories: {actuallyDisabledCount}
           </p>
           <p className="mb-2">Visible candidate groups: {candidateGroups.length}</p>
@@ -282,27 +282,27 @@ export default function ConnectionsTestPage() {
 
               <div className="space-y-4">
                 {isGenerating ? (
-                  <div className="p-5 border-2 border-dashed border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 rounded-lg flex items-center justify-center">
+                  <div className="p-5 border-2 border-dashed border-amber-700 bg-amber-950/20 text-amber-400 rounded-lg flex items-center justify-center">
                     <span className="animate-pulse font-bold tracking-wider uppercase text-sm">
                       Calculating admin board...
                     </span>
                   </div>
                 ) : adminPuzzleGroups.length === 0 ? (
-                  <div className="p-5 border border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/20 text-red-600 dark:text-red-400 rounded-lg">
+                  <div className="p-5 border border-red-800 bg-red-950/20 text-red-400 rounded-lg">
                     <p className="font-bold">Admin generation failed</p>
                   </div>
                 ) : (
                   adminPuzzleGroups.map((group, index) => (
                     <div
                       key={`${group.categoryId}-${index}-admin`}
-                      className="border border-slate-300 dark:border-slate-700 p-3 rounded"
+                      className="border border-slate-700 p-3 rounded"
                     >
                       <p className="font-bold">{group.label}</p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+                      <p className="text-sm text-slate-400 mb-2 flex items-center gap-1.5">
                         <DifficultyDot difficulty={group.difficulty} />
                         {group.difficulty} • {group.kind}
                       </p>
-                      <ul className="list-disc pl-6 text-slate-700 dark:text-slate-300">
+                      <ul className="list-disc pl-6 text-slate-300">
                         {group.coasters.map((coaster) => (
                           <li key={coaster.id}>{coaster.name}</li>
                         ))}
@@ -318,27 +318,27 @@ export default function ConnectionsTestPage() {
 
               <div className="space-y-4">
                 {isGenerating ? (
-                  <div className="p-5 border-2 border-dashed border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 rounded-lg flex items-center justify-center">
+                  <div className="p-5 border-2 border-dashed border-amber-700 bg-amber-950/20 text-amber-400 rounded-lg flex items-center justify-center">
                     <span className="animate-pulse font-bold tracking-wider uppercase text-sm">
                       Calculating standard board...
                     </span>
                   </div>
                 ) : standardPuzzleGroups.length === 0 ? (
-                  <div className="p-5 border border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/20 text-red-600 dark:text-red-400 rounded-lg">
+                  <div className="p-5 border border-red-800 bg-red-950/20 text-red-400 rounded-lg">
                     <p className="font-bold">Standard generation failed</p>
                   </div>
                 ) : (
                   standardPuzzleGroups.map((group, index) => (
                     <div
                       key={`${group.categoryId}-${index}-standard`}
-                      className="border border-slate-300 dark:border-slate-700 p-3 rounded"
+                      className="border border-slate-700 p-3 rounded"
                     >
                       <p className="font-bold">{group.label}</p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+                      <p className="text-sm text-slate-400 mb-2 flex items-center gap-1.5">
                         <DifficultyDot difficulty={group.difficulty} />
                         {group.difficulty} • {group.kind}
                       </p>
-                      <ul className="list-disc pl-6 text-slate-700 dark:text-slate-300">
+                      <ul className="list-disc pl-6 text-slate-300">
                         {group.coasters.map((coaster) => (
                           <li key={coaster.id}>{coaster.name}</li>
                         ))}
@@ -354,7 +354,7 @@ export default function ConnectionsTestPage() {
             <>
               <div className="flex justify-between items-end mt-10 mb-3">
                 <h2 className="text-lg font-bold">Generated boards</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <p className="text-sm text-slate-400">
                   Higher score = better board
                 </p>
               </div>
@@ -365,11 +365,11 @@ export default function ConnectionsTestPage() {
                     key={`${board.seed}-${i}`}
                     className={`group rounded-lg border overflow-hidden ${
                       board.isAdmin || board.isStandard
-                        ? "border-green-500 bg-green-50 dark:bg-green-950/20"
-                        : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                        ? "border-green-500 bg-green-950/20"
+                        : " border-slate-700 bg-slate-900"
                     }`}
                   >
-                    <summary className="cursor-pointer list-none p-4 flex items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                    <summary className="cursor-pointer list-none p-4 flex items-center justify-between gap-4 hover:bg-slate-800 transition-colors">
                       <div className="flex items-center gap-3 flex-wrap">
                         <span className="font-bold">#{i + 1}</span>
 
@@ -400,7 +400,7 @@ export default function ConnectionsTestPage() {
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                        <span className="text-xs text-slate-400">
                           {board.seed}
                         </span>
                         <span className="transition-transform duration-200 group-open:rotate-180">
@@ -409,18 +409,18 @@ export default function ConnectionsTestPage() {
                       </div>
                     </summary>
 
-                    <div className="border-t border-slate-200 dark:border-slate-700 p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="border-t border-slate-700 p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                       {board.groups.map((group, idx) => (
                         <div
                           key={`${group.categoryId}-${idx}-${board.seed}`}
-                          className="border border-slate-200 dark:border-slate-700 p-3 rounded"
+                          className="border border-slate-700 p-3 rounded"
                         >
                           <p className="font-bold">{group.label}</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+                          <p className="text-xs text-slate-400 mb-2 flex items-center gap-1.5">
                             <DifficultyDot difficulty={group.difficulty} />
                             {group.difficulty} • {group.kind}
                           </p>
-                          <ul className="list-disc pl-5 text-sm text-slate-700 dark:text-slate-300">
+                          <ul className="list-disc pl-5 text-sm text-slate-300">
                             {group.coasters.map((c) => (
                               <li key={c.id}>{c.name}</li>
                             ))}
@@ -461,27 +461,27 @@ export default function ConnectionsTestPage() {
               return (
                 <details
                   key={kind}
-                  className="group border border-slate-300 dark:border-slate-700 rounded-lg overflow-hidden"
+                  className="group border border-slate-700 rounded-lg overflow-hidden"
                 >
-                  <summary className="cursor-pointer bg-slate-100 dark:bg-slate-800 p-4 font-bold uppercase tracking-wider text-sm flex justify-between items-center select-none hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                  <summary className="cursor-pointer bg-slate-800 p-4 font-bold uppercase tracking-wider text-sm flex justify-between items-center select-none hover:bg-slate-700 transition-colors">
                     <span>{displayKind} ({cats.length})</span>
                     <span className="transition-transform duration-200 group-open:rotate-180">
                       ▼
                     </span>
                   </summary>
 
-                  <div className="p-3 space-y-2 bg-white dark:bg-slate-900">
+                  <div className="p-3 space-y-2 bg-slate-900">
                     {cats.map((cat) => {
                       const matches = cat.filter(allCoasters);
                       const isActuallyEnabled = !disabledOverrides.includes(cat.id);
                       const isViable = matches.length >= 4;
 
                       let containerClass =
-                        "bg-red-100 border-red-300 text-slate-900 dark:bg-red-950/30 dark:border-red-900 dark:text-white";
+                        " bg-red-950/30 border-red-900 text-white";
                       if (isActuallyEnabled) {
                         containerClass = isViable
-                          ? "bg-green-100 border-green-300 text-slate-900 dark:bg-green-950/30 dark:border-green-900 dark:text-white"
-                          : "bg-amber-100 border-amber-300 text-slate-900 dark:bg-amber-950/30 dark:border-amber-900 dark:text-white";
+                          ? " bg-green-950/30 border-green-900 text-white"
+                          : " bg-amber-950/30 border-amber-900 text-white";
                       }
 
                       return (

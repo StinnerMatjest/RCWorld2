@@ -38,11 +38,11 @@ const RankingArticlePage: React.FC = () => {
     if (!rankingList) return <div className="text-center py-20">List not found.</div>;
 
     return (
-        <div className="min-h-screen bg-white dark:bg-[#0f172a] font-sans pb-20">
+        <div className="min-h-screen bg-[#0f172a] font-sans pb-20">
             <div className="max-w-4xl mx-auto px-6 py-12 md:py-16">
 
                 {/* Article Header */}
-                <div className="mb-16 text-center border-b border-gray-200 dark:border-gray-800 pb-10 relative">
+                <div className="mb-16 text-center border-b border-gray-800 pb-10 relative">
 
                     {/* Edit Button */}
                     {isAdminMode && (
@@ -58,10 +58,10 @@ const RankingArticlePage: React.FC = () => {
                             </Link>
                         </div>
                     )}
-                    <h1 className="text-4xl md:text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-6 mt-8 md:mt-0">
+                    <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tight mb-6 mt-8 md:mt-0">
                         {rankingList.title}
                     </h1>
-                    <p className="text-lg text-gray-600 dark:text-gray-400 leading-relaxed max-w-3xl mx-auto">
+                    <p className="text-lg text-gray-400 leading-relaxed max-w-3xl mx-auto">
                         {rankingList.introText}
                     </p>
                 </div>

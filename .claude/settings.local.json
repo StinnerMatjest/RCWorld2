@@ -17,7 +17,11 @@
       "Bash(Get-ChildItem -Path \"c:\\\\ParkRating\\\\RCWorld2\" -Directory)",
       "Bash(Select-Object -First 20)",
       "Bash(curl -s \"http://localhost:3000/api/parks\")",
-      "Bash(python -c \"import sys,json; parks=json.load\\(sys.stdin\\)['parks']; [print\\(f\\\\\"{p['id']}|{p['name']}\\\\\"\\) for p in parks]\")"
+      "Bash(python -c \"import sys,json; parks=json.load\\(sys.stdin\\)['parks']; [print\\(f\\\\\"{p['id']}|{p['name']}\\\\\"\\) for p in parks]\")",
+      "PowerShell(claude --version)",
+      "Bash(node -e *)",
+      "PowerShell(npx next build 2>&1)",
+      "PowerShell($r = Invoke-RestMethod \"http://localhost:3000/api/coasters\" -TimeoutSec 8; \"count: $\\($r.coasters.Count\\)\"; $r.coasters[0] | ConvertTo-Json -Depth 3)"
     ],
     "additionalDirectories": [
       "c:\\ParkRating\\RCWorld2\\app"

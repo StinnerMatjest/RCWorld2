@@ -271,7 +271,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
               )}
             </div>
 
-            <div className="w-12 h-1 bg-blue-500 rounded-full mt-3 mb-4" />
+            <div className="w-12 h-1 bg-brand rounded-full mt-3 mb-4" />
 
             {/* THIS FIXES THE INVISIBLE INTRODUCTION TEXT */}
             <MarkdownText

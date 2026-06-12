@@ -159,7 +159,7 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex justify-center items-center">
-      <div className="bg-slate-800 text-slate-100 border border-slate-700 p-6 rounded-lg shadow-lg w-[400px]">
+      <div className="bg-slate-800 text-slate-100 border border-slate-700 p-6 rounded-lg shadow-lg w-full max-w-[400px] mx-4">
         <h2 className="text-2xl font-semibold mb-6 text-center text-white">
           {coaster ? "Edit Roller Coaster" : "Add New Roller Coaster"}
         </h2>
@@ -251,17 +251,6 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
                 </option>
               ))}
             </select>
-          </div>
-
-          {/* RCDB Path input */}
-          <div>
-            <input
-              className="w-full p-2 rounded-md border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500
-                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-              placeholder="RCDB URL"
-              value={rcdbpath}
-              onChange={(e) => setRcdbPath(e.target.value)}
-            />
           </div>
 
           {/* Rating input */}
@@ -403,8 +392,7 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
                     !isValidYear ||
                     !manufacturer ||
                     !model ||
-                    !scale ||
-                    !rcdbpath
+                    !scale
                     ? "bg-slate-600 cursor-not-allowed"
                     : "bg-blue-500 hover:bg-blue-400 cursor-pointer"
                 }`}
@@ -414,8 +402,7 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
                 !isValidYear ||
                 !manufacturer ||
                 !model ||
-                !scale ||
-                !rcdbpath
+                !scale
               }
             >
               {coaster ? "Apply" : "Add"}

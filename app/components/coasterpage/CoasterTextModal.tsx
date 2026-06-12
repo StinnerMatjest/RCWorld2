@@ -91,15 +91,15 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center">
-      <div className="bg-white dark:bg-gray-800 dark:text-gray-100 rounded-lg shadow-lg w-full max-w-md p-6">
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
+    <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center">
+      <div className=" bg-gray-800 dark:text-gray-100 rounded-lg shadow-lg w-full max-w-md p-6">
+        <h2 className="text-xl font-semibold mb-4 text-white">
           {textEntry ? "Edit Coaster Text" : "Add Coaster Text"}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+            <label className="block text-sm font-medium mb-1 text-gray-300">
               Headline
             </label>
             <input
@@ -107,12 +107,12 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
               value={headline}
               onChange={(e) => setHeadline(e.target.value)}
               placeholder="Optional headline"
-              className="block w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 dark:border-white/10"
+              className="block w-full p-2 rounded-md border bg-gray-900 text-gray-100 border-white/10"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+            <label className="block text-sm font-medium mb-1 text-gray-300">
               Text
             </label>
             <textarea
@@ -120,11 +120,11 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
               onChange={(e) => setText(e.target.value)}
               placeholder="Enter coaster description"
               rows={5}
-              className="block w-full p-3 rounded-md border border-gray-300 bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 dark:border-white/10"
+              className="block w-full p-3 rounded-md border bg-gray-900 text-gray-100 border-white/10"
             />
           </div>
 
-          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-400">{error}</p>}
 
           <div className="flex justify-between gap-3 pt-2">
             {textEntry && (
@@ -144,7 +144,7 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
               <button
                 type="submit"
                 disabled={loading}
-                className={`px-4 py-2 rounded-md text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 cursor-pointer ${
+                className={`px-4 py-2 rounded-md text-white bg-blue-500 hover:bg-blue-400 cursor-pointer ${
                   loading ? "cursor-not-allowed opacity-50" : ""
                 }`}
               >
@@ -153,7 +153,7 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-md border border-gray-300 dark:border-white/10 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                className="px-4 py-2 rounded-md border border-white/10 text-gray-100 hover:bg-gray-700 cursor-pointer"
               >
                 Cancel
               </button>

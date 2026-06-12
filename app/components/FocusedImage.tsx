@@ -55,9 +55,20 @@ export function FocusedImage({
     img.style.height = `${dh}px`;
     img.style.left   = `${c.clientWidth  / 2 - cx * dw}px`;
     img.style.top    = `${c.clientHeight / 2 - cy * dh}px`;
+    // Hidden until positioned (see render) — reveal now that the math is done
+    img.style.visibility = "visible";
   }, []);
 
   useEffect(() => {
+    // With SSR the image can finish loading before React attaches onLoad
+    // (cached or fast images) — capture dimensions from the complete img
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalWidth > 0 && !nwRef.current) {
+      nwRef.current = img.naturalWidth;
+      nhRef.current = img.naturalHeight;
+      applyStyle();
+      onLoadProp?.();
+    }
     applyStyle();
     const c = containerRef.current;
     if (!c) return;
@@ -75,7 +86,7 @@ export function FocusedImage({
         alt={alt}
         draggable={false}
         className={`absolute max-w-none select-none ${imgClassName}`}
-        style={{ ...imgStyle, willChange: "width, height, left, top" }}
+        style={{ ...imgStyle, willChange: "width, height, left, top", visibility: "hidden" }}
         loading={priority ? "eager" : "lazy"}
         onLoad={(e) => {
           nwRef.current = e.currentTarget.naturalWidth;

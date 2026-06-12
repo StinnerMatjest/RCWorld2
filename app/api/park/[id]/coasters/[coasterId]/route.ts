@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
+import { revalidateContent } from "@/app/lib/revalidate";
+import { pool } from "@/app/lib/db";
+import { diffFields, describeDiff, logChange } from "@/app/lib/changelog";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-});
 
 export async function GET(
   req: NextRequest,
@@ -52,6 +48,7 @@ export async function PUT(
   req: NextRequest,
   context: { params: Promise<{ id: string; coasterId: string }> }
 ) {
+  revalidateContent();
   try {
     const { id: parkId, coasterId } = await context.params;
     const body = await req.json();
@@ -85,6 +82,12 @@ export async function PUT(
         { status: 400 }
       );
     }
+
+    const oldResult = await pool.query(
+      `SELECT * FROM rollercoasters WHERE id = $1 AND park_id = $2`,
+      [coasterId, parkId]
+    );
+    const oldRow = oldResult.rows[0];
 
     const ratingInitial = haveridden
       ? Number.isNaN(Number(rating)) ? 0 : Number(rating)
@@ -144,6 +147,34 @@ RETURNING *;
       return NextResponse.json({ error: "Coaster not found" }, { status: 404 });
     }
 
+    if (oldRow) {
+      // Diff against the row the UPDATE actually produced (ridecount is additive).
+      const updated = result.rows[0];
+      const diff = diffFields(oldRow, {
+        name: updated.name,
+        year: updated.year,
+        manufacturer: updated.manufacturer,
+        model: updated.model,
+        scale: updated.scale,
+        haveridden: updated.haveridden,
+        isbestcoaster: updated.isbestcoaster,
+        rcdbpath: updated.rcdbpath,
+        rating: updated.rating,
+        ridecount: updated.ridecount,
+      });
+      if (Object.keys(diff).length > 0) {
+        logChange({
+          parkId: Number(parkId),
+          entityType: "coaster",
+          entityId: Number(coasterId),
+          label: oldRow.name,
+          action: "update",
+          summary: `Updated coaster ${oldRow.name}: ${describeDiff(diff)}`,
+          details: diff,
+        });
+      }
+    }
+
     return NextResponse.json(result.rows[0], { status: 200 });
   } catch (error) {
     console.error("Database update error:", error);
@@ -158,6 +189,7 @@ export async function DELETE(
   req: NextRequest,
   context: { params: Promise<{ id: string; coasterId: string }> }
 ) {
+  revalidateContent();
   const { id: parkId, coasterId } = await context.params;
   console.log("Deleting coaster ID:", coasterId, "from park ID:", parkId);
 
@@ -176,6 +208,17 @@ export async function DELETE(
       { status: 404 }
     );
   }
+
+  const deleted = result.rows[0];
+  logChange({
+    parkId: Number(parkId),
+    entityType: "coaster",
+    entityId: deleted.id,
+    label: deleted.name,
+    action: "delete",
+    summary: `Deleted coaster ${deleted.name}`,
+    details: { name: deleted.name, year: deleted.year, manufacturer: deleted.manufacturer },
+  });
 
   return NextResponse.json(
     {

@@ -59,21 +59,21 @@ const ImageSelectorModal: React.FC<Props> = ({ onClose, onSelect }) => {
 
   return (
     <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700">
+      <div className=" bg-gray-800 rounded-2xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden border border-gray-700">
         
         {/* Header & Search */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="p-4 border-b border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4">
           <h3 className="text-xl font-bold dark:text-white whitespace-nowrap">Select Image</h3>
           
           <input 
             type="text" 
             placeholder="Search by title or park..."
-            className="w-full sm:max-w-xs p-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full sm:max-w-xs p-2 rounded-lg border border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
 
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          <button onClick={onClose} className=" text-gray-400 hover:text-gray-200">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -81,13 +81,13 @@ const ImageSelectorModal: React.FC<Props> = ({ onClose, onSelect }) => {
         </div>
 
         {/* Image Grid */}
-        <div className="p-6 flex-grow overflow-y-auto bg-gray-50 dark:bg-gray-900/50">
+        <div className="p-6 flex-grow overflow-y-auto bg-gray-900/50">
           {isLoading ? (
             <div className="flex justify-center items-center h-full">
               <LoadingSpinner />
             </div>
           ) : filteredImages.length === 0 ? (
-            <div className="text-center text-gray-500 dark:text-gray-400 py-10">
+            <div className="text-center text-gray-400 py-10">
               No images found.
             </div>
           ) : (
@@ -135,17 +135,17 @@ const ImageSelectorModal: React.FC<Props> = ({ onClose, onSelect }) => {
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 bg-white dark:bg-gray-800">
+        <div className="p-4 border-t border-gray-700 flex justify-end gap-3 bg-gray-800">
           <button 
             onClick={onClose} 
-            className="px-5 py-2.5 rounded-xl font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+            className="px-5 py-2.5 rounded-xl font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 transition-colors"
           >
             Cancel
           </button>
           <button 
             onClick={handleConfirm} 
             disabled={!selectedUrl}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 dark:disabled:bg-blue-800 disabled:cursor-not-allowed text-white rounded-xl font-bold shadow-md transition-colors"
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white rounded-xl font-bold shadow-md transition-colors"
           >
             Confirm Selection
           </button>

@@ -10,7 +10,7 @@ type PageProps = {
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 async function getCoaster(id: string) {
-  const res = await fetch(`${BASE}api/coasters/${id}`, { cache: "no-store" });
+  const res = await fetch(`${BASE}api/coasters/${id}`, { cache: "force-cache", next: { tags: ["content"] } });
   const data = await res.json();
   if (!res.ok || data.error || !data.coaster) return null;
   return data.coaster;
@@ -18,7 +18,7 @@ async function getCoaster(id: string) {
 
 async function getCoasterTexts(id: string): Promise<{ headline: string; text: string }[]> {
   try {
-    const res = await fetch(`${BASE}api/coasters/${id}/text`, { cache: "no-store" });
+    const res = await fetch(`${BASE}api/coasters/${id}/text`, { cache: "force-cache", next: { tags: ["content"] } });
     if (!res.ok) return [];
     const { texts } = await res.json();
     return texts ?? [];
@@ -45,13 +45,30 @@ export async function generateMetadata({ params }: PageProps) {
         : ratingNumber.toFixed(1)
       : null;
 
+  const title = `${coaster.name} | Parkrating`;
+  const description = formattedRating
+    ? `Discover ${coaster.name}, rated ${formattedRating}/10 at ${parkName}. See our review, rating breakdown and ride details.`
+    : `Discover ${coaster.name} at ${parkName}. See our review, rating breakdown and ride details.`;
+
   return {
-    title: `${coaster.name} | Parkrating`,
-    description: formattedRating
-      ? `Discover ${coaster.name}, rated ${formattedRating}/10 at ${parkName}. See our review, rating breakdown and ride details.`
-      : `Discover ${coaster.name} at ${parkName}. See our review, rating breakdown and ride details.`,
+    title,
+    description,
     alternates: {
       canonical: `https://parkrating.com/coasters/${coaster.slug}`,
+    },
+    openGraph: {
+      title,
+      description,
+      url: `https://parkrating.com/coasters/${coaster.slug}`,
+      siteName: "ParkRating",
+      type: "article",
+      images: ["/images/Parkrating.png"],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/images/Parkrating.png"],
     },
   };
 }

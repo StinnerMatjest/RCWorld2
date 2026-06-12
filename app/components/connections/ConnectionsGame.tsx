@@ -343,7 +343,7 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-900 p-2 sm:p-6 flex flex-col items-center overflow-x-hidden">
+    <div className="min-h-screen bg-slate-900 p-2 sm:p-6 flex flex-col items-center overflow-x-hidden">
       <style>{`
         @keyframes revealUp {
           0% { opacity: 0; transform: translateY(10px) scale(0.99); }
@@ -378,12 +378,12 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
         <h1 className="text-4xl sm:text-6xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 drop-shadow-sm italic transform -skew-x-6 pr-4">
           CONNECTIONS
         </h1>
-        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">
+        <p className="text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-widest">
           {isPractice ? "Practice mode" : "Find the four coaster groups"}
         </p>
       </header>
 
-      {!isPractice && <div className="w-full max-w-[280px] sm:max-w-xs grid grid-cols-3 gap-1 bg-slate-200 dark:bg-slate-800 p-1 rounded-lg mb-3 mx-auto animate-reveal">
+      {!isPractice && <div className="w-full max-w-[280px] sm:max-w-xs grid grid-cols-3 gap-1 bg-slate-800 p-1 rounded-lg mb-3 mx-auto animate-reveal">
         {([
           { id: "play", label: "Play", icon: PlayIcon },
           { id: "howto", label: "How To", icon: BookOpenIcon },
@@ -395,7 +395,7 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as "play" | "howto" | "leaderboard")}
-              className={`flex flex-col items-center justify-center py-1.5 sm:py-2 rounded-md text-[10px] sm:text-xs font-bold transition-all duration-200 cursor-pointer ${isActive ? "bg-white dark:bg-neutral-700 text-blue-600 dark:text-blue-400 shadow-sm scale-100" : "text-slate-500 dark:text-slate-400 hover:bg-slate-300/50 dark:hover:bg-neutral-700/50 hover:scale-95"}`}
+              className={`flex flex-col items-center justify-center py-1.5 sm:py-2 rounded-md text-[10px] sm:text-xs font-bold transition-all duration-200 cursor-pointer ${isActive ? " bg-neutral-700 text-blue-400 shadow-sm scale-100" : " text-slate-400 hover:bg-neutral-700/50 hover:scale-95"}`}
             >
               <Icon className="w-4 h-4 sm:w-5 sm:h-5 mb-0.5" />
               {tab.label}
@@ -412,10 +412,10 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
 
           <header className="mb-6 flex w-full flex-col items-center gap-4">
             <div className="flex items-center gap-4">
-              <span className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400 md:text-xs">Mistakes</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400 md:text-xs">Mistakes</span>
               <div className="flex gap-2.5">
                 {[...Array(MAX_MISTAKES)].map((_, i) => (
-                  <div key={i} className={`h-3.5 w-3.5 rounded-full transition-all duration-500 md:h-4 md:w-4 ${i < MAX_MISTAKES - mistakes ? "bg-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.35)]" : "bg-slate-300 dark:bg-slate-800"}`} />
+                  <div key={i} className={`h-3.5 w-3.5 rounded-full transition-all duration-500 md:h-4 md:w-4 ${i < MAX_MISTAKES - mistakes ? "bg-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.35)]" : " bg-slate-800"}`} />
                 ))}
               </div>
             </div>
@@ -459,7 +459,7 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
                           style={{ animationDelay: animState === "bouncing" && selectedIndex !== -1 ? `${selectedIndex * 70}ms` : "0ms" }}
                           className={`${TILE_ROW_HEIGHT} ${TILE_TEXT} flex w-full items-center justify-center rounded-2xl border-2 px-2 text-center font-black leading-tight transition-colors duration-200 ${isSelected
                             ? `z-10 border-transparent bg-gradient-to-br from-blue-600 via-indigo-600 to-fuchsia-600 text-white shadow-[0_12px_30px_rgba(79,70,229,0.28)] ${animState === "bouncing" ? "animate-bounce-seq" : animState === "shaking" ? "animate-shake-custom" : ""}`
-                            : "border-slate-300 bg-white text-slate-800 shadow-md hover:border-slate-400 hover:bg-slate-50 hover:scale-[1.02] hover:shadow-md active:scale-[0.98] hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-700 dark:hover:text-white"
+                            : " shadow-md hover:scale-[1.02] hover:shadow-md active:scale-[0.98] border-slate-700 bg-slate-800 text-slate-200 hover:border-slate-500 hover:bg-slate-700 hover:text-white"
                           }`}
                         >
                           <span className="line-clamp-3 leading-tight px-1 whitespace-normal [overflow-wrap:anywhere]">{tile}</span>
@@ -474,15 +474,15 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
 
           <div className="mt-8 md:mt-10 grid w-full max-w-3xl grid-cols-3 gap-3 md:gap-3">
             <button type="button" onClick={() => setSelected([])}
-              className="rounded-3xl border-2 border-slate-200 dark:border-slate-800 py-4 md:py-5 text-[12px] md:text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-white cursor-pointer">
+              className="rounded-3xl border-2 border-slate-800 py-4 md:py-5 text-[12px] md:text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-white cursor-pointer">
               Clear
             </button>
             <button type="button" onClick={shuffleCurrentTiles}
-              className="rounded-3xl border-2 border-slate-200 dark:border-slate-800 py-4 md:py-5 text-[12px] md:text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 transition-colors hover:text-slate-900 dark:hover:text-white cursor-pointer">
+              className="rounded-3xl border-2 border-slate-800 py-4 md:py-5 text-[12px] md:text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 transition-colors hover:text-white cursor-pointer">
               Shuffle
             </button>
             <button type="button" onClick={submit} disabled={selected.length !== 4 || animState !== "idle"}
-              className={`rounded-3xl py-4 md:py-5 text-[12px] md:text-[11px] font-black uppercase tracking-[0.18em] shadow-xl transition-all duration-300 cursor-pointer ${selected.length === 4 && animState === "idle" ? "scale-[1.03] bg-slate-900 text-white dark:bg-white dark:text-slate-950" : "bg-slate-200 dark:bg-slate-800 text-slate-500 opacity-60"}`}>
+              className={`rounded-3xl py-4 md:py-5 text-[12px] md:text-[11px] font-black uppercase tracking-[0.18em] shadow-xl transition-all duration-300 cursor-pointer ${selected.length === 4 && animState === "idle" ? "scale-[1.03] bg-white text-slate-950" : " bg-slate-800 text-slate-500 opacity-60"}`}>
               Submit
             </button>
           </div>
@@ -490,9 +490,9 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
       )}
 
       {activeTab === "howto" && (
-        <div className="w-full max-w-xl animate-reveal rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
-          <h2 className="text-xl font-black uppercase tracking-wide text-slate-900 dark:text-white">How To Play</h2>
-          <p className="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-6">
+        <div className="w-full max-w-xl animate-reveal rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-sm">
+          <h2 className="text-xl font-black uppercase tracking-wide text-white">How To Play</h2>
+          <p className="mt-3 text-sm text-slate-300 leading-6">
             Select four coasters that belong together, then press submit. Find all four groups before you run out of mistakes.
           </p>
         </div>

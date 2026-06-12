@@ -1,7 +1,6 @@
-import { Pool } from "pg";
+import { pool } from "@/app/lib/db";
 import { DEFAULT_PROMPT } from "./prompt";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
 export { pool };
 

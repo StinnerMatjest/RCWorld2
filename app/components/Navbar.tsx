@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import SearchBar from "./SearchBar";
 import { useAdminMode } from "../context/AdminModeContext";
 
 const Navbar: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [adminDropOpen, setAdminDropOpen] = useState(false);
+  const pathname = usePathname();
   const mobileRef = useRef<HTMLDivElement>(null);
   const adminDropRef = useRef<HTMLDivElement>(null);
   const { isAdminMode } = useAdminMode();
@@ -41,21 +43,29 @@ const Navbar: React.FC = () => {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  const linkCls = "hover:text-blue-500 transition-colors";
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const linkCls = (href: string) =>
+    `transition-colors ${isActive(href) ? "text-brand font-semibold" : "hover:text-brand"}`;
   const mobileItemCls = "flex items-center px-4 py-2.5 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors";
+  const mobileLinkCls = (href: string) =>
+    `flex items-center px-4 py-2.5 text-sm font-medium transition-colors ${
+      isActive(href) ? "text-brand bg-slate-800/60" : "text-slate-300 hover:text-white hover:bg-slate-800"
+    }`;
 
   return (
     <div>
       {/* ── Desktop ─────────────────────────────────────────────────────── */}
       <div className="hidden md:flex justify-between items-center w-full space-x-6">
-        <div className="w-[220px]">
-          <SearchBar />
+        <div className="flex items-center">
+          <SearchBar collapsible />
         </div>
         <div className="flex items-center space-x-6 text-lg text-slate-100">
-          <Link href="/about" className={linkCls}>About</Link>
-          <Link href="/info" className={linkCls}>Ratings</Link>
-          <Link href="/parks" className={linkCls}>Parks</Link>
-          <Link href="/coasterratings" className={linkCls}>Coasters</Link>
+          <Link href="/about" className={linkCls("/about")}>About</Link>
+          <Link href="/info" className={linkCls("/info")}>Ratings</Link>
+          <Link href="/parks" className={linkCls("/parks")}>Parks</Link>
+          <Link href="/coasterratings" className={linkCls("/coasterratings")}>Coasters</Link>
+          <Link href="/manufacturers" className={linkCls("/manufacturers")}>Manufacturers</Link>
           <Link href="/games" className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-fuchsia-600">Games</Link>
 
           {/* Admin Tools dropdown */}
@@ -63,7 +73,7 @@ const Navbar: React.FC = () => {
             <div className="relative" ref={adminDropRef}>
               <button
                 onClick={() => setAdminDropOpen(v => !v)}
-                className="flex items-center gap-1 hover:text-blue-500 transition-colors cursor-pointer"
+                className="flex items-center gap-1 hover:text-brand transition-colors cursor-pointer"
               >
                 Admin Tools
                 <svg className={`w-4 h-4 transition-transform ${adminDropOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -74,6 +84,7 @@ const Navbar: React.FC = () => {
                 <div className="absolute right-0 top-[calc(100%+8px)] w-44 rounded-xl border border-slate-700 bg-slate-900 shadow-xl overflow-hidden z-[200]">
                   <Link href="/?modal=true" className={mobileItemCls} onClick={() => setAdminDropOpen(false)}>Rate a Park</Link>
                   <Link href="/checklists" className={mobileItemCls} onClick={() => setAdminDropOpen(false)}>Checklists</Link>
+                  <Link href="/admin/changelog" className={mobileItemCls} onClick={() => setAdminDropOpen(false)}>Changelog</Link>
                   <Link href="/admin/social" className="flex items-center px-4 py-2.5 text-sm font-semibold text-pink-500 hover:bg-slate-800 transition-colors" onClick={() => setAdminDropOpen(false)}>SoMe</Link>
                 </div>
               )}
@@ -104,9 +115,10 @@ const Navbar: React.FC = () => {
               { href: "/info", label: "Ratings" },
               { href: "/parks", label: "Parks" },
               { href: "/coasterratings", label: "Coasters" },
+              { href: "/manufacturers", label: "Manufacturers" },
             ].map(({ href, label }) => (
               <li key={href}>
-                <Link href={href} className={mobileItemCls} onClick={() => setMobileOpen(false)}>
+                <Link href={href} className={mobileLinkCls(href)} onClick={() => setMobileOpen(false)}>
                   {label}
                 </Link>
               </li>
@@ -128,6 +140,9 @@ const Navbar: React.FC = () => {
                 </li>
                 <li>
                   <Link href="/checklists" className={mobileItemCls} onClick={() => setMobileOpen(false)}>Checklists</Link>
+                </li>
+                <li>
+                  <Link href="/admin/changelog" className={mobileItemCls} onClick={() => setMobileOpen(false)}>Changelog</Link>
                 </li>
                 <li>
                   <Link href="/admin/social" className="flex items-center px-4 py-2.5 text-sm font-semibold text-pink-500 hover:bg-slate-800 transition-colors" onClick={() => setMobileOpen(false)}>SoMe</Link>

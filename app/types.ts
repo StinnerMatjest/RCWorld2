@@ -261,6 +261,11 @@ export type ChecklistItem = {
   isExtra?: boolean;
 };
 
+export type ChecklistSession = {
+  start: string;
+  end: string | null;
+};
+
 export type Checklist = {
   id: number;
   title: string;
@@ -272,4 +277,8 @@ export type Checklist = {
   duration?: number;
   is_finished?: boolean;
   park_id?: number;
+  // Active tracking segments — pause/resume and multiday visits create several
+  sessions?: ChecklistSession[] | null;
+  // Per-rating-category notes, keyed like RatingModal's CATEGORIES (camelCase)
+  notes?: Record<string, string> | null;
 };

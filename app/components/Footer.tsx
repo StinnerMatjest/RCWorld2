@@ -3,14 +3,15 @@ const FACEBOOK_URL = "https://www.facebook.com/profile.php?id=61587368730086";
 
 export default function Footer() {
   return (
-    <footer className="border-t border-slate-800 bg-[#0f172a] pt-4 md:pt-6">
-      <div className="mx-auto w-full max-w-7xl px-4 pb-3 md:px-6 md:pb-8">
+    <footer className="bg-[#0f172a]">
+      <div className="h-px bg-gradient-to-r from-transparent via-brand/50 to-transparent" />
+      <div className="mx-auto w-full max-w-7xl px-4 pb-3 pt-4 md:px-6 md:pb-8 md:pt-6">
         <div className="grid gap-8 text-center md:grid-cols-2 md:items-start md:text-left">
           {/* Left: Contact + CVR */}
           <div className="space-y-2">
             {/* Brand */}
             <div className="font-extrabold tracking-tight leading-none text-slate-100 text-lg sm:text-xl">
-              Parkrating
+              Park<span className="text-brand">rating</span>
             </div>
 
             <div className="text-sm text-slate-400">
@@ -19,7 +20,7 @@ export default function Footer() {
 
             <a
               href="mailto:info@parkrating.com"
-              className="inline-flex items-center justify-center gap-2 text-sm text-slate-400 hover:text-white md:justify-start transition-colors"
+              className="inline-flex items-center justify-center gap-2 text-sm text-slate-400 hover:text-brand md:justify-start transition-colors"
             >
               <MailIcon className="h-4 w-4" />
               info@parkrating.com
@@ -28,7 +29,7 @@ export default function Footer() {
 
           {/* Right: Social */}
           <div className="space-y-3 md:text-right">
-            <div className="text-sm font-semibold text-slate-200">
+            <div className="text-xs font-bold uppercase tracking-widest text-brand">
               Follow Us
             </div>
 
@@ -38,7 +39,7 @@ export default function Footer() {
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Instagram"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-800/50 text-slate-300 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:text-white hover:border-slate-600 cursor-pointer"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-800/50 text-slate-300 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:text-brand hover:border-brand/60 hover:bg-brand/10 cursor-pointer"
               >
                 <InstagramIcon className="h-5 w-5" />
               </a>
@@ -48,7 +49,7 @@ export default function Footer() {
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Facebook"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-800/50 text-slate-300 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:text-white hover:border-slate-600 cursor-pointer"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-800/50 text-slate-300 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:text-brand hover:border-brand/60 hover:bg-brand/10 cursor-pointer"
               >
                 <FacebookIcon className="h-5 w-5" />
               </a>

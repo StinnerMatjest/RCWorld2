@@ -25,7 +25,7 @@ type Scores = {
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 async function getPark(id: string) {
-  const res = await fetch(`${BASE}api/park/${id}`, { cache: "no-store" });
+  const res = await fetch(`${BASE}api/park/${id}`, { cache: "force-cache", next: { tags: ["content"] } });
   const data = await res.json();
   if (!res.ok || data.error) return null;
   return data;
@@ -33,7 +33,7 @@ async function getPark(id: string) {
 
 async function getScores(id: string): Promise<Scores> {
   try {
-    const res = await fetch(`${BASE}api/park/${id}/scores`, { cache: "no-store" });
+    const res = await fetch(`${BASE}api/park/${id}/scores`, { cache: "force-cache", next: { tags: ["content"] } });
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -58,7 +58,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 async function getReviewTexts(id: string): Promise<{ texts: { category: string; text: string }[]; date: string | null }> {
   try {
-    const res = await fetch(`${BASE}api/park/${id}/review`, { cache: "no-store" });
+    const res = await fetch(`${BASE}api/park/${id}/review`, { cache: "force-cache", next: { tags: ["content"] } });
     if (!res.ok) return { texts: [], date: null };
     const data = await res.json();
     return { texts: data.texts ?? [], date: data.date ?? null };
@@ -76,13 +76,31 @@ export async function generateMetadata({ params }: PageProps) {
   const scoreStr = scores?.overall != null ? `scores ${scores.overall}/10` : null;
   const visitsStr = scores?.visitCount ? `${scores.visitCount} visit${Number(scores.visitCount) !== 1 ? "s" : ""}` : null;
 
+  const title = `${data.name} | Parkrating`;
+  const description = scoreStr
+    ? `${data.name} in ${data.country} ${scoreStr} on ParkRating across ${visitsStr}. Detailed theme park review covering coasters, food, ride operations and more.`
+    : `${data.name} in ${data.country}. Read our theme park review, ratings and coaster rankings from our visit.`;
+  const image = data.imagepath || "/images/Parkrating.png";
+
   return {
-    title: `${data.name} | Parkrating`,
-    description: scoreStr
-      ? `${data.name} in ${data.country} ${scoreStr} on ParkRating across ${visitsStr}. Detailed theme park review covering coasters, food, ride operations and more.`
-      : `${data.name} in ${data.country}. Read our theme park review, ratings and coaster rankings from our visit.`,
+    title,
+    description,
     alternates: {
       canonical: `https://parkrating.com/park/${data.slug}`,
+    },
+    openGraph: {
+      title,
+      description,
+      url: `https://parkrating.com/park/${data.slug}`,
+      siteName: "ParkRating",
+      type: "article",
+      images: [image],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
     },
   };
 }

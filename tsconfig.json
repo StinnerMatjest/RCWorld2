@@ -29,14 +29,14 @@
     }
   },
   "include": [
-    "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "tailwind.config.mjs",
-    "tailwind.config.mjs"
+    "next-env.d.ts",
+    ".next-build/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "openai-chatkit-starter-app"
   ]
 }

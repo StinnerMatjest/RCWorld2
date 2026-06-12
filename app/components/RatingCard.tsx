@@ -154,7 +154,7 @@ const RatingCard: React.FC<RatingCardProps> = ({
           {/* Rating Date & Status */}
           <div className="flex items-center justify-center gap-3 py-1">
             <div className="text-sm italic text-slate-400">
-              Date: {new Date(rating.date).toLocaleDateString()}
+              Date: {new Date(rating.date).toLocaleDateString("en-GB")}
             </div>
             {!rating.published && (
               <span className="bg-red-900/30 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider border border-red-800">

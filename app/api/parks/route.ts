@@ -1,13 +1,9 @@
-import { Pool } from "pg";
+import { pool } from "@/app/lib/db";
+import { revalidateContent } from "@/app/lib/revalidate";
+import { logChange } from "@/app/lib/changelog";
 import { NextResponse } from "next/server";
 import { Park } from "@/app/types";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false, // Enable this if Railway requires SSL
-  },
-});
 
 export async function GET() {
   try {
@@ -56,6 +52,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  revalidateContent();
   try {
     const body = await request.json();
     const { name, continent, country, city, imagepath, slug } = body;
@@ -97,6 +94,16 @@ export async function POST(request: Request) {
     const values = [name, continent, country, city, imagepath, finalSlug];
     const result = await pool.query(query, values);
     const newParkId = result.rows[0].id;
+
+    logChange({
+      parkId: newParkId,
+      entityType: "park",
+      entityId: newParkId,
+      label: name,
+      action: "create",
+      summary: `Created park ${name}`,
+      details: { continent, country, city, slug: finalSlug },
+    });
 
     return NextResponse.json(
       { message: `${name} created successfully`, parkId: newParkId },

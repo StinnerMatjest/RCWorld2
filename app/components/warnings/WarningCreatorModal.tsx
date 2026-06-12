@@ -130,28 +130,28 @@ export default function WarningCreatorModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 space-y-6">
-        <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-4">
+      <div className=" bg-gray-800 rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 space-y-6">
+        <div className="flex justify-between items-center border-b border-gray-700 pb-4">
           <h2 className="text-2xl font-bold dark:text-white">Manage Trip Warnings</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:hover:text-white text-2xl font-bold">×</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-white text-2xl font-bold">×</button>
         </div>
 
         {/* Existing Warnings */}
         <div className="space-y-3">
-          <h3 className="font-semibold text-gray-700 dark:text-gray-300">Existing Warnings</h3>
+          <h3 className="font-semibold text-gray-300">Existing Warnings</h3>
           {warnings.length === 0 ? (
             <p className="text-sm text-gray-500 italic">No warnings for this trip yet.</p>
           ) : (
             warnings.map((w) => (
-              <div key={w.id} className="p-3 border rounded-lg dark:border-gray-600 bg-gray-50 dark:bg-gray-700 flex justify-between items-center">
+              <div key={w.id} className="p-3 border rounded-lg dark:border-gray-600 bg-gray-700 flex justify-between items-center">
                 <div>
                   <p className="font-bold text-sm dark:text-white">
                     {w.ride} <span className="font-normal text-xs text-gray-500">({w.category})</span>
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{w.note}</p>
-                  <span className={`inline-block mt-2 px-2 py-0.5 text-xs font-bold rounded-full ${w.severity === "Major" ? "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400" :
-                    w.severity === "Minor" ? "bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200" :
-                      "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-400"
+                  <p className="text-sm text-gray-300 mt-1">{w.note}</p>
+                  <span className={`inline-block mt-2 px-2 py-0.5 text-xs font-bold rounded-full ${w.severity === "Major" ? " bg-red-900/50 text-red-400" :
+                    w.severity === "Minor" ? " bg-gray-600 text-gray-200" :
+                      " bg-yellow-900/50 text-yellow-400"
                     }`}>
                     {w.severity || "Moderate"}
                   </span>
@@ -166,8 +166,8 @@ export default function WarningCreatorModal({
         </div>
 
         {/* Form */}
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-          <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">
+        <div className="border-t border-gray-700 pt-4">
+          <h3 className="font-semibold text-gray-300 mb-3">
             {editingId ? "Edit Warning" : "Add New Warning"}
           </h3>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -238,7 +238,7 @@ export default function WarningCreatorModal({
 
             <div className="flex justify-end gap-2">
               {editingId && (
-                <button type="button" onClick={resetForm} className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">Cancel Edit</button>
+                <button type="button" onClick={resetForm} className="px-4 py-2 text-gray-300 hover:bg-gray-700 rounded cursor-pointer">Cancel Edit</button>
               )}
               <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 cursor-pointer">
                 {loading ? "Saving..." : editingId ? "Save Changes" : "Add Warning"}

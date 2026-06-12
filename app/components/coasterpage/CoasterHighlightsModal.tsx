@@ -17,33 +17,33 @@ interface CoasterHighlightsModalProps {
 const SEVERITY_CONFIG: Record<string, { rank: number; color: string; bg: string; border: string }> = {
     "very positive": { 
         rank: 1,
-        color: "text-blue-700 dark:text-blue-400", 
-        bg: "bg-blue-50 dark:bg-blue-900/20",
-        border: "border-blue-200 dark:border-blue-800"
+        color: " text-blue-400", 
+        bg: " bg-blue-900/20",
+        border: " border-blue-800"
     },
     "positive": { 
         rank: 2,
-        color: "text-green-700 dark:text-green-400", 
-        bg: "bg-green-50 dark:bg-green-900/20",
-        border: "border-green-200 dark:border-green-800"
+        color: " text-green-400", 
+        bg: " bg-green-900/20",
+        border: " border-green-800"
     },
     "neutral": { 
         rank: 3,
-        color: "text-yellow-700 dark:text-yellow-400", 
-        bg: "bg-yellow-50 dark:bg-yellow-900/20",
-        border: "border-yellow-200 dark:border-yellow-800"
+        color: " text-yellow-400", 
+        bg: " bg-yellow-900/20",
+        border: " border-yellow-800"
     },
     "negative": { 
         rank: 4,
-        color: "text-orange-700 dark:text-orange-400", 
-        bg: "bg-orange-50 dark:bg-orange-900/20",
-        border: "border-orange-200 dark:border-orange-800"
+        color: " text-orange-400", 
+        bg: " bg-orange-900/20",
+        border: " border-orange-800"
     },
     "very negative": { 
         rank: 5,
-        color: "text-red-700 dark:text-red-400", 
-        bg: "bg-red-50 dark:bg-red-900/20",
-        border: "border-red-200 dark:border-red-800"
+        color: " text-red-400", 
+        bg: " bg-red-900/20",
+        border: " border-red-800"
     }
 };
 
@@ -133,9 +133,9 @@ const CoasterHighlightsModal: React.FC<CoasterHighlightsModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
-                <div className="p-6 border-b border-gray-100 dark:border-gray-800">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit Strengths & Weaknesses</h2>
+            <div className=" bg-gray-900 rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
+                <div className="p-6 border-b border-gray-800">
+                    <h2 className="text-xl font-bold text-white">Edit Strengths & Weaknesses</h2>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-3">
@@ -154,7 +154,7 @@ const CoasterHighlightsModal: React.FC<CoasterHighlightsModalProps> = ({
                                     <input
                                         type="text"
                                         placeholder="e.g. Airtime, Rattle..."
-                                        className="w-full rounded border border-gray-300 dark:border-gray-700 bg-transparent p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
+                                        className="w-full rounded border border-gray-700 bg-transparent p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
                                         value={item.category}
                                         onChange={(e) => handleChange(index, "category", e.target.value)}
                                     />
@@ -169,7 +169,7 @@ const CoasterHighlightsModal: React.FC<CoasterHighlightsModalProps> = ({
                                         onChange={(e) => handleChange(index, "severity", e.target.value)}
                                     >
                                         {SEVERITY_OPTIONS.map(opt => (
-                                            <option key={opt} value={opt} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                                            <option key={opt} value={opt} className=" bg-gray-800 text-gray-100">
                                                 {opt}
                                             </option>
                                         ))}
@@ -181,7 +181,7 @@ const CoasterHighlightsModal: React.FC<CoasterHighlightsModalProps> = ({
                                 <button
                                     type="button"
                                     onClick={() => handleRemoveRow(index)}
-                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors cursor-pointer"
+                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-900/20 rounded transition-colors cursor-pointer"
                                     title="Remove item"
                                 >
                                     <Trash2 className="w-4 h-4" />
@@ -199,10 +199,10 @@ const CoasterHighlightsModal: React.FC<CoasterHighlightsModalProps> = ({
                     </button>
                 </div>
 
-                <div className="p-6 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-3 bg-gray-50 dark:bg-gray-900/50 rounded-b-lg">
+                <div className="p-6 border-t border-gray-800 flex justify-end gap-3 bg-gray-900/50 rounded-b-lg">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
+                        className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-gray-200 cursor-pointer"
                     >
                         Cancel
                     </button>

@@ -1,20 +1,23 @@
-import { Pool } from "pg";
+import { pool } from "@/app/lib/db";
+import { revalidateContent } from "@/app/lib/revalidate";
+import { diffFields, describeDiff, logChange } from "@/app/lib/changelog";
 import { NextRequest, NextResponse } from "next/server";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-});
 
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  revalidateContent();
   try {
     const { id: ratingId } = await context.params;
     const body = await request.json();
+
+    const oldResult = await pool.query(
+      `SELECT r.*, p.name AS park_name FROM ratings r JOIN parks p ON p.id = r.park_id WHERE r.id = $1`,
+      [ratingId]
+    );
+    const oldRow = oldResult.rows[0];
 
     // SCENARIO A: Full Rating Edit (Check if category data exists in payload)
     if (body.parkAppearance !== undefined) {
@@ -44,6 +47,31 @@ export async function PATCH(
       const result = await pool.query(query, values);
       if (result.rowCount === 0) return NextResponse.json({ error: "Rating not found" }, { status: 404 });
 
+      if (oldRow) {
+        const diff = diffFields(
+          oldRow,
+          {
+            date, parkAppearance, parkPracticality, bestCoaster, coasterDepth,
+            waterRides, flatridesAndDarkrides, food, snacksAndDrinks,
+            rideOperations, parkManagement,
+            visitStart: visitStart || null, visitEnd: visitEnd || null,
+            duration: duration || 0,
+          },
+          { visitStart: "visit_start", visitEnd: "visit_end" }
+        );
+        if (Object.keys(diff).length > 0) {
+          logChange({
+            parkId: oldRow.park_id,
+            entityType: "rating",
+            entityId: Number(ratingId),
+            label: oldRow.park_name,
+            action: "update",
+            summary: `Updated rating: ${describeDiff(diff)}`,
+            details: diff,
+          });
+        }
+      }
+
       return NextResponse.json({ message: "Rating updated successfully" }, { status: 200 });
     }
 
@@ -53,6 +81,19 @@ export async function PATCH(
       const result = await pool.query(query, [body.published, ratingId]);
 
       if (result.rowCount === 0) return NextResponse.json({ error: "Rating not found" }, { status: 404 });
+
+      if (oldRow && oldRow.published !== body.published) {
+        logChange({
+          parkId: oldRow.park_id,
+          entityType: "rating",
+          entityId: Number(ratingId),
+          label: oldRow.park_name,
+          action: body.published ? "publish" : "unpublish",
+          summary: body.published ? "Published rating" : "Unpublished rating",
+          details: { published: { old: oldRow.published, new: body.published } },
+        });
+      }
+
       return NextResponse.json({ message: "Rating published successfully" }, { status: 200 });
     }
 

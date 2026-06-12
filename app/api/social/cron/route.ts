@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
+import { pool } from "@/app/lib/db";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
 const PAGE_TOKEN = process.env.META_PAGE_ACCESS_TOKEN!;
 const PAGE_ID    = process.env.META_PAGE_ID!;

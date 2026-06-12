@@ -364,7 +364,7 @@ function GalleryView({
                 <div key={img.id} onClick={() => onClick(img)}
                   className={`relative aspect-video rounded-xl overflow-hidden cursor-pointer border-2 transition-all group ${sel ? "border-blue-500 ring-2 ring-blue-500/20" : "border-transparent hover:border-blue-400"
                     }`}>
-                  <Image src={img.path} alt="" fill className="object-cover" unoptimized />
+                  <Image src={img.path} alt="" fill sizes="(max-width: 768px) 33vw, 320px" quality={60} className="object-cover" />
                   {sel && <div className="absolute inset-0 bg-blue-600/25 flex items-center justify-center">
                     <div className="w-7 h-7 rounded-full bg-blue-600 shadow flex items-center justify-center">
                       <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">

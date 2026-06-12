@@ -9,7 +9,7 @@ const ToParkButton: React.FC<ToParkButtonProps> = ({ parkSlug }) => {
   return (
     <div className="card-actions">
       <Link href={`/park/${parkSlug}`}>
-        <button className="h-12 w-28 text-xl font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-800 transition duration-300 cursor-pointer">
+        <button className="h-12 w-28 text-xl font-semibold text-white bg-brand rounded-lg hover:bg-brand-light transition duration-300 cursor-pointer">
           View Park
         </button>
       </Link>

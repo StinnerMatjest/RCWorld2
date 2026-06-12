@@ -15,10 +15,10 @@ const MainPageButton = () => {
           text-white
           bg-[#d8730c]
           transition-colors duration-200
-          hover:bg-[#e9820e]
+          hover:bg-brand
           active:scale-[0.98]
           focus:outline-none
-          focus-visible:ring-2 focus-visible:ring-[#e9820e]/40
+          focus-visible:ring-2 focus-visible:ring-brand/40
         "
       >
         <span className="transition-transform duration-200 group-hover:-translate-x-1">

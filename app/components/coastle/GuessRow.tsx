@@ -107,26 +107,30 @@ export function GuessRow({
   return (
     <tr className="border-b border-transparent">
       {/* Desktop Only: Coaster Name */}
-      <td className="hidden md:table-cell p-2 align-middle text-center overflow-hidden bg-slate-50 dark:bg-slate-800/40 border-r border-slate-200 dark:border-neutral-800">
+      <td className="hidden md:table-cell p-2 align-middle text-center overflow-hidden bg-slate-800/40 border-r border-neutral-800">
         <div
           className={`
             text-lg font-black leading-tight mx-auto max-w-[200px] whitespace-normal break-words
             ${isCorrect
-              ? "text-emerald-500 dark:text-emerald-400"
-              : "text-slate-800 dark:text-slate-200"
+              ? " text-emerald-400"
+              : " text-slate-200"
             }
             animate-flipInCell
           `}
         >
-          <a
-            href={guess.coaster.rcdbPath}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:underline decoration-2 underline-offset-2 block"
-            title={guess.coaster.name}
-          >
-            {guess.coaster.name}
-          </a>
+          {guess.coaster.slug ? (
+            <a
+              href={`/coasters/${guess.coaster.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline decoration-2 underline-offset-2 block"
+              title={guess.coaster.name}
+            >
+              {guess.coaster.name}
+            </a>
+          ) : (
+            <span className="block" title={guess.coaster.name}>{guess.coaster.name}</span>
+          )}
         </div>
       </td>
 

@@ -144,15 +144,15 @@ const CoasterHeaderModal: React.FC<ModalProps> = ({ coasterId, coasterName, park
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-5xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border border-white/10">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
+      <div className=" bg-gray-900 rounded-2xl w-full max-w-5xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border border-white/10">
+        <div className="p-6 border-b border-gray-800 flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Select Header Image</h2>
+            <h2 className="text-2xl font-bold text-white">Select Header Image</h2>
             <p className="text-sm text-gray-500">Pick an image from the gallery to represent {coasterName}</p>
             {/* Upload New Header Image Area */}
             <div className="px-6 pt-6 pb-2">
               <label className={`flex items-center justify-center w-full p-4 border-2 border-dashed rounded-xl transition-all cursor-pointer
-            ${submitting ? 'border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed' : 'border-gray-300 dark:border-gray-700 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20'}`}
+            ${submitting ? 'border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed' : ' border-gray-700 hover:border-blue-500 hover:bg-blue-900/20'}`}
               >
                 <input
                   type="file"
@@ -161,7 +161,7 @@ const CoasterHeaderModal: React.FC<ModalProps> = ({ coasterId, coasterName, park
                   onChange={(e) => handleUploadHeaderOnly(e.target.files?.[0])}
                   disabled={submitting}
                 />
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-300 flex items-center gap-2">
                   {submitting ? (
                     <>Uploading & Setting Header...</>
                   ) : (
@@ -176,7 +176,7 @@ const CoasterHeaderModal: React.FC<ModalProps> = ({ coasterId, coasterName, park
               </label>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
+          <button onClick={onClose} className="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -197,7 +197,7 @@ const CoasterHeaderModal: React.FC<ModalProps> = ({ coasterId, coasterName, park
                     className={`relative aspect-video rounded-xl overflow-hidden cursor-pointer border-4 transition-all group ${isHeader ? "border-blue-600 ring-4 ring-blue-600/20" : "border-transparent hover:border-blue-400"
                       }`}
                   >
-                    <Image src={img.path} alt={img.title} fill className="object-cover"/>
+                    <Image src={img.path} alt={img.title} fill sizes="(max-width: 768px) 50vw, 320px" quality={60} className="object-cover"/>
                     <div className={`absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity`}>
                       <span className="text-white font-bold text-sm bg-blue-600 px-3 py-1 rounded-full">Set as Header</span>
                     </div>

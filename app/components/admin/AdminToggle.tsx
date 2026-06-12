@@ -86,7 +86,7 @@ const AdminToggle = () => {
           ${
             isAdminMode
               ? "border-amber-400 bg-amber-500/95 text-black hover:bg-amber-400"
-              : "border-gray-300 bg-white/90 text-gray-800 hover:bg-white dark:border-white/20 dark:bg-gray-900/90 dark:text-gray-100 dark:hover:bg-gray-800"
+              : " border-white/20 bg-gray-900/90 text-gray-100 hover:bg-gray-800"
           }
         `}
       >

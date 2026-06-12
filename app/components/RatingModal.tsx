@@ -72,10 +72,10 @@ function ProgressBar({ categories }: { categories: readonly string[] }) {
   const progressPct = Math.round((ratedCount / categories.length) * 100);
   return (
     <div>
-      <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+      <div className="h-2 rounded-full bg-gray-700 overflow-hidden">
         <div className="h-full bg-blue-500 transition-all" style={{ width: `${progressPct}%` }} />
       </div>
-      <div className="mt-1 text-[11px] sm:text-xs text-gray-600 dark:text-gray-400 text-right">
+      <div className="mt-1 text-[11px] sm:text-xs text-gray-400 text-right">
         {ratedCount}/{categories.length} categories rated
       </div>
     </div>
@@ -91,7 +91,7 @@ function SummaryList({
 }) {
   const ratings = useRatingsSnapshot();
   return (
-    <div className="mt-4 border-t border-gray-300 dark:border-gray-700 pt-3 space-y-1 max-h-[40vh] overflow-y-auto">
+    <div className="mt-4 border-t border-gray-700 pt-3 space-y-1 max-h-[40vh] overflow-y-auto">
       {categories.map((c) => {
         const val = ratings[c];
         const text = val !== undefined ? val.toFixed(1) : "0.0";
@@ -104,7 +104,7 @@ function SummaryList({
               <button
                 type="button"
                 onClick={() => onEditCategory(c)}
-                className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                className="p-1 rounded hover:bg-gray-700"
                 aria-label={`Edit ${c}`}
                 title="Edit"
               >
@@ -154,6 +154,8 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
 
   const [pendingGalleryImages, setPendingGalleryImages] = useState<{ title: string; url: string }[]>([]);
   const [pendingCoasterStats, setPendingCoasterStats] = useState<{ id: number; count: number }[]>([]);
+  // Per-category notes written in the checklist during the visit
+  const [checklistNotes, setChecklistNotes] = useState<Record<string, string>>({});
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -321,6 +323,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
 
         // Sync checklist images and coasters
         if (cl) {
+          if (cl.notes && typeof cl.notes === "object") setChecklistNotes(cl.notes);
           const imagesToSync = (cl.items || [])
             .filter((item: any) => item.imageUrl && !item.skipped)
             .map((item: any) => ({
@@ -545,12 +548,12 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <div
-        className="fixed left-0 right-0 top-0 z-[9999] bg-black/60 dark:bg-black/80 flex justify-center items-start overflow-hidden"
+        className="fixed left-0 right-0 top-0 z-[9999] bg-black/80 flex justify-center items-start overflow-hidden"
         style={{ height: "100dvh", paddingTop: "120px" }}
         onClick={closeModal}
       >
         <div
-          className="bg-white dark:bg-gray-900 dark:text-gray-100 border border-transparent dark:border-white/10 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] relative flex flex-col"
+          className=" bg-gray-900 dark:text-gray-100 border border-white/10 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] relative flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           <div
@@ -559,14 +562,14 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 28px)" }}
           >
             <button
-              className="absolute top-3 right-4 text-gray-500 hover:text-gray-300 dark:text-gray-400 dark:hover:text-white text-2xl transition cursor-pointer z-[10000]"
+              className="absolute top-3 right-4 text-gray-400 hover:text-white text-2xl transition cursor-pointer z-[10000]"
               onClick={closeModal}
             >
               ✕
             </button>
 
             {isFetchingData ? (
-              <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-gray-500 dark:text-gray-400">
+              <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-gray-400">
                 <div className="w-12 h-12 mb-4 animate-spin text-blue-500">
                   <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="opacity-25" />
@@ -599,48 +602,48 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                       )}
 
                       <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Visit Date</label>
+                        <label className="text-xs font-semibold text-gray-400">Visit Date</label>
                         <DatePicker
                           selected={selectedDate}
                           onChange={(d) => !isLocked && setSelectedDate(d)}
                           disabled={isLocked}
-                          className="w-full p-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 disabled:opacity-60"
+                          className="w-full p-2 rounded-md border border-gray-700 bg-gray-800 disabled:opacity-60"
                           placeholderText="Select visit date"
                           dateFormat="yyyy-MM-dd"
                         />
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Park Name</label>
+                        <label className="text-xs font-semibold text-gray-400">Park Name</label>
                         <input
                           placeholder="Park name"
                           value={parkInfo.name}
                           readOnly={isLocked}
                           onChange={(e) => setParkInfo((p) => ({ ...p, name: e.target.value }))}
-                          className="w-full p-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 read-only:opacity-60"
+                          className="w-full p-2 rounded-md border border-gray-700 bg-gray-800 read-only:opacity-60"
                         />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Continent</label>
+                          <label className="text-xs font-semibold text-gray-400">Continent</label>
                           <select
                             value={parkInfo.continent}
                             disabled={isLocked}
                             onChange={(e) => setParkInfo((p) => ({ ...p, continent: e.target.value, country: "" }))}
-                            className="w-full p-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 disabled:opacity-60"
+                            className="w-full p-2 rounded-md border border-gray-700 bg-gray-800 disabled:opacity-60"
                           >
                             <option value="">Continent</option>
                             {Object.keys(continentCountries).map((c) => <option key={c} value={c}>{c}</option>)}
                           </select>
                         </div>
                         <div className="space-y-1">
-                          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Country</label>
+                          <label className="text-xs font-semibold text-gray-400">Country</label>
                           <select
                             value={parkInfo.country}
                             disabled={!parkInfo.continent || isLocked}
                             onChange={(e) => setParkInfo((p) => ({ ...p, country: e.target.value }))}
-                            className="w-full p-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 disabled:opacity-60"
+                            className="w-full p-2 rounded-md border border-gray-700 bg-gray-800 disabled:opacity-60"
                           >
                             <option value="">Country</option>
                             {parkInfo.continent && continentCountries[parkInfo.continent]?.map((country) => <option key={country}>{country}</option>)}
@@ -649,17 +652,17 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">City</label>
+                        <label className="text-xs font-semibold text-gray-400">City</label>
                         <input
                           placeholder="City"
                           value={parkInfo.city}
                           readOnly={isLocked}
                           onChange={(e) => setParkInfo((p) => ({ ...p, city: e.target.value }))}
-                          className="w-full p-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 read-only:opacity-60"
+                          className="w-full p-2 rounded-md border border-gray-700 bg-gray-800 read-only:opacity-60"
                         />
                       </div>
 
-                      <div className="border-t border-gray-200 dark:border-gray-800 pt-4 space-y-3">
+                      <div className="border-t border-gray-800 pt-4 space-y-3">
                         <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Visit Stats</p>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-1">
@@ -669,7 +672,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                               value={visitDetails.start ? new Date(new Date(visitDetails.start).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
                               readOnly={isLocked}
                               onChange={(e) => setVisitDetails(v => ({ ...v, start: e.target.value }))}
-                              className="w-full p-2 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 read-only:opacity-60"
+                              className="w-full p-2 text-sm rounded-md border border-gray-700 bg-gray-800 read-only:opacity-60"
                             />
                           </div>
                           <div className="space-y-1">
@@ -679,7 +682,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                               value={visitDetails.end ? new Date(new Date(visitDetails.end).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
                               readOnly={isLocked}
                               onChange={(e) => setVisitDetails(v => ({ ...v, end: e.target.value }))}
-                              className="w-full p-2 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 read-only:opacity-60"
+                              className="w-full p-2 text-sm rounded-md border border-gray-700 bg-gray-800 read-only:opacity-60"
                             />
                           </div>
                           <div className="col-span-2 space-y-1">
@@ -689,7 +692,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                               value={visitDetails.durationMinutes}
                               readOnly={isLocked}
                               onChange={(e) => setVisitDetails(v => ({ ...v, durationMinutes: parseInt(e.target.value) || 0 }))}
-                              className="w-full p-2 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 read-only:opacity-60"
+                              className="w-full p-2 text-sm rounded-md border border-gray-700 bg-gray-800 read-only:opacity-60"
                             />
                           </div>
                         </div>
@@ -702,7 +705,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                         </label>
                         {imagePreview && (
                           <div className="relative group">
-                            <img src={imagePreview} alt="Preview" className="w-10 h-10 object-cover rounded-md border border-gray-300 dark:border-gray-700" />
+                            <img src={imagePreview} alt="Preview" className="w-10 h-10 object-cover rounded-md border border-gray-700" />
                             {!parkInfo.image && parkInfo.existingImagePath && (
                               <span className="absolute -top-1 -right-1 flex h-3 w-3">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -719,7 +722,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                             type="button"
                             disabled={loading}
                             onClick={handleDeleteDraft}
-                            className="px-4 py-3 rounded-md font-semibold text-red-600 bg-red-100 hover:bg-red-200 transition dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 disabled:opacity-60"
+                            className="px-4 py-3 rounded-md font-semibold transition bg-red-900/30 text-red-400 hover:bg-red-900/50 disabled:opacity-60"
                           >
                             Delete Draft
                           </button>
@@ -743,15 +746,25 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                       style={{ willChange: "transform, opacity" }}
                       className="pb-24 transform-gpu"
                     >
-                      <div className="sticky top-0 left-0 right-0 z-[10001] w-full bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 pt-3 pb-3 shadow-sm">
+                      <div className="sticky top-0 left-0 right-0 z-[10001] w-full bg-gray-900/95 backdrop-blur-sm border-b border-gray-700 px-4 sm:px-6 pt-3 pb-3 shadow-sm">
                         <ProgressBar categories={CATEGORIES} />
                         <div className="mt-2 flex items-center justify-between gap-2">
-                          <button onClick={() => setCategoryIndex((i) => (i - 1 + CATEGORIES.length) % CATEGORIES.length)} className="px-3 py-1.5 rounded-md bg-gray-200 dark:bg-gray-700 text-xs sm:text-sm">← Prev</button>
+                          <button onClick={() => setCategoryIndex((i) => (i - 1 + CATEGORIES.length) % CATEGORIES.length)} className="px-3 py-1.5 rounded-md bg-gray-700 text-xs sm:text-sm">← Prev</button>
                           <div className="text-sm font-semibold truncate">{toTitleCaseFromCamel(category)} · {categoryIndex + 1}/{CATEGORIES.length}</div>
-                          <button onClick={() => categoryIndex === CATEGORIES.length - 1 ? setStep(3) : setCategoryIndex((i) => (i + 1) % CATEGORIES.length)} className="px-3 py-1.5 rounded-md bg-gray-200 dark:bg-gray-700 text-xs sm:text-sm">{categoryIndex === CATEGORIES.length - 1 ? "Finish →" : "Next →"}</button>
+                          <button onClick={() => categoryIndex === CATEGORIES.length - 1 ? setStep(3) : setCategoryIndex((i) => (i + 1) % CATEGORIES.length)} className="px-3 py-1.5 rounded-md bg-gray-700 text-xs sm:text-sm">{categoryIndex === CATEGORIES.length - 1 ? "Finish →" : "Next →"}</button>
                         </div>
                       </div>
                       <div className="px-4 sm:px-8 pt-6">
+                        {checklistNotes[category]?.trim() && (
+                          <div className="mb-4 rounded-xl border border-emerald-900/50 bg-emerald-950/30 p-3.5">
+                            <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                              📝 Your note from the visit
+                            </p>
+                            <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-200">
+                              {checklistNotes[category]}
+                            </p>
+                          </div>
+                        )}
                         <ParkRankLane key={category} category={category} newParkName={parkInfo.name || "New Park"} initialRating={ratingsStore.get(category)} newParkImageUrl={imagePreview ?? undefined} onSetRating={(v) => ratingsStore.set(category, v)} />
                       </div>
                     </motion.div>
@@ -769,7 +782,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                         <h3 className="text-xl font-semibold">Summary</h3>
                         {!isLocked && <button type="button" onClick={() => setStep(1)} className="text-sm underline">Edit details</button>}
                       </div>
-                      <div className="text-gray-700 dark:text-gray-300 text-sm space-y-1">
+                      <div className=" text-gray-300 text-sm space-y-1">
                         <div><strong>Park:</strong> {parkInfo.name}</div>
                         <div><strong>Date:</strong> {selectedDate?.toISOString().split("T")[0]}</div>
                         {visitDetails.durationMinutes > 0 && <div><strong>Time:</strong> {formatDuration(visitDetails.durationMinutes * 60)}</div>}

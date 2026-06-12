@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
+import { revalidateContent } from "@/app/lib/revalidate";
+import { pool } from "@/app/lib/db";
+import { getParkName, logChange } from "@/app/lib/changelog";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-});
 
 export async function GET(
   req: NextRequest,
@@ -35,6 +31,7 @@ export async function GET(
 }
 
 export async function POST(req: NextRequest) {
+  revalidateContent();
   const { title, path, description, parkId } = await req.json();
 
   if (
@@ -53,8 +50,19 @@ export async function POST(req: NextRequest) {
     const query = `
       INSERT INTO parkgallery (title, path, description, park_id)
       VALUES ($1, $2, $3, $4)
+      RETURNING id
     `;
-    await pool.query(query, [title, path, description, parkId]);
+    const inserted = await pool.query(query, [title, path, description, parkId]);
+
+    logChange({
+      parkId,
+      entityType: "image",
+      entityId: inserted.rows[0]?.id,
+      label: await getParkName(parkId),
+      action: "create",
+      summary: `Added gallery image "${title}"`,
+      details: { title, path, description },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

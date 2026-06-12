@@ -31,7 +31,7 @@ type Coaster = {
 
 // ——— Helpers ———
 const formatDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString() : "—";
+  iso ? new Date(iso).toLocaleDateString("en-GB") : "—";
 const isDefined = (v: unknown) => v !== null && v !== undefined;
 
 const compare = (a: unknown, b: unknown, dir: "asc" | "desc"): number => {
@@ -204,11 +204,11 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <div className="border-b border-slate-800 px-4 sm:px-8 py-12 sm:py-16">
         <div className="max-w-5xl mx-auto">
-          <p className="text-[#e9820e] text-xs font-bold uppercase tracking-widest mb-3">
+          <p className="text-brand text-xs font-bold uppercase tracking-widest mb-3">
             ParkRating · Coaster Library
           </p>
           <h1 className="text-4xl sm:text-5xl font-black mb-3 leading-tight">
-            Coaster <span className="text-[#e9820e]">Rankings</span>
+            Coaster <span className="text-brand">Rankings</span>
           </h1>
           <p className="text-slate-400 text-base max-w-xl">
             Every coaster we&apos;ve ridden, rated across ride quality, intensity and reridability.
@@ -225,8 +225,8 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                 { label: "Avg rating", value: (() => { const vals = coasters.map(c => c.rating).filter((r): r is number => r != null); return vals.length ? (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(2) : "—"; })() },
               ].map(s => (
                 <div key={s.label}>
-                  <div className="text-2xl font-black text-white">{s.value}</div>
-                  <div className="text-xs text-slate-500 uppercase tracking-wider mt-0.5">{s.label}</div>
+                  <div className="text-2xl font-black text-brand">{s.value}</div>
+                  <div className="text-xs text-slate-400 uppercase tracking-wider mt-0.5">{s.label}</div>
                 </div>
               ))}
             </div>
@@ -238,7 +238,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4 space-y-4">
         {/* Search */}
         <div className="relative group max-w-2xl mx-auto">
-          <div className="absolute -inset-[1.5px] rounded-xl bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 opacity-30 blur-sm group-focus-within:opacity-60 transition" />
+          <div className="absolute -inset-[1.5px] rounded-xl bg-gradient-to-r from-brand via-amber-500 to-orange-600 opacity-30 blur-sm group-focus-within:opacity-60 transition" />
           <div className="relative rounded-xl bg-slate-900 border border-slate-700">
             <div className="flex items-center gap-3 px-4 py-3">
               <svg className="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -274,11 +274,11 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                   onClick={() => toggleCol(key)}
                   aria-pressed={on}
                   className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${on
-                    ? "bg-[#e9820e]/10 border-[#e9820e]/40 text-[#e9820e]/80"
+                    ? "bg-brand/10 border-brand/40 text-brand/80"
                     : "bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300"
                     }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${on ? "bg-[#e9820e]" : "bg-slate-600"}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${on ? "bg-brand" : "bg-slate-600"}`} />
                   {label}
                 </button>
               );
@@ -302,7 +302,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                       <th style={{ width: INDEX_W, height: ROW_H }} className="text-center font-semibold">#</th>
                       <th
                         style={{ width: NAME_W_M, height: ROW_H }}
-                        className={`pr-2 font-semibold cursor-pointer select-none hover:text-white transition-colors ${sortBy === "name" ? "text-[#e9820e]" : ""}`}
+                        className={`pr-2 font-semibold cursor-pointer select-none hover:text-white transition-colors ${sortBy === "name" ? "text-brand" : ""}`}
                         onClick={() => handleSort("name")}
                       >
                         Name {sortBy === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
@@ -315,7 +315,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                         <td style={{ width: INDEX_W, height: ROW_H }} className="text-center text-slate-500 text-xs">{i + 1}</td>
                         <td style={{ width: NAME_W_M }} className="pr-2 font-medium text-slate-100 text-[13px] truncate">
                           <div className="flex items-center" style={{ height: ROW_H }}>
-                            <Link href={`/coasters/${c.slug}`} className="text-indigo-400 hover:text-indigo-300 truncate hover:underline">
+                            <Link href={`/coasters/${c.slug}`} className="text-slate-100 hover:text-brand truncate hover:underline">
                               {c.name}
                             </Link>
                           </div>
@@ -341,7 +341,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                       {ALL_COLUMNS.map(({ key, label }) => colOn(key) ? (
                         <th
                           key={key}
-                          className={`px-3 font-semibold whitespace-nowrap cursor-pointer select-none hover:text-white transition-colors ${sortBy === key ? "text-[#e9820e]" : ""}`}
+                          className={`px-3 font-semibold whitespace-nowrap cursor-pointer select-none hover:text-white transition-colors ${sortBy === key ? "text-brand" : ""}`}
                           style={{ minWidth: COL_MIN_W[key], height: ROW_H }}
                           onClick={() => handleSort(key)}
                         >
@@ -361,7 +361,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                         {colOn("manufacturer") && (
                           <td className="px-3 whitespace-nowrap text-[13px]" style={{ minWidth: COL_MIN_W.manufacturer }}>
                             <div className="flex items-center" style={{ height: ROW_H }}>
-                              <button onClick={() => setQuery?.(c.manufacturer)} className="text-slate-300 hover:text-indigo-300 hover:underline truncate cursor-pointer" style={{ maxWidth: 200 }}>
+                              <button onClick={() => setQuery?.(c.manufacturer)} className="text-slate-300 hover:text-brand hover:underline truncate cursor-pointer" style={{ maxWidth: 200 }}>
                                 {c.manufacturer}
                               </button>
                             </div>
@@ -370,7 +370,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                         {colOn("parkName") && (
                           <td className="px-3 whitespace-nowrap text-[13px]" style={{ minWidth: COL_MIN_W.parkName }}>
                             <div className="flex items-center" style={{ height: ROW_H }}>
-                              <Link href={`/park/${c.parkId}`} className="text-slate-300 hover:text-indigo-300 hover:underline truncate" style={{ maxWidth: 200 }}>
+                              <Link href={`/park/${c.parkId}`} className="text-slate-300 hover:text-brand hover:underline truncate" style={{ maxWidth: 200 }}>
                                 {c.parkName}
                               </Link>
                             </div>
@@ -414,7 +414,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
               </div>
             </div>
           </div>
-          <p className="text-right text-xs text-slate-600 mt-2">{sorted.length} results</p>
+          <p className="text-right text-xs text-slate-500 mt-2">{sorted.length} results</p>
         </div>
 
         {/* DESKTOP */}
@@ -422,7 +422,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
           <div className="rounded-2xl border border-slate-700 bg-slate-800/60 overflow-x-auto">
             <table className="w-full table-fixed text-sm text-left">
               <thead className="sticky top-0 z-20">
-                <tr className="bg-slate-900 text-[11px] uppercase text-slate-500 border-b border-slate-800">
+                <tr className="bg-slate-900 text-[11px] uppercase text-slate-400 border-b border-slate-800">
                   <th className="sticky left-0 z-[2] bg-slate-900 text-center font-semibold" style={{ width: INDEX_W }}>
                     <span className="inline-block" style={{ width: INDEX_W }}>#</span>
                   </th>
@@ -435,11 +435,11 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
               <tbody className="divide-y divide-slate-800/60">
                 {sorted.map((c, i) => (
                   <tr key={c.id} className="group hover:bg-slate-700/30 transition-colors">
-                    <td className="sticky left-0 z-[1] bg-slate-800/60 group-hover:bg-slate-700/40 text-center text-slate-600 text-xs font-medium" style={{ width: INDEX_W }}>
+                    <td className="sticky left-0 z-[1] bg-slate-800/60 group-hover:bg-slate-700/40 text-center text-slate-500 text-xs font-medium" style={{ width: INDEX_W }}>
                       <span className="inline-block" style={{ width: INDEX_W }}>{i + 1}</span>
                     </td>
                     <td className="sticky z-[1] bg-slate-800/60 group-hover:bg-slate-700/40 py-0 pr-6 font-semibold text-slate-100 whitespace-nowrap overflow-hidden text-ellipsis" style={{ left: INDEX_W, width: NAME_W_D, height: ROW_H }}>
-                      <Link href={`/coasters/${c.slug}`} className="hover:text-indigo-300 transition-colors hover:underline">
+                      <Link href={`/coasters/${c.slug}`} className="hover:text-brand transition-colors hover:underline">
                         {c.name}
                       </Link>
                     </td>
@@ -450,14 +450,14 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                     )}
                     {colOn("manufacturer") && (
                       <td className="px-4 whitespace-nowrap text-slate-300" style={{ height: ROW_H }}>
-                        <button onClick={() => setQuery?.(c.manufacturer)} className="hover:text-indigo-300 hover:underline cursor-pointer transition-colors">
+                        <button onClick={() => setQuery?.(c.manufacturer)} className="hover:text-brand hover:underline cursor-pointer transition-colors">
                           {c.manufacturer}
                         </button>
                       </td>
                     )}
                     {colOn("parkName") && (
                       <td className="px-4 whitespace-nowrap" style={{ height: ROW_H }}>
-                        <Link href={`/park/${c.parkId}`} className="text-slate-300 hover:text-indigo-300 hover:underline transition-colors">
+                        <Link href={`/park/${c.parkId}`} className="text-slate-300 hover:text-brand hover:underline transition-colors">
                           {c.parkName}
                         </Link>
                       </td>
@@ -476,7 +476,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                       </td>
                     )}
                     {colOn("lastVisitDate") && (
-                      <td className="px-4 whitespace-nowrap text-slate-500 text-xs" style={{ height: ROW_H }}>
+                      <td className="px-4 whitespace-nowrap text-slate-400 text-xs" style={{ height: ROW_H }}>
                         {formatDate(c.lastVisitDate)}
                       </td>
                     )}
@@ -501,7 +501,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
               </tfoot>
             </table>
           </div>
-          <p className="text-right text-xs text-slate-600 mt-2">{sorted.length} results</p>
+          <p className="text-right text-xs text-slate-500 mt-2">{sorted.length} results</p>
         </div>
       </div>
     </div>
@@ -533,13 +533,13 @@ function ThSort({ label, active, dir, onClick, sticky, style }: ThSortProps) {
       scope="col"
       onClick={onClick}
       aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
-      className={`px-4 py-3 select-none font-semibold cursor-pointer hover:text-white transition-colors ${active ? "text-[#e9820e]" : "text-slate-500 hover:text-slate-300"
+      className={`px-4 py-3 select-none font-semibold cursor-pointer hover:text-white transition-colors ${active ? "text-brand" : "text-slate-300"
         } ${sticky ? "sticky z-[2] bg-slate-800/60" : ""}`}
       style={style}
     >
       <span className="inline-flex items-center gap-1">
         {label}
-        <span className={`transition-opacity ${active ? "opacity-100 text-[#e9820e]" : "opacity-0"}`}>
+        <span className={`transition-opacity ${active ? "opacity-100 text-brand" : "opacity-0"}`}>
           {dir === "asc" ? "↑" : "↓"}
         </span>
       </span>
@@ -608,11 +608,11 @@ const OPTIONS: { key: ColumnKey | "name"; label: string }[] = [
                     role="menuitemradio"
                     aria-checked={active}
                     onClick={() => { onChangeField(opt.key); setOpen(false); }}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left text-sm cursor-pointer transition-colors ${active ? "text-[#e9820e]/80 bg-[#e9820e]/10" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left text-sm cursor-pointer transition-colors ${active ? "text-brand/80 bg-brand/10" : "text-slate-300 hover:bg-slate-800 hover:text-white"
                       }`}
                   >
                     {opt.label}
-                    {active && <span className="text-[#e9820e]">✓</span>}
+                    {active && <span className="text-brand">✓</span>}
                   </button>
                 </li>
               );

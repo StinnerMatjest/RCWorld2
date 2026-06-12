@@ -39,10 +39,10 @@ export function Countdown() {
         dark:text-slate-200
       "
     >
-      <ClockIcon className="w-4 h-4 text-indigo-500 dark:text-indigo-300" />
+      <ClockIcon className="w-4 h-4 text-indigo-300" />
       <span className="text-xs sm:text-sm font-bold tracking-wide">
         New Daily Game in{" "}
-        <span className="text-indigo-600 dark:text-indigo-300">
+        <span className=" text-indigo-300">
           {timeLeft}
         </span>
       </span>

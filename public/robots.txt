@@ -1,4 +1,7 @@
 User-agent: *
 Disallow: /admin/
+Disallow: /api/
+Disallow: /games/zoomle/config
+Disallow: /lists/create
 
 Sitemap: https://parkrating.com/sitemap.xml

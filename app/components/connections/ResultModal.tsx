@@ -224,7 +224,7 @@ export function ResultModal({
             : "bg-slate-700"
         }`}
       >
-        <div className="rounded-[22px] bg-white p-5 dark:bg-neutral-900 sm:p-6">
+        <div className="rounded-[22px] p-5 bg-neutral-900 sm:p-6">
           <button
             ref={closeBtnRef}
             onClick={onClose}
@@ -234,16 +234,16 @@ export function ResultModal({
           </button>
 
           <div className="text-center">
-            <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white sm:text-4xl">
+            <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
               {isWon ? "TRACK COMPLETE" : "TRACK INCOMPLETE"}
             </h2>
-            <div className="mt-1 text-sm font-bold text-slate-600 dark:text-slate-300">
+            <div className="mt-1 text-sm font-bold text-slate-300">
               {`Solved ${solvedCount}/${totalGroups} categories`}
             </div>
           </div>
 
-          <div className="mt-5 rounded-3xl bg-slate-100/90 p-4 dark:bg-neutral-800/60">
-            <div className="text-center text-[11px] font-black uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+          <div className="mt-5 rounded-3xl p-4 bg-neutral-800/60">
+            <div className="text-center text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">
               Your guesses
             </div>
 
@@ -257,7 +257,7 @@ export function ResultModal({
           <div className="mt-5 flex flex-col gap-3">
             <button
            onClick={() => onShare("")}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-sm font-black text-white transition hover:opacity-90 dark:bg-white dark:text-slate-950"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-black transition hover:opacity-90 bg-white text-slate-950"
             >
               <ShareIcon className="h-5 w-5" />
               Share Result
@@ -279,8 +279,8 @@ export function ResultModal({
                 Go to Zoomle →
               </Link>
             ) : (
-              <div className="w-full rounded-2xl bg-slate-100 dark:bg-neutral-800 py-3 text-center select-none">
-                <div className="text-sm font-bold text-slate-400 dark:text-slate-500">Zoomle already completed</div>
+              <div className="w-full rounded-2xl bg-neutral-800 py-3 text-center select-none">
+                <div className="text-sm font-bold text-slate-500">Zoomle already completed</div>
               </div>
             )}
           </div>

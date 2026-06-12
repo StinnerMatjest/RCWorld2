@@ -250,9 +250,9 @@ export function ResultModal({
   const nameGradient = "bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600";
 
   const primaryBtn =
-    "bg-slate-900 text-white hover:opacity-90 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white";
+    " hover:opacity-90 bg-slate-100 text-slate-900 dark:hover:bg-white";
   const secondaryBtn =
-    "bg-slate-200 text-slate-900 hover:bg-slate-300 dark:bg-neutral-800 dark:text-slate-100 dark:hover:bg-neutral-700";
+    " bg-neutral-800 text-slate-100 hover:bg-neutral-700";
 
   const shouldRenderOtherDailyAction = gameMode === "daily";
 
@@ -293,28 +293,28 @@ export function ResultModal({
           ${isWon ? "bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 bg-shine" : "bg-slate-700"}
         `}
       >
-        <div className="relative bg-white dark:bg-neutral-900 rounded-[22px] p-4 sm:p-6 md:p-8 overflow-hidden">
+        <div className="relative bg-neutral-900 rounded-[22px] p-4 sm:p-6 md:p-8 overflow-hidden">
           <ConfettiBurst enabled={isWon} />
 
           <button
             ref={closeBtnRef}
             onClick={onClose}
-            className="absolute top-3 right-3 p-2 rounded-full text-slate-500 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white bg-white/70 dark:bg-neutral-800/70 transition z-10 cursor-pointer"
+            className="absolute top-3 right-3 p-2 rounded-full text-slate-300 hover:text-white bg-neutral-800/70 transition z-10 cursor-pointer"
             aria-label="Close"
           >
             <XMarkIcon className="w-5 h-5" />
           </button>
 
           <div className="text-center mt-1">
-            <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+            <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-white">
               {title}
             </h2>
-            <div className="mt-1 text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300">
+            <div className="mt-1 text-xs sm:text-sm font-bold text-slate-300">
               {subtitle}
             </div>
 
             {gameMode === "daily" && typeof currentStreak === "number" && (
-              <div className="mt-2 text-[11px] sm:text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+              <div className="mt-2 text-[11px] sm:text-xs font-black uppercase tracking-widest text-slate-400">
                 🔥 Streak: {currentStreak}
               </div>
             )}
@@ -324,7 +324,7 @@ export function ResultModal({
             <button
               type="button"
               onClick={() => window.open(headerImage, "_blank", "noopener,noreferrer")}
-              className="relative w-full h-32 sm:h-52 rounded-2xl overflow-hidden bg-slate-200 dark:bg-neutral-800 shadow-sm cursor-zoom-in mt-4 sm:mt-5 md:mt-6"
+              className="relative w-full h-32 sm:h-52 rounded-2xl overflow-hidden bg-neutral-800 shadow-sm cursor-zoom-in mt-4 sm:mt-5 md:mt-6"
               title="Open image"
             >
               <Image
@@ -339,7 +339,7 @@ export function ResultModal({
           )}
 
           <div className="mt-4 sm:mt-5 md:mt-6 text-center">
-            <div className="text-[11px] sm:text-xs font-black uppercase tracking-[0.22em] text-slate-600 dark:text-slate-300">
+            <div className="text-[11px] sm:text-xs font-black uppercase tracking-[0.22em] text-slate-300">
               {gameState === "lost" ? "THE CORRECT ANSWER WAS" : "THE ANSWER WAS"}
             </div>
 
@@ -347,40 +347,40 @@ export function ResultModal({
               {coasterName}
             </div>
 
-            <div className="mt-1 text-sm sm:text-base font-extrabold text-slate-700 dark:text-slate-200">
+            <div className="mt-1 text-sm sm:text-base font-extrabold text-slate-200">
               {park}
             </div>
           </div>
 
           <div className="mt-4 sm:mt-5 md:mt-6 grid grid-cols-2 gap-2.5 sm:gap-3.5">
-            <div className="rounded-2xl bg-slate-100/80 dark:bg-neutral-800/60 p-3.5 sm:p-4">
-              <div className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+            <div className="rounded-2xl bg-neutral-800/60 p-3.5 sm:p-4">
+              <div className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400">
                 Rating
               </div>
-              <div className="mt-1 text-base sm:text-xl font-black text-slate-900 dark:text-white">{rating}</div>
+              <div className="mt-1 text-base sm:text-xl font-black text-white">{rating}</div>
             </div>
 
-            <div className="rounded-2xl bg-slate-100/80 dark:bg-neutral-800/60 p-3.5 sm:p-4">
-              <div className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+            <div className="rounded-2xl bg-neutral-800/60 p-3.5 sm:p-4">
+              <div className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400">
                 Year
               </div>
-              <div className="mt-1 text-base sm:text-xl font-black text-slate-900 dark:text-white">{year}</div>
+              <div className="mt-1 text-base sm:text-xl font-black text-white">{year}</div>
             </div>
 
-            <div className="rounded-2xl bg-slate-100/80 dark:bg-neutral-800/60 p-3.5 sm:p-4">
-              <div className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+            <div className="rounded-2xl bg-neutral-800/60 p-3.5 sm:p-4">
+              <div className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400">
                 Manufacturer
               </div>
-              <div className="mt-1 text-sm sm:text-lg font-black text-slate-900 dark:text-white leading-tight">
+              <div className="mt-1 text-sm sm:text-lg font-black text-white leading-tight">
                 {manufacturer}
               </div>
             </div>
 
-            <div className="rounded-2xl bg-slate-100/80 dark:bg-neutral-800/60 p-3.5 sm:p-4">
-              <div className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+            <div className="rounded-2xl bg-neutral-800/60 p-3.5 sm:p-4">
+              <div className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400">
                 Ride Count
               </div>
-              <div className="mt-1 text-sm sm:text-lg font-black text-slate-900 dark:text-white">{rideCount}</div>
+              <div className="mt-1 text-sm sm:text-lg font-black text-white">{rideCount}</div>
             </div>
           </div>
 
@@ -427,7 +427,7 @@ export function ResultModal({
                   Go to Connections →
                 </Link>
               ) : (
-                <div className="w-full py-2 sm:py-3 md:py-3.5 rounded-2xl font-black text-sm sm:text-base text-center bg-slate-200 text-slate-500 dark:bg-neutral-800 dark:text-slate-400 cursor-not-allowed select-none">
+                <div className="w-full py-2 sm:py-3 md:py-3.5 rounded-2xl font-black text-sm sm:text-base text-center bg-neutral-800 text-slate-400 cursor-not-allowed select-none">
                   Daily Connections already completed
                 </div>
               ))}

@@ -64,23 +64,6 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster, onUpdate }) => {
       <InfoRow label="Manufacturer" value={coaster.manufacturer} />
       <InfoRow label="Model" value={coaster.model} />
       <InfoRow label="Scale" value={coaster.scale} />
-      <InfoRow
-        label="Database"
-        value={
-          coaster.rcdbpath ? (
-            <a
-              href={coaster.rcdbpath}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:underline"
-            >
-              RCDB Entry
-            </a>
-          ) : (
-            "N/A"
-          )
-        }
-      />
       <InfoRow label="Ride Count" value={coaster.ridecount ?? "0"} />
 
       {/* Admin Edit Button */}
