@@ -1,5 +1,11 @@
-import { NextResponse } from "next/server";
-import { ADMIN_COOKIE, adminToken } from "@/app/lib/adminAuth";
+import { NextRequest, NextResponse } from "next/server";
+import { ADMIN_COOKIE, adminToken, isAdminRequest } from "@/app/lib/adminAuth";
+
+// Lets the client check whether its admin cookie is actually valid, so a stale
+// localStorage admin flag can't show admin UI whose saves the server rejects.
+export async function GET(req: NextRequest) {
+  return NextResponse.json({ admin: await isAdminRequest(req) });
+}
 
 export async function POST(req: Request) {
   const { password } = await req.json();

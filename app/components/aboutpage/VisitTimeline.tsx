@@ -126,7 +126,7 @@ function VisitTile({ visit }: { visit: Visit }) {
       <span className="hidden sm:block absolute right-full mr-[44px] top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 whitespace-nowrap">
         {visitDateLabel(visit.date)}
       </span>
-      <Link href={`/park/${visit.slug}`}
+      <Link href={`/park/${visit.slug}?visit=${visit.ratingId}`}
         className="group grid sm:grid-cols-[280px_1fr] rounded-2xl overflow-hidden border border-slate-800 bg-slate-800/30 hover:bg-slate-800/50 hover:border-slate-600 transition-colors shadow-lg shadow-black/20">
         {/* Header image */}
         <div className="relative aspect-[16/9] sm:aspect-auto sm:h-full sm:min-h-[140px] overflow-hidden">

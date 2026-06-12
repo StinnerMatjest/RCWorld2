@@ -111,7 +111,7 @@ export async function getCoasterContext(
   try {
     const r = await pool.query(
       `SELECT c.name, c.park_id, p.name AS park_name
-       FROM coasters c LEFT JOIN parks p ON p.id = c.park_id
+       FROM rollercoasters c LEFT JOIN parks p ON p.id = c.park_id
        WHERE c.id = $1`,
       [coasterId]
     );

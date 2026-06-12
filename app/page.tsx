@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import HomeClient from "./HomeClient";
+import { isAdminRequest } from "@/app/lib/adminAuth";
 import type { Rating, Park } from "@/app/types";
 
 export const metadata: Metadata = {
@@ -34,6 +36,11 @@ async function getInitialData(): Promise<{ ratings?: Rating[]; parks?: Park[] }>
 }
 
 export default async function Page() {
-  const { ratings, parks } = await getInitialData();
-  return <HomeClient initialRatings={ratings} initialParks={parks} />;
+  // The admin cookie is readable server-side, so admins get the admin grid
+  // (pending parks, drafts) in the SSR HTML — no post-hydration reshuffle.
+  const [{ ratings, parks }, initialAdminMode] = await Promise.all([
+    getInitialData(),
+    isAdminRequest({ cookies: await cookies() }),
+  ]);
+  return <HomeClient initialRatings={ratings} initialParks={parks} initialAdminMode={initialAdminMode} />;
 }

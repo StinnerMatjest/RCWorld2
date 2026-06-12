@@ -4,6 +4,9 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 type AdminModeContextValue = {
   isAdminMode: boolean;
+  /** False until the localStorage preference has been read on the client.
+   *  Lets server-informed pages keep their SSR admin state until then. */
+  hydrated: boolean;
   toggleAdminMode: () => void;
   welcomeMessage: string | null;
 };
@@ -18,18 +21,31 @@ export const AdminModeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [isAdminMode, setIsAdminMode] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const [welcomeMessage, setWelcomeMessage] = useState<string | null>(null);
 
-  // Load persisted admin mode on mount
+  // Load persisted admin mode on mount, but only keep it if the server still
+  // accepts our admin cookie — otherwise the UI would show admin controls
+  // whose saves all get rejected with 401.
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
       if (stored === "1") {
         setIsAdminMode(true);
+        fetch("/api/authenticate")
+          .then(r => r.json())
+          .then(d => {
+            if (!d.admin) {
+              setIsAdminMode(false);
+              window.localStorage.removeItem(STORAGE_KEY);
+            }
+          })
+          .catch(() => { /* offline/transient: keep current state */ });
       }
     } catch {
     }
+    setHydrated(true);
   }, []);
 
   // Persist changes
@@ -81,7 +97,7 @@ export const AdminModeProvider: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <AdminModeContext.Provider
-      value={{ isAdminMode, toggleAdminMode, welcomeMessage }}
+      value={{ isAdminMode, hydrated, toggleAdminMode, welcomeMessage }}
     >
       {children}
     </AdminModeContext.Provider>

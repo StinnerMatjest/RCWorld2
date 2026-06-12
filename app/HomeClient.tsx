@@ -24,10 +24,15 @@ import { FocusedImage, parseFocusStr } from "./components/FocusedImage";
 
 const DOTS_OFFSET = 10;
 
-const PendingParkCard = ({ park }: { park: Park }) => (
+// Stagger for the entrance animation: cards populate one by one, capped so
+// parks far down the grid don't wait forever.
+const cardDelay = (i: number) => ({ animationDelay: `${Math.min(i, 12) * 70}ms` });
+
+const PendingParkCard = ({ park, delayIndex = 0 }: { park: Park; delayIndex?: number }) => (
   <Link
     href={`/?modal=true&pendingParkId=${park.id}`}
     className="mx-auto flex flex-col justify-between w-full max-w-[400px] py-3 md:py-4 h-full animate-fade-in-up"
+    style={cardDelay(delayIndex)}
   >
     <div className="flex flex-col justify-center items-center text-center w-full h-full min-h-[450px] bg-[#1e293b]/40 rounded-2xl border-2 border-dashed border-slate-700 hover:border-brand hover:bg-brand/5 transition-all duration-300 p-6 shadow-md group cursor-pointer">
       <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
@@ -43,8 +48,8 @@ const PendingParkCard = ({ park }: { park: Park }) => (
 );
 
 
-const TeaserParkCard = React.memo(({ rating, park }: { rating: Rating; park: Park }) => (
-  <div className="mx-auto w-full max-w-[400px] py-3 md:py-4 animate-fade-in-up">
+const TeaserParkCard = React.memo(({ rating, park, delayIndex = 0 }: { rating: Rating; park: Park; delayIndex?: number }) => (
+  <div className="mx-auto w-full max-w-[400px] py-3 md:py-4 animate-fade-in-up" style={cardDelay(delayIndex)}>
     <div className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
       <FocusedImage
         src={park.cardImagepath || park.imagepath || "/images/error.PNG"}
@@ -375,7 +380,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     <Link href={`/park/${park.slug}`}>
       <div
         className="mx-auto w-full max-w-[400px] py-3 md:py-4 animate-fade-in-up [@media(hover:hover)]:hover:scale-105 transition-transform duration-300 ease-in-out will-change-transform"
-        style={{ animationDelay: `${delayIndex * 60}ms` }}
+        style={cardDelay(delayIndex)}
         onPointerEnter={(e) => { if (e.pointerType === "mouse") handleCardEnter(); }}
         onPointerLeave={(e) => { if (e.pointerType === "mouse") handleCardLeave(); }}
       >
@@ -425,12 +430,18 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
 type HomeProps = {
   initialRatings?: Rating[];
   initialParks?: Park[];
+  initialAdminMode?: boolean;
 };
 
-const Home = ({ initialRatings, initialParks }: HomeProps) => {
+const Home = ({ initialRatings, initialParks, initialAdminMode }: HomeProps) => {
   const router = useRouter();
   const { query } = useSearch();
-  const { isAdminMode } = useAdminMode();
+  const { isAdminMode, hydrated } = useAdminMode();
+
+  // SSR already rendered the right grid for this cookie (see page.tsx). Keep
+  // using that until the client context has read its localStorage preference,
+  // so the grid never reshuffles after hydration.
+  const adminView = hydrated ? isAdminMode : (initialAdminMode ?? false);
 
   const [ratings, setRatings] = useState<Rating[]>(initialRatings ?? []);
   const [parks, setParks] = useState<Park[]>(initialParks ?? []);
@@ -442,12 +453,12 @@ const Home = ({ initialRatings, initialParks }: HomeProps) => {
   const scrollRafRef = useRef<number | null>(null);
 
   const pendingParks = React.useMemo(() => {
-    if (!isAdminMode) return [];
+    if (!adminView) return [];
     return parks.filter((p) => !ratings.some((r) => r.parkId === p.id));
-  }, [parks, ratings, isAdminMode]);
+  }, [parks, ratings, adminView]);
 
   const filteredRatings = React.useMemo(() => {
-    const visibleRatings = isAdminMode ? ratings : ratings.filter((r) => r.published);
+    const visibleRatings = adminView ? ratings : ratings.filter((r) => r.published);
 
     const sortedByDate = [...visibleRatings].sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -465,10 +476,10 @@ const Home = ({ initialRatings, initialParks }: HomeProps) => {
       const park = parks.find((p) => p.id === rating.parkId);
       return park && park.name.toLowerCase().includes(query.toLowerCase());
     });
-  }, [ratings, parks, query, isAdminMode]);
+  }, [ratings, parks, query, adminView]);
 
   const teaserItems = React.useMemo(() => {
-    if (isAdminMode) return [];
+    if (adminView) return [];
     const publishedParkIds = new Set(ratings.filter((r) => r.published).map((r) => r.parkId));
     const latestDraftByPark = new Map<number, Rating>();
     [...ratings]
@@ -483,7 +494,7 @@ const Home = ({ initialRatings, initialParks }: HomeProps) => {
       if (!park.name.toLowerCase().includes(query.toLowerCase())) return [];
       return [{ type: "teaser" as const, rating, park, id: `teaser-${parkId}` }];
     });
-  }, [ratings, parks, isAdminMode, query]);
+  }, [ratings, parks, adminView, query]);
 
   const displayItems = React.useMemo(() => {
     const ratedItems = filteredRatings.flatMap((r) => {
@@ -661,10 +672,10 @@ const Home = ({ initialRatings, initialParks }: HomeProps) => {
       <div className="hidden md:grid relative z-10 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 px-6 flex-grow py-2.5">
         {displayItems.map((item, index) => {
           if (item.type === "pending") {
-            return <PendingParkCard key={item.id} park={item.park} />;
+            return <PendingParkCard key={item.id} park={item.park} delayIndex={index} />;
           }
           if (item.type === "teaser") {
-            return <TeaserParkCard key={item.id} rating={item.rating} park={item.park} />;
+            return <TeaserParkCard key={item.id} rating={item.rating} park={item.park} delayIndex={index} />;
           }
           return <FullBleedRatingCard key={item.id} rating={item.rating} park={item.park} delayIndex={index} />;
         })}

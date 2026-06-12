@@ -111,6 +111,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   );
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const cur = drafts[selectedCat];
@@ -145,10 +146,12 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   // ── Save all ────────────────────────────────────────────────────────────────
   const handleSaveAll = async () => {
     setIsSaving(true);
+    setSaveError(null);
     const newPersisted = new Set(persisted);
     const outTexts: Record<string, string> = {};
     const outImages: Record<string, string> = {};
     const outLayouts: Record<string, string> = {};
+    const failed: { cat: Category; status: number }[] = [];
 
     try {
       for (const cat of CATEGORIES) {
@@ -168,14 +171,25 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
           if (saved.imageUrl) outImages[cat] = saved.imageUrl;
           if (saved.imageLayout) outLayouts[cat] = saved.imageLayout;
           else if (drafts[cat].layout) outLayouts[cat] = drafts[cat].layout!;
+        } else {
+          failed.push({ cat, status: res.status });
         }
       }
       setPersisted(newPersisted);
       onSave?.(outTexts, outImages, outLayouts);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2500);
+      if (failed.length > 0) {
+        setSaveError(
+          failed.some(f => f.status === 401)
+            ? "Not saved: session expired. Log in to admin mode again."
+            : `Failed to save: ${failed.map(f => LABELS[f.cat]).join(", ")}`
+        );
+      } else {
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2500);
+      }
     } catch (err) {
       console.error("Save error:", err);
+      setSaveError("Save failed: network error.");
     } finally {
       setIsSaving(false);
     }
@@ -207,6 +221,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 flex-shrink-0">
           <h2 className="font-bold text-white text-base flex-1">Edit Sections</h2>
           {saveSuccess && <span className="text-green-400 text-sm font-medium">Saved ✓</span>}
+          {saveError && <span className="text-red-400 text-sm font-medium">{saveError}</span>}
           <button onClick={handleUnpublish}
             className="px-3 py-1.5 rounded-lg border border-red-900/50 text-red-400 text-sm font-medium hover:bg-red-900/20 transition-colors cursor-pointer">
             Unpublish
