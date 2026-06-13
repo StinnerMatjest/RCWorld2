@@ -98,8 +98,6 @@ export async function POST(
             !scale ||
             haveridden === undefined ||
             isbestcoaster === undefined ||
-            !rcdbpath ||
-            rating === undefined ||
             (haveridden && rideCount === undefined)
         ) {
             return NextResponse.json(
@@ -148,7 +146,7 @@ export async function POST(
             scale,
             haveridden,
             isbestcoaster,
-            rcdbpath,
+            rcdbpath ?? "",
             ratingInitial,
             rideCountInitial,
             generatedSlug,

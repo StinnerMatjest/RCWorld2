@@ -73,7 +73,6 @@ export async function PUT(
       !scale ||
       haveridden === undefined ||
       isbestcoaster === undefined ||
-      !rcdbpath ||
       rating === undefined ||
       rideCount === undefined
     ) {
@@ -132,7 +131,7 @@ RETURNING *;
       scale,
       haveridden,
       isbestcoaster,
-      rcdbpath,
+      rcdbpath ?? "",
       ratingInitial,
       rideCountInitial,
       coasterId,

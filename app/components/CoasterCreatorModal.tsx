@@ -64,6 +64,7 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
   const displayedManufacturers = showAllManufacturers ? ALL_MANUFACTURERS : MAJOR_MANUFACTURERS;
 
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value;
@@ -82,6 +83,7 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
     }
 
     setLoading(true);
+    setError(null);
     try {
       const method = coaster ? "PUT" : "POST";
       const url = coaster
@@ -112,13 +114,19 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error("Save coaster failed:", response.status, errorData);
-        throw new Error("Failed to save coaster");
+        setError(
+          response.status === 401
+            ? "Not saved: session expired. Log in to admin mode again."
+            : errorData.error || "Failed to save coaster. Please try again."
+        );
+        return;
       }
 
       onCoasterAdded();
       onClose();
     } catch (error) {
       console.error("Error saving coaster:", error);
+      setError("Save failed: network error.");
     } finally {
       setLoading(false);
     }
@@ -253,10 +261,35 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
             </select>
           </div>
 
+          {/* Have Ridden checkbox — placed above the fields it enables */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="haveridden"
+              checked={haveridden}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setHaveRidden(checked);
+                if (!checked) {
+                  setRating("");
+                  setRideCount("");
+                  setGoldenCoaster(false);
+                  setIsBestCoaster(false);
+                }
+              }}
+              className="h-5 w-5 rounded border-slate-700 bg-slate-900 text-blue-500 focus:ring-blue-500 cursor-pointer"
+            />
+            <label htmlFor="haveridden" className="text-md text-slate-200 cursor-pointer">
+              Have Ridden
+            </label>
+          </div>
+
           {/* Rating input */}
           <div>
             <select
-              value={rating ?? ""}
+              // Options carry one-decimal values ("2.0"); a bare number 2 would
+              // stringify to "2" and match nothing, snapping back to placeholder.
+              value={rating === "" ? "" : Number(rating).toFixed(1)}
               onChange={(e) => {
                 const val = e.target.value === "" ? "" : parseFloat(e.target.value);
                 setRating(val);
@@ -325,28 +358,6 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
             />
           </div>
 
-          {/* Have Ridden checkbox */}
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={haveridden}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                setHaveRidden(checked);
-                if (!checked) {
-                  setRating("");
-                  setRideCount("");
-                  setGoldenCoaster(false);
-                  setIsBestCoaster(false);
-                }
-              }}
-              className="h-5 w-5 rounded border-slate-700 bg-slate-900 text-blue-500 focus:ring-blue-500 cursor-pointer"
-            />
-            <span className="text-md text-slate-200">
-              Have Ridden
-            </span>
-          </div>
-
           {/* Best Coaster checkbox */}
           <div className="flex items-center gap-2">
             <input
@@ -359,6 +370,11 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
               Best Coaster
             </span>
           </div>
+
+          {/* Error message */}
+          {error && (
+            <p className="text-sm font-medium text-red-400 text-center">{error}</p>
+          )}
 
           {/* Buttons */}
           <div className="flex items-center justify-between mt-6">

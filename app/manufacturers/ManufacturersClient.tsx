@@ -265,7 +265,7 @@ function Podium({ podium }: { podium: Manufacturer[] }) {
         })}
       </div>
 
-      {/* Top 3 coasters per manufacturer, aligned under each podium column */}
+      {/* Best Coaster winners per manufacturer, aligned under each podium column */}
       <div className="grid grid-cols-3 gap-2 sm:gap-4 border-t-2 border-slate-700/60 pt-3">
         {arranged.map(({ m, place }) => (
           <motion.ul
@@ -274,13 +274,17 @@ function Podium({ podium }: { podium: Manufacturer[] }) {
             transition={{ duration: 0.5, delay: 0.3 + place * 0.1 }}
             className="space-y-1 min-w-0"
           >
-            {m.coasters.slice(0, 3).map((c) => (
+            {m.awards.slice(0, 5).map((c) => (
               <li key={c.id}>
                 <Link
                   href={`/coasters/${c.slug}`}
-                  className="flex items-baseline justify-between gap-1.5 rounded-md border border-slate-700/60 bg-slate-800/70 px-1.5 sm:px-2.5 py-1 text-[10px] sm:text-xs hover:border-slate-500 transition group"
+                  title={`${c.name} — Best Coaster at ${c.parkName}`}
+                  className="flex items-center justify-between gap-1.5 rounded-md border border-yellow-400/20 bg-slate-800/70 px-1.5 sm:px-2.5 py-1 text-[10px] sm:text-xs hover:border-yellow-400/50 transition group"
                 >
-                  <span className="truncate text-slate-300 group-hover:text-white">{c.name}</span>
+                  <span className="flex items-center gap-1 min-w-0">
+                    <Trophy className="w-3 h-3 flex-shrink-0 text-yellow-300/80" />
+                    <span className="truncate text-slate-300 group-hover:text-white">{c.name}</span>
+                  </span>
                   <span className={`tabular-nums font-bold flex-shrink-0 ${getRatingColor(c.rating)}`}>
                     {c.rating.toFixed(1)}
                   </span>
