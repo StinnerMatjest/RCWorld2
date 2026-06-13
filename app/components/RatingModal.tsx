@@ -120,9 +120,9 @@ function SummaryList({
 
 const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks }) => {
   const searchParams = useSearchParams();
-  const isOpen = searchParams?.get("modal") === "true";
-  useScrollLock(isOpen);
+  const isOpen = searchParams?.get("modal") === "true"; useScrollLock(isOpen);
   const pendingParkId = searchParams?.get("pendingParkId");
+  const editRatingId = searchParams?.get("editRatingId");
 
 
   const [parkInfo, setParkInfo] = useState({
@@ -265,13 +265,17 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
           if (ratingsRes.ok) {
             const ratingsData = await ratingsRes.json();
             if (ratingsData.ratings && ratingsData.ratings.length > 0) {
-              const latest = ratingsData.ratings[0];
+              const baseRating = editRatingId
+                ? (ratingsData.ratings.find((r: any) => r.id.toString() === editRatingId) || ratingsData.ratings[0])
+                : ratingsData.ratings[0];
 
-              setExistingRatingId(latest.id);
+              // ONLY lock in the ID if we are explicitly editing. 
+              setExistingRatingId(editRatingId ? baseRating.id : null);
 
+              // always pre-fill the sliders with the baseline rating so we don't start from scratch
               CATEGORIES.forEach((cat) => {
-                if (latest[cat] !== undefined) {
-                  ratingsStore.set(cat, latest[cat]);
+                if (baseRating[cat] !== undefined) {
+                  ratingsStore.set(cat, baseRating[cat]);
                 }
               });
             }
@@ -453,8 +457,14 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
         finalParkId = savedPark.parkId;
       }
 
+      const currentRatings = ratingsStore.all();
+      const guaranteedRatings = CATEGORIES.reduce((acc, cat) => {
+        acc[cat] = currentRatings[cat] !== undefined ? currentRatings[cat] : 0;
+        return acc;
+      }, {} as Record<string, number>);
+
       const ratingPayload = {
-        ...ratingsStore.all(),
+        ...guaranteedRatings,
         date: selectedDate ? selectedDate.toISOString().split("T")[0] : "",
         visitStart: visitDetails.start || null,
         visitEnd: visitDetails.end || null,
@@ -550,7 +560,11 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
       <div
         className="fixed left-0 right-0 top-0 z-[9999] bg-black/80 flex justify-center items-start overflow-hidden"
         style={{ height: "100dvh", paddingTop: "120px" }}
-        onClick={closeModal}
+        onClick={() => {
+          if (window.innerWidth < 768) {
+            closeModal();
+          }
+        }}
       >
         <div
           className=" bg-gray-900 dark:text-gray-100 border border-white/10 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] relative flex flex-col"

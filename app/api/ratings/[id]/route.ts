@@ -2,7 +2,7 @@ import { pool } from "@/app/lib/db";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { diffFields, describeDiff, logChange } from "@/app/lib/changelog";
 import { NextRequest, NextResponse } from "next/server";
-
+import { revalidateTag } from "next/cache";
 
 export async function PATCH(
   request: NextRequest,
@@ -72,6 +72,7 @@ export async function PATCH(
         }
       }
 
+      revalidateTag("parks-leaderboard"); // Clears the Parks Leaderboard cache
       return NextResponse.json({ message: "Rating updated successfully" }, { status: 200 });
     }
 
@@ -94,6 +95,7 @@ export async function PATCH(
         });
       }
 
+      revalidateTag("parks-leaderboard"); // Clears the Parks Leaderboard cache
       return NextResponse.json({ message: "Rating published successfully" }, { status: 200 });
     }
 
@@ -104,6 +106,51 @@ export async function PATCH(
 
   } catch (error) {
     console.error("Failed to update rating:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  revalidateContent();
+  try {
+    const { id: ratingId } = await context.params;
+
+    // Fetch the rating and park details first so we can log the deletion accurately
+    const oldResult = await pool.query(
+      `SELECT r.*, p.name AS park_name FROM ratings r JOIN parks p ON p.id = r.park_id WHERE r.id = $1`,
+      [ratingId]
+    );
+    const oldRow = oldResult.rows[0];
+
+    if (!oldRow) {
+      return NextResponse.json({ error: "Rating not found" }, { status: 404 });
+    }
+
+    const deleteQuery = `DELETE FROM ratings WHERE id = $1 RETURNING id`;
+    const result = await pool.query(deleteQuery, [ratingId]);
+
+    if (result.rowCount === 0) {
+      return NextResponse.json({ error: "Failed to delete rating" }, { status: 500 });
+    }
+
+    // Log the deletion
+    logChange({
+      parkId: oldRow.park_id,
+      entityType: "rating",
+      entityId: Number(ratingId),
+      label: oldRow.park_name,
+      action: "delete",
+      summary: `Deleted visit/rating from ${new Date(oldRow.date).toLocaleDateString()}`,
+    });
+
+    revalidateTag("parks-leaderboard"); // Clears the Parks Leaderboard cache
+    return NextResponse.json({ message: "Rating deleted successfully" }, { status: 200 });
+
+  } catch (error) {
+    console.error("Failed to delete rating:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

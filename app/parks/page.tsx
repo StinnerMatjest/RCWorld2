@@ -14,7 +14,9 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 async function getRankedParks(): Promise<RankedPark[]> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}api/parks/ranked`, { cache: "force-cache", next: { tags: ["content"] } });
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}api/parks/ranked`, {
+    next: { tags: ["parks-leaderboard"] }
+  });
   if (!res.ok) return [];
   const { parks } = await res.json();
   return parks ?? [];

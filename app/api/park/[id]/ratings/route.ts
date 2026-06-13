@@ -3,7 +3,7 @@ import { revalidateContent } from "@/app/lib/revalidate";
 import { getParkName, logChange } from "@/app/lib/changelog";
 import { NextResponse } from "next/server";
 import { Rating, RatingWarningType } from "@/app/types";
-
+import { revalidateTag } from "next/cache";
 
 export async function GET(
   request: Request,
@@ -197,6 +197,7 @@ export async function POST(request: Request) {
       },
     });
 
+    revalidateTag("parks-leaderboard"); // Clear the Parks Leaderboard cache
     return NextResponse.json(
       { message: "Park rated successfully", ratingId: newRatingId },
       { status: 201 }

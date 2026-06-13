@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { pool } from "@/app/lib/db";
 import { diffFields, logChange, FieldDiff } from "@/app/lib/changelog";
+import { revalidateTag } from "next/cache";
 
 // Friendly wording for park field changes in the changelog timeline.
 const PARK_FIELD_LABELS: Record<string, string> = {
@@ -75,9 +76,9 @@ export async function PATCH(
     if (body.city) { fields.push(`city = $${queryIdx++}`); values.push(body.city); }
     if (body.imagepath) { fields.push(`imagepath = $${queryIdx++}`); values.push(body.imagepath); }
     if (body.imageFocus !== undefined) { fields.push(`image_focus = $${queryIdx++}`); values.push(body.imageFocus); }
-    if (body.headerFocus  !== undefined) { fields.push(`header_focus = $${queryIdx++}`);  values.push(body.headerFocus); }
-    if (body.cardImages     !== undefined) { fields.push(`card_images = $${queryIdx++}`);     values.push(JSON.stringify(body.cardImages)); }
-    if (body.cardImagepath  !== undefined) { fields.push(`card_imagepath = $${queryIdx++}`); values.push(body.cardImagepath); }
+    if (body.headerFocus !== undefined) { fields.push(`header_focus = $${queryIdx++}`); values.push(body.headerFocus); }
+    if (body.cardImages !== undefined) { fields.push(`card_images = $${queryIdx++}`); values.push(JSON.stringify(body.cardImages)); }
+    if (body.cardImagepath !== undefined) { fields.push(`card_imagepath = $${queryIdx++}`); values.push(body.cardImagepath); }
 
     if (fields.length === 0) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });
@@ -133,6 +134,7 @@ export async function PATCH(
       }
     }
 
+    revalidateTag("parks-leaderboard"); // Clears the Parks Leaderboard cache
     return NextResponse.json(result.rows[0], { status: 200 });
   } catch (error: any) {
     console.error("Database update error:", error);
@@ -171,6 +173,7 @@ export async function DELETE(
       summary: `Deleted park ${deleted.name}`,
     });
 
+    revalidateTag("parks-leaderboard"); // Clear the Parks Leaderboard cache
     return NextResponse.json({ message: "Park deleted successfully" }, { status: 200 });
   } catch (error) {
     console.error("Database delete error:", error);

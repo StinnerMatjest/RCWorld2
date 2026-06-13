@@ -3,7 +3,9 @@ import { revalidateContent } from "@/app/lib/revalidate";
 import { logChange } from "@/app/lib/changelog";
 import { NextResponse } from "next/server";
 import { Park } from "@/app/types";
+import { revalidateTag } from "next/cache";
 
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
@@ -36,7 +38,7 @@ export async function GET() {
         slug: row.slug,
         imageFocus: row.imageFocus ?? undefined,
         headerFocus: row.headerFocus ?? undefined,
-        cardImages:  row.cardImages  ?? undefined,
+        cardImages: row.cardImages ?? undefined,
       };
     });
 
@@ -105,6 +107,7 @@ export async function POST(request: Request) {
       details: { continent, country, city, slug: finalSlug },
     });
 
+    revalidateTag("parks-leaderboard"); // Clear the Parks Leaderboard cache
     return NextResponse.json(
       { message: `${name} created successfully`, parkId: newParkId },
       { status: 201 }

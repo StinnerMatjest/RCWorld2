@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import RatingModal from "@/app/components/RatingModal";
@@ -29,6 +29,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
   const pathname = usePathname();
   const visitId = searchParams.get("visit");
   const selectedRatingId = visitId ? Number(visitId) : undefined;
+
   const [park, setPark] = useState<Park | null>(null);
   const [coasters, setCoasters] = useState<RollerCoaster[]>([]);
   const [ratings, setRatings] = useState<Rating[]>([]);
@@ -42,6 +43,26 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
   const [sectionLayouts, setSectionLayouts] = useState<Record<string, string>>({});
   const { isAdminMode } = useAdminMode();
 
+  // --- Menu & Advanced Delete States ---
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteContext, setDeleteContext] = useState<"select" | { type: "park" } | { type: "visit", rating: Rating }>("select");
+  const [confirmText, setConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const handleCloseModal = () => {
     router.push(pathname, { scroll: false });
   };
@@ -49,6 +70,33 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
   const handleRefreshData = () => {
     refreshRatings();
     fetchParkData();
+  };
+
+  const executeDelete = async () => {
+    if (!park?.id || deleteContext === "select") return;
+    setIsDeleting(true);
+
+    try {
+      if (deleteContext.type === "park") {
+        const res = await fetch(`/api/park/${park.id}`, { method: "DELETE" });
+        if (res.ok) {
+          router.push("/");
+          router.refresh();
+        } else console.error("Failed to delete park");
+      } else if (deleteContext.type === "visit") {
+        const res = await fetch(`/api/ratings/${deleteContext.rating.id}`, { method: "DELETE" });
+        if (res.ok) {
+          setShowDeleteModal(false);
+          setDeleteContext("select");
+          handleRefreshData();
+          router.push(`/park/${park.slug}`);
+        } else console.error("Failed to delete visit");
+      }
+    } catch (error) {
+      console.error("Error during deletion:", error);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   useEffect(() => {
@@ -256,24 +304,54 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
             <div className="flex items-center justify-between">
               <h2 className="text-4xl font-bold text-white tracking-tight">Introduction</h2>
 
-              {/* Edit Rating Button */}
+              {/* Admin 3-Dot Menu */}
               {isAdminMode && visibleRatings.length > 0 && (
-                <Link
-                  href={`?modal=true&pendingParkId=${park.id}`}
-                  scroll={false}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg transition-colors shadow-sm cursor-pointer"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                  </svg>
-                  Edit Rating
-                </Link>
+                <div className="relative" ref={menuRef}>
+                  <button
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className="p-2 rounded-xl bg-slate-800/50 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/50 cursor-pointer"
+                    aria-label="Settings"
+                  >
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                    </svg>
+                  </button>
+
+                  {isMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-xl overflow-hidden z-50 animate-fade-in-up origin-top-right">
+                      <Link
+                        href={`?modal=true&pendingParkId=${park.id}&editRatingId=${selectedRatingId ?? visibleRatings[0]?.id}`}
+                        scroll={false}
+                        onClick={() => setIsMenuOpen(false)}
+                        className="w-full text-left px-4 py-3 text-sm text-slate-200 hover:bg-slate-800 transition-colors flex items-center gap-2 font-medium"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                        Edit Visit
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          setShowDeleteModal(true);
+                          setDeleteContext("select");
+                          setConfirmText("");
+                        }}
+                        className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-slate-800 transition-colors flex items-center gap-2 font-medium border-t border-slate-800 cursor-pointer"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        Delete...
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
             <div className="w-12 h-1 bg-brand rounded-full mt-3 mb-4" />
 
-            {/* THIS FIXES THE INVISIBLE INTRODUCTION TEXT */}
             <MarkdownText
               text={explanations.description ?? "No description available."}
               className="text-slate-400 text-base leading-relaxed"
@@ -331,6 +409,109 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
           <MainPageButton />
         </div>
       </div>
+
+      {/* --- Advanced Delete Modal --- */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-lg shadow-2xl flex flex-col max-h-[85vh]">
+
+            {/* View 1: Select what to delete */}
+            {deleteContext === "select" && (
+              <>
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-2xl font-bold text-white">Manage Deletions</h3>
+                  <button onClick={() => setShowDeleteModal(false)} className="text-slate-400 hover:text-white text-xl p-1 cursor-pointer">✕</button>
+                </div>
+                <p className="text-slate-400 mb-6 text-sm">Select a specific visit to delete, or delete the entire park.</p>
+
+                <div className="flex-1 overflow-y-auto pr-2 space-y-2 mb-6">
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Recorded Visits</h4>
+                  {visibleRatings.map(rating => (
+                    <div key={rating.id} className="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
+                      <div>
+                        <span className="text-slate-200 font-medium block">{new Date(rating.date).toLocaleDateString("en-GB")}</span>
+                        <span className="text-xs text-slate-500">Score: {rating.overall.toFixed(2)}</span>
+                      </div>
+                      <button
+                        onClick={() => setDeleteContext({ type: "visit", rating })}
+                        className="px-3 py-1.5 bg-red-900/30 hover:bg-red-900/60 text-red-400 text-xs font-bold rounded-lg transition-colors border border-red-900/50 cursor-pointer"
+                      >
+                        Delete Visit
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-5 border-t border-slate-800">
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-red-500/70 mb-3">Danger Zone</h4>
+                  <div className="flex items-center justify-between bg-red-900/10 p-4 rounded-xl border border-red-900/30">
+                    <div>
+                      <span className="text-slate-200 font-bold block">Entire Park</span>
+                      <span className="text-xs text-slate-400">Deletes {park.name} and all data</span>
+                    </div>
+                    <button
+                      onClick={() => setDeleteContext({ type: "park" })}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-sm font-bold rounded-lg transition-colors shadow-sm cursor-pointer"
+                    >
+                      Delete Park
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* View 2: Confirm Visit Deletion */}
+            {deleteContext !== "select" && deleteContext.type === "visit" && (
+              <div className="animate-fade-in-up">
+                <h3 className="text-2xl font-bold text-white mb-2">Delete Visit?</h3>
+                <p className="text-slate-400 mb-8 leading-relaxed">
+                  Are you sure you want to delete the visit from <strong className="text-white">{new Date(deleteContext.rating.date).toLocaleDateString("en-GB")}</strong>? This action cannot be undone.
+                </p>
+                <div className="flex justify-end gap-3 mt-auto">
+                  <button onClick={() => setDeleteContext("select")} disabled={isDeleting} className="px-4 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 font-medium transition-colors disabled:opacity-50 cursor-pointer">Back</button>
+                  <button onClick={executeDelete} disabled={isDeleting} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold transition-colors shadow-sm disabled:opacity-50 cursor-pointer">
+                    {isDeleting ? "Deleting..." : "Permanently Delete"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* View 3: Confirm Park Deletion (Text Input Required) */}
+            {deleteContext !== "select" && deleteContext.type === "park" && (
+              <div className="animate-fade-in-up">
+                <h3 className="text-2xl font-bold text-white mb-2">Delete Entire Park?</h3>
+                <p className="text-slate-400 mb-6 leading-relaxed">
+                  This will permanently delete <strong className="text-white">{park.name}</strong>, along with all its visits, coasters, and gallery images. This action cannot be undone.
+                </p>
+                <div className="mb-8">
+                  <label className="block text-sm font-medium text-slate-300 mb-3">
+                    Please type <strong className="text-red-400 select-none">{park.name}</strong> to confirm.
+                  </label>
+                  <input
+                    type="text"
+                    value={confirmText}
+                    onChange={(e) => setConfirmText(e.target.value)}
+                    placeholder={park.name}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 mt-auto">
+                  <button onClick={() => { setDeleteContext("select"); setConfirmText(""); }} disabled={isDeleting} className="px-4 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 font-medium transition-colors disabled:opacity-50 cursor-pointer">Back</button>
+                  <button
+                    onClick={executeDelete}
+                    disabled={isDeleting || confirmText !== park.name}
+                    className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isDeleting ? "Deleting..." : "Permanently Delete"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
       <RatingModal
         closeModal={handleCloseModal}
         fetchRatingsAndParks={handleRefreshData}

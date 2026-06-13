@@ -534,7 +534,6 @@ const Home = ({ initialRatings, initialParks, initialAdminMode }: HomeProps) => 
   };
 
   useEffect(() => {
-    // Server-rendered data already present — skip the duplicate client fetch
     if (initialRatings && initialParks) return;
     fetchRatingsAndParks();
   }, []);
@@ -564,8 +563,6 @@ const Home = ({ initialRatings, initialParks, initialAdminMode }: HomeProps) => 
         closestIdx = idx;
       }
 
-      // Parallax via direct DOM write — routing this through React state
-      // re-rendered every card on every scroll frame and made swiping lag
       const ratio = dist / el.clientWidth;
       const px = Math.max(-14, Math.min(14, -ratio * 28));
       child.style.setProperty("--px", `${Math.round(px)}px`);
@@ -653,7 +650,6 @@ const Home = ({ initialRatings, initialParks, initialAdminMode }: HomeProps) => 
           })}
         </div>
 
-        {/* Removed light mode color fallback on side-scrolling gradients */}
         <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-[#0f172a] to-transparent" />
         <div
           className="pointer-events-none absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full px-2 py-1 bg-white/10 backdrop-blur-sm"

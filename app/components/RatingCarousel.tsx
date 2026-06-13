@@ -88,7 +88,6 @@ export function RatingCarousel({ title, subtitle, children }: RatingCarouselProp
           {React.Children.map(children, (child, index) => (
             <div
               data-carousel-card
-              // 80% of viewport on small, 60% on md, then fixedish width
               className="snap-center snap-always shrink-0 basis-[80%] md:basis-[60%] lg:basis-[420px]"
               aria-label={`Card ${index + 1}`}
             >
