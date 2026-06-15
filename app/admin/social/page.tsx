@@ -331,10 +331,15 @@ export default function SocialAdminPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ platforms, ...(igImageUrl ? { ig_image_url: igImageUrl } : {}) }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     setPublishing(null);
-    if (data.errors?.length) {
-      setFeedback(prev => ({ ...prev, [post.id]: "Error: " + data.errors.join(", ") }));
+    // A failed request (401 from auth, 5xx, network) has no `errors` array — must
+    // check res.ok too, or a non-success response would read as "Posted ✓".
+    if (!res.ok || data.errors?.length) {
+      const msg = res.status === 401
+        ? "Not posted: session expired. Log in to admin mode again."
+        : "Error: " + (data.errors?.join(", ") || data.error || `request failed (${res.status})`);
+      setFeedback(prev => ({ ...prev, [post.id]: msg }));
     } else {
       setFeedback(prev => ({ ...prev, [post.id]: `Posted to ${platforms.join(" + ")} ✓` }));
       setTimeout(() => load(), 1200);

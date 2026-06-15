@@ -73,16 +73,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     (p === "facebook" && updates.fb_post_id) || (p === "instagram" && updates.ig_post_id)
   )];
 
+  // Only mark the post published if at least one platform actually succeeded —
+  // otherwise it would vanish from the queue while nothing was posted.
+  const anySucceeded = publishedTo.length > (post.published_to?.length ?? 0);
+
   await pool.query(
     `UPDATE social_posts
      SET fb_post_id = COALESCE($1, fb_post_id),
          ig_post_id = COALESCE($2, ig_post_id),
          published_to = $3,
-         status = 'published',
-         published_at = now()
-     WHERE id = $4`,
-    [updates.fb_post_id ?? null, updates.ig_post_id ?? null, publishedTo, id]
+         status = CASE WHEN $4 THEN 'published' ELSE status END,
+         published_at = CASE WHEN $4 THEN now() ELSE published_at END
+     WHERE id = $5`,
+    [updates.fb_post_id ?? null, updates.ig_post_id ?? null, publishedTo, anySucceeded, id]
   );
 
-  return NextResponse.json({ ok: errors.length === 0, errors, publishedTo });
+  const ok = errors.length === 0;
+  return NextResponse.json({ ok, errors, publishedTo }, { status: ok ? 200 : 502 });
 }
