@@ -356,6 +356,15 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
               text={explanations.description ?? "No description available."}
               className="text-slate-400 text-base leading-relaxed"
             />
+            {sectionImages.description && sectionImages.description.split(",").map((imgUrl, i) => (
+              <div key={i} className="mt-6 w-full rounded-2xl overflow-hidden shadow-sm">
+                {/\.(mp4|webm|ogg)$/i.test(imgUrl) ? (
+                  <video src={imgUrl} className="w-full h-72 xl:h-96 object-cover rounded-2xl" muted loop autoPlay playsInline />
+                ) : (
+                  <img src={imgUrl} alt={`Introduction ${i + 1}`} className="w-full h-72 xl:h-96 object-cover rounded-2xl" />
+                )}
+              </div>
+            ))}
           </div>
 
           <RatingText

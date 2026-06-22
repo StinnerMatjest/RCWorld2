@@ -13,7 +13,7 @@ interface CoasterSpecsModalProps {
 
 const TAG_CATEGORIES = {
     "Seating": {
-        tags: ["Sit Down", "Inverted", "Wing", "Floorless", "Flying", "Suspended", "Straddle"],
+        tags: ["Sit Down", "Standup", "Inverted", "Wing", "Floorless", "Flying", "Suspended", "Straddle"],
         isSingleChoice: true
     },
     "Type": {
@@ -29,11 +29,11 @@ const TAG_CATEGORIES = {
         isSingleChoice: false
     },
     "Layout": {
-        tags: ["Wild Mouse", "Zyklon", "Jungle Mouse", "Cyclone", "Wacky Worm", "Figure 8", "Out-and-Back", "Twister", "L-Shape", "Terrain Coaster", "Switch Track"],
+        tags: ["Wild Mouse", "Zyklon", "Jungle Mouse", "Cyclone", "Wacky Worm", "Figure 8", "Out-and-Back", "Twister", "Spaghetti Bowl", "L-Shape", "Terrain Coaster", "Switch Track"],
         isSingleChoice: false
     },
     "Lift & Drop": {
-        tags: ["Double Lift", "Triple Lift", "Launched Lift", "Vertical Lift", "Elevator Lift", "Spiral Lift", "Vertical Drop", "Beyond Vertical", "Station Drop"],
+        tags: ["Double Lift", "Triple Lift", "Launched Lift", "Vertical Lift", "Elevator Lift", "Spiral Lift", "Vertical Drop", "Beyond Vertical", "Inverting Drop", "Station Drop", "Drop Track"],
         isSingleChoice: false
     },
     "Model": {

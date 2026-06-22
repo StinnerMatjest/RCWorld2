@@ -2,10 +2,12 @@
 
 import React, { useState, useRef, useCallback } from "react";
 import Image from "next/image";
+import type { Rating } from "@/app/types";
 import type { GalleryImage } from "./ParkGallery";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 interface ParkTextsModalProps {
+  rating: Rating;
   explanations: Record<string, string>;
   sectionImages: Record<string, string>;
   sectionLayouts?: Record<string, string>;
@@ -45,16 +47,23 @@ const LABELS: Record<Category, string> = {
   parkManagement: "Management",
 };
 
-const isVideo = (p: string) => /\.(mp4|webm|ogg)$/i.test(p);
+const countTextStats = (text: string) => {
+  if (!text) return { words: 0, paragraphs: 0 };
 
-// Memoized so typing in the textarea doesn't re-render the whole grid, and
-// served as real thumbnails via next/image instead of decoding R2 originals.
+  const paragraphs = text.split("\n").filter(line => line.trim() !== "").length;
+  const words = text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
+
+  return { words, paragraphs };
+};
+
+const isVideo = (p: string) => /\.(mp4|webm|ogg)$/i.test(p);
 const ImagePickerGrid = React.memo(function ImagePickerGrid({
-  galleryImages, selected, onSelect,
+  galleryImages, selected, onSelect, maxSelection
 }: {
   galleryImages: GalleryImage[];
-  selected: string | null;
+  selected: string[];
   onSelect: (path: string | null) => void;
+  maxSelection: number;
 }) {
   if (galleryImages.length === 0) {
     return <p className="text-sm text-slate-500">No gallery images available.</p>;
@@ -62,17 +71,21 @@ const ImagePickerGrid = React.memo(function ImagePickerGrid({
   return (
     <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5">
       <button onClick={() => onSelect(null)}
-        className={`aspect-square rounded-lg border-2 flex items-center justify-center text-xs font-medium transition-all cursor-pointer ${selected === null
-            ? "border-blue-500 bg-blue-500/20 text-blue-400"
-            : "border-slate-700 text-slate-500 hover:border-slate-600"
+        className={`aspect-square rounded-lg border-2 flex items-center justify-center text-xs font-medium transition-all cursor-pointer ${selected.length === 0
+          ? "border-blue-500 bg-blue-500/20 text-blue-400"
+          : "border-slate-700 text-slate-500 hover:border-slate-600"
           }`}>
         None
       </button>
       {galleryImages.map(img => {
-        const sel = selected === img.path;
+        const selIndex = selected.indexOf(img.path);
+        const sel = selIndex !== -1;
+        const disabled = !sel && selected.length >= maxSelection;
+
         return (
-          <button key={img.id} onClick={() => onSelect(img.path)}
-            className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all cursor-pointer ${sel ? "border-blue-500 ring-2 ring-blue-500/30" : "border-slate-700 hover:border-slate-500"
+          <button key={img.id} onClick={() => !disabled && onSelect(img.path)}
+            disabled={disabled}
+            className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all ${sel ? "border-blue-500 ring-2 ring-blue-500/30 cursor-pointer" : disabled ? "border-slate-800/60 opacity-30 cursor-not-allowed" : "border-slate-700 hover:border-slate-500 cursor-pointer"
               }`}>
             {isVideo(img.path) ? (
               <video src={img.path} className="w-full h-full object-cover" muted playsInline preload="metadata" />
@@ -81,9 +94,15 @@ const ImagePickerGrid = React.memo(function ImagePickerGrid({
             )}
             {sel && (
               <div className="absolute inset-0 bg-blue-500/25 flex items-center justify-center">
-                <svg className="w-5 h-5 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
+                {maxSelection === 2 ? (
+                  <span className="bg-blue-600 text-white font-bold rounded-full w-7 h-7 flex items-center justify-center text-sm shadow-lg border-2 border-white/20">
+                    {selIndex + 1}
+                  </span>
+                ) : (
+                  <svg className="w-5 h-5 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
               </div>
             )}
           </button>
@@ -94,16 +113,23 @@ const ImagePickerGrid = React.memo(function ImagePickerGrid({
 });
 
 const ParkTextModal: React.FC<ParkTextsModalProps> = ({
+  rating,
   explanations, sectionImages, sectionLayouts = {}, galleryImages, parkId, ratingId, onClose, onSave,
 }) => {
   useScrollLock();
   const [selectedCat, setSelectedCat] = useState<Category>(CATEGORIES[0]);
-  const [drafts, setDrafts] = useState<Record<string, { text: string; image: string | null; layout: string | null }>>(() =>
-    Object.fromEntries(CATEGORIES.map(cat => [cat, {
-      text: explanations[cat] ?? "",
-      image: sectionImages[cat] ?? null,
-      layout: sectionLayouts[cat] ?? null,
-    }]))
+
+  // Changed image to images array, and added useTwoImages toggle
+  const [drafts, setDrafts] = useState<Record<string, { text: string; images: string[]; layout: string | null; useTwoImages: boolean }>>(() =>
+    Object.fromEntries(CATEGORIES.map(cat => {
+      const imgs = sectionImages[cat] ? sectionImages[cat].split(",") : [];
+      return [cat, {
+        text: explanations[cat] ?? "",
+        images: imgs,
+        layout: sectionLayouts[cat] ?? null,
+        useTwoImages: imgs.length > 1
+      }];
+    }))
   );
 
   const [persisted, setPersisted] = useState<Set<string>>(
@@ -115,11 +141,45 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const cur = drafts[selectedCat];
+  const textStats = countTextStats(cur.text);
+
+  // Validation function
+  const canSwitchOrSave = () => {
+    const c = drafts[selectedCat];
+    if (c.useTwoImages && c.images.length === 1) {
+      alert("You have '2 Images' enabled but only 1 selected. Please select a second image or switch to '1 Image Mode'.");
+      return false;
+    }
+    return true;
+  };
+
+  const handleCatSelect = (cat: Category) => {
+    if (canSwitchOrSave()) setSelectedCat(cat);
+  };
 
   const updateText = useCallback((t: string) =>
     setDrafts(d => ({ ...d, [selectedCat]: { ...d[selectedCat], text: t } })), [selectedCat]);
-  const updateImage = useCallback((img: string | null) =>
-    setDrafts(d => ({ ...d, [selectedCat]: { ...d[selectedCat], image: img } })), [selectedCat]);
+
+  // Updated image selection logic for arrays
+  const updateImage = useCallback((img: string | null) => {
+    setDrafts(d => {
+      const c = d[selectedCat];
+      if (img === null) return { ...d, [selectedCat]: { ...c, images: [] } };
+
+      if (c.useTwoImages) {
+        if (c.images.includes(img)) {
+          return { ...d, [selectedCat]: { ...c, images: c.images.filter(i => i !== img) } };
+        }
+        if (c.images.length < 2) {
+          return { ...d, [selectedCat]: { ...c, images: [...c.images, img] } };
+        }
+        return d;
+      } else {
+        return { ...d, [selectedCat]: { ...c, images: [img] } };
+      }
+    });
+  }, [selectedCat]);
+
   const updateLayout = useCallback((layout: string | null) =>
     setDrafts(d => ({ ...d, [selectedCat]: { ...d[selectedCat], layout } })), [selectedCat]);
 
@@ -145,6 +205,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
   // ── Save all ────────────────────────────────────────────────────────────────
   const handleSaveAll = async () => {
+    if (!canSwitchOrSave()) return;
     setIsSaving(true);
     setSaveError(null);
     const newPersisted = new Set(persisted);
@@ -155,14 +216,15 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
     try {
       for (const cat of CATEGORIES) {
-        const { text, image, layout } = drafts[cat];
-        if (!text && !image && !persisted.has(cat)) continue;
+        const { text, images, layout } = drafts[cat];
+        if (!text && images.length === 0 && !persisted.has(cat)) continue;
 
+        const imgString = images.length > 0 ? images.join(",") : null;
         const method = persisted.has(cat) ? "PUT" : "POST";
         const res = await fetch(`/api/park/${parkId}/parkTexts`, {
           method,
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ category: cat, text, ratingId, imageUrl: image ?? null, imageLayout: layout ?? null }),
+          body: JSON.stringify({ category: cat, text, ratingId, imageUrl: imgString, imageLayout: layout ?? null }),
         });
         if (res.ok) {
           const saved = await res.json();
@@ -197,7 +259,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
   const handleClose = () => {
     const texts = Object.fromEntries(CATEGORIES.filter(c => drafts[c].text).map(c => [c, drafts[c].text]));
-    const images = Object.fromEntries(CATEGORIES.filter(c => drafts[c].image).map(c => [c, drafts[c].image!]));
+    const images = Object.fromEntries(CATEGORIES.filter(c => drafts[c].images.length > 0).map(c => [c, drafts[c].images.join(",")]));
     const layouts = Object.fromEntries(CATEGORIES.filter(c => drafts[c].layout).map(c => [c, drafts[c].layout!]));
     onSave?.(texts, images, layouts);
     onClose();
@@ -244,12 +306,12 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
           {/* Sidebar — desktop only */}
           <div className="hidden sm:flex flex-col w-44 border-r border-slate-800 overflow-y-auto flex-shrink-0 py-1">
             {CATEGORIES.map(cat => {
-              const filled = !!(drafts[cat].text || drafts[cat].image);
+              const filled = !!(drafts[cat].text || drafts[cat].images.length > 0);
               return (
-                <button key={cat} onClick={() => setSelectedCat(cat)}
+                <button key={cat} onClick={() => handleCatSelect(cat)}
                   className={`flex items-center gap-2 px-3 py-2 text-sm font-medium text-left w-full transition-colors cursor-pointer ${selectedCat === cat
-                      ? "bg-slate-800 text-blue-400 border-r-2 border-blue-500"
-                      : "text-slate-400 hover:bg-slate-800/50"
+                    ? "bg-slate-800 text-blue-400 border-r-2 border-blue-500"
+                    : "text-slate-400 hover:bg-slate-800/50"
                     }`}>
                   <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${filled ? "bg-green-500" : "bg-slate-600"}`} />
                   {LABELS[cat]}
@@ -264,14 +326,14 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
             {/* Category pills — mobile only */}
             <div className="sm:hidden flex gap-1.5 px-3 py-2 overflow-x-auto flex-shrink-0 border-b border-slate-800 no-scrollbar">
               {CATEGORIES.map(cat => {
-                const filled = !!(drafts[cat].text || drafts[cat].image);
+                const filled = !!(drafts[cat].text || drafts[cat].images.length > 0);
                 return (
-                  <button key={cat} onClick={() => setSelectedCat(cat)}
+                  <button key={cat} onClick={() => handleCatSelect(cat)}
                     className={`flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${selectedCat === cat
-                        ? "bg-blue-600 border-blue-600 text-white"
-                        : filled
-                          ? "border-green-500 text-green-400 bg-green-900/20"
-                          : "border-slate-700 text-slate-500"
+                      ? "bg-blue-600 border-blue-600 text-white"
+                      : filled
+                        ? "border-green-500 text-green-400 bg-green-900/20"
+                        : "border-slate-700 text-slate-500"
                       }`}>
                     {LABELS[cat]}
                   </button>
@@ -281,6 +343,21 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
             {/* Scrollable editor area */}
             <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
+
+              {/* Category Title & Score Header */}
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xl font-bold text-white tracking-tight">
+                  {LABELS[selectedCat]}
+                </h3>
+                {selectedCat !== "description" && (
+                  <div className="bg-slate-800/80 border border-slate-700 px-3 py-1 rounded-lg flex items-center gap-2 shadow-sm">
+                    <span className="text-slate-400 text-sm font-medium uppercase tracking-wider">Score</span>
+                    <span className="text-blue-400 font-bold text-lg">
+                      {String(rating[selectedCat as keyof Rating] ?? "-")}
+                    </span>
+                  </div>
+                )}
+              </div>
 
               {/* Toolbar */}
               <div className="flex items-center gap-1">
@@ -309,30 +386,70 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                 placeholder={`Write about ${LABELS[selectedCat].toLowerCase()}…`}
               />
 
+              {/* Word and Paragraph Counter */}
+              <div className="flex justify-end -mt-2 mb-2 pr-1">
+                <span className="text-xs text-slate-500 font-medium tracking-wide">
+                  Words: {textStats.words} &nbsp;|&nbsp; Paragraphs: {textStats.paragraphs}
+                </span>
+              </div>
+
               {/* Image picker */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium text-slate-300">
-                    Section Image <span className="text-slate-500 font-normal">(optional)</span>
-                  </p>
-                  {cur.image && (
-                    <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-0.5">
-                      {(["side", "center"] as const).map(opt => (
-                        <button
-                          key={opt}
-                          onClick={() => updateLayout(opt === "side" ? null : "center")}
-                          className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${(opt === "center" ? cur.layout === "center" : cur.layout !== "center")
-                              ? "bg-slate-700 text-blue-400 shadow-sm"
-                              : "text-slate-500 hover:text-slate-300"
-                            }`}
-                        >
-                          {opt === "side" ? "⬛ Side" : "⬜ Center"}
-                        </button>
-                      ))}
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm font-medium text-slate-300">
+                      Section Image <span className="text-slate-500 font-normal">(optional)</span>
+                    </p>
+                    {selectedCat !== "description" && (
+                      <button
+                        onClick={() => setDrafts(d => {
+                          const c = d[selectedCat];
+                          const nextTwo = !c.useTwoImages;
+                          return {
+                            ...d, [selectedCat]: {
+                              ...c,
+                              useTwoImages: nextTwo,
+                              images: nextTwo ? c.images : c.images.slice(0, 1),
+                              layout: nextTwo
+                                ? (c.layout === 'above' || c.layout === 'below' || c.layout === 'center' ? 'double' : c.layout)
+                                : c.layout === 'double' ? 'above' : c.layout
+                            }
+                          };
+                        })}
+                        className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-colors cursor-pointer ${cur.useTwoImages
+                          ? 'bg-blue-600/20 text-blue-400 border-blue-500/50'
+                          : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700 hover:text-white'
+                          }`}
+                      >
+                        {cur.useTwoImages ? '🖼️ 2 Images Active' : '🖼️ 1 Image Mode'}
+                      </button>
+                    )}
+                  </div>
+
+                  {cur.images.length > 0 && selectedCat !== "description" && (
+                    <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-1">
+                      {(cur.useTwoImages ? ["left", "right", "double"] : ["left", "right", "above", "below"]).map(opt => {
+                        const labels: Record<string, string> = { left: "⬅️ Left", right: "➡️ Right", above: "⬆️ Above", below: "⬇️ Below", double: "↕️ Double" };
+
+                        let activeOpt = cur.layout;
+                        if (activeOpt === "center") activeOpt = "above";
+                        if (!activeOpt) activeOpt = "left";
+
+                        return (
+                          <button
+                            key={opt}
+                            onClick={() => updateLayout(opt)}
+                            className={`px-2 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${activeOpt === opt ? "bg-slate-700 text-blue-400 shadow-sm" : "text-slate-500 hover:text-slate-300"
+                              }`}
+                          >
+                            {labels[opt]}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
-                <ImagePickerGrid galleryImages={galleryImages} selected={cur.image} onSelect={updateImage} />
+                <ImagePickerGrid galleryImages={galleryImages} selected={cur.images} onSelect={updateImage} maxSelection={cur.useTwoImages ? 2 : 1} />
               </div>
             </div>
           </div>

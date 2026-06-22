@@ -25,58 +25,58 @@ export type RankedPark = {
 type SortKey = keyof RankedPark;
 
 const CRITERIA: { key: SortKey; label: string; short: string }[] = [
-  { key: "bestCoaster",           label: "Best Coaster",            short: "Best Coaster" },
-  { key: "coasterDepth",          label: "Coaster Depth",           short: "Depth" },
-  { key: "waterRides",            label: "Water Rides",             short: "Water" },
+  { key: "bestCoaster", label: "Best Coaster", short: "Best Coaster" },
+  { key: "coasterDepth", label: "Coaster Depth", short: "Depth" },
+  { key: "waterRides", label: "Water Rides", short: "Water" },
   { key: "flatRidesAndDarkRides", label: "Flat Rides & Dark Rides", short: "Flat & Dark" },
-  { key: "parkAppearance",        label: "Park Appearance",         short: "Appearance" },
-  { key: "food",                  label: "Food",                    short: "Food" },
-  { key: "snacksAndDrinks",       label: "Snacks & Drinks",         short: "Snacks" },
-  { key: "parkPracticality",      label: "Park Practicality",       short: "Practicality" },
-  { key: "rideOperations",        label: "Ride Operations",         short: "Operations" },
-  { key: "parkManagement",        label: "Park Management",         short: "Management" },
+  { key: "parkAppearance", label: "Park Appearance", short: "Appearance" },
+  { key: "food", label: "Food", short: "Food" },
+  { key: "snacksAndDrinks", label: "Snacks & Drinks", short: "Snacks" },
+  { key: "parkPracticality", label: "Park Practicality", short: "Practicality" },
+  { key: "rideOperations", label: "Ride Operations", short: "Operations" },
+  { key: "parkManagement", label: "Park Management", short: "Management" },
 ];
 
 const MEDALS: Record<number, string> = { 0: "🥇", 1: "🥈", 2: "🥉" };
 
-// Site-wide rating palette (see RATING_TIERS in utils/design.ts).
-// Literal class strings so Tailwind generates them.
 function scoreColor(value: number): { bg: string; text: string } {
-  if (value >= 11)  return { bg: "bg-[#FCD34D]/20", text: "text-[#FCD34D]" };
-  if (value >= 10)  return { bg: "bg-[#F472B6]/20", text: "text-[#F472B6]" };
-  if (value >= 9)   return { bg: "bg-[#C4B5FD]/20", text: "text-[#C4B5FD]" };
-  if (value >= 8)   return { bg: "bg-[#60A5FA]/20", text: "text-[#60A5FA]" };
-  if (value >= 7)   return { bg: "bg-[#4ADE80]/20", text: "text-[#4ADE80]" };
-  if (value >= 6)   return { bg: "bg-[#BEF264]/20", text: "text-[#BEF264]" };
-  if (value >= 5)   return { bg: "bg-[#FDE047]/20", text: "text-[#FDE047]" };
-  if (value >= 4)   return { bg: "bg-[#FB923C]/20", text: "text-[#FB923C]" };
-  if (value >= 3)   return { bg: "bg-[#F87171]/20", text: "text-[#F87171]" };
+  if (value >= 11) return { bg: "bg-[#FCD34D]/20", text: "text-[#FCD34D]" };
+  if (value >= 10) return { bg: "bg-[#F472B6]/20", text: "text-[#F472B6]" };
+  if (value >= 9) return { bg: "bg-[#C4B5FD]/20", text: "text-[#C4B5FD]" };
+  if (value >= 8) return { bg: "bg-[#60A5FA]/20", text: "text-[#60A5FA]" };
+  if (value >= 7) return { bg: "bg-[#4ADE80]/20", text: "text-[#4ADE80]" };
+  if (value >= 6) return { bg: "bg-[#BEF264]/20", text: "text-[#BEF264]" };
+  if (value >= 5) return { bg: "bg-[#FDE047]/20", text: "text-[#FDE047]" };
+  if (value >= 4) return { bg: "bg-[#FB923C]/20", text: "text-[#FB923C]" };
+  if (value >= 3) return { bg: "bg-[#F87171]/20", text: "text-[#F87171]" };
   if (value >= 1.5) return { bg: "bg-[#E64558]/20", text: "text-[#E64558]" };
-  return            { bg: "bg-[#9B7E83]/20", text: "text-[#9B7E83]" };
+  return { bg: "bg-[#9B7E83]/20", text: "text-[#9B7E83]" };
 }
 
-function SortTh({ label, short, sortKey, activeKey, dir, onSort }: {
+function SortTh({ label, short, sortKey, activeKey, dir, onSort, className = "" }: {
   label: string;
   short: string;
   sortKey: SortKey;
   activeKey: SortKey;
   dir: "asc" | "desc";
   onSort: (k: SortKey) => void;
+  className?: string;
 }) {
   const active = activeKey === sortKey;
   return (
     <th
       onClick={() => onSort(sortKey)}
       title={label}
-      className={`px-2 py-3 text-center text-xs whitespace-nowrap cursor-pointer select-none transition-colors
+      // Notice whitespace-normal allows long text to wrap instead of stretching the box
+      className={`px-1 py-2 text-center text-[11px] leading-tight cursor-pointer select-none transition-colors ${className}
         ${active ? "text-brand" : "text-slate-300 hover:text-white"}`}
     >
-      <span className="inline-flex items-center justify-center gap-0.5">
-        {short}
+      <div className="flex items-center justify-center gap-0.5 h-full">
+        <span className="whitespace-normal">{short}</span>
         <span className={`transition-opacity ${active ? "opacity-100" : "opacity-0"}`}>
           {dir === "desc" ? "↓" : "↑"}
         </span>
-      </span>
+      </div>
     </th>
   );
 }
@@ -109,13 +109,15 @@ export default function ParksClient({ parks }: { parks: RankedPark[] }) {
 
       {/* Desktop table */}
       <div className="hidden lg:block overflow-x-auto rounded-2xl border border-slate-800">
-        <table className="w-full text-sm border-collapse">
+        {/* ADDED: table-fixed and min-w-[1000px] */}
+        <table className="w-full text-sm border-collapse table-fixed min-w-[1000px]">
           <thead>
             <tr className="bg-slate-800/60 border-b border-slate-700">
-              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 w-8">#</th>
+              {/* ADDED: Strict widths to headers */}
+              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 w-12">#</th>
               <th
                 onClick={() => handleSort("name")}
-                className={`text-left px-4 py-3 text-xs font-semibold cursor-pointer select-none transition-colors whitespace-nowrap
+                className={`text-left px-4 py-3 text-xs font-semibold cursor-pointer select-none transition-colors w-48
                   ${sortKey === "name" ? "text-brand" : "text-slate-300 hover:text-white"}`}>
                 <span className="inline-flex items-center gap-0.5">
                   Park
@@ -124,10 +126,11 @@ export default function ParksClient({ parks }: { parks: RankedPark[] }) {
                   </span>
                 </span>
               </th>
-              <th className="text-left px-3 py-3 text-xs font-semibold text-slate-400">Country</th>
-              <SortTh label="Overall" short="Overall" sortKey="overall" activeKey={sortKey} dir={sortDir} onSort={handleSort} />
+              <th className="text-left px-3 py-3 text-xs font-semibold text-slate-400 w-26">Country</th>
+
+              <SortTh label="Overall" short="Overall" sortKey="overall" activeKey={sortKey} dir={sortDir} onSort={handleSort} className="w-20" />
               {CRITERIA.map(c => (
-                <SortTh key={String(c.key)} label={c.label} short={c.short} sortKey={c.key} activeKey={sortKey} dir={sortDir} onSort={handleSort} />
+                <SortTh key={String(c.key)} label={c.label} short={c.short} sortKey={c.key} activeKey={sortKey} dir={sortDir} onSort={handleSort} className="w-[76px]" />
               ))}
             </tr>
           </thead>
@@ -140,15 +143,18 @@ export default function ParksClient({ parks }: { parks: RankedPark[] }) {
                   <td className="px-4 py-3 text-sm">
                     {medal ?? <span className="text-slate-600 font-mono text-xs">#{i + 1}</span>}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 truncate">
                     <Link href={`/park/${park.slug}`} className="font-bold text-base text-slate-100 hover:text-brand transition-colors">
                       {park.name}
                     </Link>
                   </td>
-                  <td className="px-3 py-3 text-slate-400 text-xs whitespace-nowrap">{park.country}</td>
-                  <td className={`px-3 py-3 text-center ${scoreColor(Number(park.overall)).bg}`}>
+                  <td className="px-3 py-3 text-slate-400 text-xs truncate">{park.country}</td>
+
+                  {/* REVERTED: Background colors are back on the <td> elements */}
+                  <td className={`px-3 py-3 text-center align-middle ${scoreColor(Number(park.overall)).bg}`}>
                     <span className={`font-black text-xl tabular-nums ${scoreColor(Number(park.overall)).text}`}>{park.overall}</span>
                   </td>
+
                   {CRITERIA.map(c => {
                     const val = Number(park[c.key]);
                     if (isNaN(val)) {
@@ -156,7 +162,7 @@ export default function ParksClient({ parks }: { parks: RankedPark[] }) {
                     }
                     const { bg, text } = scoreColor(val);
                     return (
-                      <td key={String(c.key)} className={`px-2 py-3 text-center font-bold tabular-nums ${bg} ${text}`}>
+                      <td key={String(c.key)} className={`px-2 py-3 text-center align-middle font-bold tabular-nums ${bg} ${text}`}>
                         {val}
                       </td>
                     );

@@ -142,10 +142,61 @@ const RatingText: React.FC<RatingTextProps> = ({
           .map((key) => {
             const value = (rating as any)[key] ?? 0;
             const text = localExplanations[key] ?? "";
-            const mediaUrl = localImages[key] ?? null;
             const categoryWarnings = categoryWarningsMap[key.toLowerCase()] ?? [];
-            const isCentered = localLayouts[key] === "center";
-            const imageOnRight = (!isCentered && mediaUrl) ? imageIndex++ % 2 !== 0 : false;
+
+            // Unpack images
+            const mediaUrls = (localImages[key] || "").split(",").filter(Boolean);
+            const hasMedia = mediaUrls.length > 0;
+            const layoutPref = localLayouts[key];
+
+            let isRow = false;
+            let isRight = false;
+            let isAbove = true;
+            let isDouble = false;
+
+            if (mediaUrls.length === 2 && layoutPref === "double") {
+              isDouble = true;
+            } else if (layoutPref === "left") {
+              isRow = true;
+              isRight = false;
+            } else if (layoutPref === "right") {
+              isRow = true;
+              isRight = true;
+            } else if (layoutPref === "above" || layoutPref === "center") {
+              isRow = false;
+              isAbove = true;
+            } else if (layoutPref === "below") {
+              isRow = false;
+              isAbove = false;
+            } else if (hasMedia) {
+              isRow = true;
+              isRight = imageIndex++ % 2 !== 0;
+            }
+
+            // Helper to render an individual media block
+            const renderMedia = (url: string) => (
+              <div
+                key={url}
+                className={`w-full flex-shrink-0 rounded-2xl overflow-hidden cursor-zoom-in group relative shadow-sm ${isDouble ? "mt-4 mb-4" : ""}`}
+                onClick={() => setLightbox(url)}
+              >
+                {isVideo(url) ? (
+                  <>
+                    <video src={url} className={`w-full ${isRow ? "h-64 xl:h-72" : "h-72 xl:h-96"} object-cover rounded-2xl`} muted loop autoPlay playsInline />
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 rounded-2xl">
+                      <svg className="w-12 h-12 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <img src={url} alt={humanizeLabel(key)} className={`w-full ${isRow ? "h-64 xl:h-72" : "h-72 xl:h-96"} object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105`} />
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-2xl">
+                      <svg className="w-8 h-8 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0zM11 8v6M8 11h6" /></svg>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
 
             return (
               <div key={key} id={`section-${key}`} className="space-y-3 scroll-mt-6">
@@ -153,60 +204,32 @@ const RatingText: React.FC<RatingTextProps> = ({
                   <h3 className="text-xl font-semibold text-white">{humanizeLabel(key)}</h3>
                   <span className={`text-2xl font-bold ${getRatingColor(value)}`}>{value}</span>
                   {categoryWarnings.length > 0 && (
-                    <RatingWarning
-                      warning={categoryWarnings}
-                      isAdminMode={isAdminMode}
-                      ratingId={rating.id}
-                      onUpdate={onWarningsUpdate}
-                      coasters={coasters}
-                    />
+                    <RatingWarning warning={categoryWarnings} isAdminMode={isAdminMode} ratingId={rating.id} onUpdate={onWarningsUpdate} coasters={coasters} />
                   )}
                 </div>
 
-                {mediaUrl ? (
-                  <div className={isCentered
-                    ? "flex flex-col gap-4"
-                    : `flex flex-col gap-6 items-start ${imageOnRight ? "md:flex-row-reverse" : "md:flex-row"}`
-                  }>
-                    <div
-                      className={`${isCentered ? "w-full" : "w-full md:w-1/2"} flex-shrink-0 rounded-2xl overflow-hidden cursor-zoom-in group relative mt-1.5 shadow-sm`}
-                      onClick={() => setLightbox(mediaUrl)}
-                    >
-                      {isVideo(mediaUrl) ? (
-                        <>
-                          <video
-                            src={mediaUrl}
-                            className={`w-full ${isCentered ? "h-72 xl:h-96" : "h-64 xl:h-72"} object-cover rounded-2xl`}
-                            muted
-                            loop
-                            autoPlay
-                            playsInline
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 rounded-2xl">
-                            <svg className="w-12 h-12 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <img
-                            src={mediaUrl}
-                            alt={humanizeLabel(key)}
-                            className={`w-full ${isCentered ? "h-72 xl:h-96" : "h-64 xl:h-72"} object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105`}
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-2xl">
-                            <svg className="w-8 h-8 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0zM11 8v6M8 11h6" />
-                            </svg>
-                          </div>
-                        </>
-                      )}
+                {!hasMedia ? (
+                  <MarkdownText text={text} className="text-slate-400 leading-relaxed md:text-lg" />
+                ) : isDouble ? (
+                  <div className="flex flex-col">
+                    {renderMedia(mediaUrls[0])}
+                    <MarkdownText text={text} className="text-slate-400 leading-relaxed md:text-lg" />
+                    {renderMedia(mediaUrls[1])}
+                  </div>
+                ) : isRow ? (
+                  <div className={`flex flex-col gap-6 items-start ${isRight ? "md:flex-row-reverse" : "md:flex-row"}`}>
+                    <div className="w-full md:w-1/2 flex-shrink-0 flex flex-col gap-4 mt-1.5">
+                      {mediaUrls.map(url => renderMedia(url))}
                     </div>
-                    <MarkdownText text={text} className={`text-slate-400 leading-relaxed md:text-lg ${isCentered ? "" : "flex-1"}`} />
+                    <MarkdownText text={text} className="text-slate-400 leading-relaxed md:text-lg flex-1" />
                   </div>
                 ) : (
-                  <MarkdownText text={text} className="text-slate-400 leading-relaxed md:text-lg" />
+                  <div className={`flex gap-4 ${isAbove ? "flex-col" : "flex-col-reverse"}`}>
+                    <div className="flex flex-col gap-4 mt-1.5">
+                      {mediaUrls.map(url => renderMedia(url))}
+                    </div>
+                    <MarkdownText text={text} className="text-slate-400 leading-relaxed md:text-lg" />
+                  </div>
                 )}
               </div>
             );
@@ -247,6 +270,7 @@ const RatingText: React.FC<RatingTextProps> = ({
 
       {isAdminMode && showModal && (
         <ParkRatingsModal
+          rating={rating}
           explanations={localExplanations}
           sectionImages={localImages}
           sectionLayouts={localLayouts}

@@ -8,7 +8,6 @@ import { useSearch } from "@/app/context/SearchContext";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import type { RollerCoasterSpecs } from "@/app/types";
 
-// ——— Types ———
 type Coaster = {
   id: number;
   name: string;
@@ -23,6 +22,7 @@ type Coaster = {
   rating: number | null;
   parkId: number;
   parkName: string;
+  country: string;
   year: number;
   lastVisitDate: string | null;
   slug: string;
@@ -57,6 +57,7 @@ const ALL_COLUMNS = [
   { key: "rating", label: "Rating" },
   { key: "manufacturer", label: "Manufacturer" },
   { key: "parkName", label: "Park" },
+  { key: "country", label: "Country" },
   { key: "year", label: "Year" },
   { key: "rideCount", label: "Rides" },
   { key: "lastVisitDate", label: "Last Ridden" },
@@ -74,7 +75,7 @@ const NAME_W_M = 130;
 const NAME_W_D = 260;
 
 const COL_MIN_W: Record<ColumnKey, number> = {
-  rating: 80, manufacturer: 130, parkName: 150,
+  rating: 80, manufacturer: 130, parkName: 150, country: 120,
   rideCount: 90, lastVisitDate: 130, year: 80,
 };
 
@@ -89,6 +90,7 @@ function parseCoasterList(raw: any[]): Coaster[] {
       c.rating === null || c.rating === undefined ? null
         : typeof c.rating === "string" ? parseFloat(c.rating) : c.rating,
     parkId: c.parkId, parkName: c.parkName,
+    country: c.country ?? "Unknown", // <-- Add this here
     year: c.year ?? 0, lastVisitDate: c.lastVisitDate, slug: c.slug,
     specs: c.specs ? {
       type: c.specs.type, classification: c.specs.classification,
@@ -146,7 +148,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
     if (!q) return coasters;
     return coasters.filter(c => {
       const hay = [
-        c.name, c.parkName, c.manufacturer, c.model, c.specs?.type,
+        c.name, c.parkName, c.country, c.manufacturer, c.model, c.specs?.type,
         c.specs?.classification?.replace(/\|/g, " "), String(c.year),
         c.rating != null ? c.rating.toFixed(1) : "",
         String(c.rideCount ?? ""), formatDate(c.lastVisitDate),
@@ -376,6 +378,15 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                             </div>
                           </td>
                         )}
+                        {colOn("country") && (
+                          <td className="px-3 whitespace-nowrap text-[13px]" style={{ minWidth: COL_MIN_W.country }}>
+                            <div className="flex items-center" style={{ height: ROW_H }}>
+                              <button onClick={() => setQuery?.(c.country)} className="text-slate-300 hover:text-brand hover:underline truncate cursor-pointer" style={{ maxWidth: 120 }}>
+                                {c.country}
+                              </button>
+                            </div>
+                          </td>
+                        )}
                         {colOn("year") && (
                           <td className="px-3 whitespace-nowrap text-slate-400" style={{ minWidth: COL_MIN_W.year }}>
                             <div className="flex items-center" style={{ height: ROW_H }}>{c.year || "—"}</div>
@@ -460,6 +471,13 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                         <Link href={`/park/${c.parkId}`} className="text-slate-300 hover:text-brand hover:underline transition-colors">
                           {c.parkName}
                         </Link>
+                      </td>
+                    )}
+                    {colOn("country") && (
+                      <td className="px-4 whitespace-nowrap" style={{ height: ROW_H }}>
+                        <button onClick={() => setQuery?.(c.country)} className="text-slate-300 hover:text-brand hover:underline transition-colors cursor-pointer">
+                          {c.country}
+                        </button>
                       </td>
                     )}
                     {colOn("year") && (
@@ -564,13 +582,14 @@ function SortControl({ sortBy, sortDir, onChangeField, onToggleDir }: SortContro
     return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("click", onClick); };
   }, [open]);
 
-const OPTIONS: { key: ColumnKey | "name"; label: string }[] = [
-    { key: "name", label: "Name" }, 
+  const OPTIONS: { key: ColumnKey | "name"; label: string }[] = [
+    { key: "name", label: "Name" },
     { key: "rating", label: "Rating" },
-    { key: "manufacturer", label: "Manufacturer" }, 
+    { key: "manufacturer", label: "Manufacturer" },
     { key: "parkName", label: "Park" },
-    { key: "year", label: "Year" }, 
-    { key: "rideCount", label: "Rides" }, 
+    { key: "country", label: "Country" },
+    { key: "year", label: "Year" },
+    { key: "rideCount", label: "Rides" },
     { key: "lastVisitDate", label: "Last Ridden" },
   ];
   const activeLabel = OPTIONS.find(o => o.key === sortBy)?.label ?? "Sort";
