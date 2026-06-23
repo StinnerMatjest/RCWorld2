@@ -275,7 +275,7 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
             <div
               key={img.id}
               onClick={() => { setDirection(null); setSelectedIndex(index); }}
-              className="cursor-pointer overflow-hidden rounded-lg hover:scale-105 transition-transform duration-300 transform-gpu will-change-transform"
+              className="group cursor-pointer overflow-hidden rounded-lg hover:scale-105 transition-transform duration-300 transform-gpu will-change-transform"
             >
               {isVideo(img.path) ? (
                 <video
@@ -284,7 +284,7 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
                   autoPlay
                   loop
                   playsInline
-                  className="rounded-lg object-cover h-40 w-full bg-black"
+                  className="rounded-lg object-cover h-40 w-full bg-black transition-transform duration-300 group-hover:scale-105 transform-gpu will-change-transform"
                 />
               ) : (
                 <Image src={img.path} alt={img.title || "Gallery"} width={400} height={300} className="rounded-lg object-cover h-40 w-full" />

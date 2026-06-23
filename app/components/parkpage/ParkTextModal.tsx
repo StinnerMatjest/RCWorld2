@@ -80,7 +80,9 @@ const ImagePickerGrid = React.memo(function ImagePickerGrid({
       {galleryImages.map(img => {
         const selIndex = selected.indexOf(img.path);
         const sel = selIndex !== -1;
-        const disabled = !sel && selected.length >= maxSelection;
+        // Single-image mode: clicking another image just replaces the current one.
+        // Only block clicks in 2-image mode once both slots are full.
+        const disabled = !sel && maxSelection > 1 && selected.length >= maxSelection;
 
         return (
           <button key={img.id} onClick={() => !disabled && onSelect(img.path)}

@@ -209,12 +209,12 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
                                 setDirection(null);
                                 setSelectedIndex(index);
                             }}
-                            className="cursor-pointer overflow-hidden rounded-lg hover:scale-105 transition-transform duration-300 transform-gpu will-change-transform"
+                            className="group cursor-pointer overflow-hidden rounded-lg hover:scale-105 transition-transform duration-300 transform-gpu will-change-transform"
                         >
                             {img.path.match(/\.(mp4|webm|ogg)$/i) ? (
                                 <video
                                     src={img.path}
-                                    className="rounded-lg object-cover h-40 w-full"
+                                    className="rounded-lg object-cover h-40 w-full transition-transform duration-300 group-hover:scale-105 transform-gpu will-change-transform"
                                     muted
                                     autoPlay
                                     loop

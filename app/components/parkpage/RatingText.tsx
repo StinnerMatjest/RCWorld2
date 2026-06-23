@@ -106,7 +106,7 @@ const RatingText: React.FC<RatingTextProps> = ({
   });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-12">
       <div className="flex flex-col md:flex-row md:items-center gap-4">
         <h2 className="text-3xl font-semibold text-white flex items-center flex-wrap gap-3">
           {parkName} Review
@@ -183,7 +183,7 @@ const RatingText: React.FC<RatingTextProps> = ({
               >
                 {isVideo(url) ? (
                   <>
-                    <video src={url} className={`w-full ${isRow ? "h-64 xl:h-72" : "h-72 xl:h-96"} object-cover rounded-2xl`} muted loop autoPlay playsInline />
+                    <video src={url} className={`w-full ${isRow ? "h-64 xl:h-72" : "h-72 xl:h-96"} object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105 transform-gpu will-change-transform`} muted loop autoPlay playsInline />
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 rounded-2xl">
                       <svg className="w-12 h-12 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
                     </div>
@@ -210,7 +210,7 @@ const RatingText: React.FC<RatingTextProps> = ({
 
             return (
               <div key={key} id={`section-${key}`} className="space-y-3 scroll-mt-6">
-                <div className="flex items-baseline gap-3">
+                <div className="flex items-baseline gap-3 border-l-4 border-brand pl-3">
                   <h3 className="text-xl font-semibold text-white">{humanizeLabel(key)}</h3>
                   <span className={`text-2xl font-bold ${getRatingColor(value)}`}>{value}</span>
                   {categoryWarnings.length > 0 && (
