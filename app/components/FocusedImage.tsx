@@ -94,7 +94,7 @@ export function FocusedImage({
         alt={alt}
         draggable={false}
         className={`absolute max-w-none select-none ${imgClassName}`}
-        style={{ ...imgStyle, willChange: "width, height, left, top", visibility: "hidden" }}
+        style={{ ...imgStyle, visibility: "hidden" }}
         loading={priority ? "eager" : "lazy"}
         onLoad={(e) => {
           nwRef.current = e.currentTarget.naturalWidth;
