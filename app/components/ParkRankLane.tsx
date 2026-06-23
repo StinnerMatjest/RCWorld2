@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, Reorder, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import { getRatingColor } from "@/app/utils/design";
 import { MarkdownText } from "./MarkdownText";
 
@@ -323,9 +324,11 @@ const ParkRankLane: React.FC<Props> = ({
           >
             <div className="flex items-center gap-3">
               {p.id !== NEW_PARK_ID && p.imagePath && (
-                <img
+                <Image
                   src={p.imagePath}
                   alt={p.name}
+                  width={32}
+                  height={32}
                   className="w-8 h-8 object-cover rounded-md border border-slate-700"
                   draggable={false}
                 />

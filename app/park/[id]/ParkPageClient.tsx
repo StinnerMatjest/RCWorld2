@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import RatingModal from "@/app/components/RatingModal";
 import MainPageButton from "@/app/components/buttons/MainPageButton";
 import CoasterCreatorModal from "@/app/components/CoasterCreatorModal";
@@ -42,6 +43,15 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
   const [sectionImages, setSectionImages] = useState<Record<string, string>>({});
   const [sectionLayouts, setSectionLayouts] = useState<Record<string, string>>({});
   const { isAdminMode } = useAdminMode();
+
+  // Cover/overview image lightbox (click to enlarge, matches RatingText)
+  const [coverLightbox, setCoverLightbox] = useState<string | null>(null);
+  useEffect(() => {
+    if (!coverLightbox) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setCoverLightbox(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [coverLightbox]);
 
   // --- Menu & Advanced Delete States ---
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -356,15 +366,56 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
               text={explanations.description ?? "No description available."}
               className="text-slate-400 text-base leading-relaxed"
             />
-            {sectionImages.description && sectionImages.description.split(",").map((imgUrl, i) => (
-              <div key={i} className="mt-6 w-full rounded-2xl overflow-hidden shadow-sm">
-                {/\.(mp4|webm|ogg)$/i.test(imgUrl) ? (
-                  <video src={imgUrl} className="w-full h-72 xl:h-96 object-cover rounded-2xl" muted loop autoPlay playsInline />
-                ) : (
-                  <img src={imgUrl} alt={`Introduction ${i + 1}`} className="w-full h-72 xl:h-96 object-cover rounded-2xl" />
-                )}
+            {sectionImages.description && sectionImages.description.split(",").map((imgUrl, i) => {
+              const isVid = /\.(mp4|webm|ogg)$/i.test(imgUrl);
+              return (
+                <div
+                  key={i}
+                  className={`relative mt-6 w-full h-72 xl:h-96 rounded-2xl overflow-hidden shadow-sm ${isVid ? "" : "group cursor-zoom-in"}`}
+                  onClick={isVid ? undefined : () => setCoverLightbox(imgUrl)}
+                >
+                  {isVid ? (
+                    <video src={imgUrl} className="w-full h-full object-cover rounded-2xl" muted loop autoPlay playsInline />
+                  ) : (
+                    <>
+                      <Image
+                        src={imgUrl}
+                        alt={`Introduction ${i + 1}`}
+                        fill
+                        sizes="(min-width: 768px) 60vw, 100vw"
+                        quality={90}
+                        className="object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105 transform-gpu will-change-transform"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-2xl">
+                        <svg className="w-8 h-8 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0zM11 8v6M8 11h6" /></svg>
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+
+            {coverLightbox && (
+              <div
+                className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-4"
+                onClick={() => setCoverLightbox(null)}
+              >
+                <button
+                  onClick={() => setCoverLightbox(null)}
+                  className="absolute top-4 right-4 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center transition-colors cursor-pointer"
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={coverLightbox}
+                  alt=""
+                  className="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain"
+                  onClick={(e) => e.stopPropagation()}
+                />
               </div>
-            ))}
+            )}
           </div>
 
           <RatingText

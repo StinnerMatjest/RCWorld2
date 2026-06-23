@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import type { Rating, RatingWarningType } from "@/app/types";
 import ParkRatingsModal from "./ParkTextModal";
 import { getRatingColor } from "@/app/utils/design";
@@ -189,7 +190,16 @@ const RatingText: React.FC<RatingTextProps> = ({
                   </>
                 ) : (
                   <>
-                    <img src={url} alt={humanizeLabel(key)} className={`w-full ${isRow ? "h-64 xl:h-72" : "h-72 xl:h-96"} object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105`} />
+                    <div className={`relative w-full ${isRow ? "h-64 xl:h-72" : "h-72 xl:h-96"}`}>
+                      <Image
+                        src={url}
+                        alt={humanizeLabel(key)}
+                        fill
+                        sizes={isRow ? "(min-width: 768px) 30vw, 100vw" : "(min-width: 768px) 60vw, 100vw"}
+                        quality={90}
+                        className="object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-2xl">
                       <svg className="w-8 h-8 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0zM11 8v6M8 11h6" /></svg>
                     </div>

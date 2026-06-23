@@ -43,7 +43,7 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
             alt={park.name}
             focusStr={park.headerFocus}
             className="absolute inset-0"
-            imgClassName={`transition-all duration-700 group-hover:scale-105 ${imageLoaded ? "opacity-100" : "opacity-0"
+            imgClassName={`transition-opacity duration-700 ${imageLoaded ? "opacity-100" : "opacity-0"
               }`}
             priority
             onLoad={() => setImageLoaded(true)}

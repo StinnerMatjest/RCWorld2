@@ -209,7 +209,7 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
                                 setDirection(null);
                                 setSelectedIndex(index);
                             }}
-                            className="cursor-pointer overflow-hidden rounded-lg hover:scale-105 transition-transform duration-300"
+                            className="cursor-pointer overflow-hidden rounded-lg hover:scale-105 transition-transform duration-300 transform-gpu will-change-transform"
                         >
                             {img.path.match(/\.(mp4|webm|ogg)$/i) ? (
                                 <video
@@ -226,6 +226,8 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
                                     alt={img.title || "Gallery"}
                                     width={400}
                                     height={300}
+                                    sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
+                                    quality={85}
                                     className="rounded-lg object-cover h-40 w-full"
                                 />
                             )}
