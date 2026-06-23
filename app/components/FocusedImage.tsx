@@ -31,6 +31,14 @@ export function parseFocusStr(f?: string | null): { cx: number; cy: number; zoom
   };
 }
 
+// Section images store an optional focus packed into the value as "url|cx cy zoom".
+// Splits it back out; images saved without a focus default to centered.
+export function splitMedia(entry: string): { url: string; focus: string } {
+  const i = entry.indexOf("|");
+  if (i === -1) return { url: entry, focus: "0.5 0.5 1" };
+  return { url: entry.slice(0, i), focus: entry.slice(i + 1) || "0.5 0.5 1" };
+}
+
 // Renders an image absolutely positioned inside an overflow-hidden container,
 // matching exactly what CropEditor shows for the given focusStr.
 export function FocusedImage({

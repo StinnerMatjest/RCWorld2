@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import Image from "next/image";
+import { CropEditor } from "./ParkHeaderModal";
+import { splitMedia } from "../FocusedImage";
 import type { Rating } from "@/app/types";
 import type { GalleryImage } from "./ParkGallery";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
@@ -122,14 +124,15 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   const [selectedCat, setSelectedCat] = useState<Category>(CATEGORIES[0]);
 
   // Changed image to images array, and added useTwoImages toggle
-  const [drafts, setDrafts] = useState<Record<string, { text: string; images: string[]; layout: string | null; useTwoImages: boolean }>>(() =>
+  const [drafts, setDrafts] = useState<Record<string, { text: string; images: string[]; focuses: string[]; layout: string | null; useTwoImages: boolean }>>(() =>
     Object.fromEntries(CATEGORIES.map(cat => {
-      const imgs = sectionImages[cat] ? sectionImages[cat].split(",") : [];
+      const parsed = sectionImages[cat] ? sectionImages[cat].split(",").map(splitMedia) : [];
       return [cat, {
         text: explanations[cat] ?? "",
-        images: imgs,
+        images: parsed.map(p => p.url),
+        focuses: parsed.map(p => p.focus),
         layout: sectionLayouts[cat] ?? null,
-        useTwoImages: imgs.length > 1
+        useTwoImages: parsed.length > 1
       }];
     }))
   );
@@ -140,10 +143,13 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [cropIndex, setCropIndex] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const cur = drafts[selectedCat];
   const textStats = countTextStats(cur.text);
+  // Roughly match the on-page crop box so panning previews accurately.
+  const cropAspect = cur.layout === "left" || cur.layout === "right" ? "16 / 9" : "21 / 9";
 
   // Validation function
   const canSwitchOrSave = () => {
@@ -156,7 +162,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   };
 
   const handleCatSelect = (cat: Category) => {
-    if (canSwitchOrSave()) setSelectedCat(cat);
+    if (canSwitchOrSave()) { setSelectedCat(cat); setCropIndex(null); }
   };
 
   const updateText = useCallback((t: string) =>
@@ -166,21 +172,75 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   const updateImage = useCallback((img: string | null) => {
     setDrafts(d => {
       const c = d[selectedCat];
-      if (img === null) return { ...d, [selectedCat]: { ...c, images: [] } };
+      if (img === null) return { ...d, [selectedCat]: { ...c, images: [], focuses: [] } };
 
       if (c.useTwoImages) {
-        if (c.images.includes(img)) {
-          return { ...d, [selectedCat]: { ...c, images: c.images.filter(i => i !== img) } };
+        const idx = c.images.indexOf(img);
+        if (idx !== -1) {
+          return {
+            ...d, [selectedCat]: {
+              ...c,
+              images: c.images.filter((_, i) => i !== idx),
+              focuses: c.focuses.filter((_, i) => i !== idx),
+            }
+          };
         }
         if (c.images.length < 2) {
-          return { ...d, [selectedCat]: { ...c, images: [...c.images, img] } };
+          return { ...d, [selectedCat]: { ...c, images: [...c.images, img], focuses: [...c.focuses, "0.5 0.5 1"] } };
         }
         return d;
       } else {
-        return { ...d, [selectedCat]: { ...c, images: [img] } };
+        return { ...d, [selectedCat]: { ...c, images: [img], focuses: ["0.5 0.5 1"] } };
       }
     });
   }, [selectedCat]);
+
+  // Pan focus per selected image, committed by the CropEditor below the picker.
+  const updateFocus = useCallback((index: number, focus: string) => {
+    setDrafts(d => {
+      const c = d[selectedCat];
+      const focuses = [...c.focuses];
+      focuses[index] = focus;
+      return { ...d, [selectedCat]: { ...c, focuses } };
+    });
+  }, [selectedCat]);
+
+  // Live ref so the picker handler stays stable (keeps the grid memoized).
+  const draftsRef = useRef(drafts);
+  draftsRef.current = drafts;
+
+  // Picking an image opens the crop popup for it; clicking a selected one re-opens it.
+  const handlePick = useCallback((path: string | null) => {
+    if (path === null || isVideo(path)) { updateImage(path); return; }
+    const c = draftsRef.current[selectedCat];
+    const existing = c.images.indexOf(path);
+    if (existing !== -1) { setCropIndex(existing); return; }
+    if (c.useTwoImages && c.images.length >= 2) return;
+    const newIndex = c.useTwoImages ? c.images.length : 0;
+    updateImage(path);
+    setCropIndex(newIndex);
+  }, [selectedCat, updateImage]);
+
+  const removeImageAt = useCallback((index: number) => {
+    setDrafts(d => {
+      const c = d[selectedCat];
+      return {
+        ...d, [selectedCat]: {
+          ...c,
+          images: c.images.filter((_, i) => i !== index),
+          focuses: c.focuses.filter((_, i) => i !== index),
+        }
+      };
+    });
+    setCropIndex(null);
+  }, [selectedCat]);
+
+  useEffect(() => {
+    if (cropIndex === null) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setCropIndex(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [cropIndex]);
 
   const updateLayout = useCallback((layout: string | null) =>
     setDrafts(d => ({ ...d, [selectedCat]: { ...d[selectedCat], layout } })), [selectedCat]);
@@ -218,10 +278,12 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
     try {
       for (const cat of CATEGORIES) {
-        const { text, images, layout } = drafts[cat];
+        const { text, images, focuses, layout } = drafts[cat];
         if (!text && images.length === 0 && !persisted.has(cat)) continue;
 
-        const imgString = images.length > 0 ? images.join(",") : null;
+        const imgString = images.length > 0
+          ? images.map((u, i) => `${u}|${focuses[i] ?? "0.5 0.5 1"}`).join(",")
+          : null;
         const method = persisted.has(cat) ? "PUT" : "POST";
         const res = await fetch(`/api/park/${parkId}/parkTexts`, {
           method,
@@ -261,7 +323,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
   const handleClose = () => {
     const texts = Object.fromEntries(CATEGORIES.filter(c => drafts[c].text).map(c => [c, drafts[c].text]));
-    const images = Object.fromEntries(CATEGORIES.filter(c => drafts[c].images.length > 0).map(c => [c, drafts[c].images.join(",")]));
+    const images = Object.fromEntries(CATEGORIES.filter(c => drafts[c].images.length > 0).map(c => [c, drafts[c].images.map((u, i) => `${u}|${drafts[c].focuses[i] ?? "0.5 0.5 1"}`).join(",")]));
     const layouts = Object.fromEntries(CATEGORIES.filter(c => drafts[c].layout).map(c => [c, drafts[c].layout!]));
     onSave?.(texts, images, layouts);
     onClose();
@@ -412,6 +474,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                               ...c,
                               useTwoImages: nextTwo,
                               images: nextTwo ? c.images : c.images.slice(0, 1),
+                              focuses: nextTwo ? c.focuses : c.focuses.slice(0, 1),
                               layout: nextTwo
                                 ? (c.layout === 'above' || c.layout === 'below' || c.layout === 'center' ? 'double' : c.layout)
                                 : c.layout === 'double' ? 'above' : c.layout
@@ -451,12 +514,66 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                     </div>
                   )}
                 </div>
-                <ImagePickerGrid galleryImages={galleryImages} selected={cur.images} onSelect={updateImage} maxSelection={cur.useTwoImages ? 2 : 1} />
+                <ImagePickerGrid galleryImages={galleryImages} selected={cur.images} onSelect={handlePick} maxSelection={cur.useTwoImages ? 2 : 1} />
+                {cur.images.some(u => !isVideo(u)) && (
+                  <p className="mt-2 text-xs text-slate-500">Tip: click a selected image to reposition it.</p>
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {cropIndex !== null && cur.images[cropIndex] && !isVideo(cur.images[cropIndex]) && (
+        <div
+          className="fixed inset-0 z-[1010] flex items-center justify-center bg-black/80 p-3 sm:p-4"
+          onClick={() => setCropIndex(null)}
+        >
+          <div
+            className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col gap-3 p-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-bold text-slate-200">
+                Position image{cur.images.length > 1 ? ` ${cropIndex + 1}` : ""}
+                <span className="text-slate-500 font-normal"> · drag to choose what shows</span>
+              </p>
+              <button
+                onClick={() => setCropIndex(null)}
+                aria-label="Close"
+                className="p-1.5 rounded-full hover:bg-slate-800 text-slate-500 hover:text-white transition-colors cursor-pointer"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                </svg>
+              </button>
+            </div>
+            <CropEditor
+              key={`popup-crop-${selectedCat}-${cropIndex}-${cur.images[cropIndex]}`}
+              src={cur.images[cropIndex]}
+              aspectRatio={cropAspect}
+              focusStr={cur.focuses[cropIndex] ?? "0.5 0.5 1"}
+              onCommit={(f) => updateFocus(cropIndex, f)}
+              maxZoom={1}
+              className="w-full rounded-xl"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => removeImageAt(cropIndex)}
+                className="px-4 py-2.5 rounded-xl text-sm font-bold border border-red-400/40 text-red-400 hover:border-red-400 transition-all cursor-pointer"
+              >
+                Remove
+              </button>
+              <button
+                onClick={() => setCropIndex(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white transition-colors cursor-pointer"
+              >
+                Save crop
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
