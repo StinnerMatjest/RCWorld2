@@ -11,3 +11,5 @@ export const SECTION_IMAGE_ASPECT = {
   row: { mobile: "3 / 2", desktop: "3 / 2" },    // image beside text — Left / Right
   full: { mobile: "3 / 2", desktop: "16 / 7" }, // full width — Above / Below / Center / Double
 } as const;
+
+//test comment
