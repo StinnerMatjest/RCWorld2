@@ -116,10 +116,10 @@ const ImagePickerGrid = React.memo(function ImagePickerGrid({
   );
 });
 
-// Crop editor. Shows the WHOLE photo and lets you drag the crop frame over it
-// (drag left, the frame goes left). The solid box is what shows on every screen
-// (the tighter of mobile/desktop); the dashed box is the extra a wider screen
-// shows. Outputs the object-position focal point the park page consumes.
+// Crop editor. Renders the DESKTOP crop at full width — exactly what the park
+// page shows — so the preview matches the page (and a wide frame stays short
+// enough to fit on screen, even for vertical photos). Drag pans it; the dimmed
+// edges are what a NARROWER screen (mobile) trims, so keep your subject bright.
 function SectionImageCropper({
   src, mobileAspect, desktopAspect, value, onChange,
 }: {
@@ -155,11 +155,9 @@ function SectionImageCropper({
     return a / (b || 1);
   };
 
-  // The crop window for an aspect over the WHOLE image (object-cover), expressed
-  // in image-fraction coords — which also map 1:1 to the editor (it shows the
-  // whole image). Matches the page's object-position model exactly.
+  // Crop window for an aspect over the whole image (object-cover), image-fraction coords.
   const Ai = dims ? dims.w / dims.h : 1;
-  const frameWin = (Af: number, cx: number, cy: number) =>
+  const win = (Af: number, cx: number, cy: number) =>
     Ai >= Af
       ? { left: cx * (1 - Af / Ai), top: 0, w: Af / Ai, h: 1 }
       : { left: 0, top: cy * (1 - Ai / Af), w: 1, h: Ai / Af };
@@ -172,16 +170,17 @@ function SectionImageCropper({
     const box = boxRef.current;
     if (!drag.current || !box || !dims) return;
     const cw = box.clientWidth, ch = box.clientHeight;
-    const d = frameWin(ratio(desktopAspect), drag.current.cx, drag.current.cy);
-    const m = frameWin(ratio(mobileAspect), drag.current.cx, drag.current.cy);
-    // Pannable on an axis if EITHER frame crops on it; use the bigger overflow.
-    const hOver = Math.max(1 - d.w, 1 - m.w);
-    const vOver = Math.max(1 - d.h, 1 - m.h);
+    const d = win(ratio(desktopAspect), drag.current.cx, drag.current.cy);
+    const m = win(ratio(mobileAspect), drag.current.cx, drag.current.cy);
     const dx = e.clientX - drag.current.x;
     const dy = e.clientY - drag.current.y;
     let ncx = drag.current.cx, ncy = drag.current.cy;
-    if (hOver > 0.0005) ncx = clamp(drag.current.cx + (dx / cw) / hOver);
-    if (vOver > 0.0005) ncy = clamp(drag.current.cy + (dy / ch) / vOver);
+    // If desktop crops on the axis, you pan its content (content follows the drag).
+    // If only mobile crops it, you position mobile's crop instead (box follows).
+    if (1 - d.w > 0.0005) ncx = clamp(drag.current.cx - dx / (cw * (1 - d.w)));
+    else if (1 - m.w > 0.0005) ncx = clamp(drag.current.cx + dx / (cw * (1 - m.w)));
+    if (1 - d.h > 0.0005) ncy = clamp(drag.current.cy - dy / (ch * (1 - d.h)));
+    else if (1 - m.h > 0.0005) ncy = clamp(drag.current.cy + dy / (ch * (1 - m.h)));
     setPos({ cx: ncx, cy: ncy });
   };
   const onUp = () => {
@@ -190,18 +189,23 @@ function SectionImageCropper({
     onChange(`${posRef.current.cx.toFixed(4)} ${posRef.current.cy.toFixed(4)} 1`);
   };
 
-  let d: { left: number; top: number; w: number; h: number } | null = null;
+  // Safe zone = part of the DESKTOP crop that mobile also shows, in desktop-view coords.
   let safe: { left: number; top: number; w: number; h: number } | null = null;
   if (dims) {
-    d = frameWin(ratio(desktopAspect), pos.cx, pos.cy);
-    const m = frameWin(ratio(mobileAspect), pos.cx, pos.cy);
+    const d = win(ratio(desktopAspect), pos.cx, pos.cy);
+    const m = win(ratio(mobileAspect), pos.cx, pos.cy);
     const left = Math.max(d.left, m.left);
     const top = Math.max(d.top, m.top);
     const right = Math.min(d.left + d.w, m.left + m.w);
     const bottom = Math.min(d.top + d.h, m.top + m.h);
-    safe = { left, top, w: right - left, h: bottom - top };
+    safe = {
+      left: (left - d.left) / d.w,
+      top: (top - d.top) / d.h,
+      w: (right - left) / d.w,
+      h: (bottom - top) / d.h,
+    };
   }
-  const showExtra = !!d && !!safe && (safe.w < d.w - 0.005 || safe.h < d.h - 0.005);
+  const showSafe = !!safe && (safe.w < 0.995 || safe.h < 0.995);
 
   return (
     <>
@@ -211,12 +215,8 @@ function SectionImageCropper({
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
-        className="relative mx-auto overflow-hidden rounded-xl bg-slate-950 cursor-grab active:cursor-grabbing select-none touch-none"
-        style={{
-          aspectRatio: dims ? `${dims.w} / ${dims.h}` : desktopAspect,
-          width: dims ? `min(100%, calc(50vh * ${(dims.w / dims.h).toFixed(4)}))` : "100%",
-          maxHeight: "50vh",
-        }}
+        className="relative w-full overflow-hidden rounded-xl bg-slate-950 cursor-grab active:cursor-grabbing select-none touch-none"
+        style={{ aspectRatio: desktopAspect, maxHeight: "58vh" }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -224,8 +224,9 @@ function SectionImageCropper({
           alt=""
           draggable={false}
           className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
+          style={{ objectPosition: `${pos.cx * 100}% ${pos.cy * 100}%` }}
         />
-        {safe && (
+        {showSafe && safe && (
           <div
             className="absolute border-2 border-white/90 rounded-sm pointer-events-none"
             style={{
@@ -233,25 +234,14 @@ function SectionImageCropper({
               top: `${safe.top * 100}%`,
               width: `${safe.w * 100}%`,
               height: `${safe.h * 100}%`,
-              boxShadow: "0 0 0 9999px rgba(0,0,0,0.6)",
-            }}
-          />
-        )}
-        {showExtra && d && (
-          <div
-            className="absolute border border-dashed border-white/45 pointer-events-none"
-            style={{
-              left: `${d.left * 100}%`,
-              top: `${d.top * 100}%`,
-              width: `${d.w * 100}%`,
-              height: `${d.h * 100}%`,
+              boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)",
             }}
           />
         )}
       </div>
       <p className="mt-2 text-center text-xs text-slate-400">
-        {showExtra
-          ? "Drag to position. Solid box shows on every screen; dashed shows extra on desktop."
+        {showSafe
+          ? "Drag to position. The bright box is what shows on every screen."
           : "Drag to position the crop."}
       </p>
     </>
