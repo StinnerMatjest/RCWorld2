@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import Image from "next/image";
 import { splitMedia, parseFocusStr } from "../FocusedImage";
+import { SectionImage } from "../SectionImage";
+import { SECTION_IMAGE_ASPECT } from "@/app/utils/sectionImageAspect";
 import type { Rating, RatingWarningType } from "@/app/types";
 import ParkRatingsModal from "./ParkTextModal";
 import { getRatingColor } from "@/app/utils/design";
@@ -180,7 +181,7 @@ const RatingText: React.FC<RatingTextProps> = ({
             const renderMedia = (entry: string) => {
               const { url, focus } = splitMedia(entry);
               const pan = parseFocusStr(focus);
-              const heightCls = isRow ? "h-64 xl:h-72" : "h-72 xl:h-96";
+              const a = isRow ? SECTION_IMAGE_ASPECT.row : SECTION_IMAGE_ASPECT.full;
               return (
                 <div
                   key={entry}
@@ -188,30 +189,23 @@ const RatingText: React.FC<RatingTextProps> = ({
                   onClick={() => setLightbox(url)}
                 >
                   {isVideo(url) ? (
-                    <>
-                      <video src={url} className={`w-full ${heightCls} object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105 transform-gpu will-change-transform`} muted loop autoPlay playsInline />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 rounded-2xl">
-                        <svg className="w-12 h-12 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-                      </div>
-                    </>
+                    <div className="relative w-full overflow-hidden rounded-2xl" style={{ aspectRatio: a.desktop }}>
+                      <video src={url} className="absolute inset-0 w-full h-full object-cover rounded-2xl" muted loop autoPlay playsInline />
+                    </div>
                   ) : (
-                    <>
-                      <div className={`relative w-full ${heightCls} overflow-hidden rounded-2xl`}>
-                        <Image
-                          src={url}
-                          alt={humanizeLabel(key)}
-                          fill
-                          sizes={isRow ? "(min-width: 768px) 30vw, 100vw" : "(min-width: 768px) 60vw, 100vw"}
-                          quality={90}
-                          style={{ objectPosition: `${pan.cx * 100}% ${pan.cy * 100}%` }}
-                          className="object-cover rounded-2xl"
-                        />
-                      </div>
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-2xl">
-                        <svg className="w-8 h-8 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0zM11 8v6M8 11h6" /></svg>
-                      </div>
-                    </>
+                    <SectionImage
+                      src={url}
+                      alt={humanizeLabel(key)}
+                      cx={pan.cx}
+                      cy={pan.cy}
+                      mobileAspect={a.mobile}
+                      desktopAspect={a.desktop}
+                      sizes={isRow ? "(min-width: 768px) 30vw, 100vw" : "(min-width: 768px) 60vw, 100vw"}
+                    />
                   )}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-2xl pointer-events-none">
+                    <svg className="w-8 h-8 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0zM11 8v6M8 11h6" /></svg>
+                  </div>
                 </div>
               );
             };

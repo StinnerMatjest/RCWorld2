@@ -3,8 +3,9 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { splitMedia, parseFocusStr } from "@/app/components/FocusedImage";
+import { SectionImage } from "@/app/components/SectionImage";
+import { SECTION_IMAGE_ASPECT } from "@/app/utils/sectionImageAspect";
 import RatingModal from "@/app/components/RatingModal";
 import MainPageButton from "@/app/components/buttons/MainPageButton";
 import CoasterCreatorModal from "@/app/components/CoasterCreatorModal";
@@ -374,23 +375,25 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
               return (
                 <div
                   key={i}
-                  className={`relative mt-6 w-full h-72 xl:h-96 rounded-2xl overflow-hidden shadow-sm ${isVid ? "" : "group cursor-zoom-in"}`}
+                  className={`relative mt-6 w-full rounded-2xl overflow-hidden shadow-sm ${isVid ? "" : "group cursor-zoom-in"}`}
                   onClick={isVid ? undefined : () => setCoverLightbox(url)}
                 >
                   {isVid ? (
-                    <video src={url} className="w-full h-full object-cover rounded-2xl" muted loop autoPlay playsInline />
+                    <div className="relative w-full overflow-hidden rounded-2xl" style={{ aspectRatio: SECTION_IMAGE_ASPECT.full.desktop }}>
+                      <video src={url} className="absolute inset-0 w-full h-full object-cover rounded-2xl" muted loop autoPlay playsInline />
+                    </div>
                   ) : (
                     <>
-                      <Image
+                      <SectionImage
                         src={url}
                         alt={`Introduction ${i + 1}`}
-                        fill
+                        cx={pan.cx}
+                        cy={pan.cy}
+                        mobileAspect={SECTION_IMAGE_ASPECT.full.mobile}
+                        desktopAspect={SECTION_IMAGE_ASPECT.full.desktop}
                         sizes="(min-width: 768px) 60vw, 100vw"
-                        quality={90}
-                        style={{ objectPosition: `${pan.cx * 100}% ${pan.cy * 100}%` }}
-                        className="object-cover rounded-2xl"
                       />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-2xl">
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-2xl pointer-events-none">
                         <svg className="w-8 h-8 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0zM11 8v6M8 11h6" /></svg>
                       </div>
                     </>

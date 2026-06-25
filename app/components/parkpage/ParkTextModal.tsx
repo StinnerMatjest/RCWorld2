@@ -2,8 +2,8 @@
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import Image from "next/image";
-import { CropEditor } from "./ParkHeaderModal";
-import { splitMedia } from "../FocusedImage";
+import { splitMedia, parseFocusStr } from "../FocusedImage";
+import { SECTION_IMAGE_ASPECT } from "@/app/utils/sectionImageAspect";
 import type { Rating } from "@/app/types";
 import type { GalleryImage } from "./ParkGallery";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
@@ -116,6 +116,148 @@ const ImagePickerGrid = React.memo(function ImagePickerGrid({
   );
 });
 
+// Crop editor. Shows the WHOLE photo and lets you drag the crop frame over it
+// (drag left, the frame goes left). The solid box is what shows on every screen
+// (the tighter of mobile/desktop); the dashed box is the extra a wider screen
+// shows. Outputs the object-position focal point the park page consumes.
+function SectionImageCropper({
+  src, mobileAspect, desktopAspect, value, onChange,
+}: {
+  src: string;
+  mobileAspect: string;
+  desktopAspect: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const init = parseFocusStr(value);
+  const [pos, setPos] = useState({ cx: init.cx, cy: init.cy });
+  const posRef = useRef(pos);
+  posRef.current = pos;
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
+  const drag = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
+
+  useEffect(() => {
+    const img = new window.Image();
+    img.onload = () => setDims({ w: img.naturalWidth, h: img.naturalHeight });
+    img.src = src;
+  }, [src]);
+
+  // Sync when the popup switches to a different image/focus.
+  useEffect(() => {
+    const p = parseFocusStr(value);
+    setPos({ cx: p.cx, cy: p.cy });
+  }, [value, src]);
+
+  const clamp = (v: number) => Math.max(0, Math.min(1, v));
+  const ratio = (s: string) => {
+    const [a, b] = s.split("/").map((n) => parseFloat(n.trim()));
+    return a / (b || 1);
+  };
+
+  // The crop window for an aspect over the WHOLE image (object-cover), expressed
+  // in image-fraction coords — which also map 1:1 to the editor (it shows the
+  // whole image). Matches the page's object-position model exactly.
+  const Ai = dims ? dims.w / dims.h : 1;
+  const frameWin = (Af: number, cx: number, cy: number) =>
+    Ai >= Af
+      ? { left: cx * (1 - Af / Ai), top: 0, w: Af / Ai, h: 1 }
+      : { left: 0, top: cy * (1 - Ai / Af), w: 1, h: Ai / Af };
+
+  const onDown = (e: React.PointerEvent) => {
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    drag.current = { x: e.clientX, y: e.clientY, cx: posRef.current.cx, cy: posRef.current.cy };
+  };
+  const onMove = (e: React.PointerEvent) => {
+    const box = boxRef.current;
+    if (!drag.current || !box || !dims) return;
+    const cw = box.clientWidth, ch = box.clientHeight;
+    const d = frameWin(ratio(desktopAspect), drag.current.cx, drag.current.cy);
+    const m = frameWin(ratio(mobileAspect), drag.current.cx, drag.current.cy);
+    // Pannable on an axis if EITHER frame crops on it; use the bigger overflow.
+    const hOver = Math.max(1 - d.w, 1 - m.w);
+    const vOver = Math.max(1 - d.h, 1 - m.h);
+    const dx = e.clientX - drag.current.x;
+    const dy = e.clientY - drag.current.y;
+    let ncx = drag.current.cx, ncy = drag.current.cy;
+    if (hOver > 0.0005) ncx = clamp(drag.current.cx + (dx / cw) / hOver);
+    if (vOver > 0.0005) ncy = clamp(drag.current.cy + (dy / ch) / vOver);
+    setPos({ cx: ncx, cy: ncy });
+  };
+  const onUp = () => {
+    if (!drag.current) return;
+    drag.current = null;
+    onChange(`${posRef.current.cx.toFixed(4)} ${posRef.current.cy.toFixed(4)} 1`);
+  };
+
+  let d: { left: number; top: number; w: number; h: number } | null = null;
+  let safe: { left: number; top: number; w: number; h: number } | null = null;
+  if (dims) {
+    d = frameWin(ratio(desktopAspect), pos.cx, pos.cy);
+    const m = frameWin(ratio(mobileAspect), pos.cx, pos.cy);
+    const left = Math.max(d.left, m.left);
+    const top = Math.max(d.top, m.top);
+    const right = Math.min(d.left + d.w, m.left + m.w);
+    const bottom = Math.min(d.top + d.h, m.top + m.h);
+    safe = { left, top, w: right - left, h: bottom - top };
+  }
+  const showExtra = !!d && !!safe && (safe.w < d.w - 0.005 || safe.h < d.h - 0.005);
+
+  return (
+    <>
+      <div
+        ref={boxRef}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        className="relative mx-auto overflow-hidden rounded-xl bg-slate-950 cursor-grab active:cursor-grabbing select-none touch-none"
+        style={{
+          aspectRatio: dims ? `${dims.w} / ${dims.h}` : desktopAspect,
+          width: dims ? `min(100%, calc(50vh * ${(dims.w / dims.h).toFixed(4)}))` : "100%",
+          maxHeight: "50vh",
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt=""
+          draggable={false}
+          className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
+        />
+        {safe && (
+          <div
+            className="absolute border-2 border-white/90 rounded-sm pointer-events-none"
+            style={{
+              left: `${safe.left * 100}%`,
+              top: `${safe.top * 100}%`,
+              width: `${safe.w * 100}%`,
+              height: `${safe.h * 100}%`,
+              boxShadow: "0 0 0 9999px rgba(0,0,0,0.6)",
+            }}
+          />
+        )}
+        {showExtra && d && (
+          <div
+            className="absolute border border-dashed border-white/45 pointer-events-none"
+            style={{
+              left: `${d.left * 100}%`,
+              top: `${d.top * 100}%`,
+              width: `${d.w * 100}%`,
+              height: `${d.h * 100}%`,
+            }}
+          />
+        )}
+      </div>
+      <p className="mt-2 text-center text-xs text-slate-400">
+        {showExtra
+          ? "Drag to position. Solid box shows on every screen; dashed shows extra on desktop."
+          : "Drag to position the crop."}
+      </p>
+    </>
+  );
+}
+
 const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   rating,
   explanations, sectionImages, sectionLayouts = {}, galleryImages, parkId, ratingId, onClose, onSave,
@@ -149,7 +291,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   const cur = drafts[selectedCat];
   const textStats = countTextStats(cur.text);
   // Roughly match the on-page crop box so panning previews accurately.
-  const cropAspect = cur.layout === "left" || cur.layout === "right" ? "16 / 9" : "21 / 9";
+  const cropFrames = cur.layout === "left" || cur.layout === "right" ? SECTION_IMAGE_ASPECT.row : SECTION_IMAGE_ASPECT.full;
 
   // Validation function
   const canSwitchOrSave = () => {
@@ -530,7 +672,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
           onClick={() => setCropIndex(null)}
         >
           <div
-            className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col gap-3 p-4"
+            className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto flex flex-col gap-3 p-4"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
@@ -548,14 +690,13 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                 </svg>
               </button>
             </div>
-            <CropEditor
+            <SectionImageCropper
               key={`popup-crop-${selectedCat}-${cropIndex}-${cur.images[cropIndex]}`}
               src={cur.images[cropIndex]}
-              aspectRatio={cropAspect}
-              focusStr={cur.focuses[cropIndex] ?? "0.5 0.5 1"}
-              onCommit={(f) => updateFocus(cropIndex, f)}
-              maxZoom={1}
-              className="w-full rounded-xl"
+              mobileAspect={cropFrames.mobile}
+              desktopAspect={cropFrames.desktop}
+              value={cur.focuses[cropIndex] ?? "0.5 0.5 1"}
+              onChange={(f) => updateFocus(cropIndex, f)}
             />
             <div className="flex gap-2">
               <button

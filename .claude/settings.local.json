@@ -21,7 +21,9 @@
       "PowerShell(claude --version)",
       "Bash(node -e *)",
       "PowerShell(npx next build 2>&1)",
-      "PowerShell($r = Invoke-RestMethod \"http://localhost:3000/api/coasters\" -TimeoutSec 8; \"count: $\\($r.coasters.Count\\)\"; $r.coasters[0] | ConvertTo-Json -Depth 3)"
+      "PowerShell($r = Invoke-RestMethod \"http://localhost:3000/api/coasters\" -TimeoutSec 8; \"count: $\\($r.coasters.Count\\)\"; $r.coasters[0] | ConvertTo-Json -Depth 3)",
+      "Bash(node _aicheck.cjs)",
+      "Bash(node _emfix.cjs)"
     ],
     "additionalDirectories": [
       "c:\\ParkRating\\RCWorld2\\app"

@@ -1,0 +1,12 @@
+/* Responsive image frame. Mobile aspect by default, desktop aspect at md+.
+   The actual ratios are passed in per-element via the --aspect-m / --aspect-d
+   custom properties (sourced from SECTION_IMAGE_ASPECT). */
+.frame {
+  aspect-ratio: var(--aspect-m);
+}
+
+@media (min-width: 768px) {
+  .frame {
+    aspect-ratio: var(--aspect-d);
+  }
+}
