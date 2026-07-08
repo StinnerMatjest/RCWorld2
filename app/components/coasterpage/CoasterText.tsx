@@ -2,9 +2,18 @@
 
 import React, { useEffect, useState } from "react";
 import { useAdminMode } from "../../context/AdminModeContext";
-import CoasterTextModal, { CoasterTextEntry } from "./CoasterTextModal";
+import CoasterTextModal from "./CoasterTextModal";
 import { MarkdownText } from "../MarkdownText";
 import SpoilerText from "../SpoilerText";
+
+export interface CoasterTextEntry {
+  id: number;
+  coaster_id: number;
+  headline: string | null;
+  text: string | null;
+  order: number;
+  isSpoiler?: boolean;
+}
 
 interface Props {
   coasterId: number;
