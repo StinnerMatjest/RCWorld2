@@ -13,11 +13,12 @@ interface ParkTextsModalProps {
   explanations: Record<string, string>;
   sectionImages: Record<string, string>;
   sectionLayouts?: Record<string, string>;
+  sectionSpoilers?: Record<string, boolean>;
   galleryImages: GalleryImage[];
   parkId: number;
   ratingId: number;
   onClose: () => void;
-  onSave?: (updatedText: Record<string, string>, updatedImages: Record<string, string>, updatedLayouts: Record<string, string>) => void;
+  onSave?: (updatedText: Record<string, string>, updatedImages: Record<string, string>, updatedLayouts: Record<string, string>, updatedSpoilers: Record<string, boolean>) => void;
 }
 
 const CATEGORIES = [
@@ -51,10 +52,8 @@ const LABELS: Record<Category, string> = {
 
 const countTextStats = (text: string) => {
   if (!text) return { words: 0, paragraphs: 0 };
-
   const paragraphs = text.split("\n").filter(line => line.trim() !== "").length;
   const words = text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
-
   return { words, paragraphs };
 };
 
@@ -82,8 +81,6 @@ const ImagePickerGrid = React.memo(function ImagePickerGrid({
       {galleryImages.map(img => {
         const selIndex = selected.indexOf(img.path);
         const sel = selIndex !== -1;
-        // Single-image mode: clicking another image just replaces the current one.
-        // Only block clicks in 2-image mode once both slots are full.
         const disabled = !sel && maxSelection > 1 && selected.length >= maxSelection;
 
         return (
@@ -116,10 +113,6 @@ const ImagePickerGrid = React.memo(function ImagePickerGrid({
   );
 });
 
-// Crop editor. Renders the DESKTOP crop at full width — exactly what the park
-// page shows — so the preview matches the page (and a wide frame stays short
-// enough to fit on screen, even for vertical photos). Drag pans it; the dimmed
-// edges are what a NARROWER screen (mobile) trims, so keep your subject bright.
 function SectionImageCropper({
   src, mobileAspect, desktopAspect, value, onChange,
 }: {
@@ -143,7 +136,6 @@ function SectionImageCropper({
     img.src = src;
   }, [src]);
 
-  // Sync when the popup switches to a different image/focus.
   useEffect(() => {
     const p = parseFocusStr(value);
     setPos({ cx: p.cx, cy: p.cy });
@@ -155,7 +147,6 @@ function SectionImageCropper({
     return a / (b || 1);
   };
 
-  // Crop window for an aspect over the whole image (object-cover), image-fraction coords.
   const Ai = dims ? dims.w / dims.h : 1;
   const win = (Af: number, cx: number, cy: number) =>
     Ai >= Af
@@ -175,8 +166,6 @@ function SectionImageCropper({
     const dx = e.clientX - drag.current.x;
     const dy = e.clientY - drag.current.y;
     let ncx = drag.current.cx, ncy = drag.current.cy;
-    // If desktop crops on the axis, you pan its content (content follows the drag).
-    // If only mobile crops it, you position mobile's crop instead (box follows).
     if (1 - d.w > 0.0005) ncx = clamp(drag.current.cx - dx / (cw * (1 - d.w)));
     else if (1 - m.w > 0.0005) ncx = clamp(drag.current.cx + dx / (cw * (1 - m.w)));
     if (1 - d.h > 0.0005) ncy = clamp(drag.current.cy - dy / (ch * (1 - d.h)));
@@ -189,7 +178,6 @@ function SectionImageCropper({
     onChange(`${posRef.current.cx.toFixed(4)} ${posRef.current.cy.toFixed(4)} 1`);
   };
 
-  // Safe zone = part of the DESKTOP crop that mobile also shows, in desktop-view coords.
   let safe: { left: number; top: number; w: number; h: number } | null = null;
   if (dims) {
     const d = win(ratio(desktopAspect), pos.cx, pos.cy);
@@ -250,13 +238,12 @@ function SectionImageCropper({
 
 const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   rating,
-  explanations, sectionImages, sectionLayouts = {}, galleryImages, parkId, ratingId, onClose, onSave,
+  explanations, sectionImages, sectionLayouts = {}, sectionSpoilers = {}, galleryImages, parkId, ratingId, onClose, onSave,
 }) => {
   useScrollLock();
   const [selectedCat, setSelectedCat] = useState<Category>(CATEGORIES[0]);
 
-  // Changed image to images array, and added useTwoImages toggle
-  const [drafts, setDrafts] = useState<Record<string, { text: string; images: string[]; focuses: string[]; layout: string | null; useTwoImages: boolean }>>(() =>
+  const [drafts, setDrafts] = useState<Record<string, { text: string; images: string[]; focuses: string[]; layout: string | null; useTwoImages: boolean; isSpoiler: boolean }>>(() =>
     Object.fromEntries(CATEGORIES.map(cat => {
       const parsed = sectionImages[cat] ? sectionImages[cat].split(",").map(splitMedia) : [];
       return [cat, {
@@ -264,7 +251,8 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
         images: parsed.map(p => p.url),
         focuses: parsed.map(p => p.focus),
         layout: sectionLayouts[cat] ?? null,
-        useTwoImages: parsed.length > 1
+        useTwoImages: parsed.length > 1,
+        isSpoiler: sectionSpoilers[cat] || false
       }];
     }))
   );
@@ -280,10 +268,8 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
   const cur = drafts[selectedCat];
   const textStats = countTextStats(cur.text);
-  // Roughly match the on-page crop box so panning previews accurately.
   const cropFrames = cur.layout === "left" || cur.layout === "right" ? SECTION_IMAGE_ASPECT.row : SECTION_IMAGE_ASPECT.full;
 
-  // Validation function
   const canSwitchOrSave = () => {
     const c = drafts[selectedCat];
     if (c.useTwoImages && c.images.length === 1) {
@@ -300,7 +286,9 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   const updateText = useCallback((t: string) =>
     setDrafts(d => ({ ...d, [selectedCat]: { ...d[selectedCat], text: t } })), [selectedCat]);
 
-  // Updated image selection logic for arrays
+  const updateSpoiler = useCallback((isSpoiler: boolean) =>
+    setDrafts(d => ({ ...d, [selectedCat]: { ...d[selectedCat], isSpoiler } })), [selectedCat]);
+
   const updateImage = useCallback((img: string | null) => {
     setDrafts(d => {
       const c = d[selectedCat];
@@ -327,7 +315,6 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
     });
   }, [selectedCat]);
 
-  // Pan focus per selected image, committed by the CropEditor below the picker.
   const updateFocus = useCallback((index: number, focus: string) => {
     setDrafts(d => {
       const c = d[selectedCat];
@@ -337,11 +324,9 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
     });
   }, [selectedCat]);
 
-  // Live ref so the picker handler stays stable (keeps the grid memoized).
   const draftsRef = useRef(drafts);
   draftsRef.current = drafts;
 
-  // Picking an image opens the crop popup for it; clicking a selected one re-opens it.
   const handlePick = useCallback((path: string | null) => {
     if (path === null || isVideo(path)) { updateImage(path); return; }
     const c = draftsRef.current[selectedCat];
@@ -382,19 +367,37 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
     const ta = textareaRef.current;
     if (!ta) return;
     const s = ta.selectionStart, e = ta.selectionEnd;
+    const scroll = ta.scrollTop;
+
     const next = cur.text.slice(0, s) + before + cur.text.slice(s, e) + after + cur.text.slice(e);
     updateText(next);
-    setTimeout(() => { ta.focus(); ta.setSelectionRange(s + before.length, e + before.length); }, 0);
+
+    setTimeout(() => {
+      ta.focus();
+      ta.setSelectionRange(s + before.length, e + before.length);
+      ta.scrollTop = scroll;
+    }, 0);
   };
 
   const insertBullet = () => {
     const ta = textareaRef.current;
     if (!ta) return;
     const s = ta.selectionStart;
+    const scroll = ta.scrollTop;
+
     const lineStart = cur.text.lastIndexOf("\n", s - 1) + 1;
     const next = cur.text.slice(0, lineStart) + "- " + cur.text.slice(lineStart);
     updateText(next);
-    setTimeout(() => { ta.focus(); ta.setSelectionRange(s + 2, s + 2); }, 0);
+
+    setTimeout(() => {
+      ta.focus();
+      ta.setSelectionRange(s + 2, s + 2);
+      ta.scrollTop = scroll;
+    }, 0);
+  };
+
+  const clearFormatting = () => {
+    updateText(cur.text.replace(/\*\*|\*|\|\|/g, ""));
   };
 
   // ── Save all ────────────────────────────────────────────────────────────────
@@ -406,11 +409,12 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
     const outTexts: Record<string, string> = {};
     const outImages: Record<string, string> = {};
     const outLayouts: Record<string, string> = {};
+    const outSpoilers: Record<string, boolean> = {};
     const failed: { cat: Category; status: number }[] = [];
 
     try {
       for (const cat of CATEGORIES) {
-        const { text, images, focuses, layout } = drafts[cat];
+        const { text, images, focuses, layout, isSpoiler } = drafts[cat];
         if (!text && images.length === 0 && !persisted.has(cat)) continue;
 
         const imgString = images.length > 0
@@ -420,21 +424,24 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
         const res = await fetch(`/api/park/${parkId}/parkTexts`, {
           method,
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ category: cat, text, ratingId, imageUrl: imgString, imageLayout: layout ?? null }),
+          body: JSON.stringify({ category: cat, text, ratingId, imageUrl: imgString, imageLayout: layout ?? null, isSpoiler }),
         });
         if (res.ok) {
           const saved = await res.json();
           newPersisted.add(cat);
           if (saved.text) outTexts[cat] = saved.text;
           if (saved.imageUrl) outImages[cat] = saved.imageUrl;
+
           if (saved.imageLayout) outLayouts[cat] = saved.imageLayout;
           else if (drafts[cat].layout) outLayouts[cat] = drafts[cat].layout!;
+
+          outSpoilers[cat] = saved.isSpoiler || false;
         } else {
           failed.push({ cat, status: res.status });
         }
       }
       setPersisted(newPersisted);
-      onSave?.(outTexts, outImages, outLayouts);
+      onSave?.(outTexts, outImages, outLayouts, outSpoilers);
       if (failed.length > 0) {
         setSaveError(
           failed.some(f => f.status === 401)
@@ -457,7 +464,8 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
     const texts = Object.fromEntries(CATEGORIES.filter(c => drafts[c].text).map(c => [c, drafts[c].text]));
     const images = Object.fromEntries(CATEGORIES.filter(c => drafts[c].images.length > 0).map(c => [c, drafts[c].images.map((u, i) => `${u}|${drafts[c].focuses[i] ?? "0.5 0.5 1"}`).join(",")]));
     const layouts = Object.fromEntries(CATEGORIES.filter(c => drafts[c].layout).map(c => [c, drafts[c].layout!]));
-    onSave?.(texts, images, layouts);
+    const spoilers = Object.fromEntries(CATEGORIES.map(c => [c, drafts[c].isSpoiler]));
+    onSave?.(texts, images, layouts, spoilers);
     onClose();
   };
 
@@ -472,7 +480,8 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] bg-black/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+    // Fixed lag issue by changing backdrop-blur to an opaque black background
+    <div className="fixed inset-0 z-[1000] bg-black/80 flex items-center justify-center p-2 sm:p-4">
       <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-4xl h-[93vh] flex flex-col overflow-hidden">
 
         {/* ── Top bar ─────────────────────────────────────────────────────── */}
@@ -542,8 +551,9 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
               {/* Category Title & Score Header */}
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xl font-bold text-white tracking-tight">
+                <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
                   {LABELS[selectedCat]}
+                  {cur.isSpoiler && <span className="text-[10px] font-bold uppercase tracking-wider bg-red-900/40 text-red-400 border border-red-800/50 px-2 py-0.5 rounded">SPOILER</span>}
                 </h3>
                 {selectedCat !== "description" && (
                   <div className="bg-slate-800/80 border border-slate-700 px-3 py-1 rounded-lg flex items-center gap-2 shadow-sm">
@@ -569,7 +579,15 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                   className="w-8 h-8 flex items-center justify-center rounded-md border border-slate-700 hover:bg-slate-800 text-sm text-slate-200 cursor-pointer transition-colors">
                   •—
                 </button>
-                <span className="text-xs text-slate-500 ml-1.5">**bold** &nbsp;*italic* &nbsp;- bullet</span>
+                <button type="button" onClick={() => wrapSelection("||")} title="Spoiler"
+                  className="w-8 h-8 flex items-center justify-center rounded-md border border-slate-700 hover:bg-slate-800 font-bold text-sm text-slate-200 cursor-pointer transition-colors font-mono">
+                  S
+                </button>
+                <div className="w-px h-5 bg-slate-700 mx-1"></div>
+                <button type="button" onClick={clearFormatting} title="Clear Formatting"
+                  className="w-8 h-8 flex items-center justify-center rounded-md border border-slate-700 hover:bg-slate-800 font-bold text-sm text-slate-200 cursor-pointer transition-colors">
+                  🧹
+                </button>
               </div>
 
               {/* Textarea */}
@@ -582,9 +600,18 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                 placeholder={`Write about ${LABELS[selectedCat].toLowerCase()}…`}
               />
 
-              {/* Word and Paragraph Counter */}
-              <div className="flex justify-end -mt-2 mb-2 pr-1">
-                <span className="text-xs text-slate-500 font-medium tracking-wide">
+              {/* Spoiler Checkbox and Word/Paragraph Counter */}
+              <div className="flex justify-between items-start -mt-2 mb-2 pr-1">
+                <label className="flex items-center gap-2 cursor-pointer mt-1">
+                  <input
+                    type="checkbox"
+                    checked={cur.isSpoiler}
+                    onChange={(e) => updateSpoiler(e.target.checked)}
+                    className="rounded border-slate-600 bg-slate-700 text-blue-500 focus:ring-blue-500/50"
+                  />
+                  <span className="text-sm font-medium text-slate-300">Mark as spoiler section</span>
+                </label>
+                <span className="text-xs text-slate-500 font-medium tracking-wide mt-1.5">
                   Words: {textStats.words} &nbsp;|&nbsp; Paragraphs: {textStats.paragraphs}
                 </span>
               </div>
@@ -608,7 +635,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                               images: nextTwo ? c.images : c.images.slice(0, 1),
                               focuses: nextTwo ? c.focuses : c.focuses.slice(0, 1),
                               layout: nextTwo
-                                ? (c.layout === 'above' || c.layout === 'below' || c.layout === 'center' ? 'double' : c.layout)
+                                ? (c.layout === 'center' ? 'above' : c.layout)
                                 : c.layout === 'double' ? 'above' : c.layout
                             }
                           };
@@ -625,7 +652,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
                   {cur.images.length > 0 && selectedCat !== "description" && (
                     <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-1">
-                      {(cur.useTwoImages ? ["left", "right", "double"] : ["left", "right", "above", "below"]).map(opt => {
+                      {(cur.useTwoImages ? ["left", "right", "double", "above", "below"] : ["left", "right", "above", "below"]).map(opt => {
                         const labels: Record<string, string> = { left: "⬅️ Left", right: "➡️ Right", above: "⬆️ Above", below: "⬇️ Below", double: "↕️ Double" };
 
                         let activeOpt = cur.layout;

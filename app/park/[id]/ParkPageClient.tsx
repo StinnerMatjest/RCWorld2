@@ -8,8 +8,8 @@ import { SectionImage } from "@/app/components/SectionImage";
 import { SECTION_IMAGE_ASPECT } from "@/app/utils/sectionImageAspect";
 import RatingModal from "@/app/components/RatingModal";
 import MainPageButton from "@/app/components/buttons/MainPageButton";
-import CoasterCreatorModal from "@/app/components/CoasterCreatorModal";
-import RatingText from "@/app/components/parkpage/RatingText";
+import CoasterCreatorModal from "@/app/components/coasterpage/CoasterCreatorModal";
+import ParkText from "@/app/components/parkpage/ParkText";
 import Coasterlist from "@/app/components/parkpage/Coasterlist";
 import ParkHeader from "@/app/components/ParkHeader";
 import ParkGallery, { type GalleryImage } from "@/app/components/parkpage/ParkGallery";
@@ -44,6 +44,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
   const [explanations, setExplanations] = useState<Record<string, string>>({});
   const [sectionImages, setSectionImages] = useState<Record<string, string>>({});
   const [sectionLayouts, setSectionLayouts] = useState<Record<string, string>>({});
+  const [sectionSpoilers, setSectionSpoilers] = useState<Record<string, boolean>>({});
   const { isAdminMode } = useAdminMode();
 
   // Cover/overview image lightbox (click to enlarge, matches RatingText)
@@ -193,9 +194,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
     })();
   }, [parkSlug]);
 
-  // Filter ratings at the page level so draft reviews never act as the default for non-admins
   const visibleRatings = ratings.filter((r) => isAdminMode || r.published);
-
   const selectedRating = visibleRatings.find((r) => r.id.toString() === visitId);
   const activeRatingId = selectedRating?.id ?? visibleRatings[0]?.id;
 
@@ -216,16 +215,20 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
         const explanationMap: Record<string, string> = {};
         const imageMap: Record<string, string> = {};
         const layoutMap: Record<string, string> = {};
+        const spoilerMap: Record<string, boolean> = {};
+
         for (const item of explanationsData) {
           if (!item.ratingId || item.ratingId === activeRatingId) {
             explanationMap[item.category] = item.text;
             if (item.imageUrl) imageMap[item.category] = item.imageUrl;
             if (item.imageLayout) layoutMap[item.category] = item.imageLayout;
+            spoilerMap[item.category] = item.isSpoiler || false;
           }
         }
         setExplanations(explanationMap);
         setSectionImages(imageMap);
         setSectionLayouts(layoutMap);
+        setSectionSpoilers(spoilerMap);
       } catch (error) {
         console.error("Failed to fetch explanations:", error);
       } finally {
@@ -297,7 +300,6 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
         isAdminMode={isAdminMode}
         onUpdate={fetchParkData}
       />
-      {/* Locked background grid to #0f172a */}
       <div className="grid grid-cols-1 md:grid-cols-[1.4fr_5.5fr_3.5fr] [@media(min-width:2560px)]:grid-cols-[1.8fr_6fr_3.5fr] gap-6 w-full py-10 px-6 md:px-20 bg-[#0f172a]">
         <div className="self-start md:sticky md:top-6 min-w-0 space-y-4">
           <VisitPanel
@@ -316,7 +318,6 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
             <div className="flex items-center justify-between">
               <h2 className="text-4xl font-bold text-white tracking-tight">Introduction</h2>
 
-              {/* Admin 3-Dot Menu */}
               {isAdminMode && visibleRatings.length > 0 && (
                 <div className="relative" ref={menuRef}>
                   <button
@@ -425,11 +426,12 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
             )}
           </div>
 
-          <RatingText
+          <ParkText
             rating={selectedRating ?? visibleRatings[0]}
             explanations={explanations}
             sectionImages={sectionImages}
             sectionLayouts={sectionLayouts}
+            sectionSpoilers={sectionSpoilers}
             galleryImages={galleryImages}
             parkId={park.id}
             parkName={park.name}

@@ -3,7 +3,6 @@ import { revalidateContent } from "@/app/lib/revalidate";
 import { pool } from "@/app/lib/db";
 import { diffFields, getCoasterContext, logChange } from "@/app/lib/changelog";
 
-
 // Helper function to resolve slug OR id to a numeric coaster ID
 async function resolveCoasterId(identifier: string): Promise<number | null> {
     const numId = Number(identifier);
@@ -37,7 +36,8 @@ export async function GET(
     coaster_id,
     headline,
     text,
-    "order"
+    "order",
+    is_spoiler AS "isSpoiler"
   FROM coastertext
   WHERE coaster_id = $1
   ORDER BY "order" ASC
@@ -58,7 +58,7 @@ export async function POST(
     req: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
-  revalidateContent();
+    revalidateContent();
     const { id } = await context.params;
     const coasterId = await resolveCoasterId(id);
 
@@ -90,7 +90,7 @@ export async function POST(
             return NextResponse.json({ success: true });
         }
 
-        const { id: textId, headline, text } = body;
+        const { id: textId, headline, text, isSpoiler } = body;
         if (!headline && !text) {
             return NextResponse.json({ error: "Missing headline or text" }, { status: 400 });
         }
@@ -104,12 +104,12 @@ export async function POST(
             const oldRow = oldRes.rows[0];
 
             const updateRes = await pool.query(
-                `UPDATE coastertext SET headline = $1, text = $2 WHERE id = $3 AND coaster_id = $4 RETURNING *`,
-                [headline, text, textId, coasterId]
+                `UPDATE coastertext SET headline = $1, text = $2, is_spoiler = $3 WHERE id = $4 AND coaster_id = $5 RETURNING id, coaster_id, headline, text, "order", is_spoiler AS "isSpoiler"`,
+                [headline, text, isSpoiler ?? false, textId, coasterId]
             );
 
             if (oldRow) {
-                const diff = diffFields(oldRow, { headline, text });
+                const diff = diffFields(oldRow, { headline, text, isSpoiler }, { isSpoiler: "is_spoiler" });
                 if (Object.keys(diff).length > 0) {
                     const ctx = await getCoasterContext(coasterId);
                     logChange({
@@ -134,8 +134,8 @@ export async function POST(
             const newOrder = maxOrderRes.rows[0].max_order + 1;
 
             const insertRes = await pool.query(
-                `INSERT INTO coastertext (coaster_id, headline, text, "order") VALUES ($1, $2, $3, $4) RETURNING *`,
-                [coasterId, headline, text, newOrder]
+                `INSERT INTO coastertext (coaster_id, headline, text, "order", is_spoiler) VALUES ($1, $2, $3, $4, $5) RETURNING id, coaster_id, headline, text, "order", is_spoiler AS "isSpoiler"`,
+                [coasterId, headline, text, newOrder, isSpoiler ?? false]
             );
 
             const ctx = await getCoasterContext(coasterId);
@@ -146,7 +146,7 @@ export async function POST(
                 label: ctx.name,
                 action: "create",
                 summary: `Added "${headline}" text on ${ctx.name ?? `coaster #${coasterId}`}`,
-                details: { headline, text },
+                details: { headline, text, isSpoiler },
             });
 
             return NextResponse.json({ text: insertRes.rows[0] });
@@ -159,7 +159,7 @@ export async function POST(
 
 // DELETE
 export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
-  revalidateContent();
+    revalidateContent();
     const { id } = await context.params;
     const coasterId = await resolveCoasterId(id);
     const body = await req.json();

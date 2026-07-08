@@ -12,13 +12,15 @@ import RatingWarning from "../warnings/RatingWarning";
 import WarningCreatorModal from "../warnings/WarningCreatorModal";
 import { useAdminMode } from "../../context/AdminModeContext";
 import { MarkdownText } from "../MarkdownText";
-import type { GalleryImage } from "../parkpage/ParkGallery";
+import SpoilerText from "../SpoilerText";
+import type { GalleryImage } from "./ParkGallery";
 
-interface RatingTextProps {
+interface ParkTextProps {
   rating: Rating;
   explanations: Record<string, string>;
   sectionImages: Record<string, string>;
   sectionLayouts?: Record<string, string>;
+  sectionSpoilers: Record<string, boolean>;
   galleryImages: GalleryImage[];
   parkId: number;
   parkName: string;
@@ -35,11 +37,12 @@ function isVideo(src: string) {
   return /\.(mp4|webm|ogg)$/i.test(src);
 }
 
-const RatingText: React.FC<RatingTextProps> = ({
+const ParkText: React.FC<ParkTextProps> = ({
   rating,
   explanations,
   sectionImages,
   sectionLayouts = {},
+  sectionSpoilers,
   galleryImages,
   parkId,
   parkName,
@@ -53,6 +56,7 @@ const RatingText: React.FC<RatingTextProps> = ({
   const [localExplanations, setLocalExplanations] = useState(explanations);
   const [localImages, setLocalImages] = useState(sectionImages);
   const [localLayouts, setLocalLayouts] = useState(sectionLayouts);
+  const [localSpoilers, setLocalSpoilers] = useState(sectionSpoilers);
   const [lightbox, setLightbox] = useState<string | null>(null);
 
   // State for publishing
@@ -60,6 +64,7 @@ const RatingText: React.FC<RatingTextProps> = ({
 
   useEffect(() => { setLocalExplanations(explanations); }, [explanations]);
   useEffect(() => { setLocalImages(sectionImages); }, [sectionImages]);
+  useEffect(() => { setLocalSpoilers(sectionSpoilers); }, [sectionSpoilers]);
 
   useEffect(() => {
     if (!isAdminMode) {
@@ -87,7 +92,7 @@ const RatingText: React.FC<RatingTextProps> = ({
         body: JSON.stringify({ published: true }),
       });
       if (res.ok) {
-        onWarningsUpdate(); // This triggers the refresh/refetch function passed down from ParkPageClient
+        onWarningsUpdate();
       } else {
         alert("Failed to publish rating. Ensure you have created the PATCH route at /api/ratings/[id]/route.ts");
       }
@@ -109,7 +114,7 @@ const RatingText: React.FC<RatingTextProps> = ({
 
   return (
     <div className="space-y-12">
-      <div className="flex flex-col md:flex-row md:items-center gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
         <h2 className="text-3xl font-semibold text-white flex items-center flex-wrap gap-3">
           {parkName} Review
           {!rating.published && (
@@ -119,23 +124,25 @@ const RatingText: React.FC<RatingTextProps> = ({
           )}
         </h2>
 
-        {isAdminMode && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowModal(true)}
-              className="inline-flex items-center justify-center p-1 text-slate-400 hover:text-slate-100 hover:bg-white/10 rounded transition-colors text-[20px] leading-none cursor-pointer"
-              title="Edit Explanations"
-            >
-              🔧
-            </button>
-            <button
-              onClick={() => setShowWarningManager(true)}
-              className="bg-blue-900 text-blue-300 hover:bg-blue-800 px-3 py-1 rounded text-sm font-semibold transition-colors cursor-pointer"
-            >
-              Warnings
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-4">
+          {isAdminMode && (
+            <div className="flex items-center gap-2 ml-auto">
+              <button
+                onClick={() => setShowModal(true)}
+                className="inline-flex items-center justify-center p-1 text-slate-400 hover:text-slate-100 hover:bg-white/10 rounded transition-colors text-[20px] leading-none cursor-pointer"
+                title="Edit Explanations"
+              >
+                🔧
+              </button>
+              <button
+                onClick={() => setShowWarningManager(true)}
+                className="bg-blue-900 text-blue-300 hover:bg-blue-800 px-3 py-1 rounded text-sm font-semibold transition-colors cursor-pointer"
+              >
+                Warnings
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {(() => {
@@ -146,6 +153,7 @@ const RatingText: React.FC<RatingTextProps> = ({
             const value = (rating as any)[key] ?? 0;
             const text = localExplanations[key] ?? "";
             const categoryWarnings = categoryWarningsMap[key.toLowerCase()] ?? [];
+            const isSpoilerSection = localSpoilers[key] || false;
 
             // Unpack images
             const mediaUrls = (localImages[key] || "").split(",").filter(Boolean);
@@ -176,16 +184,15 @@ const RatingText: React.FC<RatingTextProps> = ({
               isRight = imageIndex++ % 2 !== 0;
             }
 
-            // Helper to render an individual media block. The value may carry a
-            // packed pan focus ("url|cx cy zoom"), honored via FocusedImage.
-            const renderMedia = (entry: string) => {
+            // Helper to render an individual media block.
+            const renderMedia = (entry: string, isHalf = false) => {
               const { url, focus } = splitMedia(entry);
               const pan = parseFocusStr(focus);
-              const a = isRow ? SECTION_IMAGE_ASPECT.row : SECTION_IMAGE_ASPECT.full;
+              const a = (isRow || isHalf) ? SECTION_IMAGE_ASPECT.row : SECTION_IMAGE_ASPECT.full;
               return (
                 <div
                   key={entry}
-                  className={`w-full flex-shrink-0 rounded-2xl overflow-hidden cursor-zoom-in group relative shadow-sm ${isDouble ? "mt-4 mb-4" : ""}`}
+                  className={`${isHalf ? "flex-1 min-w-0" : "w-full flex-shrink-0"} rounded-2xl overflow-hidden cursor-zoom-in group relative shadow-sm ${isDouble ? "mt-4 mb-4" : ""}`}
                   onClick={() => setLightbox(url)}
                 >
                   {isVideo(url) ? (
@@ -210,22 +217,34 @@ const RatingText: React.FC<RatingTextProps> = ({
               );
             };
 
-            return (
-              <div key={key} id={`section-${key}`} className="space-y-3 scroll-mt-6">
-                <div className="flex items-baseline gap-3 border-l-4 border-brand pl-3">
-                  <h3 className="text-xl font-semibold text-white">{humanizeLabel(key)}</h3>
-                  <span className={`text-2xl font-bold ${getRatingColor(value)}`}>{value}</span>
-                  {categoryWarnings.length > 0 && (
-                    <RatingWarning warning={categoryWarnings} isAdminMode={isAdminMode} ratingId={rating.id} onUpdate={onWarningsUpdate} coasters={coasters} />
-                  )}
-                </div>
+            // NEW Helper: Only blurs the text component
+            const renderTextContent = () => {
+              const md = (
+                <MarkdownText
+                  text={text}
+                  className={`text-slate-400 leading-relaxed md:text-lg ${isSpoilerSection ? "" : "flex-1"}`}
+                  forceReveal={isAdminMode}
+                  isAdminMode={isAdminMode}
+                />
+              );
 
+              return isSpoilerSection ? (
+                <SpoilerText forceReveal={isAdminMode} block={true} isAdminMode={isAdminMode} className="flex-1">
+                  {md}
+                </SpoilerText>
+              ) : (
+                md
+              );
+            };
+
+            const content = (
+              <div>
                 {!hasMedia ? (
-                  <MarkdownText text={text} className="text-slate-400 leading-relaxed md:text-lg" />
+                  renderTextContent()
                 ) : isDouble ? (
                   <div className="flex flex-col">
                     {renderMedia(mediaUrls[0])}
-                    <MarkdownText text={text} className="text-slate-400 leading-relaxed md:text-lg" />
+                    {renderTextContent()}
                     {renderMedia(mediaUrls[1])}
                   </div>
                 ) : isRow ? (
@@ -233,16 +252,34 @@ const RatingText: React.FC<RatingTextProps> = ({
                     <div className="w-full md:w-1/2 flex-shrink-0 flex flex-col gap-4 mt-1.5">
                       {mediaUrls.map(url => renderMedia(url))}
                     </div>
-                    <MarkdownText text={text} className="text-slate-400 leading-relaxed md:text-lg flex-1" />
+                    {renderTextContent()}
                   </div>
                 ) : (
                   <div className={`flex gap-4 ${isAbove ? "flex-col" : "flex-col-reverse"}`}>
-                    <div className="flex flex-col gap-4 mt-1.5">
-                      {mediaUrls.map(url => renderMedia(url))}
+                    <div className={`flex mt-1.5 ${mediaUrls.length === 2 ? "flex-row gap-2 md:gap-3" : "flex-col gap-4"}`}>
+                      {mediaUrls.map(url => renderMedia(url, mediaUrls.length === 2))}
                     </div>
-                    <MarkdownText text={text} className="text-slate-400 leading-relaxed md:text-lg" />
+                    {renderTextContent()}
                   </div>
                 )}
+              </div>
+            );
+
+            return (
+              <div key={key} id={`section-${key}`} className="space-y-3 scroll-mt-6">
+                <div className="flex items-baseline gap-3 border-l-4 border-brand pl-3">
+                  <h3 className="text-xl font-semibold text-white">{humanizeLabel(key)}</h3>
+                  <span className={`text-2xl font-bold ${getRatingColor(value)}`}>{value}</span>
+                  {isAdminMode && isSpoilerSection && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-900/40 text-red-400 border border-red-800/50">
+                      Spoiler
+                    </span>
+                  )}
+                  {categoryWarnings.length > 0 && (
+                    <RatingWarning warning={categoryWarnings} isAdminMode={isAdminMode} ratingId={rating.id} onUpdate={onWarningsUpdate} coasters={coasters} />
+                  )}
+                </div>
+                {content}
               </div>
             );
           });
@@ -286,14 +323,16 @@ const RatingText: React.FC<RatingTextProps> = ({
           explanations={localExplanations}
           sectionImages={localImages}
           sectionLayouts={localLayouts}
+          sectionSpoilers={localSpoilers}
           galleryImages={galleryImages}
           parkId={Number(parkId)}
           ratingId={rating.id}
           onClose={() => setShowModal(false)}
-          onSave={(updatedText, updatedImages, updatedLayouts) => {
+          onSave={(updatedText, updatedImages, updatedLayouts, updatedSpoilers) => {
             setLocalExplanations(updatedText);
             setLocalImages(updatedImages);
             setLocalLayouts(updatedLayouts ?? {});
+            setLocalSpoilers(updatedSpoilers ?? {});
             onSectionImagesUpdate(updatedImages);
           }}
         />
@@ -325,4 +364,4 @@ const RatingText: React.FC<RatingTextProps> = ({
   );
 };
 
-export default RatingText;
+export default ParkText;

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import type { RollerCoaster } from "@/app/types";
 import { useAdminMode } from "@/app/context/AdminModeContext";
-import CoasterCreatorModal from "@/app/components/CoasterCreatorModal";
+import CoasterCreatorModal from "@/app/components/coasterpage/CoasterCreatorModal";
 
 interface CoasterInfoProps {
   coaster: RollerCoaster;

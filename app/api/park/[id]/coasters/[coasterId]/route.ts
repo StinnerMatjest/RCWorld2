@@ -9,34 +9,31 @@ export async function GET(
   context: { params: Promise<{ id: string; coasterId: string }> }
 ) {
   const { id: parkId, coasterId } = await context.params;
-  console.log("Fetching coaster ID:", coasterId, "from park ID:", parkId);
 
   const result = await pool.query(
     `
-  SELECT
-    id,
-    name,
-    year,
-    manufacturer,
-    model,
-    scale,
-    haveridden,
-    isbestcoaster,
-    rcdbpath,
-    rating,
-    ridecount,
-    slug
-  FROM rollercoasters
-  WHERE id = $1 AND park_id = $2;
-  `,
+    SELECT
+      id,
+      name,
+      year,
+      manufacturer,
+      model,
+      scale,
+      haveridden,
+      isbestcoaster,
+      rcdbpath,
+      rating,
+      ridecount AS "rideCount",
+      slug
+    FROM rollercoasters
+    WHERE id = $1 AND park_id = $2;
+    `,
     [coasterId, parkId]
   );
 
   if (result.rowCount === 0) {
     return NextResponse.json(
-      {
-        error: `Park: ${parkId} does not contain a coaster with ID: ${coasterId}`,
-      },
+      { error: `Park: ${parkId} does not contain a coaster with ID: ${coasterId}` },
       { status: 404 }
     );
   }
@@ -107,20 +104,20 @@ export async function PUT(
     }
 
     const query = `
-UPDATE rollercoasters
-SET name = $1,
-    year = $2,
-    manufacturer = $3,
-    model = $4,
-    scale = $5,
-    haveridden = $6,
-    isbestcoaster = $7,
-    rcdbpath = $8,
-    rating = $9,
-    ridecount = CASE WHEN $6 THEN ridecount + $10 ELSE ridecount END,
-    slug = $13
-WHERE id = $11 AND park_id = $12
-RETURNING *;
+  UPDATE rollercoasters
+  SET name = $1,
+      year = $2,
+      manufacturer = $3,
+      model = $4,
+      scale = $5,
+      haveridden = $6,
+      isbestcoaster = $7,
+      rcdbpath = $8,
+      rating = $9,
+      ridecount = $10, 
+      slug = $13
+  WHERE id = $11 AND park_id = $12
+  RETURNING *;
 `;
 
     const result = await pool.query(query, [
@@ -147,7 +144,7 @@ RETURNING *;
     }
 
     if (oldRow) {
-      // Diff against the row the UPDATE actually produced (ridecount is additive).
+      // Diff against the row the UPDATE actually produced.
       const updated = result.rows[0];
       const diff = diffFields(oldRow, {
         name: updated.name,

@@ -1,12 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
 
-interface CoasterTextEntry {
+export interface CoasterTextEntry {
   id: number;
+  coaster_id?: number;
   headline: string | null;
   text: string | null;
+  order?: number;
+  isSpoiler?: boolean;
 }
 
 interface Props {
@@ -20,15 +23,56 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
   useScrollLock();
   const [headline, setHeadline] = useState(textEntry?.headline || "");
   const [text, setText] = useState(textEntry?.text || "");
+  const [isSpoiler, setIsSpoiler] = useState(textEntry?.isSpoiler || false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (textEntry) {
       setHeadline(textEntry.headline || "");
       setText(textEntry.text || "");
+      setIsSpoiler(textEntry.isSpoiler || false);
     }
   }, [textEntry]);
+
+  const wrapSelection = (before: string, after = before) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    const scroll = ta.scrollTop;
+
+    const next = text.slice(0, s) + before + text.slice(s, e) + after + text.slice(e);
+    setText(next);
+
+    setTimeout(() => {
+      ta.focus();
+      ta.setSelectionRange(s + before.length, e + before.length);
+      ta.scrollTop = scroll;
+    }, 0);
+  };
+
+  const insertBullet = () => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const s = ta.selectionStart;
+    const scroll = ta.scrollTop;
+
+    const lineStart = text.lastIndexOf("\n", s - 1) + 1;
+    const next = text.slice(0, lineStart) + "- " + text.slice(lineStart);
+    setText(next);
+
+    setTimeout(() => {
+      ta.focus();
+      ta.setSelectionRange(s + 2, s + 2);
+      ta.scrollTop = scroll;
+    }, 0);
+  };
+
+  const clearFormatting = () => {
+    setText((prev) => prev.replace(/\*\*|\*|\|\|/g, ""));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +80,7 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
     setError(null);
 
     try {
-      const body: any = { headline, text };
+      const body: any = { headline, text, isSpoiler };
       if (textEntry?.id) body.id = textEntry.id;
 
       const res = await fetch(`/api/coasters/${coasterId}/text`, {
@@ -91,8 +135,8 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center">
-      <div className=" bg-gray-800 dark:text-gray-100 rounded-lg shadow-lg w-full max-w-md p-6">
+    <div className="fixed inset-0 z-[1000] bg-black/80 flex items-center justify-center">
+      <div className="bg-gray-800 dark:text-gray-100 rounded-lg shadow-lg w-full max-w-md p-6">
         <h2 className="text-xl font-semibold mb-4 text-white">
           {textEntry ? "Edit Coaster Text" : "Add Coaster Text"}
         </h2>
@@ -115,13 +159,53 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
             <label className="block text-sm font-medium mb-1 text-gray-300">
               Text
             </label>
+
+            {/* Toolbar */}
+            <div className="flex items-center gap-1 mb-2">
+              <button type="button" onClick={() => wrapSelection("**")} title="Bold"
+                className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-700 hover:bg-gray-700 font-bold text-sm text-gray-300 cursor-pointer transition-colors">
+                B
+              </button>
+              <button type="button" onClick={() => wrapSelection("*")} title="Italic"
+                className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-700 hover:bg-gray-700 italic text-sm text-gray-300 cursor-pointer transition-colors">
+                I
+              </button>
+              <button type="button" onClick={insertBullet} title="Bullet list"
+                className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-700 hover:bg-gray-700 text-sm text-gray-300 cursor-pointer transition-colors">
+                •—
+              </button>
+              <button type="button" onClick={() => wrapSelection("||")} title="Spoiler Inline"
+                className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-700 hover:bg-gray-700 font-bold text-sm text-gray-300 cursor-pointer transition-colors font-mono">
+                S
+              </button>
+              <div className="w-px h-5 bg-gray-700 mx-1"></div>
+              <button type="button" onClick={clearFormatting} title="Clear Formatting"
+                className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-700 hover:bg-gray-700 font-bold text-sm text-gray-300 cursor-pointer transition-colors">
+                🧹
+              </button>
+            </div>
+
             <textarea
+              ref={textareaRef}
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Enter coaster description"
               rows={5}
-              className="block w-full p-3 rounded-md border bg-gray-900 text-gray-100 border-white/10"
+              className="block w-full p-3 rounded-md border bg-gray-900 text-gray-100 border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              id="spoiler-check"
+              checked={isSpoiler}
+              onChange={(e) => setIsSpoiler(e.target.checked)}
+              className="rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500/50"
+            />
+            <label htmlFor="spoiler-check" className="text-sm font-medium text-gray-300 cursor-pointer">
+              Mark as spoiler section
+            </label>
           </div>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
@@ -132,9 +216,8 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
                 type="button"
                 onClick={handleDelete}
                 disabled={loading}
-                className={`px-4 py-2 rounded-md text-white bg-red-500 hover:bg-red-600 cursor-pointer ${
-                  loading ? "cursor-not-allowed opacity-50" : ""
-                }`}
+                className={`px-4 py-2 rounded-md text-white bg-red-500 hover:bg-red-600 cursor-pointer ${loading ? "cursor-not-allowed opacity-50" : ""
+                  }`}
               >
                 Delete
               </button>
@@ -144,9 +227,8 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
               <button
                 type="submit"
                 disabled={loading}
-                className={`px-4 py-2 rounded-md text-white bg-blue-500 hover:bg-blue-400 cursor-pointer ${
-                  loading ? "cursor-not-allowed opacity-50" : ""
-                }`}
+                className={`px-4 py-2 rounded-md text-white bg-blue-500 hover:bg-blue-400 cursor-pointer ${loading ? "cursor-not-allowed opacity-50" : ""
+                  }`}
               >
                 {loading ? "Saving..." : "Save"}
               </button>

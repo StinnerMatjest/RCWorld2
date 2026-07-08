@@ -2,15 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { useAdminMode } from "../../context/AdminModeContext";
-import CoasterTextModal from "./CoasterTextModal";
-
-export interface CoasterTextEntry {
-  id: number;
-  coaster_id: number;
-  headline: string | null;
-  text: string | null;
-  order: number;
-}
+import CoasterTextModal, { CoasterTextEntry } from "./CoasterTextModal";
+import { MarkdownText } from "../MarkdownText";
+import SpoilerText from "../SpoilerText";
 
 interface Props {
   coasterId: number;
@@ -37,8 +31,8 @@ const CoasterText: React.FC<Props> = ({ coasterId, initialTexts, refreshTexts })
     e.preventDefault();
     if (draggingId === null || draggingId === overId) return;
 
-    const draggingIndex = texts.findIndex(t => t.id === draggingId);
-    const overIndex = texts.findIndex(t => t.id === overId);
+    const draggingIndex = texts.findIndex((t) => t.id === draggingId);
+    const overIndex = texts.findIndex((t) => t.id === overId);
     const updated = [...texts];
     const [dragged] = updated.splice(draggingIndex, 1);
     updated.splice(overIndex, 0, dragged);
@@ -51,9 +45,7 @@ const CoasterText: React.FC<Props> = ({ coasterId, initialTexts, refreshTexts })
       await fetch(`/api/coasters/${coasterId}/text`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          texts.map((t, i) => ({ id: t.id, order: i }))
-        ),
+        body: JSON.stringify(texts.map((t, i) => ({ id: t.id, order: i }))),
       });
       refreshTexts();
     } catch (err) {
@@ -81,56 +73,92 @@ const CoasterText: React.FC<Props> = ({ coasterId, initialTexts, refreshTexts })
         </p>
       ) : (
         <div className="flex flex-col">
-          {texts.map((entry, index) => (
-            <div
-              key={entry.id}
-              draggable={isAdminMode}
-              onDragStart={() => onDragStart(entry.id)}
-              onDragOver={(e) => onDragOver(e, entry.id)}
-              onDragEnd={onDragEnd}
-              className={`
-                relative group transition-all duration-200
-                ${isAdminMode
-                  ? "p-4 mb-4 border-2 border-dashed border-slate-700 cursor-move rounded-lg hover:bg-slate-800"
-                  : "mb-8 last:mb-0"
-                }
-              `}
-            >
-              {/* Admin Controls */}
-              {isAdminMode && (
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    title="Edit"
-                    className="p-1.5 bg-slate-700 text-slate-300 rounded hover:bg-blue-900 hover:text-blue-400"
-                    onClick={() => setEditingText(entry)}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                    </svg>
-                  </button>
-                </div>
-              )}
+          {texts.map((entry, index) => {
+            const isSpoilerSection = entry.isSpoiler;
 
-              {/* Content */}
-              <div>
-                {entry.headline && (
-                  <h3 className="text-xl font-bold text-white mb-3">
-                    {entry.headline}
-                  </h3>
+            return (
+              <div
+                key={entry.id}
+                draggable={isAdminMode}
+                onDragStart={() => onDragStart(entry.id)}
+                onDragOver={(e) => onDragOver(e, entry.id)}
+                onDragEnd={onDragEnd}
+                className={`
+                  relative group transition-all duration-200
+                  ${isAdminMode
+                    ? "p-4 mb-4 border-2 border-dashed border-slate-700 cursor-move rounded-lg hover:bg-slate-800"
+                    : "mb-8 last:mb-0"
+                  }
+                `}
+              >
+                {/* Admin Controls (Edit Button) */}
+                {isAdminMode && (
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                    <button
+                      title="Edit"
+                      className="p-1.5 bg-slate-700 text-slate-300 rounded hover:bg-blue-900 hover:text-blue-400 cursor-pointer"
+                      onClick={() => setEditingText(entry)}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={1.5}
+                        stroke="currentColor"
+                        className="w-4 h-4"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 )}
-                {entry.text && (
-                  <p className="whitespace-pre-wrap leading-relaxed text-base text-slate-300">
-                    {entry.text}
-                  </p>
+
+                {/* Content */}
+                <div>
+                  {entry.headline && (
+                    <div className="flex items-center gap-3 mb-3">
+                      <h3 className="text-xl font-bold text-white">
+                        {entry.headline}
+                      </h3>
+                      {isAdminMode && isSpoilerSection && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-900/40 text-red-400 border border-red-800/50">
+                          Spoiler
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {entry.text && (
+                    isSpoilerSection ? (
+                      <SpoilerText forceReveal={isAdminMode} block={true} isAdminMode={isAdminMode}>
+                        <MarkdownText
+                          text={entry.text}
+                          className="whitespace-pre-wrap leading-relaxed text-base text-slate-300"
+                          forceReveal={isAdminMode}
+                          isAdminMode={isAdminMode}
+                        />
+                      </SpoilerText>
+                    ) : (
+                      <MarkdownText
+                        text={entry.text}
+                        className="whitespace-pre-wrap leading-relaxed text-base text-slate-300"
+                        forceReveal={isAdminMode}
+                        isAdminMode={isAdminMode}
+                      />
+                    )
+                  )}
+                </div>
+
+                {/* Separator Line */}
+                {!isAdminMode && index !== texts.length - 1 && (
+                  <div className="mt-8 border-b border-slate-800 w-full" />
                 )}
               </div>
-
-              {/* Separator Line */}
-              {!isAdminMode && index !== texts.length - 1 && (
-                <div className="mt-8 border-b border-slate-800 w-full" />
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

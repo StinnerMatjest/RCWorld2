@@ -18,7 +18,6 @@ async function ratingContext(ratingId: number | string) {
   }
 }
 
-
 export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -34,12 +33,12 @@ export async function GET(
     let result;
     try {
       result = await pool.query(
-        `SELECT category, text, image_url AS "imageUrl", image_layout AS "imageLayout", rating_id AS "ratingId"
+        `SELECT category, text, image_url AS "imageUrl", image_layout AS "imageLayout", is_spoiler AS "isSpoiler", rating_id AS "ratingId"
          FROM parktexts WHERE rating_id = $1`,
         [ratingId]
       );
     } catch {
-      // image_layout column may not exist yet — fall back without it
+      // image_layout or is_spoiler column may not exist yet — fall back
       result = await pool.query(
         `SELECT category, text, image_url AS "imageUrl", rating_id AS "ratingId"
          FROM parktexts WHERE rating_id = $1`,
@@ -56,7 +55,7 @@ export async function GET(
 
 export async function POST(req: NextRequest) {
   revalidateContent();
-  const { category, text, ratingId, imageUrl, imageLayout } = await req.json();
+  const { category, text, ratingId, imageUrl, imageLayout, isSpoiler } = await req.json();
 
   if (!category || !ratingId) {
     return NextResponse.json({ error: "Missing or invalid data" }, { status: 400 });
@@ -66,10 +65,10 @@ export async function POST(req: NextRequest) {
     let result;
     try {
       result = await pool.query(
-        `INSERT INTO parktexts (rating_id, category, text, image_url, image_layout)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING category, text, image_url AS "imageUrl", image_layout AS "imageLayout", rating_id AS "ratingId"`,
-        [ratingId, category, text ?? "", imageUrl ?? null, imageLayout ?? null]
+        `INSERT INTO parktexts (rating_id, category, text, image_url, image_layout, is_spoiler)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING category, text, image_url AS "imageUrl", image_layout AS "imageLayout", is_spoiler AS "isSpoiler", rating_id AS "ratingId"`,
+        [ratingId, category, text ?? "", imageUrl ?? null, imageLayout ?? null, isSpoiler ?? false]
       );
     } catch {
       result = await pool.query(
@@ -88,7 +87,7 @@ export async function POST(req: NextRequest) {
       label: ctx.parkName,
       action: "create",
       summary: `Added "${category}" text`,
-      details: { category, text: text ?? "", imageUrl: imageUrl ?? null, imageLayout: imageLayout ?? null },
+      details: { category, text: text ?? "", imageUrl: imageUrl ?? null, imageLayout: imageLayout ?? null, isSpoiler: isSpoiler ?? false },
     });
 
     return NextResponse.json(result.rows[0], { status: 201 });
@@ -100,7 +99,7 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   revalidateContent();
-  const { category, text, ratingId, imageUrl, imageLayout } = await req.json();
+  const { category, text, ratingId, imageUrl, imageLayout, isSpoiler } = await req.json();
 
   if (!category || !ratingId) {
     return NextResponse.json({ error: "Missing data" }, { status: 400 });
@@ -117,10 +116,10 @@ export async function PUT(req: NextRequest) {
     try {
       result = await pool.query(
         `UPDATE parktexts
-         SET text = $1, image_url = $2, image_layout = $3
-         WHERE rating_id = $4 AND category = $5
-         RETURNING category, text, image_url AS "imageUrl", image_layout AS "imageLayout", rating_id AS "ratingId"`,
-        [text ?? "", imageUrl ?? null, imageLayout ?? null, ratingId, category]
+         SET text = $1, image_url = $2, image_layout = $3, is_spoiler = $4
+         WHERE rating_id = $5 AND category = $6
+         RETURNING category, text, image_url AS "imageUrl", image_layout AS "imageLayout", is_spoiler AS "isSpoiler", rating_id AS "ratingId"`,
+        [text ?? "", imageUrl ?? null, imageLayout ?? null, isSpoiler ?? false, ratingId, category]
       );
     } catch {
       result = await pool.query(
@@ -139,13 +138,13 @@ export async function PUT(req: NextRequest) {
     if (oldRow) {
       const diff = diffFields(
         oldRow,
-        { text: text ?? "", imageUrl: imageUrl ?? null, imageLayout: imageLayout ?? null },
-        { imageUrl: "image_url", imageLayout: "image_layout" }
+        { text: text ?? "", imageUrl: imageUrl ?? null, imageLayout: imageLayout ?? null, isSpoiler: isSpoiler ?? false },
+        { imageUrl: "image_url", imageLayout: "image_layout", isSpoiler: "is_spoiler" }
       );
       if (Object.keys(diff).length > 0) {
         const ctx = await ratingContext(ratingId);
         const changed = Object.keys(diff)
-          .map((f) => (f === "text" ? "text" : f === "imageUrl" ? "image" : "layout"))
+          .map((f) => (f === "text" ? "text" : f === "imageUrl" ? "image" : f === "isSpoiler" ? "spoiler status" : "layout"))
           .join(", ");
         logChange({
           parkId: ctx.parkId,
