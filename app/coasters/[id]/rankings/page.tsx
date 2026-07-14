@@ -73,7 +73,8 @@ export default function DetailedRankingsPage() {
         const baseResults = [
             generateResult(() => true, "Global Ranking", <Trophy />, "Worldwide", ""),
             generateResult(c => c.parkId === coaster.parkId, "Park Ranking", <MapPin />, park?.name || "This Park"),
-            generateResult(c => c.manufacturer === coaster.manufacturer, "Manufacturer", <Factory />, coaster.manufacturer),
+            // FIX: Updated to manufacturerName
+            generateResult(c => c.manufacturerName === coaster.manufacturerName, "Manufacturer", <Factory />, coaster.manufacturerName || "Unknown"),
             generateResult(c => !!c.model && c.model === coaster.model, "Model Ranking", <Tag />, coaster.model || "Same Model"),
             generateResult(c => c.year === coaster.year, "Class of " + coaster.year, <Calendar />, String(coaster.year)),
 
@@ -246,7 +247,8 @@ export default function DetailedRankingsPage() {
                                             </p>
                                             <p className={`text-[10px] md:text-xs uppercase font-bold tracking-widest ${String(c.id) === String(coaster.id) ? "text-orange-100" : "text-slate-500"
                                                 }`}>
-                                                {c.manufacturer} • {c.year}
+                                                {/* FIX: Updated to manufacturerName */}
+                                                {c.manufacturerName} • {c.year}
                                             </p>
                                         </div>
                                     </div>
