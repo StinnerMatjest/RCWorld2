@@ -17,8 +17,6 @@ export type ConnectionsCoaster = {
   classification: string | null
   ridecount: number
   lastVisitDate: string | null
-
-  // ✅ ADD THIS
   specs?: {
     height: number | null
     speed: number | null
@@ -62,7 +60,7 @@ export async function fetchConnectionsData(): Promise<ConnectionsCoaster[]> {
     return {
       id: coaster.id,
       name: coaster.name,
-      manufacturer: coaster.manufacturer ?? null,
+      manufacturer: coaster.manufacturerName ?? null,
       model: coaster.model ?? null,
       scale: coaster.scale ?? null,
       parkId: coaster.parkId,
@@ -83,7 +81,6 @@ export async function fetchConnectionsData(): Promise<ConnectionsCoaster[]> {
       ridecount: coaster.rideCount || 0,
       lastVisitDate: coaster.lastVisitDate ?? null,
 
-      // ✅ THIS FIXES EVERYTHING
       specs: {
         height: coaster.specs?.height ?? null,
         speed: coaster.specs?.speed ?? null,
