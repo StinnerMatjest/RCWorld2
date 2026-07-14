@@ -50,12 +50,13 @@ export interface RollerCoaster {
   id: number;
   name: string;
   year: number;
-  manufacturer: string;
+  manufacturerId: number;
+  manufacturerName?: string;
+  manufacturer?: Manufacturer;
   model: string;
   scale: string;
   haveridden: boolean;
   isbestcoaster: boolean;
-  rcdbpath: string;
   ridecount: number;
   rating: number;
   parkId: number;
@@ -158,12 +159,12 @@ export const ALL_MANUFACTURERS = [...MAJOR_MANUFACTURERS, ...MINOR_MANUFACTURERS
 export type ApiCoaster = {
   id: number;
   name: string;
-  manufacturer: string;
+  manufacturerId: number;
+  manufacturerName: string;
   model: string;
   scale: string;
   haveRidden: boolean;
   isBestCoaster: boolean;
-  rcdbPath: string;
   rideCount: number;
   rating: number | string | null;
   parkId: number;
@@ -186,7 +187,6 @@ export type CoastleCoaster = {
   lastRidden: string | null;
   year: number;
   parkId: number;
-  rcdbPath: string;
   slug: string;
   countryName?: string;
   length?: number | null;      // ft
@@ -194,6 +194,26 @@ export type CoastleCoaster = {
   speed?: number | null;       // mph
   inversions?: number | null;  // count
 };
+
+export interface ManufacturerCoaster {
+  id: number;
+  name: string;
+  model: string;
+  year: number;
+  slug: string;
+  rating: number;
+}
+
+export interface Manufacturer {
+  id: number;
+  name: string;
+  country: string | null;
+  established: string | null; 
+  inBusiness: boolean;
+  history: string | null;
+  notes: string | null;
+  rollercoasters: ManufacturerCoaster[]; 
+}
 
 export type MatchStatus = "correct" | "close" | "wrong";
 

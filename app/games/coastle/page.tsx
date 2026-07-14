@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import Image from "next/image";
 import Fuse from "fuse.js";
 import { getParkFlag } from "@/app/utils/design";
-
 import { ApiCoaster, CoastleCoaster, Guess, GameStats } from "@/app/types";
 import {
   INITIAL_STATS,

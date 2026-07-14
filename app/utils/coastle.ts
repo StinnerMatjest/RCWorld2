@@ -125,6 +125,7 @@ export function mapApiToCoastle(c: ApiCoaster): CoastleCoaster | null {
   const countryName = c.country;
   const anyC = c as any;
   const specs = anyC?.specs ?? {};
+
   const toNumOrNull = (v: any): number | null => {
     if (v === null || v === undefined || v === "") return null;
     const n = typeof v === "number" ? v : Number(v);
@@ -135,13 +136,12 @@ export function mapApiToCoastle(c: ApiCoaster): CoastleCoaster | null {
     id: String(c.id),
     name: c.name,
     rating,
-    manufacturer: c.manufacturer,
+    manufacturer: c.manufacturerName || "Unknown",
     park: parkName,
     rideCount: c.rideCount ?? 0,
     lastRidden: c.lastVisitDate,
     year: c.year ?? 0,
     parkId: c.parkId,
-    rcdbPath: c.rcdbPath,
     slug: c.slug,
     countryName,
 

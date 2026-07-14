@@ -61,7 +61,7 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster, onUpdate }) => {
           )
         }
       />
-      <InfoRow label="Manufacturer" value={coaster.manufacturer} />
+      <InfoRow label="Manufacturer" value={coaster.manufacturerName} />
       <InfoRow label="Model" value={coaster.model} />
       <InfoRow label="Scale" value={coaster.scale} />
       <InfoRow label="Ride Count" value={coaster.ridecount ?? "0"} />

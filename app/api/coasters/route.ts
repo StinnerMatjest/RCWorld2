@@ -9,12 +9,12 @@ export async function GET() {
         rc.id,
         rc.name,
         rc.year,
-        rc.manufacturer,
+        rc.manufacturer_id,
+        m.name AS manufacturer_name,
         rc.model,
         rc.scale,
         rc.haveridden,
         rc.isbestcoaster,
-        rc.rcdbpath,
         rc.ridecount,
         rc.rating,
         rc.park_id,
@@ -37,11 +37,12 @@ export async function GET() {
         COUNT(DISTINCT r.id) AS visit_count
       FROM rollercoasters rc
       JOIN parks p ON rc.park_id = p.id
+      LEFT JOIN manufacturers m ON rc.manufacturer_id = m.id
       LEFT JOIN rollercoasterspecs rs ON rs.coaster_id = rc.id
       LEFT JOIN ratings r ON r.park_id = p.id
       GROUP BY 
-        rc.id, rc.name, rc.year, rc.manufacturer, rc.model, rc.scale, rc.haveridden, 
-        rc.isbestcoaster, rc.rcdbpath, rc.ridecount, rc.rating, rc.park_id, rc.slug,
+        rc.id, rc.name, rc.year, rc.manufacturer_id, m.name, rc.model, rc.scale, rc.haveridden, 
+        rc.isbestcoaster, rc.ridecount, rc.rating, rc.park_id, rc.slug,
         rs.type, rs.classification, rs.length, rs.height, rs.drop, rs.speed,
         rs.inversions, rs.vertical_angle, rs.gforce, rs.duration_sec, rs.notes, p.name, p.slug, p.country
       ORDER BY p.name, rc.name;
@@ -53,14 +54,13 @@ export async function GET() {
       id: row.id,
       name: row.name,
       year: row.year,
-      manufacturer: row.manufacturer,
+      manufacturerId: row.manufacturer_id,
+      manufacturerName: row.manufacturer_name,
       model: row.model,
       scale: row.scale,
-      haveridden: row.haveridden,
-      isbestcoaster: row.isbestcoaster,
-      rcdbpath: row.rcdbpath,
+      haveRidden: row.haveridden,
+      isBestCoaster: row.isbestcoaster,
       rideCount: Number(row.ridecount) || 0,
-      ridecount: Number(row.ridecount) || 0,
       rating: row.rating,
       parkId: row.park_id,
       slug: row.slug,

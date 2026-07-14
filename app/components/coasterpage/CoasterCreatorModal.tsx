@@ -2,30 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { getRatingColor } from "@/app/utils/design";
-import { MAJOR_MANUFACTURERS, ALL_MANUFACTURERS } from "@/app/types";
+import { RollerCoaster, Manufacturer } from "@/app/types"; // Use global types
 import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 interface CoasterCreatorModalProps {
   parkId: number;
-  coaster?: Coaster;
+  coaster?: RollerCoaster;
   onClose: () => void;
   onCoasterAdded: () => void;
   onDelete?: () => void;
-}
-
-interface Coaster {
-  id: number;
-  name: string;
-  year: number;
-  manufacturer: string;
-  model: string;
-  scale: string;
-  haveridden: boolean;
-  isbestcoaster: boolean;
-  rcdbpath: string;
-  rating?: number;
-  rideCount?: number;
-  ridecount?: number; // Added to support API key variance
 }
 
 const scales = [
@@ -46,28 +31,44 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
   onDelete,
 }) => {
   useScrollLock();
+
   const [name, setName] = useState(coaster?.name ?? "");
   const [year, setYear] = useState(coaster ? String(coaster.year) : "");
   const isValidYear = /^\d{4}$/.test(year);
-  const [manufacturer, setManufacturer] = useState(coaster?.manufacturer ?? "");
+
+  // Use manufacturerId instead of manufacturer string
+  const [manufacturerId, setManufacturerId] = useState<number | "">(coaster?.manufacturerId ?? "");
+  const [dbManufacturers, setDbManufacturers] = useState<Manufacturer[]>([]);
+
   const [model, setModel] = useState(coaster?.model ?? "");
   const [scale, setScale] = useState(coaster?.scale ?? "");
   const [haveridden, setHaveRidden] = useState(coaster?.haveridden ?? false);
-  const [isbestcoaster, setIsBestCoaster] = useState(
-    coaster?.isbestcoaster ?? false
-  );
-  const [rcdbpath, setRcdbPath] = useState(coaster?.rcdbpath ?? "");
+  const [isbestcoaster, setIsBestCoaster] = useState(coaster?.isbestcoaster ?? false);
   const [rating, setRating] = useState<number | "">(coaster?.rating ?? "");
   const [goldenCoaster, setGoldenCoaster] = useState(false);
 
-  const initialRideCount = coaster?.rideCount ?? coaster?.ridecount ?? "";
+  // Safely grab ridecount from either casing (depending on API)
+  const initialRideCount = (coaster as any)?.rideCount ?? coaster?.ridecount ?? "";
   const [rideCount, setRideCount] = useState<number | "">(initialRideCount);
-
-  const [showAllManufacturers, setShowAllManufacturers] = useState(false);
-  const displayedManufacturers = showAllManufacturers ? ALL_MANUFACTURERS : MAJOR_MANUFACTURERS;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch manufacturers for the dropdown
+  useEffect(() => {
+    const fetchManufacturers = async () => {
+      try {
+        const response = await fetch("/api/manufacturers");
+        if (response.ok) {
+          const data = await response.json();
+          setDbManufacturers(data.manufacturers);
+        }
+      } catch (error) {
+        console.error("Failed to load manufacturers", error);
+      }
+    };
+    fetchManufacturers();
+  }, []);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value;
@@ -80,14 +81,13 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
     if (coaster) {
       setName(coaster.name || "");
       setYear(coaster.year ? String(coaster.year) : "");
-      setManufacturer(coaster.manufacturer || "");
+      setManufacturerId(coaster.manufacturerId || "");
       setModel(coaster.model || "");
       setScale(coaster.scale || "");
       setHaveRidden(coaster.haveridden ?? false);
       setIsBestCoaster(coaster.isbestcoaster ?? false);
-      setRcdbPath(coaster.rcdbpath || "");
       setRating(coaster.rating ?? "");
-      
+
       const count = (coaster as any).rideCount ?? (coaster as any).ridecount ?? "";
       setRideCount(count);
     }
@@ -102,7 +102,7 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
       }
     }
 
-    const currentRideCount = Number(coaster?.rideCount ?? coaster?.ridecount ?? 0);
+    const currentRideCount = Number((coaster as any)?.rideCount ?? coaster?.ridecount ?? 0);
     const newRideCount = rideCount === "" ? 0 : Number(rideCount);
 
     if (coaster && haveridden && newRideCount !== currentRideCount) {
@@ -133,12 +133,11 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
         body: JSON.stringify({
           name,
           year: parseInt(year),
-          manufacturer,
+          manufacturerId: Number(manufacturerId),
           model,
           scale,
           haveridden,
           isbestcoaster,
-          rcdbpath,
           rating: haveridden ? finalRating : 0,
           rideCount: haveridden ? newRideCount : 0,
         }),
@@ -220,35 +219,25 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
             maxLength={4}
             className="w-full p-2 rounded-md border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           />
+
           <select
             className="w-full p-2 rounded-md border border-slate-700 bg-slate-900 text-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-            value={manufacturer}
-            onChange={(e) => {
-              if (e.target.value === "SHOW_ALL") {
-                setShowAllManufacturers(true);
-                setManufacturer("");
-              } else {
-                setManufacturer(e.target.value);
-              }
-            }}
+            value={manufacturerId}
+            onChange={(e) => setManufacturerId(Number(e.target.value))}
           >
             <option value="" disabled>Select Manufacturer</option>
-            {displayedManufacturers.map((m) => (
-              <option key={m} value={m}>{m}</option>
+            {dbManufacturers.map((m) => (
+              <option key={m.id} value={m.id}>{m.name}</option>
             ))}
-            {!showAllManufacturers && (
-              <>
-                <option disabled>──────────</option>
-                <option value="SHOW_ALL">Show all manufacturers...</option>
-              </>
-            )}
           </select>
+
           <input
             className="w-full p-2 rounded-md border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             placeholder="Coaster Model"
             value={model}
             onChange={(e) => setModel(e.target.value)}
           />
+
           <select
             className="w-full p-2 rounded-md border border-slate-700 bg-slate-900 text-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             value={scale}
@@ -293,7 +282,6 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
               <>
                 <option value="">Rating</option>
                 {[...Array(22)].map((_, i) => {
-                  // Start at 11.0 and go down to 0.5
                   const base = 11 - i * 0.5;
                   if (base < 0.5) return null;
                   return (
@@ -339,8 +327,8 @@ const CoasterCreatorModal: React.FC<CoasterCreatorModalProps> = ({
             {coaster && <button onClick={handleDelete} className="h-9 w-24 text-sm font-semibold text-white rounded-lg bg-red-500 hover:bg-red-400 cursor-pointer">Delete</button>}
             <button
               onClick={handleSubmit}
-              disabled={loading || !name || !isValidYear || !manufacturer || !model || !scale}
-              className={`h-9 w-20 text-lg font-semibold text-white rounded-lg transition ${loading || !name || !isValidYear || !manufacturer || !model || !scale ? "bg-slate-600 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-400 cursor-pointer"}`}
+              disabled={loading || !name || !isValidYear || !manufacturerId || !model || !scale}
+              className={`h-9 w-20 text-lg font-semibold text-white rounded-lg transition ${loading || !name || !isValidYear || !manufacturerId || !model || !scale ? "bg-slate-600 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-400 cursor-pointer"}`}
             >
               {coaster ? "Apply" : "Add"}
             </button>

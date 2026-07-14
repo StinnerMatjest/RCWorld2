@@ -38,7 +38,7 @@ function parseCoasters(raw: any[]): Coaster[] {
       id: c.id,
       name: c.name,
       slug: c.slug,
-      manufacturer: c.manufacturer || "Unknown",
+      manufacturer: c.manufacturerName || "Unknown",
       rating: Number(c.rating) || 0,
       isBest: Boolean(c.isbestcoaster ?? c.isBestCoaster),
       parkId: c.parkId,
@@ -105,6 +105,19 @@ export default function ManufacturersClient({ initialCoasters }: { initialCoaste
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <div className="border-b border-slate-800 px-4 sm:px-8 py-12 sm:py-16">
         <div className="max-w-5xl mx-auto">
+          {/* NEW: Navigation Toggle */}
+          <div className="flex items-center bg-slate-800 p-2 rounded-xl border border-slate-700 w-fit mb-8">
+            <div className="px-4 py-2 rounded-lg text-sm font-semibold bg-brand text-white shadow-sm">
+              Hall of Fame
+            </div>
+            <Link
+              href="/manufacturers/directory"
+              className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-400 hover:text-white transition-colors"
+            >
+              Database Directory
+            </Link>
+          </div>
+
           <p className="text-brand text-xs font-bold uppercase tracking-widest mb-3">
             ParkRating · Manufacturers
           </p>

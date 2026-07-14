@@ -16,12 +16,11 @@ export async function GET(
       id,
       name,
       year,
-      manufacturer,
+      manufacturer_id,
       model,
       scale,
       haveridden,
       isbestcoaster,
-      rcdbpath,
       rating,
       ridecount AS "rideCount",
       slug
@@ -52,12 +51,11 @@ export async function PUT(
     const {
       name,
       year,
-      manufacturer,
+      manufacturerId,
       model,
       scale,
       haveridden,
       isbestcoaster,
-      rcdbpath,
       rating,
       rideCount,
     } = body;
@@ -65,7 +63,7 @@ export async function PUT(
     if (
       !name ||
       !year ||
-      !manufacturer ||
+      !manufacturerId ||
       !model ||
       !scale ||
       haveridden === undefined ||
@@ -107,15 +105,14 @@ export async function PUT(
   UPDATE rollercoasters
   SET name = $1,
       year = $2,
-      manufacturer = $3,
+      manufacturer_id = $3,
       model = $4,
       scale = $5,
       haveridden = $6,
       isbestcoaster = $7,
-      rcdbpath = $8,
-      rating = $9,
-      ridecount = $10, 
-      slug = $13
+      rating = $8,
+      ridecount = $9, 
+      slug = $10
   WHERE id = $11 AND park_id = $12
   RETURNING *;
 `;
@@ -123,17 +120,16 @@ export async function PUT(
     const result = await pool.query(query, [
       name,
       year,
-      manufacturer,
+      manufacturerId,
       model,
       scale,
       haveridden,
       isbestcoaster,
-      rcdbpath ?? "",
       ratingInitial,
       rideCountInitial,
+      generatedSlug,
       coasterId,
-      parkId,
-      generatedSlug
+      parkId
     ]);
 
     console.log("Database Update Result:", result);
@@ -149,12 +145,11 @@ export async function PUT(
       const diff = diffFields(oldRow, {
         name: updated.name,
         year: updated.year,
-        manufacturer: updated.manufacturer,
+        manufacturer_id: updated.manufacturer_id,
         model: updated.model,
         scale: updated.scale,
         haveridden: updated.haveridden,
         isbestcoaster: updated.isbestcoaster,
-        rcdbpath: updated.rcdbpath,
         rating: updated.rating,
         ridecount: updated.ridecount,
       });
@@ -213,7 +208,7 @@ export async function DELETE(
     label: deleted.name,
     action: "delete",
     summary: `Deleted coaster ${deleted.name}`,
-    details: { name: deleted.name, year: deleted.year, manufacturer: deleted.manufacturer },
+    details: { name: deleted.name, year: deleted.year, manufacturerId: deleted.manufacturer_id },
   });
 
   return NextResponse.json(

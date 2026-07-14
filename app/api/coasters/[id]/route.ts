@@ -24,12 +24,12 @@ export async function GET(
           rc.id,
           rc.name,
           rc.year,
-          rc.manufacturer,
+          rc.manufacturer_id,
+          m.name AS manufacturer_name,
           rc.model,
           rc.scale,
           rc.haveridden,
           rc.isbestcoaster,
-          rc.rcdbpath,
           rc.ridecount,
           rc.rating,
           rc.park_id,
@@ -48,6 +48,7 @@ export async function GET(
           rs.notes
         FROM rollercoasters rc
         JOIN parks p ON rc.park_id = p.id
+        LEFT JOIN manufacturers m ON rc.manufacturer_id = m.id
         LEFT JOIN rollercoasterspecs rs ON rs.coaster_id = rc.id
         WHERE rc.id = $1
       `;
@@ -58,12 +59,12 @@ export async function GET(
           rc.id,
           rc.name,
           rc.year,
-          rc.manufacturer,
+          rc.manufacturer_id,
+          m.name AS manufacturer_name,
           rc.model,
           rc.scale,
           rc.haveridden,
           rc.isbestcoaster,
-          rc.rcdbpath,
           rc.ridecount,
           rc.rating,
           rc.park_id,
@@ -82,6 +83,7 @@ export async function GET(
           rs.notes
         FROM rollercoasters rc
         JOIN parks p ON rc.park_id = p.id
+        LEFT JOIN manufacturers m ON rc.manufacturer_id = m.id
         LEFT JOIN rollercoasterspecs rs ON rs.coaster_id = rc.id
         WHERE rc.slug = $1
       `;
@@ -113,12 +115,12 @@ export async function GET(
       id: row.id,
       name: row.name,
       year: row.year,
-      manufacturer: row.manufacturer,
+      manufacturerId: row.manufacturer_id,
+      manufacturerName: row.manufacturer_name,
       model: row.model,
       scale: row.scale,
       haveridden: row.haveridden,
       isbestcoaster: row.isbestcoaster,
-      rcdbpath: row.rcdbpath,
       ridecount: row.ridecount,
       rating: row.rating,
       parkId: row.park_id,

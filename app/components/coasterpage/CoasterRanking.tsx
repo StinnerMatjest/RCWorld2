@@ -113,7 +113,7 @@ const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, p
 
     return {
       park: processList(allCoasters.filter((c) => String(c.parkId) === String(coaster.parkId))),
-      manuf: processList(allCoasters.filter((c) => c.manufacturer === coaster.manufacturer)),
+      manuf: processList(allCoasters.filter((c) => c.manufacturerName === (coaster.manufacturerName || "Unknown"))),
       overall: processList(allCoasters),
     };
   }, [coaster, allCoasters]);
@@ -163,14 +163,16 @@ const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, p
       {stats.manuf.rank !== null && (
         <div className={`${baseAnim} ${showContent ? visible : hidden} delay-100`}>
           <Link
-            href={`/coasterratings?q=${encodeURIComponent(coaster.manufacturer)}`}
+            // Use "?? ''" to ensure the string is never undefined
+            href={`/coasterratings?q=${encodeURIComponent(coaster.manufacturerName ?? "")}`}
             className="group cursor-pointer"
           >
             <StatBlock
               mainValue={stats.manuf.rank}
               subValue={stats.manuf.total}
               label={null}
-              subLabel={coaster.manufacturer}
+              // Use "??" to provide a fallback string
+              subLabel={coaster.manufacturerName ?? "Unknown"}
               colorClass={getRankColor(stats.manuf.rank)}
               isLink={true}
             />

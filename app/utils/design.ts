@@ -137,6 +137,7 @@ const countryNameToCode: Record<string, string> = {
   UnitedArabEmirates: "ae",
   UnitedKingdom: "gb",
   UnitedStates: "us",
+  USA: "us",
   Vietnam: "vn",
 };
 

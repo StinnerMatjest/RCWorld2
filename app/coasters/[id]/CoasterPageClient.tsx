@@ -200,7 +200,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
 
             <div className="flex flex-wrap justify-center lg:justify-start items-center gap-2 sm:gap-3 mt-1">
               <span className="px-2 sm:px-3 py-1 bg-white text-black rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest shadow-sm group-hover:bg-slate-200 transition-colors">
-                {coaster.manufacturer}
+                {coaster.manufacturerName || "Unknown"}
               </span>
               <span className="text-slate-700 hidden sm:inline">
                 |

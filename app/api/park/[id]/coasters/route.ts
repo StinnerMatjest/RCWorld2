@@ -20,9 +20,10 @@ export async function GET(
 
         const query = `
       SELECT 
-        rc.id, rc.name, rc.year, rc.manufacturer, rc.model, rc.scale, rc.haveridden, rc.isbestcoaster, rc.rcdbpath, rc.rating, rc.ridecount, rc.slug, rc.park_id,
+        rc.id, rc.name, rc.year, rc.manufacturer_id, m.name AS manufacturer_name, rc.model, rc.scale, rc.haveridden, rc.isbestcoaster, rc.rating, rc.ridecount, rc.slug, rc.park_id,
         rs.type, rs.classification, rs.length, rs.height, rs.drop, rs.speed, rs.inversions, rs.vertical_angle, rs.gforce, rs.duration_sec AS duration, rs.notes
       FROM rollercoasters rc
+      LEFT JOIN manufacturers m ON rc.manufacturer_id = m.id
       LEFT JOIN rollercoasterspecs rs ON rs.coaster_id = rc.id
       WHERE rc.park_id = $1
       ORDER BY rc.name;
@@ -33,12 +34,12 @@ export async function GET(
             id: row.id,
             name: row.name,
             year: row.year,
-            manufacturer: row.manufacturer,
+            manufacturerId: row.manufacturer_id,
+            manufacturerName: row.manufacturer_name,
             model: row.model,
             scale: row.scale,
             haveridden: row.haveridden,
             isbestcoaster: row.isbestcoaster,
-            rcdbpath: row.rcdbpath,
             rideCount: Number(row.ridecount) || 0,
             ridecount: Number(row.ridecount) || 0,
             rating: row.rating,
@@ -73,19 +74,18 @@ export async function POST(
     req: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
-  revalidateContent();
+    revalidateContent();
     try {
         const { id: parkId } = await context.params;
         const body = await req.json();
         const {
             name,
             year,
-            manufacturer,
+            manufacturerId,
             model,
             scale,
             haveridden,
             isbestcoaster,
-            rcdbpath,
             rating,
             rideCount,
         } = body;
@@ -93,7 +93,7 @@ export async function POST(
         if (
             !name ||
             !year ||
-            !manufacturer ||
+            !manufacturerId ||
             !model ||
             !scale ||
             haveridden === undefined ||
@@ -132,8 +132,8 @@ export async function POST(
 
         const query = `
       INSERT INTO rollercoasters
-        (park_id, name, year, manufacturer, model, scale, haveridden, isbestcoaster, rcdbpath, rating, ridecount, slug)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        (park_id, name, year, manufacturer_id, model, scale, haveridden, isbestcoaster, rating, ridecount, slug)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
       RETURNING *;
     `;
 
@@ -141,12 +141,11 @@ export async function POST(
             parkId,
             name,
             year,
-            manufacturer,
+            manufacturerId,
             model,
             scale,
             haveridden,
             isbestcoaster,
-            rcdbpath ?? "",
             ratingInitial,
             rideCountInitial,
             generatedSlug,
@@ -160,7 +159,7 @@ export async function POST(
             label: created.name,
             action: "create",
             summary: `Added coaster ${created.name}`,
-            details: { name, year, manufacturer, model, scale, haveridden, rating: ratingInitial, rideCount: rideCountInitial },
+            details: { name, year, manufacturerId, model, scale, haveridden, rating: ratingInitial, rideCount: rideCountInitial },
         });
 
         return NextResponse.json(created, { status: 201 });
@@ -177,7 +176,7 @@ export async function PATCH(
     req: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
-  revalidateContent();
+    revalidateContent();
     try {
         const { id } = await context.params;
         const parkId = Number(id);

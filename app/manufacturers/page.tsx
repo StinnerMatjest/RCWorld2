@@ -30,7 +30,8 @@ export default async function Page() {
   // Aggregate per manufacturer for JSON-LD (ranked by awards, then avg rating)
   const byManu = new Map<string, any[]>();
   for (const c of coasters) {
-    const key = c.manufacturer || "Unknown";
+    // UPDATED: Now uses manufacturerName from the updated API
+    const key = c.manufacturerName || "Unknown";
     if (!byManu.has(key)) byManu.set(key, []);
     byManu.get(key)!.push(c);
   }

@@ -157,7 +157,7 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
                         body: JSON.stringify({
                             name: coasterName,
                             year: new Date().getFullYear(),
-                            manufacturer: "Unknown",
+                            manufacturerId: "Unknown",
                             model: "Unknown",
                             scale: "Unknown",
                             haveridden: false,
