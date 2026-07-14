@@ -101,7 +101,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
 
           {/* Manufacturer */}
           <div className="text-slate-300 truncate cursor-pointer text-left text-[15px] md:text-[17px]" onClick={toggleOpen}>
-            {c.manufacturer ?? "—"}
+            {c.manufacturer?.name ?? "—"}
           </div>
 
           {/* Ratings */}
