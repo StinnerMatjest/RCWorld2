@@ -1,82 +1,100 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
-import { revalidateContent } from "@/app/lib/revalidate";
 
 export async function GET() {
     try {
-        const query = `
+        const sql = `
       SELECT 
-        m.id,
-        m.name,
-        m.country,
-        m.established,
-        m.in_business AS "inBusiness",
-        m.history,
-        m.notes,
-COALESCE(
-          json_agg(
-            json_build_object(
-              'id', r.id,
-              'name', r.name,
-              'model', r.model,
-              'year', r.year,
-              'slug', r.slug,
-              'rating', r.rating
-            )
-          ) FILTER (WHERE r.id IS NOT NULL),
-          '[]'
-        ) AS rollercoasters
+        m.id, m.name, m.country, m.established, m.history,
+        
+        -- Get all properly linked models and their rides
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'id', rm.id,
+                'name', rm.name,
+                'rideTypeName', rt.name,
+                'year', rm.year,
+                'inProduction', rm.in_production,
+                'history', rm.history,
+                'rides', COALESCE(
+                  (
+                    SELECT json_agg(
+                      json_build_object(
+                        'id', r.id,
+                        'name', r.name,
+                        'year', r.year,
+                        'rating', r.rating,
+                        'slug', r.slug,
+                        'isDefunct', COALESCE(r.is_defunct, false),
+                        'country', p.country
+                      ) ORDER BY r.year DESC
+                    ) FROM rollercoasters r 
+                    LEFT JOIN parks p ON p.id = r.park_id
+                    WHERE r.ride_model_id = rm.id
+                  ), '[]'::json
+                )
+              ) ORDER BY rm.year DESC
+            ) FROM ride_models rm
+            LEFT JOIN ride_types rt ON rt.id = rm.ride_type_id
+            WHERE rm.manufacturer_id = m.id
+          ), '[]'::json
+        ) AS models,
+
+        -- Get all legacy rides that haven't been linked to a model yet
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'id', r.id,
+                'name', r.name,
+                'year', r.year,
+                'rating', r.rating,
+                'slug', r.slug,
+                'isDefunct', COALESCE(r.is_defunct, false),
+                'country', p.country -- NEW: Added country from parks table
+              ) ORDER BY r.year DESC
+            ) FROM rollercoasters r 
+            LEFT JOIN parks p ON p.id = r.park_id -- NEW: Join parks table
+            WHERE r.manufacturer_id = m.id AND r.ride_model_id IS NULL
+          ), '[]'::json
+        ) AS unassigned_rides
+
       FROM manufacturers m
-      LEFT JOIN rollercoasters r ON m.id = r.manufacturer_id
-      GROUP BY m.id
       ORDER BY m.name ASC;
     `;
 
-        const result = await pool.query(query);
+        const result = await pool.query(sql);
 
-        return NextResponse.json({ manufacturers: result.rows }, { status: 200 });
+        // Merge the unassigned rides into a virtual "Legacy" model 
+        const manufacturers = result.rows.map((m: any) => {
+            const models = m.models || [];
+
+            if (m.unassigned_rides && m.unassigned_rides.length > 0) {
+                models.push({
+                    id: 999999,
+                    name: "Uncategorized Rides",
+                    rideTypeName: "Legacy Data",
+                    year: null,
+                    inProduction: false,
+                    history: "These rides have not been linked to a specific Ride Model in the database yet.",
+                    rides: m.unassigned_rides
+                });
+            }
+
+            return {
+                id: m.id,
+                name: m.name,
+                country: m.country,
+                established: m.established,
+                models: models
+            };
+        });
+
+        return NextResponse.json({ manufacturers });
     } catch (error) {
-        console.error("Database query error:", error);
-        return NextResponse.json({ error: "Failed to fetch manufacturers" }, { status: 500 });
-    }
-}
-
-export async function POST(req: NextRequest) {
-    revalidateContent();
-    try {
-        const body = await req.json();
-        const { name, country, established, inBusiness, history, notes } = body;
-
-        if (!name) {
-            return NextResponse.json(
-                { error: "Manufacturer name is required" },
-                { status: 400 }
-            );
-        }
-
-        const query = `
-      INSERT INTO manufacturers (name, country, established, in_business, history, notes)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *;
-    `;
-
-        const values = [
-            name,
-            country || null,
-            established || null,
-            inBusiness ?? true,
-            history || null,
-            notes || null,
-        ];
-
-        const result = await pool.query(query, values);
-
-        return NextResponse.json(result.rows[0], { status: 201 });
-    } catch (error) {
-        console.error("Database insert error:", error);
-        return NextResponse.json(
-            { error: "Failed to create manufacturer" },
-            { status: 500 }
-        );
+        console.error("Manufacturers API Error:", error);
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }

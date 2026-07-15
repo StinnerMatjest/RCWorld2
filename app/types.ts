@@ -46,6 +46,28 @@ export interface RatingWarningType {
   severity: "Minor" | "Moderate" | "Major";
 }
 
+// NEW: Ride Types
+export interface RideType {
+  id: number;
+  name: string;
+  history: string | null;
+  note: string | null;
+}
+
+// NEW: Ride Models
+export interface RideModel {
+  id: number;
+  name: string;
+  rideTypeId: number;
+  rideType?: RideType;
+  manufacturerId: number;
+  manufacturer?: Manufacturer;
+  year: string | null;
+  inProduction: boolean;
+  history: string | null;
+  note: string | null;
+}
+
 export interface RollerCoaster {
   id: number;
   name: string;
@@ -53,7 +75,13 @@ export interface RollerCoaster {
   manufacturerId: number;
   manufacturerName?: string;
   manufacturer?: Manufacturer;
+
+  // Backward compatibility: keep string model for now
   model: string;
+  // Expand Phase: new relational columns
+  rideModelId?: number | null;
+  rideModel?: RideModel | null;
+
   scale: string;
   haveridden: boolean;
   isbestcoaster: boolean;
@@ -62,6 +90,7 @@ export interface RollerCoaster {
   parkId: number;
   slug: string;
   parkSlug?: string;
+  isDefunct?: boolean; // NEW
   specs?: RollerCoasterSpecs | null;
   highlights?: RollerCoasterHighlights[] | null;
 }
@@ -87,7 +116,7 @@ export interface RollerCoasterHighlights {
 
 export const MAJOR_MANUFACTURERS = [
   "Arrow Dynamics",
-  "Bolliger & Mabillard",
+  "B&M",
   "GCI",
   "Gerstlauer",
   "Gravity Group",
@@ -161,7 +190,15 @@ export type ApiCoaster = {
   name: string;
   manufacturerId: number;
   manufacturerName: string;
+
+  // Backward compatibility
   model: string;
+  // Expand Phase
+  rideModelId?: number | null;
+  rideModelName?: string;
+  rideTypeName?: string;
+  isDefunct?: boolean;
+
   scale: string;
   haveRidden: boolean;
   isBestCoaster: boolean;
@@ -208,11 +245,11 @@ export interface Manufacturer {
   id: number;
   name: string;
   country: string | null;
-  established: string | null; 
+  established: string | null;
   inBusiness: boolean;
   history: string | null;
   notes: string | null;
-  rollercoasters: ManufacturerCoaster[]; 
+  rollercoasters: ManufacturerCoaster[];
 }
 
 export type MatchStatus = "correct" | "close" | "wrong";

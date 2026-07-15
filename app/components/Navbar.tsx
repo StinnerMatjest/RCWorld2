@@ -64,7 +64,7 @@ const Navbar: React.FC = () => {
           <Link href="/about" className={linkCls("/about")}>About</Link>
           <Link href="/info" className={linkCls("/info")}>Ratings</Link>
           <Link href="/parks" className={linkCls("/parks")}>Parks</Link>
-          <Link href="/coasterratings" className={linkCls("/coasterratings")}>Coasters</Link>
+          <Link href="/coasterLibrary" className={linkCls("/coasterratings")}>Coasters</Link>
           <Link href="/manufacturers" className={linkCls("/manufacturers")}>Manufacturers</Link>
           <Link href="/games" className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-fuchsia-600">Games</Link>
 

@@ -11,7 +11,7 @@ import type { RollerCoasterSpecs } from "@/app/types";
 type Coaster = {
   id: number;
   name: string;
-  manufacturer: string; // This holds the manufacturer name
+  manufacturer: string; // Keep this as string, it holds the mapped manufacturerName
   model: string;
   scale: string;
   haveRidden: boolean;
@@ -80,34 +80,33 @@ const COL_MIN_W: Record<ColumnKey, number> = {
 
 function parseCoasterList(raw: any[]): Coaster[] {
   return raw.map((c): Coaster => ({
-    id: c.id, 
-    name: c.name, 
-    // MAPPING: Ensure we grab manufacturerName from the JOINed result
-    manufacturer: c.manufacturerName || "Unknown", 
+    id: c.id,
+    name: c.name,
+    manufacturer: c.manufacturerName || "Unknown",
     model: c.model,
-    scale: c.scale, 
-    haveRidden: c.haveRidden, 
+    scale: c.scale,
+    haveRidden: c.haveRidden,
     isBestCoaster: c.isBestCoaster,
     rideCount: c.rideCount ?? 0,
     visitCount: c.visitCount ?? 1,
     rating: c.rating === null || c.rating === undefined ? null : typeof c.rating === "string" ? parseFloat(c.rating) : c.rating,
-    parkId: c.parkId, 
+    parkId: c.parkId,
     parkName: c.parkName,
     country: c.country ?? "Unknown",
-    year: c.year ?? 0, 
-    lastVisitDate: c.lastVisitDate, 
+    year: c.year ?? 0,
+    lastVisitDate: c.lastVisitDate,
     slug: c.slug,
     specs: c.specs ? {
-      type: c.specs.type, 
+      type: c.specs.type,
       classification: c.specs.classification,
-      length: c.specs.length, 
-      height: c.specs.height, 
+      length: c.specs.length,
+      height: c.specs.height,
       drop: c.specs.drop,
-      speed: c.specs.speed, 
+      speed: c.specs.speed,
       inversions: c.specs.inversions,
-      verticalAngle: c.specs.verticalAngle, 
+      verticalAngle: c.specs.verticalAngle,
       gforce: c.specs.gforce,
-      duration: c.specs.duration, 
+      duration: c.specs.duration,
       notes: c.specs.notes,
     } : null,
   })).filter(c => (c.rating ?? 0) > 0);
@@ -297,7 +296,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
         </div>
       </div>
 
-      {/* ── Table (Simplified to show relevant parts) ────────────────────────── */}
+      {/* ── Table ── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         <div className="hidden sm:block rounded-2xl border border-slate-700 bg-slate-800/60 overflow-x-auto">
           <table className="w-full table-fixed text-sm text-left">
@@ -326,6 +325,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                   )}
                   {colOn("manufacturer") && (
                     <td className="px-4 whitespace-nowrap text-slate-300" style={{ height: ROW_H }}>
+                      {/* FIX: Now correctly uses the mapped 'manufacturer' property which holds the string name */}
                       <button onClick={() => setQuery?.(c.manufacturer)} className="hover:text-brand hover:underline cursor-pointer transition-colors">
                         {c.manufacturer}
                       </button>
