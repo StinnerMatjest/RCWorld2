@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, ChevronDown, ChevronRight, Settings2, ShieldX } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, Settings2, ShieldX, ArrowLeft } from "lucide-react";
 import { getRatingColor, getParkFlag } from "@/app/utils/design";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 
@@ -14,7 +14,7 @@ interface DirectoryRide {
     rating: number | null;
     slug: string;
     isDefunct: boolean;
-    country: string | null; // <-- NEW
+    country: string | null;
 }
 
 interface DirectoryModel {
@@ -51,6 +51,9 @@ export default function ManufacturerDirectoryPage() {
     // UI State
     const [expandedModels, setExpandedModels] = useState<Set<number>>(new Set());
 
+    // NEW: Mobile View State (true = showing the models, false = showing the manufacturer list)
+    const [isMobileDetailView, setIsMobileDetailView] = useState(false);
+
     useEffect(() => {
         (async () => {
             try {
@@ -58,7 +61,8 @@ export default function ManufacturerDirectoryPage() {
                 if (res.ok) {
                     const data = await res.json();
                     setManufacturers(data.manufacturers);
-                    if (data.manufacturers.length > 0) {
+                    // On desktop, auto-select the first one. On mobile, keep nothing selected until they tap.
+                    if (data.manufacturers.length > 0 && window.innerWidth >= 768) {
                         setSelectedId(data.manufacturers[0].id);
                     }
                 }
@@ -77,7 +81,6 @@ export default function ManufacturerDirectoryPage() {
         if (!selectedMfg) return [];
 
         let filtered = selectedMfg.models.map(model => {
-            // Filter the individual rides inside the model
             const visibleRides = model.rides.filter(ride => {
                 if (!showDefunctRides && ride.isDefunct) return false;
                 if (searchQuery) {
@@ -86,11 +89,9 @@ export default function ManufacturerDirectoryPage() {
                 }
                 return true;
             });
-
             return { ...model, rides: visibleRides };
         });
 
-        // Filter Models
         filtered = filtered.filter(model => {
             if (!showDefunctModels && !model.inProduction) return false;
             if (searchQuery) {
@@ -100,7 +101,6 @@ export default function ManufacturerDirectoryPage() {
             return true;
         });
 
-        // Sort Models
         filtered.sort((a, b) => {
             if (sortBy === "alpha") return a.name.localeCompare(b.name);
             if (sortBy === "count") return b.rides.length - a.rides.length;
@@ -125,12 +125,15 @@ export default function ManufacturerDirectoryPage() {
     if (isLoading) return <LoadingSpinner />;
 
     return (
-        <div className="min-h-screen bg-[#0f172a] text-slate-100 flex flex-col md:flex-row max-w-[1600px] mx-auto pt-6 px-4 md:px-8 gap-8">
+        <div className="min-h-screen bg-[#0f172a] text-slate-100 flex flex-col md:flex-row max-w-[1600px] mx-auto pt-6 px-4 md:px-8 gap-8 relative">
 
-            {/* Sidebar: Manufacturers */}
-            <aside className="w-full md:w-1/3 lg:w-1/4 flex flex-col h-[85vh]">
+            {/* SIDEBAR: Manufacturers 
+              Mobile: Hidden if looking at a specific manufacturer's details.
+              Desktop: Always visible, taking up 1/3 or 1/4 of the screen.
+            */}
+            <aside className={`w-full md:w-1/3 lg:w-1/4 flex-col h-[85vh] ${isMobileDetailView ? 'hidden md:flex' : 'flex'}`}>
                 <h1 className="text-2xl font-black text-white mb-6">Directory</h1>
-                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar pb-10 md:pb-0">
                     {manufacturers.map((mfg) => (
                         <button
                             key={mfg.id}
@@ -138,20 +141,38 @@ export default function ManufacturerDirectoryPage() {
                                 setSelectedId(mfg.id);
                                 setSearchQuery("");
                                 setExpandedModels(new Set());
+                                setIsMobileDetailView(true); // Trigger slide-over on mobile
+                                window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to top for mobile convenience
                             }}
-                            className={`w-full text-left px-4 py-3 rounded-xl transition-all border ${selectedId === mfg.id
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all border ${selectedId === mfg.id
                                 ? "bg-slate-800 border-slate-600 shadow-md text-white"
                                 : "bg-slate-900/50 border-transparent text-slate-400 hover:bg-slate-800/80 hover:text-slate-200"
                                 }`}
                         >
                             <span className="font-semibold truncate block">{mfg.name}</span>
+                            {/* Chevron only shows on mobile to indicate tapping goes to a new screen */}
+                            <ChevronRight className="w-4 h-4 opacity-50 md:hidden" />
                         </button>
                     ))}
                 </div>
             </aside>
 
-            {/* Main Content Area */}
-            <main className="w-full md:w-2/3 lg:w-3/4 flex flex-col h-[85vh]">
+            {/* MAIN CONTENT: Ride Models
+              Mobile: Hidden unless a manufacturer is tapped. 
+              Desktop: Always visible.
+            */}
+            <main className={`w-full md:w-2/3 lg:w-3/4 flex-col h-[85vh] ${isMobileDetailView ? 'flex' : 'hidden md:flex'}`}>
+
+                {/* Mobile Back Button */}
+                {isMobileDetailView && (
+                    <button
+                        onClick={() => setIsMobileDetailView(false)}
+                        className="md:hidden flex items-center gap-2 text-brand font-bold text-sm uppercase tracking-widest mb-4 hover:text-white transition-colors"
+                    >
+                        <ArrowLeft className="w-4 h-4" /> Back to Directory
+                    </button>
+                )}
+
                 {selectedMfg ? (
                     <>
                         {/* Header */}
@@ -160,7 +181,7 @@ export default function ManufacturerDirectoryPage() {
                                 <img
                                     src={`/images/manufacturers/${selectedMfg.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`}
                                     alt={`${selectedMfg.name} logo`}
-                                    className="w-16 h-16 object-contain bg-white rounded-xl p-1.5 shadow-sm"
+                                    className="w-16 h-16 object-contain bg-white rounded-xl p-1.5 shadow-sm shrink-0"
                                     onError={(e) => (e.currentTarget.style.display = 'none')}
                                 />
                                 <div>
@@ -184,7 +205,6 @@ export default function ManufacturerDirectoryPage() {
 
                         {/* Toolbar (Search & Sort) */}
                         <div className="flex flex-col xl:flex-row gap-4 mb-6 bg-slate-900/50 p-3 rounded-2xl border border-slate-800/50">
-
                             <div className="relative flex-1">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                                 <input
@@ -197,12 +217,12 @@ export default function ManufacturerDirectoryPage() {
                             </div>
 
                             <div className="flex flex-wrap items-center gap-4">
-                                <div className="flex items-center gap-2 border-r border-slate-700 pr-4">
-                                    <Settings2 className="w-4 h-4 text-slate-400" />
+                                <div className="flex items-center gap-2 border-r border-slate-700 pr-4 w-full sm:w-auto">
+                                    <Settings2 className="w-4 h-4 text-slate-400 shrink-0" />
                                     <select
                                         value={sortBy}
                                         onChange={(e) => setSortBy(e.target.value as SortOption)}
-                                        className="bg-transparent text-sm font-semibold text-slate-200 focus:outline-none cursor-pointer"
+                                        className="bg-transparent text-sm font-semibold text-slate-200 focus:outline-none cursor-pointer w-full sm:w-auto"
                                     >
                                         <option value="count" className="bg-slate-900">Sort by Ride Count</option>
                                         <option value="year" className="bg-slate-900">Sort by Debut Year</option>
@@ -210,15 +230,17 @@ export default function ManufacturerDirectoryPage() {
                                     </select>
                                 </div>
 
-                                <label className="flex items-center gap-2 text-xs font-semibold text-slate-400 cursor-pointer hover:text-slate-300">
-                                    <input type="checkbox" checked={showDefunctModels} onChange={(e) => setShowDefunctModels(e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-brand" />
-                                    Show Defunct Models
-                                </label>
+                                <div className="flex gap-4">
+                                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-400 cursor-pointer hover:text-slate-300">
+                                        <input type="checkbox" checked={showDefunctModels} onChange={(e) => setShowDefunctModels(e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-brand" />
+                                        Defunct Models
+                                    </label>
 
-                                <label className="flex items-center gap-2 text-xs font-semibold text-slate-400 cursor-pointer hover:text-slate-300">
-                                    <input type="checkbox" checked={showDefunctRides} onChange={(e) => setShowDefunctRides(e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-brand" />
-                                    Show Defunct Rides
-                                </label>
+                                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-400 cursor-pointer hover:text-slate-300">
+                                        <input type="checkbox" checked={showDefunctRides} onChange={(e) => setShowDefunctRides(e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-brand" />
+                                        Defunct Rides
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
@@ -231,27 +253,27 @@ export default function ManufacturerDirectoryPage() {
                                         {/* Model Accordion Header */}
                                         <button
                                             onClick={() => toggleModel(model.id)}
-                                            className="w-full flex items-center justify-between p-5 cursor-pointer text-left"
+                                            className="w-full flex items-center justify-between p-4 md:p-5 cursor-pointer text-left"
                                         >
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-3">
-                                                    <h3 className="text-xl font-bold text-white">{model.name}</h3>
+                                            <div className="flex flex-col gap-1 pr-4">
+                                                <div className="flex items-center flex-wrap gap-2 md:gap-3">
+                                                    <h3 className="text-lg md:text-xl font-bold text-white">{model.name}</h3>
                                                     {!model.inProduction && (
-                                                        <span className="px-2 py-0.5 bg-red-900/30 border border-red-900/50 text-red-400 text-[10px] font-black uppercase tracking-widest rounded-md flex items-center gap-1">
+                                                        <span className="px-2 py-0.5 bg-red-900/30 border border-red-900/50 text-red-400 text-[9px] md:text-[10px] font-black uppercase tracking-widest rounded-md flex items-center gap-1 shrink-0">
                                                             <ShieldX className="w-3 h-3" /> Defunct
                                                         </span>
                                                     )}
                                                 </div>
-                                                <div className="flex items-center gap-3 text-xs font-semibold text-slate-500 uppercase tracking-widest">
+                                                <div className="flex items-center flex-wrap gap-y-1 gap-x-2 md:gap-3 text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-widest mt-1">
                                                     <span>{model.rideTypeName}</span>
-                                                    <span>•</span>
+                                                    <span className="hidden sm:inline">•</span>
                                                     <span>Debut: {model.year ? new Date(model.year).getFullYear() : "Unknown"}</span>
-                                                    <span>•</span>
-                                                    <span className="text-brand">{model.rides.length} Rides Logged</span>
+                                                    <span className="hidden sm:inline">•</span>
+                                                    <span className="text-brand w-full sm:w-auto">{model.rides.length} Rides Logged</span>
                                                 </div>
                                             </div>
 
-                                            <div className={`p-2 rounded-full bg-slate-800 text-slate-400 transition-transform duration-300 ${expandedModels.has(model.id) ? "rotate-90" : ""}`}>
+                                            <div className={`p-2 rounded-full bg-slate-800 text-slate-400 transition-transform duration-300 shrink-0 ${expandedModels.has(model.id) ? "rotate-90" : ""}`}>
                                                 <ChevronRight className="w-5 h-5" />
                                             </div>
                                         </button>
@@ -281,10 +303,8 @@ export default function ManufacturerDirectoryPage() {
                                                                             className="absolute inset-y-0 right-0 w-3/5 sm:w-1/2 max-w-[220px] z-0 opacity-20 group-hover:opacity-30 transition-opacity duration-300 pointer-events-none rounded-r-xl"
                                                                             style={{
                                                                                 backgroundImage: `url(${flagUrl.replace('w40', 'w320')})`,
-                                                                                // 'cover' now fills just this right-aligned div, creating a smooth ambient texture
                                                                                 backgroundSize: 'cover',
                                                                                 backgroundPosition: 'center',
-                                                                                // The fade now perfectly matches the left edge of the container, eliminating the hard line
                                                                                 maskImage: 'linear-gradient(to right, transparent 0%, black 100%)',
                                                                                 WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 100%)'
                                                                             }}
@@ -292,17 +312,17 @@ export default function ManufacturerDirectoryPage() {
                                                                     )}
 
                                                                     {/* Content wrapper with z-index to stay above background */}
-                                                                    <div className="relative z-10">
-                                                                        <span className="font-semibold text-slate-200 group-hover:text-brand transition-colors flex items-center gap-2 drop-shadow-md">
+                                                                    <div className="relative z-10 pr-2">
+                                                                        <span className="font-semibold text-slate-200 group-hover:text-brand transition-colors flex items-center flex-wrap gap-2 drop-shadow-md">
                                                                             {ride.name}
-                                                                            {ride.isDefunct && <span className="text-[9px] px-1.5 py-0.5 bg-red-950/80 text-red-500 rounded uppercase tracking-wider backdrop-blur-sm">Defunct</span>}
+                                                                            {ride.isDefunct && <span className="text-[9px] px-1.5 py-0.5 bg-red-950/80 text-red-500 rounded uppercase tracking-wider backdrop-blur-sm shrink-0">Defunct</span>}
                                                                         </span>
                                                                         <span className="text-xs text-slate-400 font-medium block mt-0.5 drop-shadow-md">
                                                                             {ride.year || "Unknown Year"} {ride.country ? `• ${ride.country}` : ""}
                                                                         </span>
                                                                     </div>
 
-                                                                    <div className={`relative z-10 font-black tabular-nums drop-shadow-md text-lg ${getRatingColor(ride.rating || 0)}`}>
+                                                                    <div className={`relative z-10 font-black tabular-nums drop-shadow-md text-lg shrink-0 ${getRatingColor(ride.rating || 0)}`}>
                                                                         {ride.rating ? ride.rating.toFixed(1) : "—"}
                                                                     </div>
                                                                 </Link>
@@ -317,7 +337,7 @@ export default function ManufacturerDirectoryPage() {
                                     </div>
                                 ))
                             ) : (
-                                <div className="text-center py-20 border border-dashed border-slate-800 rounded-3xl">
+                                <div className="text-center py-20 border border-dashed border-slate-800 rounded-3xl mx-4 md:mx-0">
                                     <p className="text-slate-400 font-medium">No models found.</p>
                                     <p className="text-slate-600 text-sm mt-1">Try adjusting your search or filters.</p>
                                 </div>
@@ -325,7 +345,7 @@ export default function ManufacturerDirectoryPage() {
                         </div>
                     </>
                 ) : (
-                    <div className="flex items-center justify-center h-full text-slate-500">
+                    <div className="hidden md:flex items-center justify-center h-full text-slate-500 border-2 border-dashed border-slate-800 rounded-3xl m-8">
                         Select a manufacturer to view their portfolio
                     </div>
                 )}

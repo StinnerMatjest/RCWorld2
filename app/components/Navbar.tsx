@@ -93,7 +93,7 @@ const Navbar: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Mobile ──────────────────────────────────────────────────────── */}
+      {/* ── Mobile ── */}
       <div className="relative md:hidden" ref={mobileRef}>
         <button
           onClick={() => setMobileOpen(v => !v)}
@@ -114,7 +114,7 @@ const Navbar: React.FC = () => {
               { href: "/about", label: "About" },
               { href: "/info", label: "Ratings" },
               { href: "/parks", label: "Parks" },
-              { href: "/coasterratings", label: "Coasters" },
+              { href: "/coasterLibrary", label: "Coasters" },
               { href: "/manufacturers", label: "Manufacturers" },
             ].map(({ href, label }) => (
               <li key={href}>
