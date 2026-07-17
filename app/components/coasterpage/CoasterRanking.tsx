@@ -144,7 +144,7 @@ const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, p
         <div className={`${baseAnim} ${showContent ? visible : hidden}`}>
           <Link
             // Use the resolved name for the filter
-            href={`/coasterratings?q=${encodeURIComponent(resolvedParkName)}`}
+            href={`/coasterLibrary?q=${encodeURIComponent(resolvedParkName)}`}
             className="group cursor-pointer"
           >
             <StatBlock
@@ -164,7 +164,7 @@ const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, p
         <div className={`${baseAnim} ${showContent ? visible : hidden} delay-100`}>
           <Link
             // Use "?? ''" to ensure the string is never undefined
-            href={`/coasterratings?q=${encodeURIComponent(coaster.manufacturerName ?? "")}`}
+            href={`/coasterLibrary?q=${encodeURIComponent(coaster.manufacturerName ?? "")}`}
             className="group cursor-pointer"
           >
             <StatBlock
@@ -184,7 +184,7 @@ const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, p
       {stats.overall.rank !== null && (
         <div className={`${baseAnim} ${showContent ? visible : hidden} delay-200`}>
           <Link
-            href="/coasterratings"
+            href="/coasterLibrary"
             className="group cursor-pointer"
           >
             <StatBlock

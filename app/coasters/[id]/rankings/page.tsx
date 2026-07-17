@@ -126,8 +126,8 @@ export default function DetailedRankingsPage() {
     const handleRankClick = (res: any) => {
         if (res.isLarge) {
             const path = res.label === "Global Ranking"
-                ? "/coasterratings"
-                : `/coasterratings?q=${encodeURIComponent(res.queryValue)}`;
+                ? "/coasterLibrary"
+                : `/coasterLibrary?q=${encodeURIComponent(res.queryValue)}`;
             router.push(path);
         } else {
             setViewingCategory({

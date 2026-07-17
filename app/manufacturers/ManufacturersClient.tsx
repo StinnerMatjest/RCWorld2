@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { Trophy, Factory, MapPin, RotateCw, ChevronDown } from "lucide-react";
 import { getRatingColor, getRatingHex, RATING_TIERS } from "@/app/utils/design";
+import { useAdminMode } from "@/app/context/AdminModeContext";
 
 // ——— Types ———
 type Coaster = {
@@ -81,6 +82,7 @@ const fadeUp = {
 
 // ——— Page ———
 export default function ManufacturersClient({ initialCoasters }: { initialCoasters: any[] }) {
+  const { isAdminMode } = useAdminMode();
   const coasters = useMemo(() => parseCoasters(initialCoasters), [initialCoasters]);
   const manufacturers = useMemo(() => aggregate(coasters), [coasters]);
 
@@ -105,18 +107,20 @@ export default function ManufacturersClient({ initialCoasters }: { initialCoaste
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <div className="border-b border-slate-800 px-4 sm:px-8 py-12 sm:py-16">
         <div className="max-w-5xl mx-auto">
-          {/* NEW: Navigation Toggle */}
-          <div className="flex items-center bg-slate-800 p-2 rounded-xl border border-slate-700 w-fit mb-8">
-            <div className="px-4 py-2 rounded-lg text-sm font-semibold bg-brand text-white shadow-sm">
-              Hall of Fame
+          {/* Navigation Toggle — directory is an admin-only tool */}
+          {isAdminMode && (
+            <div className="flex items-center bg-slate-800 p-2 rounded-xl border border-slate-700 w-fit mb-8">
+              <div className="px-4 py-2 rounded-lg text-sm font-semibold bg-brand text-white shadow-sm">
+                Hall of Fame
+              </div>
+              <Link
+                href="/manufacturers/directory"
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-400 hover:text-white transition-colors"
+              >
+                Database Directory
+              </Link>
             </div>
-            <Link
-              href="/manufacturers/directory"
-              className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-400 hover:text-white transition-colors"
-            >
-              Database Directory
-            </Link>
-          </div>
+          )}
 
           <p className="text-brand text-xs font-bold uppercase tracking-widest mb-3">
             ParkRating · Manufacturers
@@ -138,8 +142,8 @@ export default function ManufacturersClient({ initialCoasters }: { initialCoaste
               { label: "Best Coaster awards", value: totalAwards.toLocaleString() },
             ].map((s) => (
               <div key={s.label}>
-                <div className="text-2xl font-black text-white">{s.value}</div>
-                <div className="text-xs text-slate-500 uppercase tracking-wider mt-0.5">{s.label}</div>
+                <div className="text-2xl font-black text-brand">{s.value}</div>
+                <div className="text-xs text-slate-400 uppercase tracking-wider mt-0.5">{s.label}</div>
               </div>
             ))}
           </div>
@@ -535,7 +539,7 @@ function ManufacturerCard({ manu, index }: { manu: Manufacturer; index: number }
           </span>
         </Link>
         <Link
-          href={`/coasterratings?q=${encodeURIComponent(manu.name)}`}
+          href={`/coasterLibrary?q=${encodeURIComponent(manu.name)}`}
           className="flex-shrink-0 text-xs text-slate-500 hover:text-brand transition-colors"
         >
           See all {manu.count} →

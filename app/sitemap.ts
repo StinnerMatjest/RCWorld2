@@ -29,7 +29,7 @@ export default async function sitemap() {
   return [
     { url: baseUrl,                      lastModified: new Date() },
     { url: `${baseUrl}/parks`,           lastModified: new Date() },
-    { url: `${baseUrl}/coasterratings`,  lastModified: new Date() },
+    { url: `${baseUrl}/coasterLibrary`,  lastModified: new Date() },
     { url: `${baseUrl}/manufacturers`,   lastModified: new Date() },
     { url: `${baseUrl}/info` },
     { url: `${baseUrl}/about` },

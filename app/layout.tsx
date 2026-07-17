@@ -41,6 +41,31 @@ const roboto = Roboto({
   weight: "400",
 });
 
+// Site-wide identity for answer engines: who runs the site and its social profiles.
+const siteJsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://parkrating.com/#organization",
+      "name": "ParkRating",
+      "url": "https://parkrating.com",
+      "logo": "https://parkrating.com/images/Parkrating.png",
+      "sameAs": [
+        "https://www.instagram.com/parkratings/",
+        "https://www.facebook.com/parkrating/",
+      ],
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://parkrating.com/#website",
+      "name": "ParkRating",
+      "url": "https://parkrating.com",
+      "publisher": { "@id": "https://parkrating.com/#organization" },
+    },
+  ],
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -60,6 +85,10 @@ export default function RootLayout({
       <body
         className={`${roboto.variable} antialiased min-h-screen flex flex-col bg-[#0f172a] text-slate-200`}
       >
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd) }}
+        />
         <AdminModeProvider>
           <ParksProvider>
             <SearchProvider>

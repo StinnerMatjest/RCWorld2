@@ -9,6 +9,15 @@ export const metadata: Metadata = {
   description:
     "Explore theme park reviews and coaster rankings from dedicated enthusiasts 🎢 Discover top rides and plan your next visit with ParkRating.",
   alternates: { canonical: "https://parkrating.com" },
+  openGraph: {
+    siteName: "ParkRating",
+    type: "website",
+    url: "https://parkrating.com",
+    title: "ParkRating – ThemePark Reviews",
+    description:
+      "Explore theme park reviews and coaster rankings from dedicated enthusiasts 🎢 Discover top rides and plan your next visit with ParkRating.",
+    images: ["/images/Parkrating.png"],
+  },
 };
 
 // Render at request time, not build time: the Docker build has no env vars and
@@ -42,5 +51,10 @@ export default async function Page() {
     getInitialData(),
     isAdminRequest({ cookies: await cookies() }),
   ]);
-  return <HomeClient initialRatings={ratings} initialParks={parks} initialAdminMode={initialAdminMode} />;
+  return (
+    <>
+      <h1 className="sr-only">ParkRating: Theme Park Reviews &amp; Roller Coaster Rankings</h1>
+      <HomeClient initialRatings={ratings} initialParks={parks} initialAdminMode={initialAdminMode} />
+    </>
+  );
 }

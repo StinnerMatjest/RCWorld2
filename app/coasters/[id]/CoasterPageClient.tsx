@@ -242,7 +242,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
             {coaster.rating && (
               <div className={`${baseAnim} ${visibleClass} delay-300`}>
                 <Link
-                  href={`/coasterratings?q=${coaster.rating}`}
+                  href={`/coasterLibrary?q=${coaster.rating}`}
                   title={`View coasters with score ${coaster.rating}`}
                   className="group cursor-pointer"
                 >

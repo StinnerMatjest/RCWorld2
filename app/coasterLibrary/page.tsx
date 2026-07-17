@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "Coaster Library | Ratings, Rankings & Ride Data | ParkRating",
   description:
     "Every roller coaster we've ridden, rated and ranked. Detailed ride counts, manufacturer breakdowns and enthusiast insights across every park we've visited.",
-  alternates: { canonical: "https://parkrating.com/coasterratings" },
+  alternates: { canonical: "https://parkrating.com/coasterLibrary" },
 };
 
 // Render at request time, not build time (Docker build has no env/API).
@@ -36,7 +36,7 @@ export default async function Page() {
     "name": "Roller Coaster Ratings by ParkRating",
     "description":
       "Every roller coaster rated by ParkRating, ranked by score. Includes ride counts, manufacturer data, and enthusiast insights.",
-    "url": "https://parkrating.com/coasterratings",
+    "url": "https://parkrating.com/coasterLibrary",
     "numberOfItems": coasters.length,
     "itemListElement": ranked.slice(0, 150).map((c: any, i: number) => ({
       "@type": "ListItem",
