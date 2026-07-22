@@ -5,6 +5,7 @@ type PageProps = {
   params: Promise<{
     id: string;
   }>;
+  searchParams: Promise<{ visit?: string }>;
 };
 
 type Scores = {
@@ -92,14 +93,15 @@ async function getRatings(numericId: number): Promise<any[]> {
 
 // The coasters endpoint returns a plain array; seed it so the list renders on the
 // first paint instead of behind the shimmer skeleton.
-async function getCoasters(numericId: number): Promise<any[]> {
+// null = fetch failed (client will fetch); [] = park genuinely has no coasters.
+async function getCoasters(numericId: number): Promise<any[] | null> {
   try {
     const res = await fetch(`${BASE}api/park/${numericId}/coasters`, { cache: "force-cache", next: { tags: ["content"] } });
-    if (!res.ok) return [];
+    if (!res.ok) return null;
     const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    return Array.isArray(data) ? data : null;
   } catch {
-    return [];
+    return null;
   }
 }
 
@@ -166,8 +168,9 @@ export async function generateMetadata({ params }: PageProps) {
   };
 }
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const { visit } = await searchParams;
   const isNumeric = /^\d+$/.test(id);
   const [data, scores, review] = await Promise.all([getPark(id), getScores(id), getReviewTexts(id)]);
 
@@ -178,9 +181,12 @@ export default async function Page({ params }: PageProps) {
   }
 
   // Server-render the published review prose into the initial HTML (same text the
-  // client shows). activeRatingId = latest published visit, matching the client default.
+  // client shows). Honor ?visit= deep links when they name a published rating;
+  // otherwise fall back to the latest published visit (the client default).
   const [ratings, coasters] = await Promise.all([getRatings(data.id), getCoasters(data.id)]);
-  const activeRatingId = ratings[0]?.id ?? null;
+  const requestedId = visit ? Number(visit) : NaN;
+  const activeRatingId =
+    ratings.find((r: any) => r.id === requestedId)?.id ?? ratings[0]?.id ?? null;
   const texts = activeRatingId
     ? await getParkTexts(data.id, activeRatingId)
     : { explanations: {}, sectionImages: {}, sectionLayouts: {}, sectionSpoilers: {} };
@@ -241,7 +247,7 @@ export default async function Page({ params }: PageProps) {
         initialId={id}
         initialPark={data}
         initialRatings={ratings}
-        initialCoasters={coasters}
+        initialCoasters={coasters ?? undefined}
         initialExplanations={texts.explanations}
         initialSectionImages={texts.sectionImages}
         initialSectionLayouts={texts.sectionLayouts}

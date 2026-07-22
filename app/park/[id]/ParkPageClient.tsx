@@ -35,7 +35,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
   initialId,
   initialPark = null,
   initialRatings = [],
-  initialCoasters = [],
+  initialCoasters,
   initialExplanations = {},
   initialSectionImages = {},
   initialSectionLayouts = {},
@@ -50,17 +50,16 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
   const selectedRatingId = visitId ? Number(visitId) : undefined;
 
   const [park, setPark] = useState<Park | null>(initialPark);
-  const [coasters, setCoasters] = useState<RollerCoaster[]>(initialCoasters);
+  const [coasters, setCoasters] = useState<RollerCoaster[]>(initialCoasters ?? []);
   const [ratings, setRatings] = useState<Rating[]>(initialRatings);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   // Seeded from the server, so the list renders immediately instead of a skeleton.
-  const [loadingCoasters, setLoadingCoasters] = useState(initialCoasters.length === 0);
+  // undefined seed = server fetch failed → show the skeleton until our fetch lands;
+  // [] seed = park genuinely has no coasters → render the real empty state.
+  const [loadingCoasters, setLoadingCoasters] = useState(initialCoasters === undefined);
   // Gallery isn't seeded server-side, so it fetches client-side; this drives the
   // "Loading images…" placeholder instead of a misleading "no images" message.
   const [loadingGallery, setLoadingGallery] = useState(true);
-  // Seeded from the server when review text is present, so the prose renders on
-  // the first paint instead of behind a spinner.
-  const [loadingExplanations, setLoadingExplanations] = useState(Object.keys(initialExplanations).length === 0);
   const [showModal, setShowModal] = useState(false);
   const [editingCoaster, setEditingCoaster] = useState<RollerCoaster>();
   const [explanations, setExplanations] = useState<Record<string, string>>(initialExplanations);
@@ -162,6 +161,9 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
 
         if (!parkRes.ok || parkData.error) {
           console.error("Park not found or API error:", parkData.error);
+          // Stop the loading states — leaving them on means skeletons/spinners forever.
+          setLoadingCoasters(false);
+          setLoadingGallery(false);
           return;
         }
 
@@ -213,6 +215,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
         setLoadingGallery(false);
       } catch (error) {
         console.error("Failed to fetch park data:", error);
+        setLoadingCoasters(false);
         setLoadingGallery(false);
       }
     })();
@@ -223,11 +226,6 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
   const activeRatingId = selectedRating?.id ?? visibleRatings[0]?.id;
 
   useEffect(() => {
-    if (park && !loadingCoasters && visibleRatings.length === 0) {
-      setLoadingExplanations(false);
-      return;
-    }
-
     if (!park?.id || !activeRatingId) return;
 
     const fetchExplanations = async () => {
@@ -255,13 +253,11 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
         setSectionSpoilers(spoilerMap);
       } catch (error) {
         console.error("Failed to fetch explanations:", error);
-      } finally {
-        setLoadingExplanations(false);
       }
     };
 
     fetchExplanations();
-  }, [park, loadingCoasters, visibleRatings.length, activeRatingId]);
+  }, [park, activeRatingId]);
 
   const refreshGallery = async () => {
     if (!park?.id) return;

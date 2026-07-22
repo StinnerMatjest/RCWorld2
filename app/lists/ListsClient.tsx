@@ -13,13 +13,18 @@ interface RankingListSummary {
     createdAt: string;
 }
 
-const RankingsPage = ({ initialLists = [] }: { initialLists?: RankingListSummary[] }) => {
-    const [lists, setLists] = useState<RankingListSummary[]>(initialLists);
-    const [isLoading, setIsLoading] = useState(initialLists.length === 0);
+const RankingsPage = ({ initialLists }: { initialLists?: RankingListSummary[] }) => {
+    // undefined = server fetch failed → we fetch here. [] = genuinely no lists.
+    const [lists, setLists] = useState<RankingListSummary[]>(initialLists ?? []);
+    const [isLoading, setIsLoading] = useState(initialLists === undefined);
     const [error, setError] = useState<string | null>(null);
     const { isAdminMode } = useAdminMode();
 
     useEffect(() => {
+        // Server-seeded data is kept fresh via the "content" tag; only fetch
+        // when the seed is missing (SSR-time API failure).
+        if (initialLists !== undefined) return;
+
         const fetchLists = async () => {
             try {
                 const response = await fetch("/api/lists");
@@ -35,10 +40,12 @@ const RankingsPage = ({ initialLists = [] }: { initialLists?: RankingListSummary
         };
 
         fetchLists();
-    }, []);
+    }, [initialLists]);
 
     if (isLoading) return <LoadingSpinner />;
-    if (error) return <div className="text-center py-20 text-red-500">{error}</div>;
+    // Only fall back to the error page when there's nothing to show — never
+    // replace already-rendered content with an error message.
+    if (error && lists.length === 0) return <div className="text-center py-20 text-red-500">{error}</div>;
 
     return (
         <div className="min-h-screen bg-[#0f172a] py-12 px-6">

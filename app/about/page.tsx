@@ -13,29 +13,30 @@ export const metadata: Metadata = {
 // Render at request time, not build time (Docker build has no env/API).
 export const dynamic = "force-dynamic";
 
-async function getTrips(): Promise<any[]> {
+// null = fetch failed (client falls back to fetching); [] = genuinely empty.
+async function getTrips(): Promise<any[] | null> {
   try {
     const res = await fetch(`${BASE}api/trips`, { cache: "force-cache", next: { tags: ["content"] } });
-    if (!res.ok) return [];
+    if (!res.ok) return null;
     const data = await res.json();
     return data.trips ?? [];
   } catch {
-    return [];
+    return null;
   }
 }
 
-async function getVisits(): Promise<any[]> {
+async function getVisits(): Promise<any[] | null> {
   try {
     const res = await fetch(`${BASE}api/visits`, { cache: "force-cache", next: { tags: ["content"] } });
-    if (!res.ok) return [];
+    if (!res.ok) return null;
     const data = await res.json();
     return data.visits ?? [];
   } catch {
-    return [];
+    return null;
   }
 }
 
 export default async function Page() {
   const [trips, visits] = await Promise.all([getTrips(), getVisits()]);
-  return <AboutClient initialTrips={trips} initialVisits={visits} />;
+  return <AboutClient initialTrips={trips ?? undefined} initialVisits={visits ?? undefined} />;
 }

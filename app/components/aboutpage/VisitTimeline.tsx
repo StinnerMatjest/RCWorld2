@@ -179,22 +179,26 @@ function VisitTile({ visit }: { visit: Visit }) {
 
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 
-export default function VisitTimeline({ trips, isAdminMode, onEditTrip, initialVisits = [] }: {
+export default function VisitTimeline({ trips, isAdminMode, onEditTrip, initialVisits }: {
   trips: Trip[];
   isAdminMode: boolean;
   onEditTrip: (t: Trip) => void;
   initialVisits?: Visit[];
 }) {
-  const [visits, setVisits] = useState<Visit[]>(initialVisits);
-  const [loading, setLoading] = useState(initialVisits.length === 0);
+  // undefined = server fetch failed → we fetch here. [] = genuinely no visits.
+  const [visits, setVisits] = useState<Visit[]>(initialVisits ?? []);
+  const [loading, setLoading] = useState(initialVisits === undefined);
 
   useEffect(() => {
+    // Seeded server-side and kept fresh via the "content" tag — only fetch
+    // when the seed is missing (SSR-time API failure).
+    if (initialVisits !== undefined) return;
     fetch("/api/visits")
       .then(r => r.json())
       .then(d => setVisits(d.visits ?? []))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [initialVisits]);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);

@@ -18,6 +18,10 @@ const RankingArticlePage: React.FC<{ initialList?: RankingList | null }> = ({ in
     useEffect(() => {
         window.scrollTo(0, 0);
 
+        // Seeded server-side and kept fresh via the "content" tag — only fetch
+        // when the seed is missing or belongs to a different slug.
+        if (initialList && initialList.slug === slug) return;
+
         const fetchRankingList = async () => {
             try {
                 const res = await fetch(`/api/lists/${slug}`);
@@ -32,7 +36,7 @@ const RankingArticlePage: React.FC<{ initialList?: RankingList | null }> = ({ in
         };
 
         if (slug) fetchRankingList();
-    }, [slug]);
+    }, [slug, initialList]);
 
     if (isLoading) return <LoadingSpinner />;
     if (!rankingList) return <div className="text-center py-20">List not found.</div>;

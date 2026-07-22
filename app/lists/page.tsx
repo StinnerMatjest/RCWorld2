@@ -13,19 +13,22 @@ export const metadata: Metadata = {
 // Render at request time, not build time (Docker build has no env/API).
 export const dynamic = "force-dynamic";
 
-async function getLists(): Promise<any[]> {
+// null = fetch failed (client will fetch and show its loading state);
+// [] = genuinely no lists (client renders the real empty state, no spinner).
+async function getLists(): Promise<any[] | null> {
   try {
     const res = await fetch(`${BASE}api/lists`, { cache: "force-cache", next: { tags: ["content"] } });
-    if (!res.ok) return [];
+    if (!res.ok) return null;
     const data = await res.json();
     return data.rankingLists ?? [];
   } catch {
-    return [];
+    return null;
   }
 }
 
 export default async function Page() {
-  const lists = await getLists();
+  const fetched = await getLists();
+  const lists = fetched ?? [];
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -46,7 +49,7 @@ export default async function Page() {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <ListsClient initialLists={lists} />
+      <ListsClient initialLists={fetched ?? undefined} />
     </>
   );
 }

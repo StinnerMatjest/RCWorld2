@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
+import { revalidateContent } from "@/app/lib/revalidate";
 
 
 export async function GET() {
@@ -28,6 +29,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+    revalidateContent();
     const client = await pool.connect();
     try {
         const body = await req.json();

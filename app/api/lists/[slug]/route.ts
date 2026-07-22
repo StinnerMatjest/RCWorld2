@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
+import { revalidateContent } from "@/app/lib/revalidate";
 
 
 export async function GET(
@@ -61,6 +62,7 @@ export async function PUT(
     req: NextRequest,
     context: { params: Promise<{ slug: string }> }
 ) {
+    revalidateContent();
     const client = await pool.connect();
     try {
         const { slug: oldSlug } = await context.params;
@@ -114,6 +116,7 @@ export async function DELETE(
     req: NextRequest,
     context: { params: Promise<{ slug: string }> }
 ) {
+    revalidateContent();
     try {
         const { slug } = await context.params;
         await pool.query("DELETE FROM rankinglists WHERE slug = $1", [slug]);
