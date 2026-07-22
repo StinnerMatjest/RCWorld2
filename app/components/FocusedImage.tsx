@@ -15,6 +15,10 @@ export interface FocusedImageProps {
    *  Next's device sizes). Plain <img> tags otherwise download the full-size
    *  original, which makes first loads slow and staggered. */
   optimizeWidth?: 640 | 750 | 828 | 1080 | 1200 | 1920;
+  /** Entrance-stagger slot in ms, measured from mount. A fresh-load fade waits
+   *  for this slot if it hasn't passed, so the image reveal lines up with the
+   *  container's own staggered entrance animation. */
+  staggerDelayMs?: number;
 }
 
 // Rewrite an image URL to Next's optimizer endpoint — the same endpoint
@@ -55,7 +59,7 @@ export function splitMedia(entry: string): { url: string; focus: string } {
 // Renders an image absolutely positioned inside an overflow-hidden container,
 // matching exactly what CropEditor shows for the given focusStr.
 export function FocusedImage({
-  src, alt = "", focusStr, className = "", imgClassName = "", imgStyle, priority, onLoad: onLoadProp, optimizeWidth,
+  src, alt = "", focusStr, className = "", imgClassName = "", imgStyle, priority, onLoad: onLoadProp, optimizeWidth, staggerDelayMs = 0,
 }: FocusedImageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef       = useRef<HTMLImageElement>(null);
@@ -66,7 +70,9 @@ export function FocusedImage({
   // complete-check path below) appear instantly so back-navigation doesn't blink.
   const revealedRef  = useRef(false);
   const fadeInRef    = useRef(false);
-  useEffect(() => { focusRef.current = focusStr; });
+  const mountTsRef   = useRef(0);
+  const staggerRef   = useRef(staggerDelayMs);
+  useEffect(() => { focusRef.current = focusStr; staggerRef.current = staggerDelayMs; });
 
   const applyStyle = useCallback(() => {
     const c   = containerRef.current;
@@ -84,10 +90,13 @@ export function FocusedImage({
     if (!revealedRef.current) {
       revealedRef.current = true;
       if (fadeInRef.current) {
+        // Wait for the container's entrance-stagger slot if it hasn't passed.
+        const elapsed = mountTsRef.current ? performance.now() - mountTsRef.current : Infinity;
+        const wait = Math.max(0, staggerRef.current - elapsed);
         img.style.opacity = "0";
         img.style.visibility = "visible";
         requestAnimationFrame(() => {
-          img.style.transition = "opacity 500ms ease";
+          img.style.transition = `opacity 500ms ease ${Math.round(wait)}ms`;
           // Clearing the inline value lets it settle at the class-defined
           // opacity (e.g. opacity-70), not a hardcoded 1.
           img.style.opacity = "";
@@ -101,6 +110,7 @@ export function FocusedImage({
   }, []);
 
   useEffect(() => {
+    if (!mountTsRef.current) mountTsRef.current = performance.now();
     // With SSR the image can finish loading before React attaches onLoad
     // (cached or fast images) — capture dimensions from the complete img
     const img = imgRef.current;

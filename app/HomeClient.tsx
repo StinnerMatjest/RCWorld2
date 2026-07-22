@@ -48,9 +48,17 @@ const PendingParkCard = ({ park, delayIndex = 0 }: { park: Park; delayIndex?: nu
 );
 
 
-const TeaserParkCard = React.memo(({ rating, park, delayIndex = 0 }: { rating: Rating; park: Park; delayIndex?: number }) => (
+const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, delayIndex = 0 }: { rating: Rating; park: Park; delayIndex?: number }) {
+  const [imgReady, setImgReady] = useState(false);
+  return (
   <div className="mx-auto w-full max-w-[400px] py-3 md:py-4 animate-fade-in-up" style={cardDelay(delayIndex)}>
     <div className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
+      {/* Shimmer placeholder while the image is still on its way */}
+      {!imgReady && (
+        <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 animate-[shimmer_1.8s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
+        </div>
+      )}
       <FocusedImage
         src={park.cardImagepath || park.imagepath || "/images/error.PNG"}
         alt={park.name}
@@ -58,6 +66,8 @@ const TeaserParkCard = React.memo(({ rating, park, delayIndex = 0 }: { rating: R
         className="absolute inset-0"
         imgClassName="opacity-70"
         optimizeWidth={828}
+        staggerDelayMs={Math.min(delayIndex, 12) * 70}
+        onLoad={() => setTimeout(() => setImgReady(true), 1400)}
       />
 
       {/* Top: park name */}
@@ -97,7 +107,8 @@ const TeaserParkCard = React.memo(({ rating, park, delayIndex = 0 }: { rating: R
       </div>
     </div>
   </div>
-));
+  );
+});
 TeaserParkCard.displayName = "TeaserParkCard";
 
 const avg = (a: number, b: number) => ((a + b) / 2).toFixed(2);
@@ -163,6 +174,8 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
   const raf1Ref = useRef<number | null>(null);
   const raf2Ref = useRef<number | null>(null);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
+  // Drives the shimmer placeholder: true once the header image is showing.
+  const [imgReady, setImgReady] = useState(false);
 
   useLayoutEffect(() => {
     const a = slotARef.current;
@@ -176,18 +189,27 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     b.style.opacity = "0"; b.style.transition = "none";
     a.src = optimizedSrc(cardSrc);
     b.src = optimizedSrc(cardSrc);
-    // Cached image (back-nav): appear instantly. Fresh network load: fade in,
-    // so first visits get a smooth reveal instead of a patchwork of pops.
+    // Image already loaded when we hydrate: reveal instantly — the card's own
+    // entrance animation covers it, so shell and image arrive as one unit.
+    // Loaded after hydration: fade in, waiting for this card's stagger slot if
+    // that hasn't passed yet, so a burst of ready images ripples in card-by-card
+    // (matching the shell cascade) instead of flooding in all at once.
+    const t0 = performance.now();
+    const staggerMs = Math.min(delayIndex, 12) * 70;
     const reveal = (fade: boolean) => {
       if (!a.naturalWidth) return;
       applyFocusToImg(a, cardFocusStr);
       if (fade) {
+        const wait = Math.max(0, staggerMs - (performance.now() - t0));
         requestAnimationFrame(() => {
-          a.style.transition = "opacity 500ms ease";
+          a.style.transition = `opacity 500ms ease ${Math.round(wait)}ms`;
           a.style.opacity = "0.88";
         });
+        // Keep the shimmer under the image until the fade has finished.
+        setTimeout(() => setImgReady(true), wait + 550);
       } else {
         a.style.opacity = "0.88";
+        setImgReady(true);
       }
     };
     if (a.complete && a.naturalWidth > 0) reveal(false);
@@ -411,10 +433,17 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
         onPointerLeave={(e) => { if (e.pointerType === "mouse") handleCardLeave(); }}
       >
         <div ref={imageContainerRef} className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
+          {/* Shimmer placeholder while the header image is still on its way */}
+          {!imgReady && (
+            <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute inset-0 animate-[shimmer_1.8s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
+            </div>
+          )}
           {/* src in the SSR HTML lets the browser start the download while parsing,
-              well before hydration; opacity 0 until the focus math positions it. */}
+              well before hydration; opacity 0 until the focus math positions it.
+              Below-fold cards load lazily so the visible ones get the bandwidth. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img ref={slotARef} src={optimizedSrc(cardSrc)} alt="" className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
+          <img ref={slotARef} src={optimizedSrc(cardSrc)} alt="" loading={delayIndex < 3 ? "eager" : "lazy"} className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img ref={slotBRef} alt="" className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
 

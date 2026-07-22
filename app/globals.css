@@ -49,6 +49,18 @@ select {
   animation: fade-zoom-in-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Left-to-right sheen used by loading placeholders (image cards, list skeletons)
+   via animate-[shimmer_...]. The element sweeps across its clipped parent. */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up {
     animation: none;
