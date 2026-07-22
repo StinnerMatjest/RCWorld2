@@ -179,13 +179,14 @@ function VisitTile({ visit }: { visit: Visit }) {
 
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 
-export default function VisitTimeline({ trips, isAdminMode, onEditTrip }: {
+export default function VisitTimeline({ trips, isAdminMode, onEditTrip, initialVisits = [] }: {
   trips: Trip[];
   isAdminMode: boolean;
   onEditTrip: (t: Trip) => void;
+  initialVisits?: Visit[];
 }) {
-  const [visits, setVisits] = useState<Visit[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [visits, setVisits] = useState<Visit[]>(initialVisits);
+  const [loading, setLoading] = useState(initialVisits.length === 0);
 
   useEffect(() => {
     fetch("/api/visits")

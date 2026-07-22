@@ -16,12 +16,25 @@ async function getCoaster(id: string) {
   return data.coaster;
 }
 
-async function getCoasterTexts(id: string): Promise<{ headline: string; text: string }[]> {
+async function getCoasterTexts(id: string): Promise<any[]> {
   try {
     const res = await fetch(`${BASE}api/coasters/${id}/text`, { cache: "force-cache", next: { tags: ["content"] } });
     if (!res.ok) return [];
     const { texts } = await res.json();
     return texts ?? [];
+  } catch {
+    return [];
+  }
+}
+
+// All coasters — the client uses this for the ranking widget and to resolve the
+// coaster's park. Seed it so the page renders server-side without the skeleton.
+async function getAllCoasters(): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE}api/coasters`, { cache: "force-cache", next: { tags: ["content"] } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.coasters ?? [];
   } catch {
     return [];
   }
@@ -86,6 +99,14 @@ export default async function Page({ params }: PageProps) {
     permanentRedirect(`/coasters/${coaster.slug}`);
   }
 
+  // Seed the client render (resolved the same way the client does — from the list).
+  const allCoasters = await getAllCoasters();
+  const inList = allCoasters.find((c: any) => String(c.id) === String(coaster.id));
+  const initParkName = inList?.parkName || "Unknown Park";
+  const initParkSlug = inList?.parkSlug || coaster.parkSlug || null;
+  const initParkId = inList?.parkId || coaster.parkId || null;
+  const initTexts = [...coasterTexts].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+
   const parkName =
     coaster.parkSlug.charAt(0).toUpperCase() +
     coaster.parkSlug.slice(1).replace(/-/g, " ");
@@ -131,7 +152,15 @@ export default async function Page({ params }: PageProps) {
           __html: JSON.stringify(structuredData),
         }}
       />
-      <CoasterPageClient initialId={id} />
+      <CoasterPageClient
+        initialId={id}
+        initialCoaster={coaster}
+        initialAllCoasters={allCoasters}
+        initialCoasterText={initTexts}
+        initialParkName={initParkName}
+        initialParkSlug={initParkSlug}
+        initialParkId={initParkId}
+      />
     </>
   );
 }

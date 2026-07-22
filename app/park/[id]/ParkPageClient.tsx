@@ -22,9 +22,25 @@ import { MarkdownText } from "@/app/components/MarkdownText";
 
 type ParkPageClientProps = {
   initialId: string;
+  initialPark?: Park | null;
+  initialRatings?: Rating[];
+  initialCoasters?: RollerCoaster[];
+  initialExplanations?: Record<string, string>;
+  initialSectionImages?: Record<string, string>;
+  initialSectionLayouts?: Record<string, string>;
+  initialSectionSpoilers?: Record<string, boolean>;
 };
 
-const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
+const ParkPage: React.FC<ParkPageClientProps> = ({
+  initialId,
+  initialPark = null,
+  initialRatings = [],
+  initialCoasters = [],
+  initialExplanations = {},
+  initialSectionImages = {},
+  initialSectionLayouts = {},
+  initialSectionSpoilers = {},
+}) => {
   const params = useParams();
   const parkSlug = String(params?.id ?? initialId);
   const searchParams = useSearchParams();
@@ -33,18 +49,24 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
   const visitId = searchParams.get("visit");
   const selectedRatingId = visitId ? Number(visitId) : undefined;
 
-  const [park, setPark] = useState<Park | null>(null);
-  const [coasters, setCoasters] = useState<RollerCoaster[]>([]);
-  const [ratings, setRatings] = useState<Rating[]>([]);
+  const [park, setPark] = useState<Park | null>(initialPark);
+  const [coasters, setCoasters] = useState<RollerCoaster[]>(initialCoasters);
+  const [ratings, setRatings] = useState<Rating[]>(initialRatings);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
-  const [loadingCoasters, setLoadingCoasters] = useState(true);
-  const [loadingExplanations, setLoadingExplanations] = useState(true);
+  // Seeded from the server, so the list renders immediately instead of a skeleton.
+  const [loadingCoasters, setLoadingCoasters] = useState(initialCoasters.length === 0);
+  // Gallery isn't seeded server-side, so it fetches client-side; this drives the
+  // "Loading images…" placeholder instead of a misleading "no images" message.
+  const [loadingGallery, setLoadingGallery] = useState(true);
+  // Seeded from the server when review text is present, so the prose renders on
+  // the first paint instead of behind a spinner.
+  const [loadingExplanations, setLoadingExplanations] = useState(Object.keys(initialExplanations).length === 0);
   const [showModal, setShowModal] = useState(false);
   const [editingCoaster, setEditingCoaster] = useState<RollerCoaster>();
-  const [explanations, setExplanations] = useState<Record<string, string>>({});
-  const [sectionImages, setSectionImages] = useState<Record<string, string>>({});
-  const [sectionLayouts, setSectionLayouts] = useState<Record<string, string>>({});
-  const [sectionSpoilers, setSectionSpoilers] = useState<Record<string, boolean>>({});
+  const [explanations, setExplanations] = useState<Record<string, string>>(initialExplanations);
+  const [sectionImages, setSectionImages] = useState<Record<string, string>>(initialSectionImages);
+  const [sectionLayouts, setSectionLayouts] = useState<Record<string, string>>(initialSectionLayouts);
+  const [sectionSpoilers, setSectionSpoilers] = useState<Record<string, boolean>>(initialSectionSpoilers);
   const { isAdminMode } = useAdminMode();
 
   // Cover/overview image lightbox (click to enlarge, matches RatingText)
@@ -188,8 +210,10 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
 
         setPark(parkData);
         setLoadingCoasters(false);
+        setLoadingGallery(false);
       } catch (error) {
         console.error("Failed to fetch park data:", error);
+        setLoadingGallery(false);
       }
     })();
   }, [parkSlug]);
@@ -291,7 +315,9 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
     );
   };
 
-  if (!park || loadingCoasters || loadingExplanations) return <LoadingSpinner />;
+  // Render as soon as the park is known (seeded from the server). The coaster list
+  // and gallery show their own loading state while they finish fetching client-side.
+  if (!park) return <LoadingSpinner />;
 
   return (
     <div className="w-full">
@@ -471,6 +497,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({ initialId }) => {
             parkName={park.name}
             initialImages={galleryImages}
             refreshImages={refreshGallery}
+            loading={loadingGallery}
           />
         </div>
 

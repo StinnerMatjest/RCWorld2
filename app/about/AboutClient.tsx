@@ -9,9 +9,9 @@ import VisitTimeline from "../components/aboutpage/VisitTimeline";
 import { getDaysUntil } from "@/app/utils/trips";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 
-export default function AboutPage() {
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export default function AboutPage({ initialTrips = [], initialVisits = [] }: { initialTrips?: Trip[]; initialVisits?: any[] }) {
+  const [trips, setTrips] = useState<Trip[]>(initialTrips);
+  const [isLoading, setIsLoading] = useState(initialTrips.length === 0);
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -129,7 +129,7 @@ export default function AboutPage() {
               </p>
             </div>
           ) : (
-            <VisitTimeline trips={trips} isAdminMode={isAdminMode} onEditTrip={handleEditTrip} />
+            <VisitTimeline trips={trips} initialVisits={initialVisits} isAdminMode={isAdminMode} onEditTrip={handleEditTrip} />
           )}
         </section>
       </main>

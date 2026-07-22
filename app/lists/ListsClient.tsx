@@ -13,9 +13,9 @@ interface RankingListSummary {
     createdAt: string;
 }
 
-const RankingsPage = () => {
-    const [lists, setLists] = useState<RankingListSummary[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+const RankingsPage = ({ initialLists = [] }: { initialLists?: RankingListSummary[] }) => {
+    const [lists, setLists] = useState<RankingListSummary[]>(initialLists);
+    const [isLoading, setIsLoading] = useState(initialLists.length === 0);
     const [error, setError] = useState<string | null>(null);
     const { isAdminMode } = useAdminMode();
 

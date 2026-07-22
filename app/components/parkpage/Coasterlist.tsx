@@ -82,6 +82,8 @@ const CoasterList: React.FC<CoasterListProps> = ({
           <div className="min-w-0 flex items-center gap-2 cursor-pointer">
             <Link
               href={`/coasters/${c.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="font-medium text-blue-400 hover:underline truncate"
             >
               {c.name}

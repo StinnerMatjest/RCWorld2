@@ -67,6 +67,67 @@ async function getReviewTexts(id: string): Promise<{ texts: { category: string; 
   }
 }
 
+// Published visits only, mapped/sorted the same way ParkPageClient does — so the
+// server's first paint matches the client's first render (drafts never included).
+async function getRatings(numericId: number): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE}api/park/${numericId}/ratings`, { cache: "force-cache", next: { tags: ["content"] } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const all = Array.isArray(data.ratings) ? data.ratings : [];
+    return all
+      .filter((r: any) => r.published)
+      .map((r: any) => ({
+        ...r,
+        warnings: (r.warnings ?? []).map((w: any) => ({
+          id: w.id, ratingId: w.ratingId, category: w.category, ride: w.ride, note: w.note,
+          severity: w.severity || "Moderate",
+        })),
+      }))
+      .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  } catch {
+    return [];
+  }
+}
+
+// The coasters endpoint returns a plain array; seed it so the list renders on the
+// first paint instead of behind the shimmer skeleton.
+async function getCoasters(numericId: number): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE}api/park/${numericId}/coasters`, { cache: "force-cache", next: { tags: ["content"] } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+async function getParkTexts(numericId: number, ratingId: number) {
+  const empty = { explanations: {}, sectionImages: {}, sectionLayouts: {}, sectionSpoilers: {} };
+  try {
+    const res = await fetch(`${BASE}api/park/${numericId}/parkTexts?ratingId=${ratingId}`, { cache: "force-cache", next: { tags: ["content"] } });
+    if (!res.ok) return empty;
+    const rows = await res.json();
+    if (!Array.isArray(rows)) return empty;
+    const explanations: Record<string, string> = {};
+    const sectionImages: Record<string, string> = {};
+    const sectionLayouts: Record<string, string> = {};
+    const sectionSpoilers: Record<string, boolean> = {};
+    for (const item of rows) {
+      if (!item.ratingId || item.ratingId === ratingId) {
+        explanations[item.category] = item.text;
+        if (item.imageUrl) sectionImages[item.category] = item.imageUrl;
+        if (item.imageLayout) sectionLayouts[item.category] = item.imageLayout;
+        sectionSpoilers[item.category] = item.isSpoiler || false;
+      }
+    }
+    return { explanations, sectionImages, sectionLayouts, sectionSpoilers };
+  } catch {
+    return empty;
+  }
+}
+
 export async function generateMetadata({ params }: PageProps) {
   const { id } = await params;
   const [data, scores] = await Promise.all([getPark(id), getScores(id)]);
@@ -115,6 +176,14 @@ export default async function Page({ params }: PageProps) {
   if (isNumeric && data.slug) {
     permanentRedirect(`/park/${data.slug}`);
   }
+
+  // Server-render the published review prose into the initial HTML (same text the
+  // client shows). activeRatingId = latest published visit, matching the client default.
+  const [ratings, coasters] = await Promise.all([getRatings(data.id), getCoasters(data.id)]);
+  const activeRatingId = ratings[0]?.id ?? null;
+  const texts = activeRatingId
+    ? await getParkTexts(data.id, activeRatingId)
+    : { explanations: {}, sectionImages: {}, sectionLayouts: {}, sectionSpoilers: {} };
 
   const jsonLd = scores ? {
     "@context": "https://schema.org",
@@ -168,7 +237,16 @@ export default async function Page({ params }: PageProps) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
-      <ParkPageClient initialId={id} />
+      <ParkPageClient
+        initialId={id}
+        initialPark={data}
+        initialRatings={ratings}
+        initialCoasters={coasters}
+        initialExplanations={texts.explanations}
+        initialSectionImages={texts.sectionImages}
+        initialSectionLayouts={texts.sectionLayouts}
+        initialSectionSpoilers={texts.sectionSpoilers}
+      />
     </>
   );
 }

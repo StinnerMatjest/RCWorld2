@@ -9,10 +9,10 @@ import MainPageButton from "@/app/components/buttons/MainPageButton";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import type { RankingList } from "@/app/types";
 
-const RankingArticlePage: React.FC = () => {
+const RankingArticlePage: React.FC<{ initialList?: RankingList | null }> = ({ initialList = null }) => {
     const { slug } = useParams();
-    const [rankingList, setRankingList] = useState<RankingList | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [rankingList, setRankingList] = useState<RankingList | null>(initialList);
+    const [isLoading, setIsLoading] = useState(!initialList);
     const { isAdminMode } = useAdminMode();
 
     useEffect(() => {
