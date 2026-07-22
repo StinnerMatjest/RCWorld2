@@ -11,6 +11,19 @@ export interface FocusedImageProps {
   imgStyle?: React.CSSProperties;
   priority?: boolean;
   onLoad?: () => void;
+  /** Route the src through Next's image optimizer at this width (must be one of
+   *  Next's device sizes). Plain <img> tags otherwise download the full-size
+   *  original, which makes first loads slow and staggered. */
+  optimizeWidth?: 640 | 750 | 828 | 1080 | 1200 | 1920;
+}
+
+// Rewrite an image URL to Next's optimizer endpoint — the same endpoint
+// next/image uses (and which the gallery already exercises in production).
+// Gives plain <img> tags resized/re-encoded variants instead of R2 originals.
+export function optimizedSrc(src: string, w: 640 | 750 | 828 | 1080 | 1200 | 1920 = 828, q = 70): string {
+  if (!src || src.startsWith("data:") || src.startsWith("blob:") || src.startsWith("/_next/")) return src;
+  if (/\.(mp4|webm|ogg)$/i.test(src)) return src;
+  return `/_next/image?url=${encodeURIComponent(src)}&w=${w}&q=${q}`;
 }
 
 // Parse "cx cy zoom" (new) or "X% Y% zoom" (old) focus strings.
@@ -42,13 +55,17 @@ export function splitMedia(entry: string): { url: string; focus: string } {
 // Renders an image absolutely positioned inside an overflow-hidden container,
 // matching exactly what CropEditor shows for the given focusStr.
 export function FocusedImage({
-  src, alt = "", focusStr, className = "", imgClassName = "", imgStyle, priority, onLoad: onLoadProp,
+  src, alt = "", focusStr, className = "", imgClassName = "", imgStyle, priority, onLoad: onLoadProp, optimizeWidth,
 }: FocusedImageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef       = useRef<HTMLImageElement>(null);
   const nwRef        = useRef(0);
   const nhRef        = useRef(0);
   const focusRef     = useRef(focusStr);
+  // First reveal only: fresh network loads fade in; cached images (the
+  // complete-check path below) appear instantly so back-navigation doesn't blink.
+  const revealedRef  = useRef(false);
+  const fadeInRef    = useRef(false);
   useEffect(() => { focusRef.current = focusStr; });
 
   const applyStyle = useCallback(() => {
@@ -64,7 +81,23 @@ export function FocusedImage({
     img.style.left   = `${c.clientWidth  / 2 - cx * dw}px`;
     img.style.top    = `${c.clientHeight / 2 - cy * dh}px`;
     // Hidden until positioned (see render) — reveal now that the math is done
-    img.style.visibility = "visible";
+    if (!revealedRef.current) {
+      revealedRef.current = true;
+      if (fadeInRef.current) {
+        img.style.opacity = "0";
+        img.style.visibility = "visible";
+        requestAnimationFrame(() => {
+          img.style.transition = "opacity 500ms ease";
+          // Clearing the inline value lets it settle at the class-defined
+          // opacity (e.g. opacity-70), not a hardcoded 1.
+          img.style.opacity = "";
+        });
+      } else {
+        img.style.visibility = "visible";
+      }
+    } else {
+      img.style.visibility = "visible";
+    }
   }, []);
 
   useEffect(() => {
@@ -90,7 +123,7 @@ export function FocusedImage({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={imgRef}
-        src={src}
+        src={optimizeWidth ? optimizedSrc(src, optimizeWidth) : src}
         alt={alt}
         draggable={false}
         className={`absolute max-w-none select-none ${imgClassName}`}
@@ -99,6 +132,9 @@ export function FocusedImage({
         onLoad={(e) => {
           nwRef.current = e.currentTarget.naturalWidth;
           nhRef.current = e.currentTarget.naturalHeight;
+          // A load event (vs. the complete-check in the effect) means the bytes
+          // just arrived over the network — fade the reveal instead of popping.
+          if (!revealedRef.current) fadeInRef.current = true;
           applyStyle();
           onLoadProp?.();
         }}
