@@ -16,7 +16,7 @@ async function getCoaster(id: string) {
   return data.coaster;
 }
 
-async function getCoasterTexts(id: string): Promise<{ headline: string; text: string }[]> {
+async function getCoasterTexts(id: string): Promise<any[]> {
   try {
     const res = await fetch(`${BASE}api/coasters/${id}/text`, { cache: "force-cache", next: { tags: ["content"] } });
     if (!res.ok) return [];
@@ -33,8 +33,9 @@ export async function generateMetadata({ params }: PageProps) {
   if (!coaster) return {};
 
   const parkName =
+    coaster.parkName ||
     coaster.parkSlug.charAt(0).toUpperCase() +
-    coaster.parkSlug.slice(1).replace(/-/g, " ");
+      coaster.parkSlug.slice(1).replace(/-/g, " ");
 
   const ratingNumber = Number(coaster.rating);
 
@@ -86,9 +87,17 @@ export default async function Page({ params }: PageProps) {
     permanentRedirect(`/coasters/${coaster.slug}`);
   }
 
+  // Seed the client render from the single-coaster response (the API joins the
+  // park, so no full-catalog fetch is needed; rankings are fetched client-side).
+  const initParkName = coaster.parkName || null;
+  const initParkSlug = coaster.parkSlug || null;
+  const initParkId = coaster.parkId || null;
+  const initTexts = [...coasterTexts].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+
   const parkName =
+    coaster.parkName ||
     coaster.parkSlug.charAt(0).toUpperCase() +
-    coaster.parkSlug.slice(1).replace(/-/g, " ");
+      coaster.parkSlug.slice(1).replace(/-/g, " ");
 
   const ratingNumber = Number(coaster.rating);
 
@@ -131,7 +140,14 @@ export default async function Page({ params }: PageProps) {
           __html: JSON.stringify(structuredData),
         }}
       />
-      <CoasterPageClient initialId={id} />
+      <CoasterPageClient
+        initialId={id}
+        initialCoaster={coaster}
+        initialCoasterText={initTexts}
+        initialParkName={initParkName}
+        initialParkSlug={initParkSlug}
+        initialParkId={initParkId}
+      />
     </>
   );
 }

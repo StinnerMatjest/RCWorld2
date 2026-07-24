@@ -1,88 +1,71 @@
-"use client";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import ListArticleClient from "./ListArticleClient";
 
-import React, { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import Link from "next/link";
-import ListItem from "@/app/components/listpage/ListItem";
-import LoadingSpinner from "@/app/components/LoadingSpinner";
-import MainPageButton from "@/app/components/buttons/MainPageButton";
-import { useAdminMode } from "@/app/context/AdminModeContext";
-import type { RankingList } from "@/app/types";
+const BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-const RankingArticlePage: React.FC = () => {
-    const { slug } = useParams();
-    const [rankingList, setRankingList] = useState<RankingList | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const { isAdminMode } = useAdminMode();
+type PageProps = { params: Promise<{ slug: string }> };
 
-    useEffect(() => {
-        window.scrollTo(0, 0);
+// null means the list genuinely doesn't exist (API 404). Transient failures
+// (500s, network errors) throw instead, so the page errors with a 500 rather
+// than serving a crawler-deindexing 404 for a valid URL.
+async function getList(slug: string): Promise<any | null> {
+  const res = await fetch(`${BASE}api/lists/${slug}`, { cache: "force-cache", next: { tags: ["content"] } });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Lists API returned ${res.status} for ${slug}`);
+  const data = await res.json();
+  return data.rankingList ?? null;
+}
 
-        const fetchRankingList = async () => {
-            try {
-                const res = await fetch(`/api/lists/${slug}`);
-                if (!res.ok) throw new Error("Failed to fetch ranking list");
-                const data = await res.json();
-                setRankingList(data.rankingList);
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const list = await getList(slug);
+  if (!list) return {};
 
-        if (slug) fetchRankingList();
-    }, [slug]);
+  const description = (list.introText ?? "").trim().slice(0, 160) || `${list.title} — a curated ranking by ParkRating.`;
 
-    if (isLoading) return <LoadingSpinner />;
-    if (!rankingList) return <div className="text-center py-20">List not found.</div>;
+  return {
+    title: `${list.title} | ParkRating`,
+    description,
+    alternates: { canonical: `https://parkrating.com/lists/${slug}` },
+    openGraph: {
+      title: `${list.title} | ParkRating`,
+      description,
+      url: `https://parkrating.com/lists/${slug}`,
+      siteName: "ParkRating",
+      type: "article",
+    },
+  };
+}
 
-    return (
-        <div className="min-h-screen bg-[#0f172a] font-sans pb-20">
-            <div className="max-w-4xl mx-auto px-6 py-12 md:py-16">
+// Render at request time, not build time (Docker build has no env/API).
+export const dynamic = "force-dynamic";
 
-                {/* Article Header */}
-                <div className="mb-16 text-center border-b border-gray-800 pb-10 relative">
+export default async function Page({ params }: PageProps) {
+  const { slug } = await params;
+  const list = await getList(slug);
+  if (!list) notFound();
 
-                    {/* Edit Button */}
-                    {isAdminMode && (
-                        <div className="fixed bottom-15 right-8 z-50">
-                            <Link
-                                href={`/lists/create?edit=${rankingList.slug}`}
-                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95"
-                            >
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                                Edit List
-                            </Link>
-                        </div>
-                    )}
-                    <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tight mb-6 mt-8 md:mt-0">
-                        {rankingList.title}
-                    </h1>
-                    <p className="text-lg text-gray-400 leading-relaxed max-w-3xl mx-auto">
-                        {rankingList.introText}
-                    </p>
-                </div>
+  const items = [...(list.items ?? [])].sort((a: any, b: any) => a.rank - b.rank);
 
-                {/* The Ranking Items */}
-                <div className="space-y-4">
-                    {rankingList.items
-                        // Display Order
-                        .sort((a, b) => a.rank - b.rank)
-                        .map((item) => (
-                            <ListItem key={item.id} item={item} />
-                        ))}
-                </div>
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": list.title,
+    "description": list.introText,
+    "url": `https://parkrating.com/lists/${slug}`,
+    "numberOfItems": items.length,
+    "itemListElement": items.map((item: any) => ({
+      "@type": "ListItem",
+      "position": item.rank,
+      "name": item.title,
+    })),
+  };
 
-                {/* Back Button */}
-                <div className="flex justify-center mt-12 pt-8">
-                    <MainPageButton />
-                </div>
-            </div>
-        </div>
-    );
-};
-
-export default RankingArticlePage;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <ListArticleClient initialList={list} />
+    </>
+  );
+}

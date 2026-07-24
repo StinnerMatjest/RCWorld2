@@ -1,5 +1,6 @@
 import { pool } from "@/app/lib/db";
 import { NextResponse } from "next/server";
+import { revalidateContent } from "@/app/lib/revalidate";
 
 
 export async function GET() {
@@ -32,9 +33,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  revalidateContent();
   try {
     const body = await request.json();
-    
+
     const {
       country,
       parks,
@@ -85,9 +87,10 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  revalidateContent();
   try {
     const body = await request.json();
-    
+
     const {
       id,
       country,
@@ -152,6 +155,7 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  revalidateContent();
   try {
     const body = await request.json();
     const { id } = body;

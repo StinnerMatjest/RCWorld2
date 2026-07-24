@@ -9,9 +9,10 @@ import VisitTimeline from "../components/aboutpage/VisitTimeline";
 import { getDaysUntil } from "@/app/utils/trips";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 
-export default function AboutPage() {
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export default function AboutPage({ initialTrips, initialVisits }: { initialTrips?: Trip[]; initialVisits?: any[] }) {
+  // undefined = server fetch failed → we fetch here. [] = genuinely no trips.
+  const [trips, setTrips] = useState<Trip[]>(initialTrips ?? []);
+  const [isLoading, setIsLoading] = useState(initialTrips === undefined);
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -20,8 +21,9 @@ export default function AboutPage() {
   // Admin Mode
   const { isAdminMode } = useAdminMode();
 
+  // No setIsLoading(true) here: refreshes (e.g. after the trip modal saves)
+  // update in place instead of tearing the rendered timeline down to a spinner.
   const fetchTrips = async () => {
-    setIsLoading(true);
     try {
       const res = await fetch("/api/trips");
       if (!res.ok) throw new Error("Failed to fetch trips");
@@ -35,7 +37,10 @@ export default function AboutPage() {
   };
 
   useEffect(() => {
-    fetchTrips();
+    // Seeded server-side and kept fresh via the "content" tag — only fetch
+    // when the seed is missing (SSR-time API failure).
+    if (initialTrips === undefined) fetchTrips();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleEditTrip = (trip: Trip) => {
@@ -129,7 +134,7 @@ export default function AboutPage() {
               </p>
             </div>
           ) : (
-            <VisitTimeline trips={trips} isAdminMode={isAdminMode} onEditTrip={handleEditTrip} />
+            <VisitTimeline trips={trips} initialVisits={initialVisits} isAdminMode={isAdminMode} onEditTrip={handleEditTrip} />
           )}
         </section>
       </main>

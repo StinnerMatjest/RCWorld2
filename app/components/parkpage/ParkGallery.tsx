@@ -19,6 +19,7 @@ interface GalleryProps {
   parkName: string;
   initialImages: GalleryImage[];
   refreshImages: () => void;
+  loading?: boolean;
 }
 
 function isVideo(path: string) {
@@ -76,7 +77,7 @@ function useSwipe(
   return { onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onPointerLeave, didDrag };
 }
 
-const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, refreshImages }) => {
+const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, refreshImages, loading = false }) => {
   const { isAdminMode } = useAdminMode();
 
   const [images, setImages] = useState<GalleryImage[]>(initialImages);
@@ -268,7 +269,14 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
 
       {/* Grid */}
       {!images.length ? (
-        <p className="text-center py-4 italic text-gray-600">No images available yet.</p>
+        loading ? (
+          <div className="flex items-center justify-center gap-3 py-8 text-gray-400">
+            <span className="h-4 w-4 rounded-full border-2 border-gray-500 border-t-transparent animate-spin" />
+            <span className="italic">Loading images, sit tight…</span>
+          </div>
+        ) : (
+          <p className="text-center py-4 italic text-gray-600">No images available yet.</p>
+        )
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {images.map((img, index) => (

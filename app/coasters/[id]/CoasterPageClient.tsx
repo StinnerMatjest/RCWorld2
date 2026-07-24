@@ -45,20 +45,35 @@ const CoasterSkeleton = () => (
 
 type CoasterPageClientProps = {
   initialId: string;
+  initialCoaster?: RollerCoaster | null;
+  initialCoasterText?: CoasterTextEntry[];
+  initialParkName?: string | null;
+  initialParkSlug?: string | null;
+  initialParkId?: number | null;
 };
 
-const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
+const CoasterPage: React.FC<CoasterPageClientProps> = ({
+  initialId,
+  initialCoaster = null,
+  initialCoasterText = [],
+  initialParkName = null,
+  initialParkSlug = null,
+  initialParkId = null,
+}) => {
   const params = useParams();
   const coasterId = String(params?.id ?? initialId);
 
-  const [coaster, setCoaster] = useState<RollerCoaster | null>(null);
+  const [coaster, setCoaster] = useState<RollerCoaster | null>(initialCoaster);
+  // Rankings need the full catalog; it's fetched client-side only (too heavy to
+  // serialize into every coaster page's HTML).
   const [allCoasters, setAllCoasters] = useState<RollerCoaster[]>([]);
   const [headerImage, setHeaderImage] = useState<string | null>(null);
-  const [parkName, setParkName] = useState<string | null>(null);
-  const [parkSlug, setParkSlug] = useState<string | null>(null);
-  const [parkId, setParkId] = useState<number | null>(null);
-  const [coasterText, setCoasterText] = useState<CoasterTextEntry[]>([]);
-  const [pageLoading, setPageLoading] = useState(true);
+  const [parkName, setParkName] = useState<string | null>(initialParkName);
+  const [parkSlug, setParkSlug] = useState<string | null>(initialParkSlug);
+  const [parkId, setParkId] = useState<number | null>(initialParkId);
+  const [coasterText, setCoasterText] = useState<CoasterTextEntry[]>(initialCoasterText);
+  // Seeded from the server, so the page renders on first paint instead of the skeleton.
+  const [pageLoading, setPageLoading] = useState(!initialCoaster);
   const [imageVisualLoaded, setImageVisualLoaded] = useState(false);
   const [isHeaderModalOpen, setIsHeaderModalOpen] = useState(false);
 
@@ -104,7 +119,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({ initialId }) => {
         const coasterInList = allList.find(
           (c: any) => String(c.id) === String(coasterObj.id)
         );
-        const fetchedParkName = coasterInList?.parkName || "Unknown Park";
+        const fetchedParkName = coasterInList?.parkName || coasterObj?.parkName || "Unknown Park";
         const fetchedParkSlug = coasterInList?.parkSlug || coasterObj?.parkSlug || null;
         const fetchedParkId = coasterInList?.parkId || coasterObj?.parkId || null;
 

@@ -20,7 +20,7 @@ import { useSearch } from "./context/SearchContext";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import LoadingSpinner from "./components/LoadingSpinner";
 import { getParkFlag, getRatingColor } from "@/app/utils/design";
-import { FocusedImage, parseFocusStr } from "./components/FocusedImage";
+import { FocusedImage, parseFocusStr, optimizedSrc } from "./components/FocusedImage";
 
 const DOTS_OFFSET = 10;
 
@@ -48,15 +48,26 @@ const PendingParkCard = ({ park, delayIndex = 0 }: { park: Park; delayIndex?: nu
 );
 
 
-const TeaserParkCard = React.memo(({ rating, park, delayIndex = 0 }: { rating: Rating; park: Park; delayIndex?: number }) => (
+const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, delayIndex = 0 }: { rating: Rating; park: Park; delayIndex?: number }) {
+  const [imgReady, setImgReady] = useState(false);
+  return (
   <div className="mx-auto w-full max-w-[400px] py-3 md:py-4 animate-fade-in-up" style={cardDelay(delayIndex)}>
     <div className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
+      {/* Shimmer placeholder while the image is still on its way */}
+      {!imgReady && (
+        <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 animate-[shimmer_1.8s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
+        </div>
+      )}
       <FocusedImage
         src={park.cardImagepath || park.imagepath || "/images/error.PNG"}
         alt={park.name}
         focusStr={park.imageFocus}
         className="absolute inset-0"
         imgClassName="opacity-70"
+        optimizeWidth={828}
+        staggerDelayMs={Math.min(delayIndex, 12) * 70}
+        onLoad={() => setTimeout(() => setImgReady(true), 1400)}
       />
 
       {/* Top: park name */}
@@ -96,7 +107,8 @@ const TeaserParkCard = React.memo(({ rating, park, delayIndex = 0 }: { rating: R
       </div>
     </div>
   </div>
-));
+  );
+});
 TeaserParkCard.displayName = "TeaserParkCard";
 
 const avg = (a: number, b: number) => ((a + b) / 2).toFixed(2);
@@ -120,6 +132,10 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const slotAFocusRef = useRef<string>(cardFocusStr);
   const slotBFocusRef = useRef<string>(cardFocusStr);
+  // Logical (un-optimized) src per slot — DOM .src now holds the /_next/image
+  // rewrite, so "which image is this slot showing" must be tracked separately.
+  const slotARawSrcRef = useRef<string>(cardSrc);
+  const slotBRawSrcRef = useRef<string>(cardSrc);
 
   const applyFocusToImg = useCallback((img: HTMLImageElement, focusStr: string) => {
     const c = imageContainerRef.current;
@@ -158,6 +174,8 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
   const raf1Ref = useRef<number | null>(null);
   const raf2Ref = useRef<number | null>(null);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
+  // Drives the shimmer placeholder: true once the header image is showing.
+  const [imgReady, setImgReady] = useState(false);
 
   useLayoutEffect(() => {
     const a = slotARef.current;
@@ -165,13 +183,37 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     if (!a || !b) return;
     slotAFocusRef.current = cardFocusStr;
     slotBFocusRef.current = cardFocusStr;
-    a.style.opacity = "0.88"; a.style.transition = "none";
+    slotARawSrcRef.current = cardSrc;
+    slotBRawSrcRef.current = cardSrc;
+    a.style.opacity = "0"; a.style.transition = "none";
     b.style.opacity = "0"; b.style.transition = "none";
-    a.src = cardSrc;
-    b.src = cardSrc;
-    const tryApplyA = () => { if (a.naturalWidth) applyFocusToImg(a, cardFocusStr); };
-    if (a.complete && a.naturalWidth > 0) tryApplyA();
-    else a.onload = tryApplyA;
+    a.src = optimizedSrc(cardSrc);
+    b.src = optimizedSrc(cardSrc);
+    // Image already loaded when we hydrate: reveal instantly — the card's own
+    // entrance animation covers it, so shell and image arrive as one unit.
+    // Loaded after hydration: fade in, waiting for this card's stagger slot if
+    // that hasn't passed yet, so a burst of ready images ripples in card-by-card
+    // (matching the shell cascade) instead of flooding in all at once.
+    const t0 = performance.now();
+    const staggerMs = Math.min(delayIndex, 12) * 70;
+    const reveal = (fade: boolean) => {
+      if (!a.naturalWidth) return;
+      applyFocusToImg(a, cardFocusStr);
+      if (fade) {
+        const wait = Math.max(0, staggerMs - (performance.now() - t0));
+        requestAnimationFrame(() => {
+          a.style.transition = `opacity 500ms ease ${Math.round(wait)}ms`;
+          a.style.opacity = "0.88";
+        });
+        // Keep the shimmer under the image until the fade has finished.
+        setTimeout(() => setImgReady(true), wait + 550);
+      } else {
+        a.style.opacity = "0.88";
+        setImgReady(true);
+      }
+    };
+    if (a.complete && a.naturalWidth > 0) reveal(false);
+    else a.onload = () => reveal(true);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isHoveringRef = useRef(false);
@@ -206,9 +248,14 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     const active = activeRef.current;
     if (!inactive || !active) return;
 
-    inactive.src = target.src;
-    if (inactiveRef === slotARef) slotAFocusRef.current = target.focus;
-    else slotBFocusRef.current = target.focus;
+    inactive.src = optimizedSrc(target.src);
+    if (inactiveRef === slotARef) {
+      slotAFocusRef.current = target.focus;
+      slotARawSrcRef.current = target.src;
+    } else {
+      slotBFocusRef.current = target.focus;
+      slotBRawSrcRef.current = target.src;
+    }
 
     const startFade = () => {
       inactive.onload = null;
@@ -317,7 +364,8 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     if (cycleRestartRef.current) { clearTimeout(cycleRestartRef.current); cycleRestartRef.current = null; }
     stopCycle();
     const activeEl = (activeSlotRef.current === "A" ? slotARef : slotBRef).current;
-    const isOnHeader = !activeEl || activeEl.src === cardSrc || activeEl.src === "";
+    const activeRawSrc = activeSlotRef.current === "A" ? slotARawSrcRef.current : slotBRawSrcRef.current;
+    const isOnHeader = !activeEl || activeRawSrc === cardSrc || activeEl.src === "";
     if (isOnHeader) {
       // Already showing header — cancel silently, no visible transition
       cancelInFlight();
@@ -385,10 +433,19 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
         onPointerLeave={(e) => { if (e.pointerType === "mouse") handleCardLeave(); }}
       >
         <div ref={imageContainerRef} className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
+          {/* Shimmer placeholder while the header image is still on its way */}
+          {!imgReady && (
+            <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute inset-0 animate-[shimmer_1.8s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
+            </div>
+          )}
+          {/* src in the SSR HTML lets the browser start the download while parsing,
+              well before hydration; opacity 0 until the focus math positions it.
+              Below-fold cards load lazily so the visible ones get the bandwidth. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img ref={slotARef} alt="" className="absolute max-w-none select-none" draggable={false} />
+          <img ref={slotARef} src={optimizedSrc(cardSrc)} alt="" loading={delayIndex < 3 ? "eager" : "lazy"} className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img ref={slotBRef} alt="" className="absolute max-w-none select-none" draggable={false} />
+          <img ref={slotBRef} alt="" className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
 
           <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent px-4 pt-4 pb-16 pointer-events-none">
             <div className="flex items-center gap-2">

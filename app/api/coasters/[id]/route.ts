@@ -35,6 +35,7 @@ export async function GET(
           rc.park_id,
           rc.slug,
           p.slug AS park_slug,
+          p.name AS park_name,
           rs.type,
           rs.classification,
           rs.length,
@@ -70,6 +71,7 @@ export async function GET(
           rc.park_id,
           rc.slug,
           p.slug AS park_slug,
+          p.name AS park_name,
           rs.type,
           rs.classification,
           rs.length,
@@ -126,6 +128,7 @@ export async function GET(
       parkId: row.park_id,
       slug: row.slug,
       parkSlug: row.park_slug,
+      parkName: row.park_name,
       highlights: highlights.map((h) => ({
         category: h.category,
         severity: h.severity,

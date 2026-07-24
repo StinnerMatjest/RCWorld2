@@ -1,106 +1,55 @@
-"use client";
+import type { Metadata } from "next";
+import ListsClient from "./ListsClient";
 
-import React, { useEffect, useState } from "react";
-import Link from "next/link";
-import LoadingSpinner from "@/app/components/LoadingSpinner";
-import { useAdminMode } from "@/app/context/AdminModeContext";
+const BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-interface RankingListSummary {
-    id: number;
-    slug: string;
-    title: string;
-    introText: string;
-    createdAt: string;
-}
-
-const RankingsPage = () => {
-    const [lists, setLists] = useState<RankingListSummary[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const { isAdminMode } = useAdminMode();
-
-    useEffect(() => {
-        const fetchLists = async () => {
-            try {
-                const response = await fetch("/api/lists");
-                if (!response.ok) throw new Error("Failed to fetch lists");
-                const data = await response.json();
-                setLists(data.rankingLists || []);
-            } catch (err) {
-                console.error(err);
-                setError("Could not load the ranking lists.");
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchLists();
-    }, []);
-
-    if (isLoading) return <LoadingSpinner />;
-    if (error) return <div className="text-center py-20 text-red-500">{error}</div>;
-
-    return (
-        <div className="min-h-screen bg-[#0f172a] py-12 px-6">
-            <div className="max-w-6xl mx-auto">
-
-                {/* Page Header */}
-                <div className="mb-12 text-center">
-                    <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tight mb-4">
-                        Parkrating's Curated Lists & Rankings
-                    </h1>
-                    <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-                        This is where we post rankings and lists of all types of themepark-related content such as best parks, coasters, waterrides, darkrides, flatrides or even in-park rankings of attractions.
-                    </p>
-                </div>
-
-                {isAdminMode && (
-                    <div className="flex justify-center mb-10">
-                        <Link
-                            href="/lists/create"
-                            className="px-6 py-3 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-lg shadow-md transition-colors"
-                        >
-                            + Create New List
-                        </Link>
-                    </div>
-                )}
-
-                {/* Grid of Lists */}
-                {lists.length === 0 ? (
-                    <div className="text-center text-gray-400 py-10">
-                        No lists available yet. Check back soon!
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {lists.map((list) => (
-                            <Link
-                                key={list.id}
-                                href={`/lists/${list.slug}`}
-                                className="group flex flex-col bg-slate-800 rounded-2xl shadow-sm hover:shadow-xl border border-slate-700 overflow-hidden transition-all duration-300 hover:-translate-y-1"
-                            >
-                                <div className="p-6 flex flex-col flex-grow">
-                                    <h2 className="text-2xl font-bold text-white mb-3 group-hover:text-blue-400 transition-colors">
-                                        {list.title}
-                                    </h2>
-                                    <p className=" text-gray-400 text-sm leading-relaxed flex-grow line-clamp-3">
-                                        {list.introText}
-                                    </p>
-                                    <div className="mt-6 pt-4 border-t border-slate-700 flex items-center justify-between">
-                                        <span className="text-xs font-semibold uppercase tracking-wider text-blue-500">
-                                            Read List
-                                        </span>
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                        </svg>
-                                    </div>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
+export const metadata: Metadata = {
+  title: "Curated Lists & Rankings | ParkRating",
+  description:
+    "ParkRating's curated theme park lists and rankings — best parks, coasters, water rides, dark rides, flat rides and in-park attraction rankings, all scored by us.",
+  alternates: { canonical: "https://parkrating.com/lists" },
 };
 
-export default RankingsPage;
+// Render at request time, not build time (Docker build has no env/API).
+export const dynamic = "force-dynamic";
+
+// null = fetch failed (client will fetch and show its loading state);
+// [] = genuinely no lists (client renders the real empty state, no spinner).
+async function getLists(): Promise<any[] | null> {
+  try {
+    const res = await fetch(`${BASE}api/lists`, { cache: "force-cache", next: { tags: ["content"] } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.rankingLists ?? [];
+  } catch {
+    return null;
+  }
+}
+
+export default async function Page() {
+  const fetched = await getLists();
+  const lists = fetched ?? [];
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": "ParkRating Curated Lists & Rankings",
+    "description":
+      "Theme park lists and rankings curated by ParkRating — best parks, coasters, water rides and more.",
+    "url": "https://parkrating.com/lists",
+    "numberOfItems": lists.length,
+    "itemListElement": lists.map((l: any, i: number) => ({
+      "@type": "ListItem",
+      "position": i + 1,
+      "url": `https://parkrating.com/lists/${l.slug}`,
+      "name": l.title,
+    })),
+  };
+
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <ListsClient initialLists={fetched ?? undefined} />
+    </>
+  );
+}
