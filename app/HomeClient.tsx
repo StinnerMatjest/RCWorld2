@@ -20,19 +20,18 @@ import { useSearch } from "./context/SearchContext";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import LoadingSpinner from "./components/LoadingSpinner";
 import { getParkFlag, getRatingColor } from "@/app/utils/design";
-import { FocusedImage, parseFocusStr, optimizedSrc } from "./components/FocusedImage";
+import { FocusedImage, parseFocusStr } from "./components/FocusedImage";
 
 const DOTS_OFFSET = 10;
 
-// Stagger for the entrance animation: cards populate one by one, capped so
-// parks far down the grid don't wait forever.
-const cardDelay = (i: number) => ({ animationDelay: `${Math.min(i, 12) * 70}ms` });
-
-const PendingParkCard = ({ park, delayIndex = 0 }: { park: Park; delayIndex?: number }) => (
+// Entrance: cards render fully composed (image already under its readability
+// overlay) inside a grid that holds at opacity 0 until the first-row images
+// have loaded. The reveal is ONE composite fade of the whole grid, so an
+// image can never appear at full brightness before its overlay darkens it.
+const PendingParkCard = ({ park }: { park: Park }) => (
   <Link
     href={`/?modal=true&pendingParkId=${park.id}`}
-    className="mx-auto flex flex-col justify-between w-full max-w-[400px] py-3 md:py-4 h-full animate-fade-in-up"
-    style={cardDelay(delayIndex)}
+    className="mx-auto flex flex-col justify-between w-full max-w-[400px] py-3 md:py-4 h-full"
   >
     <div className="flex flex-col justify-center items-center text-center w-full h-full min-h-[450px] bg-[#1e293b]/40 rounded-2xl border-2 border-dashed border-slate-700 hover:border-brand hover:bg-brand/5 transition-all duration-300 p-6 shadow-md group cursor-pointer">
       <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
@@ -48,10 +47,10 @@ const PendingParkCard = ({ park, delayIndex = 0 }: { park: Park; delayIndex?: nu
 );
 
 
-const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, delayIndex = 0 }: { rating: Rating; park: Park; delayIndex?: number }) {
+const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager = false, onImgReady }: { rating: Rating; park: Park; eager?: boolean; onImgReady?: () => void }) {
   const [imgReady, setImgReady] = useState(false);
   return (
-    <div className="mx-auto w-full max-w-[400px] py-3 md:py-4 animate-fade-in-up" style={cardDelay(delayIndex)}>
+    <div className="mx-auto w-full max-w-[400px] py-3 md:py-4">
       <div className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
         {!imgReady && (
           <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -63,10 +62,13 @@ const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, delayI
           alt={park.name}
           focusStr={park.imageFocus}
           className="absolute inset-0"
-          imgClassName="opacity-70"
-          optimizeWidth={1080}
-          staggerDelayMs={Math.min(delayIndex, 12) * 70}
-          onLoad={() => setTimeout(() => setImgReady(true), 1400)}
+          imgClassName="opacity-85"
+          priority={eager}
+          onLoad={() => {
+            onImgReady?.();
+            // Keep the shimmer under the image until its 500ms fade finishes
+            setTimeout(() => setImgReady(true), 550);
+          }}
         />
 
         {/* Top: park name */}
@@ -123,7 +125,7 @@ const FULL_BLEED_GROUPS = [
 const CARD_CATS = ["coasters", "rides", "park", "food", "mgmt"] as const;
 type CardCat = typeof CARD_CATS[number];
 
-const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0 }: { rating: Rating; park: Park; isActive?: boolean; delayIndex?: number }) {
+const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0, onImgReady }: { rating: Rating; park: Park; isActive?: boolean; delayIndex?: number; onImgReady?: () => void }) {
   const headerSrc = park.imagepath || "/images/error.PNG";
   const cardSrc = park.cardImagepath || headerSrc;
   const cardFocusStr = park.imageFocus || "0.5 0.5 1";
@@ -175,6 +177,10 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
   // Drives the shimmer placeholder: true once the header image is showing.
   const [imgReady, setImgReady] = useState(false);
+  // Reports image readiness to the page-level reveal gate without re-running
+  // the mount effect below.
+  const onImgReadyRef = useRef(onImgReady);
+  useEffect(() => { onImgReadyRef.current = onImgReady; });
 
   useLayoutEffect(() => {
     const a = slotARef.current;
@@ -186,28 +192,25 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     slotBRawSrcRef.current = cardSrc;
     a.style.opacity = "0"; a.style.transition = "none";
     b.style.opacity = "0"; b.style.transition = "none";
-    a.src = optimizedSrc(cardSrc);
-    b.src = optimizedSrc(cardSrc);
-    // Image already loaded when we hydrate: reveal instantly — the card's own
-    // entrance animation covers it, so shell and image arrive as one unit.
-    // Loaded after hydration: fade in, waiting for this card's stagger slot if
-    // that hasn't passed yet, so a burst of ready images ripples in card-by-card
-    // (matching the shell cascade) instead of flooding in all at once.
-    const t0 = performance.now();
-    const staggerMs = Math.min(delayIndex, 12) * 70;
+    a.src = cardSrc;
+    b.src = cardSrc;
+    // Image already loaded when we hydrate: reveal instantly — the page-level
+    // gate holds the whole card invisible until enough images are ready, so
+    // shell and image arrive as one unit. Loaded after the gate opened
+    // (slow network, below-fold cards): fade in over the shimmer.
     const reveal = (fade: boolean) => {
       if (!a.naturalWidth) return;
       applyFocusToImg(a, cardFocusStr);
+      onImgReadyRef.current?.();
       if (fade) {
-        const wait = Math.max(0, staggerMs - (performance.now() - t0));
         requestAnimationFrame(() => {
-          a.style.transition = `opacity 500ms ease ${Math.round(wait)}ms`;
-          a.style.opacity = "0.88";
+          a.style.transition = "opacity 500ms ease";
+          a.style.opacity = "0.95";
         });
         // Keep the shimmer under the image until the fade has finished.
-        setTimeout(() => setImgReady(true), wait + 550);
+        setTimeout(() => setImgReady(true), 550);
       } else {
-        a.style.opacity = "0.88";
+        a.style.opacity = "0.95";
         setImgReady(true);
       }
     };
@@ -228,7 +231,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     // Snap slots back to a clean state so the next transition always starts correctly
     const activeEl = (activeSlotRef.current === "A" ? slotARef : slotBRef).current;
     const inactiveEl = (activeSlotRef.current === "A" ? slotBRef : slotARef).current;
-    if (activeEl) { activeEl.style.transition = "none"; activeEl.style.opacity = "0.88"; }
+    if (activeEl) { activeEl.style.transition = "none"; activeEl.style.opacity = "0.95"; }
     if (inactiveEl) { inactiveEl.style.transition = "none"; inactiveEl.style.opacity = "0"; }
     [slotARef, slotBRef].forEach(r => { if (r.current) { r.current.onload = null; r.current.onerror = null; } });
   }, []);
@@ -247,7 +250,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     const active = activeRef.current;
     if (!inactive || !active) return;
 
-    inactive.src = optimizedSrc(target.src);
+    inactive.src = target.src;
     if (inactiveRef === slotARef) {
       slotAFocusRef.current = target.focus;
       slotARawSrcRef.current = target.src;
@@ -263,7 +266,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
       raf1Ref.current = requestAnimationFrame(() => {
         raf2Ref.current = requestAnimationFrame(() => {
           inactive.style.transition = "opacity 700ms ease-in-out";
-          inactive.style.opacity = "0.88";
+          inactive.style.opacity = "0.95";
           active.style.transition = "opacity 700ms ease-in-out";
           active.style.opacity = "0";
           activeSlotRef.current = nextSlot;
@@ -426,8 +429,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
   return (
     <Link href={`/park/${park.slug}`}>
       <div
-        className="mx-auto w-full max-w-[400px] py-3 md:py-4 animate-fade-in-up [@media(hover:hover)]:hover:scale-105 transition-transform duration-300 ease-in-out will-change-transform"
-        style={cardDelay(delayIndex)}
+        className="mx-auto w-full max-w-[400px] py-3 md:py-4 [@media(hover:hover)]:hover:scale-105 transition-transform duration-300 ease-in-out will-change-transform"
         onPointerEnter={(e) => { if (e.pointerType === "mouse") handleCardEnter(); }}
         onPointerLeave={(e) => { if (e.pointerType === "mouse") handleCardLeave(); }}
       >
@@ -440,9 +442,9 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
           )}
           {/* src in the SSR HTML lets the browser start the download while parsing,
               well before hydration; opacity 0 until the focus math positions it.
-              Below-fold cards load lazily so the visible ones get the bandwidth. */}
+              First-row cards load eagerly (they gate the page reveal); the rest lazily. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img ref={slotARef} src={optimizedSrc(cardSrc)} alt="" loading={delayIndex < 3 ? "eager" : "lazy"} className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
+          <img ref={slotARef} src={cardSrc} alt="" loading={delayIndex < 6 ? "eager" : "lazy"} className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img ref={slotBRef} alt="" className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
 
@@ -566,6 +568,38 @@ const Home = ({ initialRatings, initialParks, initialAdminMode }: HomeProps) => 
     return items;
   }, [pendingParks, filteredRatings, teaserItems, parks]);
 
+  // Reveal gate: the card grid holds at opacity 0 until the first-row card
+  // images have fully loaded, then `revealed` fades the whole grid in as one
+  // composite — cards, images, and overlays together. A failsafe timeout opens
+  // the gate anyway so one slow image can't hold the page hostage.
+  const [revealed, setRevealed] = useState(false);
+  const readyIdsRef = useRef<Set<string>>(new Set());
+  const gateIds = React.useMemo(
+    () =>
+      displayItems
+        .filter((it) => it.type === "teaser" || it.type === "rating")
+        .slice(0, 6)
+        .map((it) => it.id as string),
+    [displayItems]
+  );
+  const markImgReady = useCallback(
+    (id: string) => {
+      readyIdsRef.current.add(id);
+      if (gateIds.every((g) => readyIdsRef.current.has(g))) setRevealed(true);
+    },
+    [gateIds]
+  );
+  useEffect(() => {
+    if (revealed) return;
+    // No image cards at all (e.g. only pending parks): nothing to wait for.
+    if (gateIds.length === 0 && displayItems.length > 0) {
+      setRevealed(true);
+      return;
+    }
+    const t = setTimeout(() => setRevealed(true), 3000);
+    return () => clearTimeout(t);
+  }, [gateIds, displayItems.length, revealed]);
+
   const fetchRatingsAndParks = async () => {
     try {
       const [ratingsResponse, parksResponse] = await Promise.all([
@@ -666,8 +700,9 @@ const Home = ({ initialRatings, initialParks, initialAdminMode }: HomeProps) => 
 
   return (
     <main id="top" className="relative z-0 bg-[#0f172a] overflow-visible min-h-screen">
-      {/* Mobile: horizontal swipe carousel */}
-      <div className="md:hidden px-4 py-3 relative">
+      {/* Mobile: horizontal swipe carousel. The whole strip fades in as one
+          composite once the gate opens — see the reveal gate above. */}
+      <div className={`md:hidden px-4 py-3 relative transition-opacity duration-500 ${revealed ? "opacity-100" : "opacity-0"}`}>
         <div
           ref={carouselRef}
           onScroll={handleScroll}
@@ -684,9 +719,9 @@ const Home = ({ initialRatings, initialParks, initialAdminMode }: HomeProps) => 
                 {item.type === "pending" ? (
                   <PendingParkCard park={item.park} />
                 ) : item.type === "teaser" ? (
-                  <TeaserParkCard rating={item.rating} park={item.park} />
+                  <TeaserParkCard rating={item.rating} park={item.park} eager={index < 6} onImgReady={() => markImgReady(item.id)} />
                 ) : item.type === "rating" ? (
-                  <FullBleedRatingCard rating={item.rating} park={item.park} isActive={active} />
+                  <FullBleedRatingCard rating={item.rating} park={item.park} isActive={active} onImgReady={() => markImgReady(item.id)} />
                 ) : (
                   <RatingCard
                     rating={item.rating}
@@ -720,16 +755,17 @@ const Home = ({ initialRatings, initialParks, initialAdminMode }: HomeProps) => 
         </div>
       </div>
 
-      {/* Tablet & up: normal grid */}
-      <div className="hidden md:grid relative z-10 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 px-6 flex-grow py-2.5">
+      {/* Tablet & up: normal grid. Fades in as one composite once the gate
+          opens — images and their readability overlays arrive together. */}
+      <div className={`hidden md:grid relative z-10 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 px-6 flex-grow py-2.5 transition-opacity duration-500 ${revealed ? "opacity-100" : "opacity-0"}`}>
         {displayItems.map((item, index) => {
           if (item.type === "pending") {
-            return <PendingParkCard key={item.id} park={item.park} delayIndex={index} />;
+            return <PendingParkCard key={item.id} park={item.park} />;
           }
           if (item.type === "teaser") {
-            return <TeaserParkCard key={item.id} rating={item.rating} park={item.park} delayIndex={index} />;
+            return <TeaserParkCard key={item.id} rating={item.rating} park={item.park} eager={index < 6} onImgReady={() => markImgReady(item.id)} />;
           }
-          return <FullBleedRatingCard key={item.id} rating={item.rating} park={item.park} delayIndex={index} />;
+          return <FullBleedRatingCard key={item.id} rating={item.rating} park={item.park} delayIndex={index} onImgReady={() => markImgReady(item.id)} />;
         })}
       </div>
 

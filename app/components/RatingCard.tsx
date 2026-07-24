@@ -148,7 +148,6 @@ const RatingCard: React.FC<RatingCardProps> = ({
               focusStr={park.imageFocus}
               className="relative w-full h-full"
               priority={typeof delayIndex === "number" && delayIndex < 6}
-              optimizeWidth={1080}
             />
           </figure>
 
