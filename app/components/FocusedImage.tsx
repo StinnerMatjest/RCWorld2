@@ -24,7 +24,7 @@ export interface FocusedImageProps {
 // Rewrite an image URL to Next's optimizer endpoint — the same endpoint
 // next/image uses (and which the gallery already exercises in production).
 // Gives plain <img> tags resized/re-encoded variants instead of R2 originals.
-export function optimizedSrc(src: string, w: 640 | 750 | 828 | 1080 | 1200 | 1920 = 828, q = 70): string {
+export function optimizedSrc(src: string, w: 640 | 750 | 828 | 1080 | 1200 | 1920 = 1080, q = 85): string {
   if (!src || src.startsWith("data:") || src.startsWith("blob:") || src.startsWith("/_next/")) return src;
   if (/\.(mp4|webm|ogg)$/i.test(src)) return src;
   return `/_next/image?url=${encodeURIComponent(src)}&w=${w}&q=${q}`;
@@ -62,30 +62,30 @@ export function FocusedImage({
   src, alt = "", focusStr, className = "", imgClassName = "", imgStyle, priority, onLoad: onLoadProp, optimizeWidth, staggerDelayMs = 0,
 }: FocusedImageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const imgRef       = useRef<HTMLImageElement>(null);
-  const nwRef        = useRef(0);
-  const nhRef        = useRef(0);
-  const focusRef     = useRef(focusStr);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const nwRef = useRef(0);
+  const nhRef = useRef(0);
+  const focusRef = useRef(focusStr);
   // First reveal only: fresh network loads fade in; cached images (the
   // complete-check path below) appear instantly so back-navigation doesn't blink.
-  const revealedRef  = useRef(false);
-  const fadeInRef    = useRef(false);
-  const mountTsRef   = useRef(0);
-  const staggerRef   = useRef(staggerDelayMs);
+  const revealedRef = useRef(false);
+  const fadeInRef = useRef(false);
+  const mountTsRef = useRef(0);
+  const staggerRef = useRef(staggerDelayMs);
   useEffect(() => { focusRef.current = focusStr; staggerRef.current = staggerDelayMs; });
 
   const applyStyle = useCallback(() => {
-    const c   = containerRef.current;
+    const c = containerRef.current;
     const img = imgRef.current;
     if (!c || !img || !nwRef.current || !nhRef.current) return;
     const { cx, cy, zoom } = parseFocusStr(focusRef.current);
     const cs = Math.max(c.clientWidth / nwRef.current, c.clientHeight / nhRef.current);
     const dw = nwRef.current * cs * zoom;
     const dh = nhRef.current * cs * zoom;
-    img.style.width  = `${dw}px`;
+    img.style.width = `${dw}px`;
     img.style.height = `${dh}px`;
-    img.style.left   = `${c.clientWidth  / 2 - cx * dw}px`;
-    img.style.top    = `${c.clientHeight / 2 - cy * dh}px`;
+    img.style.left = `${c.clientWidth / 2 - cx * dw}px`;
+    img.style.top = `${c.clientHeight / 2 - cy * dh}px`;
     // Hidden until positioned (see render) — reveal now that the math is done
     if (!revealedRef.current) {
       revealedRef.current = true;

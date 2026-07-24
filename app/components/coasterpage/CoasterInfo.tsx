@@ -61,8 +61,36 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster, onUpdate }) => {
           )
         }
       />
-      <InfoRow label="Manufacturer" value={coaster.manufacturerName} />
-      <InfoRow label="Model" value={coaster.model} />
+      <InfoRow
+        label="Manufacturer"
+        value={
+          coaster.manufacturerId ? (
+            <Link
+              href={`/manufacturers/directory?mfg=${coaster.manufacturerId}`}
+              className="text-blue-400 hover:underline"
+            >
+              {coaster.manufacturerName || "Unknown"}
+            </Link>
+          ) : (
+            coaster.manufacturerName || "Unknown"
+          )
+        }
+      />
+      <InfoRow
+        label="Model"
+        value={
+          coaster.rideModelId && coaster.manufacturerId ? (
+            <Link
+              href={`/manufacturers/directory?mfg=${coaster.manufacturerId}&model=${coaster.rideModelId}`}
+              className="text-blue-400 hover:underline"
+            >
+              {coaster.model}
+            </Link>
+          ) : (
+            coaster.model || "Unknown"
+          )
+        }
+      />
       <InfoRow label="Scale" value={coaster.scale} />
       <InfoRow label="Ride Count" value={coaster.ridecount ?? "0"} />
 

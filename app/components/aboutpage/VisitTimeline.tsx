@@ -70,11 +70,10 @@ function UpcomingCard({ trip, isAdminMode, onEdit }: {
         className="absolute -left-[22px] sm:-left-[38px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 bg-[#0f172a]"
         style={{ borderColor: booked ? "#34d399" : "#fbbf24" }}
       />
-      <div className={`rounded-2xl border-2 border-dashed px-4 py-3.5 sm:px-5 transition-colors ${
-        booked
+      <div className={`rounded-2xl border-2 border-dashed px-4 py-3.5 sm:px-5 transition-colors ${booked
           ? "border-emerald-500/40 bg-emerald-500/[0.04] hover:border-emerald-500/70"
           : "border-amber-500/30 bg-amber-500/[0.03] hover:border-amber-500/60"
-      }`}>
+        }`}>
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`text-[10px] font-black uppercase tracking-widest ${booked ? "text-emerald-400" : "text-amber-400"}`}>
             {booked ? "Booked" : "Planned"}
@@ -131,8 +130,13 @@ function VisitTile({ visit }: { visit: Visit }) {
         {/* Header image */}
         <div className="relative aspect-[16/9] sm:aspect-auto sm:h-full sm:min-h-[140px] overflow-hidden">
           {visit.imagepath ? (
-            <FocusedImage src={visit.imagepath} alt={visit.name} focusStr={visit.headerFocus}
-              className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-[1.04]" />
+            <FocusedImage
+              src={visit.imagepath}
+              alt={visit.name}
+              focusStr={visit.headerFocus}
+              className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-[1.04]"
+              optimizeWidth={1080}
+            />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-800 text-4xl">🎢</div>
           )}
@@ -196,7 +200,7 @@ export default function VisitTimeline({ trips, isAdminMode, onEditTrip, initialV
     fetch("/api/visits")
       .then(r => r.json())
       .then(d => setVisits(d.visits ?? []))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, [initialVisits]);
 

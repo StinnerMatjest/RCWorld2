@@ -46,7 +46,6 @@ export interface RatingWarningType {
   severity: "Minor" | "Moderate" | "Major";
 }
 
-// NEW: Ride Types
 export interface RideType {
   id: number;
   name: string;
@@ -54,7 +53,6 @@ export interface RideType {
   note: string | null;
 }
 
-// NEW: Ride Models
 export interface RideModel {
   id: number;
   name: string;
@@ -339,3 +337,38 @@ export type Checklist = {
   // Per-rating-category notes, keyed like RatingModal's CATEGORIES (camelCase)
   notes?: Record<string, string> | null;
 };
+
+// --- Directory Specific Types ---
+
+export interface DirectoryRideType {
+  id: number;
+  name: string;
+}
+
+export interface DirectoryRide {
+  id: number;
+  name: string;
+  year: number;
+  rating: number | null;
+  slug: string;
+  isDefunct: boolean;
+  country: string | null;
+}
+
+export interface DirectoryModel {
+  id: number;
+  name: string;
+  rideTypeName: string;
+  year: string | null;
+  inProduction: boolean;
+  history: string | null;
+  rides: DirectoryRide[];
+}
+
+export interface DirectoryManufacturer {
+  id: number;
+  name: string;
+  country: string;
+  established: string | null;
+  models: DirectoryModel[];
+}

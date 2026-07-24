@@ -51,62 +51,61 @@ const PendingParkCard = ({ park, delayIndex = 0 }: { park: Park; delayIndex?: nu
 const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, delayIndex = 0 }: { rating: Rating; park: Park; delayIndex?: number }) {
   const [imgReady, setImgReady] = useState(false);
   return (
-  <div className="mx-auto w-full max-w-[400px] py-3 md:py-4 animate-fade-in-up" style={cardDelay(delayIndex)}>
-    <div className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
-      {/* Shimmer placeholder while the image is still on its way */}
-      {!imgReady && (
-        <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute inset-0 animate-[shimmer_1.8s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
-        </div>
-      )}
-      <FocusedImage
-        src={park.cardImagepath || park.imagepath || "/images/error.PNG"}
-        alt={park.name}
-        focusStr={park.imageFocus}
-        className="absolute inset-0"
-        imgClassName="opacity-70"
-        optimizeWidth={828}
-        staggerDelayMs={Math.min(delayIndex, 12) * 70}
-        onLoad={() => setTimeout(() => setImgReady(true), 1400)}
-      />
+    <div className="mx-auto w-full max-w-[400px] py-3 md:py-4 animate-fade-in-up" style={cardDelay(delayIndex)}>
+      <div className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
+        {!imgReady && (
+          <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute inset-0 animate-[shimmer_1.8s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
+          </div>
+        )}
+        <FocusedImage
+          src={park.cardImagepath || park.imagepath || "/images/error.PNG"}
+          alt={park.name}
+          focusStr={park.imageFocus}
+          className="absolute inset-0"
+          imgClassName="opacity-70"
+          optimizeWidth={1080}
+          staggerDelayMs={Math.min(delayIndex, 12) * 70}
+          onLoad={() => setTimeout(() => setImgReady(true), 1400)}
+        />
 
-      {/* Top: park name */}
-      <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent px-4 pt-4 pb-14">
-        <div className="flex items-center gap-2">
-          <Image src={getParkFlag(park.country)} alt="" width={20} height={14} className="rounded-sm shrink-0" unoptimized />
-          <h2 className="text-white font-bold text-xl leading-tight drop-shadow-md">{park.name}</h2>
-        </div>
-      </div>
-
-      {/* Bottom: score + CTA */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent px-5 pt-20 pb-5 flex flex-col items-center gap-3">
-        <span className={`text-[4rem] font-black tabular-nums leading-none drop-shadow-xl ${getRatingColor(rating.overall)}`}>
-          {rating.overall.toFixed(2)}
-        </span>
-
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-white/70">Review in progress</span>
+        {/* Top: park name */}
+        <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent px-4 pt-4 pb-14">
+          <div className="flex items-center gap-2">
+            <Image src={getParkFlag(park.country)} alt="" width={20} height={14} className="rounded-sm shrink-0" unoptimized />
+            <h2 className="text-white font-bold text-xl leading-tight drop-shadow-md">{park.name}</h2>
+          </div>
         </div>
 
-        <p className="text-[11px] text-center text-white/50 leading-relaxed">
-          Follow us to know when the full review drops.
-        </p>
+        {/* Bottom: score + CTA */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent px-5 pt-20 pb-5 flex flex-col items-center gap-3">
+          <span className={`text-[4rem] font-black tabular-nums leading-none drop-shadow-xl ${getRatingColor(rating.overall)}`}>
+            {rating.overall.toFixed(2)}
+          </span>
 
-        <a
-          href="https://www.instagram.com/parkratings/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 px-4 py-2 rounded-full text-white text-xs font-bold bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 hover:opacity-90 transition-opacity shadow-sm"
-        >
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-          </svg>
-          @parkratings
-        </a>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-white/70">Review in progress</span>
+          </div>
+
+          <p className="text-[11px] text-center text-white/50 leading-relaxed">
+            Follow us to know when the full review drops.
+          </p>
+
+          <a
+            href="https://www.instagram.com/parkratings/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-white text-xs font-bold bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 hover:opacity-90 transition-opacity shadow-sm"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+            </svg>
+            @parkratings
+          </a>
+        </div>
       </div>
     </div>
-  </div>
   );
 });
 TeaserParkCard.displayName = "TeaserParkCard";

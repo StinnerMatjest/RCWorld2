@@ -3,7 +3,6 @@ import { revalidateContent } from "@/app/lib/revalidate";
 import { pool } from "@/app/lib/db";
 import { diffFields, describeDiff, logChange } from "@/app/lib/changelog";
 
-
 export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string; coasterId: string }> }
@@ -17,6 +16,7 @@ export async function GET(
       name,
       year,
       manufacturer_id,
+      ride_model_id AS "rideModelId",
       model,
       scale,
       haveridden,
@@ -52,6 +52,7 @@ export async function PUT(
       name,
       year,
       manufacturerId,
+      rideModelId, // NEW
       model,
       scale,
       haveridden,
@@ -106,14 +107,15 @@ export async function PUT(
   SET name = $1,
       year = $2,
       manufacturer_id = $3,
-      model = $4,
-      scale = $5,
-      haveridden = $6,
-      isbestcoaster = $7,
-      rating = $8,
-      ridecount = $9, 
-      slug = $10
-  WHERE id = $11 AND park_id = $12
+      ride_model_id = $4,
+      model = $5,
+      scale = $6,
+      haveridden = $7,
+      isbestcoaster = $8,
+      rating = $9,
+      ridecount = $10, 
+      slug = $11
+  WHERE id = $12 AND park_id = $13
   RETURNING *;
 `;
 
@@ -121,6 +123,7 @@ export async function PUT(
       name,
       year,
       manufacturerId,
+      rideModelId || null, // NEW
       model,
       scale,
       haveridden,
@@ -146,6 +149,7 @@ export async function PUT(
         name: updated.name,
         year: updated.year,
         manufacturer_id: updated.manufacturer_id,
+        ride_model_id: updated.ride_model_id, // NEW
         model: updated.model,
         scale: updated.scale,
         haveridden: updated.haveridden,

@@ -2,38 +2,11 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, ChevronDown, ChevronRight, Settings2, ShieldX, ArrowLeft } from "lucide-react";
+import { Search, ChevronRight, Settings2, ShieldX, ArrowLeft, Plus } from "lucide-react";
 import { getRatingColor, getParkFlag } from "@/app/utils/design";
-import LoadingSpinner from "@/app/components/LoadingSpinner";
-
-// --- Types ---
-interface DirectoryRide {
-    id: number;
-    name: string;
-    year: number;
-    rating: number | null;
-    slug: string;
-    isDefunct: boolean;
-    country: string | null;
-}
-
-interface DirectoryModel {
-    id: number;
-    name: string;
-    rideTypeName: string;
-    year: string | null;
-    inProduction: boolean;
-    history: string | null;
-    rides: DirectoryRide[];
-}
-
-interface DirectoryManufacturer {
-    id: number;
-    name: string;
-    country: string;
-    established: string | null;
-    models: DirectoryModel[];
-}
+import { DirectoryManufacturer, DirectoryRideType } from "@/app/types";
+import CreatorModal from "@/app/components/manufacturerPage/CreatorModal";
+import { useAdminMode } from "@/app/context/AdminModeContext";
 
 type SortOption = "alpha" | "count" | "year";
 
@@ -50,9 +23,22 @@ export default function DirectoryClient() {
 
     // UI State
     const [expandedModels, setExpandedModels] = useState<Set<number>>(new Set());
-
-    // NEW: Mobile View State (true = showing the models, false = showing the manufacturer list)
     const [isMobileDetailView, setIsMobileDetailView] = useState(false);
+    const { isAdminMode } = useAdminMode();
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [createTab, setCreateTab] = useState<"model" | "type">("model");
+    const [fetchedRideTypes, setFetchedRideTypes] = useState<DirectoryRideType[]>([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const [formData, setFormData] = useState({
+        name: "",
+        history: "",
+        note: "",
+        ride_type_id: "",
+        manufacturer_id: "",
+        year: "",
+        in_production: true
+    });
 
     useEffect(() => {
         (async () => {
@@ -61,9 +47,30 @@ export default function DirectoryClient() {
                 if (res.ok) {
                     const data = await res.json();
                     setManufacturers(data.manufacturers);
-                    // On desktop, auto-select the first one. On mobile, keep nothing selected until they tap.
-                    if (data.manufacturers.length > 0 && window.innerWidth >= 768) {
-                        setSelectedId(data.manufacturers[0].id);
+
+                    // Parse URL parameters
+                    const params = new URLSearchParams(window.location.search);
+                    const mfgParam = params.get("mfg");
+                    const modelParam = params.get("model");
+
+                    if (data.manufacturers.length > 0) {
+                        if (mfgParam) {
+                            setSelectedId(Number(mfgParam));
+                            setIsMobileDetailView(true); // Open the detail view on mobile
+
+                            if (modelParam) {
+                                setExpandedModels(new Set([Number(modelParam)]));
+
+                                // Auto-scroll to the model after React has a moment to render it
+                                setTimeout(() => {
+                                    const el = document.getElementById(`model-${modelParam}`);
+                                    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                                }, 150);
+                            }
+                        } else if (window.innerWidth >= 768) {
+                            // Desktop default fallback
+                            setSelectedId(data.manufacturers[0].id);
+                        }
                     }
                 }
             } catch (error) {
@@ -122,17 +129,23 @@ export default function DirectoryClient() {
         setExpandedModels(newSet);
     };
 
-    if (isLoading) return <LoadingSpinner />;
-
     return (
         <div className="min-h-screen bg-[#0f172a] text-slate-100 flex flex-col md:flex-row max-w-[1600px] mx-auto pt-6 px-4 md:px-8 gap-8 relative">
 
-            {/* SIDEBAR: Manufacturers 
-              Mobile: Hidden if looking at a specific manufacturer's details.
-              Desktop: Always visible, taking up 1/3 or 1/4 of the screen.
-            */}
+            {/* SIDEBAR: Manufacturers */}
             <aside className={`w-full md:w-1/3 lg:w-1/4 flex-col h-[85vh] ${isMobileDetailView ? 'hidden md:flex' : 'flex'}`}>
-                <h1 className="text-2xl font-black text-white mb-6">Directory</h1>
+                <div className="flex items-center justify-between mb-6">
+                    <h1 className="text-2xl font-black text-white">Directory</h1>
+                    {isAdminMode && (
+                        <button
+                            onClick={() => setIsCreateModalOpen(true)}
+                            className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-500 transition-colors shadow-lg hover:scale-105 active:scale-95"
+                            title="Create new Ride Model or Type"
+                        >
+                            <Plus className="w-5 h-5" />
+                        </button>
+                    )}
+                </div>
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar pb-10 md:pb-0">
                     {manufacturers.map((mfg) => (
                         <button
@@ -157,10 +170,7 @@ export default function DirectoryClient() {
                 </div>
             </aside>
 
-            {/* MAIN CONTENT: Ride Models
-              Mobile: Hidden unless a manufacturer is tapped. 
-              Desktop: Always visible.
-            */}
+            {/* MAIN CONTENT: Ride Models */}
             <main className={`w-full md:w-2/3 lg:w-3/4 flex-col h-[85vh] ${isMobileDetailView ? 'flex' : 'hidden md:flex'}`}>
 
                 {/* Mobile Back Button */}
@@ -248,8 +258,7 @@ export default function DirectoryClient() {
                         <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar pb-10">
                             {processedModels.length > 0 ? (
                                 processedModels.map((model) => (
-                                    <div key={model.id} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm transition-all hover:border-slate-700">
-
+                                    <div key={model.id} id={`model-${model.id}`} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm transition-all hover:border-slate-700">
                                         {/* Model Accordion Header */}
                                         <button
                                             onClick={() => toggleModel(model.id)}
@@ -350,6 +359,15 @@ export default function DirectoryClient() {
                     </div>
                 )}
             </main>
+
+            {/* Admin Create Modal Component */}
+            {isAdminMode && (
+                <CreatorModal
+                    isOpen={isCreateModalOpen}
+                    onClose={() => setIsCreateModalOpen(false)}
+                    manufacturers={manufacturers}
+                />
+            )}
         </div>
     );
 }

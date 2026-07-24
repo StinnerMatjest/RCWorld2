@@ -3,7 +3,6 @@ import { revalidateContent } from "@/app/lib/revalidate";
 import { pool } from "@/app/lib/db";
 import { getParkName, logChange } from "@/app/lib/changelog";
 
-
 export async function GET(
     req: NextRequest,
     context: { params: Promise<{ id: string }> }
@@ -20,7 +19,7 @@ export async function GET(
 
         const query = `
       SELECT 
-        rc.id, rc.name, rc.year, rc.manufacturer_id, m.name AS manufacturer_name, rc.model, rc.scale, rc.haveridden, rc.isbestcoaster, rc.rating, rc.ridecount, rc.slug, rc.park_id,
+        rc.id, rc.name, rc.year, rc.manufacturer_id, m.name AS manufacturer_name, rc.model, rc.ride_model_id, rc.scale, rc.haveridden, rc.isbestcoaster, rc.rating, rc.ridecount, rc.slug, rc.park_id,
         rs.type, rs.classification, rs.length, rs.height, rs.drop, rs.speed, rs.inversions, rs.vertical_angle, rs.gforce, rs.duration_sec AS duration, rs.notes
       FROM rollercoasters rc
       LEFT JOIN manufacturers m ON rc.manufacturer_id = m.id
@@ -37,6 +36,7 @@ export async function GET(
             manufacturerId: row.manufacturer_id,
             manufacturerName: row.manufacturer_name,
             model: row.model,
+            rideModelId: row.ride_model_id, // NEW: Include relational ID
             scale: row.scale,
             haveridden: row.haveridden,
             isbestcoaster: row.isbestcoaster,
@@ -82,6 +82,7 @@ export async function POST(
             name,
             year,
             manufacturerId,
+            rideModelId, // NEW
             model,
             scale,
             haveridden,
@@ -132,8 +133,8 @@ export async function POST(
 
         const query = `
       INSERT INTO rollercoasters
-        (park_id, name, year, manufacturer_id, model, scale, haveridden, isbestcoaster, rating, ridecount, slug)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        (park_id, name, year, manufacturer_id, ride_model_id, model, scale, haveridden, isbestcoaster, rating, ridecount, slug)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       RETURNING *;
     `;
 
@@ -142,6 +143,7 @@ export async function POST(
             name,
             year,
             manufacturerId,
+            rideModelId || null, // NEW
             model,
             scale,
             haveridden,
@@ -159,7 +161,7 @@ export async function POST(
             label: created.name,
             action: "create",
             summary: `Added coaster ${created.name}`,
-            details: { name, year, manufacturerId, model, scale, haveridden, rating: ratingInitial, rideCount: rideCountInitial },
+            details: { name, year, manufacturerId, rideModelId, model, scale, haveridden, rating: ratingInitial, rideCount: rideCountInitial },
         });
 
         return NextResponse.json(created, { status: 201 });

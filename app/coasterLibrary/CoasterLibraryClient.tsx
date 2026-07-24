@@ -298,7 +298,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
 
       {/* ── Table ── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-        <div className="hidden sm:block rounded-2xl border border-slate-700 bg-slate-800/60 overflow-x-auto">
+        <div className="rounded-2xl border border-slate-700 bg-slate-800/60 overflow-x-auto">
           <table className="w-full table-fixed text-sm text-left">
             <thead className="sticky top-0 z-20">
               <tr className="bg-slate-900 text-[11px] uppercase text-slate-400 border-b border-slate-800">

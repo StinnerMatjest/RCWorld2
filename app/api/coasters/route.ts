@@ -11,6 +11,7 @@ export async function GET() {
         rc.year,
         rc.manufacturer_id,
         m.name AS manufacturer_name,
+        rc.ride_model_id, 
         rc.model,
         rc.scale,
         rc.haveridden,
@@ -41,7 +42,7 @@ export async function GET() {
       LEFT JOIN rollercoasterspecs rs ON rs.coaster_id = rc.id
       LEFT JOIN ratings r ON r.park_id = p.id
       GROUP BY 
-        rc.id, rc.name, rc.year, rc.manufacturer_id, m.name, rc.model, rc.scale, rc.haveridden, 
+        rc.id, rc.name, rc.year, rc.manufacturer_id, m.name, rc.ride_model_id, rc.model, rc.scale, rc.haveridden, 
         rc.isbestcoaster, rc.ridecount, rc.rating, rc.park_id, rc.slug,
         rs.type, rs.classification, rs.length, rs.height, rs.drop, rs.speed,
         rs.inversions, rs.vertical_angle, rs.gforce, rs.duration_sec, rs.notes, p.name, p.slug, p.country
@@ -56,6 +57,7 @@ export async function GET() {
       year: row.year,
       manufacturerId: row.manufacturer_id,
       manufacturerName: row.manufacturer_name,
+      rideModelId: row.ride_model_id,
       model: row.model,
       scale: row.scale,
       haveRidden: row.haveridden,
