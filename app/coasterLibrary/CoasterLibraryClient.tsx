@@ -299,23 +299,34 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
       {/* ── Table ── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         <div className="rounded-2xl border border-slate-700 bg-slate-800/60 overflow-x-auto">
-          <table className="w-full table-fixed text-sm text-left">
+          {/* FIX 1: Changed w-full to w-max min-w-full so the table can exceed screen width and scroll */}
+          <table className="w-max min-w-full table-fixed text-sm text-left">
             <thead className="sticky top-0 z-20">
               <tr className="bg-slate-900 text-[11px] uppercase text-slate-400 border-b border-slate-800">
-                <th className="sticky left-0 z-[2] bg-slate-900 text-center font-semibold" style={{ width: INDEX_W }}>#</th>
+                {/* FIX 2: Switched to solid bg-slate-900 and bumped z-index */}
+                <th className="sticky left-0 z-[22] bg-slate-900 text-center font-semibold" style={{ width: INDEX_W }}>#</th>
                 <ThSort label="Name" active={sortBy === "name"} dir={sortDir} onClick={() => handleSort("name")} sticky style={{ left: INDEX_W, width: NAME_W_D }} />
+
                 {ALL_COLUMNS.map(({ key, label }) => colOn(key) ? (
-                  <ThSort key={key} label={label} active={sortBy === key} dir={sortDir} onClick={() => handleSort(key)} />
+                  <ThSort
+                    key={key}
+                    label={label}
+                    active={sortBy === key}
+                    dir={sortDir}
+                    onClick={() => handleSort(key)}
+                    style={{ width: COL_MIN_W[key] }}
+                  />
                 ) : null)}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {sorted.map((c, i) => (
                 <tr key={c.id} className="group hover:bg-slate-700/30 transition-colors">
-                  <td className="sticky left-0 z-[1] bg-slate-800/60 group-hover:bg-slate-700/40 text-center text-slate-500 text-xs font-medium" style={{ width: INDEX_W }}>
+                  {/* FIX 4: Applied solid backgrounds (bg-slate-900) to the sticky cells so text doesn't bleed through */}
+                  <td className="sticky left-0 z-[11] bg-slate-900 group-hover:bg-slate-800 text-center text-slate-500 text-xs font-medium transition-colors" style={{ width: INDEX_W }}>
                     {i + 1}
                   </td>
-                  <td className="sticky z-[1] bg-slate-800/60 group-hover:bg-slate-700/40 py-0 pr-6 font-semibold text-slate-100 whitespace-nowrap overflow-hidden text-ellipsis" style={{ left: INDEX_W, width: NAME_W_D, height: ROW_H }}>
+                  <td className="sticky z-[11] bg-slate-900 group-hover:bg-slate-800 py-0 pr-6 font-semibold text-slate-100 whitespace-nowrap overflow-hidden text-ellipsis transition-colors" style={{ left: INDEX_W, width: NAME_W_D, height: ROW_H }}>
                     <Link href={`/coasters/${c.slug}`} className="hover:text-brand transition-colors hover:underline">
                       {c.name}
                     </Link>
@@ -383,7 +394,7 @@ function ThSort({ label, active, dir, onClick, sticky, style }: ThSortProps) {
       scope="col"
       onClick={onClick}
       className={`px-4 py-3 select-none font-semibold cursor-pointer hover:text-white transition-colors ${active ? "text-brand" : "text-slate-300"
-        } ${sticky ? "sticky z-[2] bg-slate-800/60" : ""}`}
+        } ${sticky ? "sticky z-[22] bg-slate-900" : ""}`}
       style={style}
     >
       <span className="inline-flex items-center gap-1">

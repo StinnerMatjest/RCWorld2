@@ -151,8 +151,8 @@ export default function DirectoryClient() {
                     {isAdminMode && (
                         <button
                             onClick={handleOpenCreate}
-                            className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-500 transition-colors shadow-lg hover:scale-105 active:scale-95"
-                            title="Create new"
+                            className="p-2 bg-brand text-white rounded-full hover:opacity-90 transition-all duration-200 shadow-lg hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center"
+                            title="Create new Database Entry"
                         >
                             <Plus className="w-5 h-5" />
                         </button>

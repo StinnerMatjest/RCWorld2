@@ -69,9 +69,18 @@ const CoasterText: React.FC<Props> = ({ coasterId, initialTexts, refreshTexts })
         <div className="flex justify-end mb-6">
           <button
             onClick={() => setModalOpen(true)}
-            className="px-4 py-2 text-sm font-medium rounded bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-colors cursor-pointer"
+            className="p-2 bg-brand text-white rounded-full hover:opacity-90 transition-all duration-200 shadow-lg hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center"
+            title="Add Section"
           >
-            + Add Section
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
           </button>
         </div>
       )}

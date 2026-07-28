@@ -267,7 +267,7 @@ const CoasterList: React.FC<CoasterListProps> = ({
             <button
               type="button"
               onClick={onAdd}
-              className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-500 transition-all duration-200 shadow-lg hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center"
+              className="p-2 bg-brand text-white rounded-full hover:opacity-90 transition-all duration-200 shadow-lg hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center"
               title="Add Coaster"
             >
               <svg
