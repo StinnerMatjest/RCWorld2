@@ -26,19 +26,20 @@ export default function DirectoryClient() {
     const [isMobileDetailView, setIsMobileDetailView] = useState(false);
     const { isAdminMode } = useAdminMode();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [createTab, setCreateTab] = useState<"model" | "type">("model");
-    const [fetchedRideTypes, setFetchedRideTypes] = useState<DirectoryRideType[]>([]);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [editItem, setEditItem] = useState<any>(null);
+    const [editType, setEditType] = useState<"model" | "type" | "manufacturer" | undefined>(undefined);
 
-    const [formData, setFormData] = useState({
-        name: "",
-        history: "",
-        note: "",
-        ride_type_id: "",
-        manufacturer_id: "",
-        year: "",
-        in_production: true
-    });
+    const handleOpenCreate = () => {
+        setEditItem(null);
+        setEditType(undefined);
+        setIsCreateModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsCreateModalOpen(false);
+        setEditItem(null);
+        setEditType(undefined);
+    };
 
     useEffect(() => {
         (async () => {
@@ -119,6 +120,17 @@ export default function DirectoryClient() {
             return 0;
         });
 
+        // Sort the rides inside each model
+        filtered = filtered.map(model => {
+            const sortedRides = [...model.rides].sort((a, b) => {
+                if (sortBy === "alpha") return a.name.localeCompare(b.name);
+                if (sortBy === "count") return (b.rating || 0) - (a.rating || 0);
+                if (sortBy === "year") return (a.year || 9999) - (b.year || 9999);
+                return 0;
+            });
+            return { ...model, rides: sortedRides };
+        });
+
         return filtered;
     }, [selectedMfg, searchQuery, sortBy, showDefunctModels, showDefunctRides]);
 
@@ -138,9 +150,9 @@ export default function DirectoryClient() {
                     <h1 className="text-2xl font-black text-white">Directory</h1>
                     {isAdminMode && (
                         <button
-                            onClick={() => setIsCreateModalOpen(true)}
+                            onClick={handleOpenCreate}
                             className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-500 transition-colors shadow-lg hover:scale-105 active:scale-95"
-                            title="Create new Ride Model or Type"
+                            title="Create new"
                         >
                             <Plus className="w-5 h-5" />
                         </button>
@@ -186,7 +198,21 @@ export default function DirectoryClient() {
                 {selectedMfg ? (
                     <>
                         {/* Header */}
-                        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 shadow-sm">
+                        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 shadow-sm relative">
+                            {/* NEW: Edit Manufacturer Button */}
+                            {isAdminMode && (
+                                <button
+                                    onClick={() => {
+                                        setEditItem(selectedMfg);
+                                        setEditType("manufacturer");
+                                        setIsCreateModalOpen(true);
+                                    }}
+                                    className="absolute top-4 right-4 p-2 text-slate-500 hover:text-blue-400 transition-colors rounded-full hover:bg-slate-800"
+                                >
+                                    <Settings2 className="w-5 h-5" />
+                                </button>
+                            )}
+
                             <div className="flex items-center gap-5">
                                 <img
                                     src={`/images/manufacturers/${selectedMfg.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`}
@@ -260,14 +286,27 @@ export default function DirectoryClient() {
                                 processedModels.map((model) => (
                                     <div key={model.id} id={`model-${model.id}`} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm transition-all hover:border-slate-700">
                                         {/* Model Accordion Header */}
-                                        <button
+                                        <div
                                             onClick={() => toggleModel(model.id)}
                                             className="w-full flex items-center justify-between p-4 md:p-5 cursor-pointer text-left"
                                         >
                                             <div className="flex flex-col gap-1 pr-4">
                                                 <div className="flex items-center flex-wrap gap-2 md:gap-3">
                                                     <h3 className="text-lg md:text-xl font-bold text-white">{model.name}</h3>
-                                                    {!model.inProduction && (
+                                                    {isAdminMode && model.id !== 999999 && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setEditItem({ ...model, manufacturer_id: selectedMfg.id });
+                                                                setEditType("model");
+                                                                setIsCreateModalOpen(true);
+                                                            }}
+                                                            className="p-1 text-slate-500 hover:text-blue-400 transition-colors"
+                                                        >
+                                                            <Settings2 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                    {!model.inProduction && model.id !== 999999 && (
                                                         <span className="px-2 py-0.5 bg-red-900/30 border border-red-900/50 text-red-400 text-[9px] md:text-[10px] font-black uppercase tracking-widest rounded-md flex items-center gap-1 shrink-0">
                                                             <ShieldX className="w-3 h-3" /> Defunct
                                                         </span>
@@ -285,7 +324,7 @@ export default function DirectoryClient() {
                                             <div className={`p-2 rounded-full bg-slate-800 text-slate-400 transition-transform duration-300 shrink-0 ${expandedModels.has(model.id) ? "rotate-90" : ""}`}>
                                                 <ChevronRight className="w-5 h-5" />
                                             </div>
-                                        </button>
+                                        </div>
 
                                         {/* Expanded Rides List */}
                                         {expandedModels.has(model.id) && (
@@ -339,7 +378,7 @@ export default function DirectoryClient() {
                                                         })}
                                                     </div>
                                                 ) : (
-                                                    <p className="text-sm text-slate-500 text-center py-4">No rides match your current filters.</p>
+                                                    <p className="text-sm text-slate-500 text-center py-4">No ride%s match your current filters.</p>
                                                 )}
                                             </div>
                                         )}
@@ -364,8 +403,10 @@ export default function DirectoryClient() {
             {isAdminMode && (
                 <CreatorModal
                     isOpen={isCreateModalOpen}
-                    onClose={() => setIsCreateModalOpen(false)}
+                    onClose={handleCloseModal}
                     manufacturers={manufacturers}
+                    editItem={editItem}
+                    editType={editType}
                 />
             )}
         </div>
