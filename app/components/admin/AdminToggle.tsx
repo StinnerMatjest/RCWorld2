@@ -1,11 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
+import { usePathname } from "next/navigation";
 import { useAdminMode } from "../../context/AdminModeContext";
 import AuthenticationModal from "./AuthenticationModal";
 
 const AdminToggle = () => {
   const { isAdminMode, toggleAdminMode, welcomeMessage } = useAdminMode();
+  const pathname = usePathname();
+  // Rankle's mobile bet sheet docks to the bottom edge; keep the toggle out of its way
+  const hideOnMobile = pathname?.startsWith("/games/rankle");
 
   const [unlocked, setUnlocked] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
@@ -65,7 +69,7 @@ const AdminToggle = () => {
           bottom-2 right-2
           sm:bottom-4 sm:right-4
           z-50
-          inline-flex items-center gap-1.5 sm:gap-2
+          ${hideOnMobile ? "hidden md:inline-flex" : "inline-flex"} items-center gap-1.5 sm:gap-2
           rounded-full
           border
           px-2.5 py-1.5

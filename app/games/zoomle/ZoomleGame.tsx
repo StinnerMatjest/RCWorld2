@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useLayoutEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 import { getParkFlag } from "@/app/utils/design";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import { getTodayString } from "@/app/utils/coastle";
@@ -103,6 +104,18 @@ function buildCombinedShareText(
     }
   });
   sections.push(`🔍 Zoomle — ${total}/${maxScore}\n${rows.join("\n")}`);
+
+  // ── Rankle ────────────────────────────────────────────────────────────────
+  try {
+    const raw = localStorage.getItem(`rankle-${getTodayString()}`);
+    if (raw) {
+      const state = JSON.parse(raw);
+      if (state.done) {
+        const grid = (state.history ?? []).map((h: boolean) => (h ? "🟩" : "🟥")).join("");
+        sections.push(`🎰 Rankle — Bank ${state.bank ?? 0}\n${grid}`);
+      }
+    }
+  } catch { }
 
   sections.push("parkrating.com/games");
 
@@ -594,13 +607,33 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
             onClick={() => {
               navigator.clipboard?.writeText(buildCombinedShareText(dailyDate, dailyScores, maxScore, roundResults));
             }}
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 text-white font-black text-sm hover:opacity-90 transition-opacity cursor-pointer">
+            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-slate-800 text-white font-black text-sm hover:opacity-80 transition-opacity cursor-pointer">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
             </svg>
-            Share all 3 results
+            Share all results
           </button>
         )}
+        {(() => {
+          // Rankle is the final game in the daily set — hand the player over
+          let rankleDone = false;
+          try {
+            const raw = localStorage.getItem(`rankle-${getTodayString()}`);
+            rankleDone = !!raw && JSON.parse(raw).done === true;
+          } catch { }
+          return rankleDone ? (
+            <div className="w-full py-3.5 rounded-2xl font-black text-sm text-center bg-neutral-800 text-slate-400 cursor-not-allowed select-none">
+              Daily Rankle already completed
+            </div>
+          ) : (
+            <Link
+              href="/games/rankle"
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-sm hover:brightness-110 transition cursor-pointer"
+            >
+              Go to Rankle →
+            </Link>
+          );
+        })()}
       </motion.div>
     </div>
   );

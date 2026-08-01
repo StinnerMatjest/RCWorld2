@@ -18,8 +18,6 @@ import {
 
 import {
   XMarkIcon,
-  PlayIcon,
-  BookOpenIcon,
   ChartBarIcon,
   ArrowPathIcon
 } from "@/app/components/coastle/Icons";
@@ -481,32 +479,28 @@ export default function CoastlePage() {
           </p>
         </header>
 
-        <div className="w-full max-w-sm grid grid-cols-3 gap-1 bg-slate-800 p-1 rounded-xl mb-4 mx-auto animate-reveal">
-          {[
-            { id: "play", label: "Play", icon: PlayIcon },
-            { id: "howto", label: "How To", icon: BookOpenIcon },
-            { id: "leaderboard", label: "Stats", icon: ChartBarIcon }
-          ].map((tab) => {
-            const isActive = activeTab === tab.id;
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex flex-col items-center justify-center py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${isActive
-                    ? "bg-slate-700 text-blue-400 shadow-sm scale-100"
-                    : "text-slate-400 hover:bg-slate-700/50 hover:scale-95"
-                  }`}
-              >
-                <Icon className="w-5 h-5 mb-0.5" />
-                {tab.label}
-              </button>
-            );
-          })}
+        {/* how-to and stats live behind these small buttons instead of a tab bar */}
+        <div className="flex items-center justify-center gap-2 mb-4 animate-reveal">
+          <button
+            onClick={() => setActiveTab("howto")}
+            title="How to play"
+            aria-label="How to play"
+            className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 text-slate-400 hover:text-blue-400 hover:border-blue-400 text-sm font-black transition-all cursor-pointer"
+          >
+            ?
+          </button>
+          <button
+            onClick={() => setActiveTab("leaderboard")}
+            title="Stats"
+            aria-label="Stats"
+            className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 text-slate-400 hover:text-blue-400 hover:border-blue-400 transition-all cursor-pointer flex items-center justify-center"
+          >
+            <ChartBarIcon className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      {activeTab === "play" && (
+      {(
         <div
           key="play-tab"
           className="w-full max-w-[1400px] flex flex-col items-center gap-4 sm:gap-6 animate-reveal"
@@ -713,10 +707,27 @@ export default function CoastlePage() {
         </div>
       )}
 
-      {activeTab === "howto" && <HowTo />}
-
-      {activeTab === "leaderboard" && (
-        <Leaderboard stats={stats} gameState={gameState} onShare={handleCopy} />
+      {/* fold-out overlay for how-to / stats */}
+      {activeTab !== "play" && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-start sm:items-center justify-center overflow-y-auto px-4 py-10"
+          onClick={() => setActiveTab("play")}
+        >
+          <div className="relative w-full max-w-xl" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setActiveTab("play")}
+              aria-label="Close"
+              className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full bg-slate-700 text-slate-200 font-bold shadow-lg hover:bg-slate-600 cursor-pointer"
+            >
+              ✕
+            </button>
+            {activeTab === "howto" ? (
+              <HowTo />
+            ) : (
+              <Leaderboard stats={stats} gameState={gameState} onShare={handleCopy} />
+            )}
+          </div>
+        </div>
       )}
 
       <ResultModal
