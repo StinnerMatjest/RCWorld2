@@ -26,6 +26,28 @@ const localYMD = () => {
 
 const INITIAL_RANKLE_STATS: GameStats = { played: 0, won: 0, currentStreak: 0, maxStreak: 0, guessDistribution: [] };
 
+// clipboard with legacy fallback — navigator.clipboard is absent on plain-http
+// origins (e.g. testing over LAN on a phone)
+function copyText(text: string) {
+  const legacy = () => {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    } catch {}
+  };
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).catch(legacy);
+  } else {
+    legacy();
+  }
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type ApiCoaster = {
@@ -539,10 +561,14 @@ export default function RankleClient() {
     return null;
   }, [pickPair, fetchImage]);
 
-  // warm the first round while the player is still looking at the PLAY button
+  // warm the first round while the player is still looking at the PLAY button;
+  // Start stays disabled until it's fully ready so the reel is NEVER dead
+  const [firstReady, setFirstReady] = useState(false);
   useEffect(() => {
     if (pool.length && !pendingRoundRef.current && !started && !dailyDone) {
-      pendingRoundRef.current = prepareRound();
+      const p = prepareRound();
+      pendingRoundRef.current = p;
+      p.then(() => setFirstReady(true));
     }
   }, [pool, started, dailyDone, prepareRound]);
 
@@ -566,7 +592,7 @@ export default function RankleClient() {
   const headerRef = useRef<HTMLElement>(null);
 
   const play = () => {
-    if (!pool.length || started) return;
+    if (!pool.length || !firstReady || started) return;
     setStarted(true);
     later(() => startRound(), 450);
     // mobile: snap instantly so RANKLE + the score row sit at the top —
@@ -849,8 +875,12 @@ export default function RankleClient() {
         }
       `}</style>
 
-      {/* header — same treatment as Coastle/Connections */}
-      <header ref={headerRef} className="mb-2 text-center mt-2 px-4 scroll-mt-1">
+      {/* header — same treatment as Coastle/Connections. The mobile intro
+          brings its own big animated title, so hide this one there. */}
+      <header
+        ref={headerRef}
+        className={`mb-2 text-center mt-2 px-4 scroll-mt-1 ${!started && !dailyDone ? "hidden md:block" : ""}`}
+      >
         <h1 className="text-4xl sm:text-6xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 drop-shadow-sm italic transform -skew-x-6 pr-4">
           RANKLE
         </h1>
@@ -879,30 +909,81 @@ export default function RankleClient() {
               </button>
             </>
           ) : (
-            /* 1:1 the Zoomle start screen: same container, motion params and button */
-            <div className="w-full flex flex-col items-center gap-6 pt-4 pb-12">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.92 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.25, type: "spring", stiffness: 200, damping: 20 }}
-                className="flex flex-col items-center gap-2 text-slate-400 text-sm"
+            <>
+              {/* mobile: fullscreen intro, 1:1 the Zoomle mobile start screen */}
+              <div
+                className="md:hidden flex flex-col items-center justify-center overflow-hidden w-full"
+                style={{ minHeight: "calc(100dvh - 200px)" }}
               >
-                <p>🎰 The reel draws a random stat</p>
-                <p>🎢 Pick the coaster that wins the duel</p>
-                <p>💰 Start with {START_BANK} points · bet up to 100 a round</p>
-                <p>📈 {ROUNDS} rounds · multipliers cut both ways</p>
-              </motion.div>
-              <motion.button
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                onClick={play}
-                disabled={!pool.length}
-                className="px-12 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 text-white text-xl font-black tracking-wide shadow-2xl shadow-indigo-500/30 hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-wait"
-              >
-                {pool.length ? "Start Game" : "Loading…"}
-              </motion.button>
-            </div>
+                <div className="flex flex-col items-center gap-8 px-6 text-center">
+                  <div>
+                    <motion.h1
+                      initial={{ opacity: 0, y: -20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6, ease: "easeOut" }}
+                      className="text-7xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-fuchsia-400 italic -skew-x-6 pr-2 leading-none"
+                    >
+                      RANKLE
+                    </motion.h1>
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.4 }}
+                      className="text-slate-400 text-sm font-bold mt-3 uppercase tracking-widest"
+                    >
+                      Spin & bet
+                    </motion.p>
+                  </div>
+
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.6, type: "spring" }}
+                    className="flex flex-col items-center gap-2 text-slate-500 text-sm"
+                  >
+                    <p>🎰 The reel draws a random stat</p>
+                    <p>🎢 Pick the coaster that wins the duel</p>
+                    <p>💰 Start with {START_BANK} · bet up to 100 a round</p>
+                  </motion.div>
+
+                  <motion.button
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.8 }}
+                    onClick={play}
+                    disabled={!pool.length || !firstReady}
+                    className="px-10 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 text-white text-xl font-black tracking-wide shadow-2xl shadow-indigo-500/30 hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                  >
+                    {pool.length && firstReady ? "Start Game" : "Loading…"}
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* desktop: 1:1 the Zoomle desktop start screen */}
+              <div className="hidden md:flex w-full flex-col items-center gap-6 pt-4 pb-12">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.92 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.25, type: "spring", stiffness: 200, damping: 20 }}
+                  className="flex flex-col items-center gap-2 text-slate-400 text-sm"
+                >
+                  <p>🎰 The reel draws a random stat</p>
+                  <p>🎢 Pick the coaster that wins the duel</p>
+                  <p>💰 Start with {START_BANK} points · bet up to 100 a round</p>
+                  <p>📈 {ROUNDS} rounds · multipliers cut both ways</p>
+                </motion.div>
+                <motion.button
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  onClick={play}
+                  disabled={!pool.length || !firstReady}
+                  className="px-12 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 text-white text-xl font-black tracking-wide shadow-2xl shadow-indigo-500/30 hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                >
+                  {pool.length && firstReady ? "Start Game" : "Loading…"}
+                </motion.button>
+              </div>
+            </>
           )}
         </div>
       ) : (
@@ -1208,8 +1289,8 @@ export default function RankleClient() {
         streak={stats.currentStreak}
         allGamesPlayed={allGamesPlayed}
         onClose={() => setShowResult(false)}
-        onShare={() => navigator.clipboard?.writeText(buildRankleShare())}
-        onShareAll={() => navigator.clipboard?.writeText(buildAllShare())}
+        onShare={() => copyText(buildRankleShare())}
+        onShareAll={() => copyText(buildAllShare())}
       />
 
     </div>

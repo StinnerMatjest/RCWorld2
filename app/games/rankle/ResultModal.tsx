@@ -132,15 +132,14 @@ export function RankleResultModal({
               <ShareIcon className="w-5 h-5" />
               {copied === "one" ? "Copied!" : "Share Result"}
             </button>
-            {allGamesPlayed && (
-              <button
-                onClick={() => copyFeedback("all", onShareAll)}
-                className="w-full py-2 sm:py-3 md:py-3.5 rounded-2xl font-black text-sm sm:text-base text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 transition cursor-pointer flex items-center justify-center gap-2"
-              >
-                <ShareIcon className="w-5 h-5" />
-                {copied === "all" ? "Copied!" : "Copy all 4 results"}
-              </button>
-            )}
+            <button
+              onClick={() => copyFeedback("all", onShareAll)}
+              title={allGamesPlayed ? "Copy today's results from all four games" : "Copies whichever games you've finished today"}
+              className="w-full py-2 sm:py-3 md:py-3.5 rounded-2xl font-black text-sm sm:text-base text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 transition cursor-pointer flex items-center justify-center gap-2"
+            >
+              <ShareIcon className="w-5 h-5" />
+              {copied === "all" ? "Copied!" : "Copy all 4 results"}
+            </button>
           </div>
         </div>
       </div>
