@@ -182,16 +182,27 @@ function TransferAmount({ amount, positive, mult }: { amount: number; positive: 
         if (p < 1) raf = requestAnimationFrame(step);
       };
       raf = requestAnimationFrame(step);
-    }, 1250);
+    }, 2100);
     return () => { clearTimeout(start); cancelAnimationFrame(raf); };
   }, [amount]);
-  return positive ? (
-    <span className="text-green-400">
-      ✅{shown > 0 && <> +{shown}{shown === amount && mult > 1 && <span className="text-green-400/60"> (×{mult})</span>}</>}
-    </span>
+  const icon = positive ? (
+    <svg className="inline-block w-6 h-6 sm:w-8 sm:h-8 -mt-1 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4.5 12.8l4.6 4.7L19.5 6.6" />
+    </svg>
   ) : (
-    <span className="text-red-400">
-      ❌{shown > 0 && <> −{shown}{shown === amount && mult > 1 && <span className="text-red-400/60"> (×{mult})</span>}</>}
+    <svg className="inline-block w-6 h-6 sm:w-8 sm:h-8 -mt-1 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round">
+      <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
+    </svg>
+  );
+  return (
+    <span className={positive ? "text-green-400" : "text-red-400"}>
+      {icon}
+      {shown > 0 && (
+        <>
+          {positive ? "+" : "−"}{shown}
+          {shown === amount && mult > 1 && <span className="opacity-60"> (×{mult})</span>}
+        </>
+      )}
     </span>
   );
 }
@@ -701,18 +712,19 @@ export default function RankleClient() {
     setLastCorrect(correct);
     setHistory((h) => [...h, correct]);
     setPhase("result");
-    // beat 1: values count up — beat 2: the score drains into the bank
-    later(() => setBank(newBank), 1250);
+    // beat 1: values count up — pause so eyes can travel from the cards to the
+    // score — beat 2: the score drains into the bank
+    later(() => setBank(newBank), 2100);
     if (roundRef.current >= ROUNDS || newBank <= 0) {
-      later(() => finalize(newBank), 3400);
+      later(() => finalize(newBank), 4200);
     } else {
       roundRef.current += 1;
       setRoundNo(roundRef.current);
       // prepare the next matchup NOW, while the result plays out
       pendingRoundRef.current = prepareRound();
       // beat 3: cards bow out — beat 4: next contestants arrive, reel awaits
-      later(() => setPhase("clearing"), 3200);
-      later(() => { startRound(); }, 3680);
+      later(() => setPhase("clearing"), 4000);
+      later(() => { startRound(); }, 4450);
     }
   };
 
@@ -867,7 +879,8 @@ export default function RankleClient() {
               </button>
             </>
           ) : (
-            <>
+            /* 1:1 the Zoomle start screen: same container, motion params and button */
+            <div className="w-full flex flex-col items-center gap-6 pt-4 pb-12">
               <motion.div
                 initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -875,41 +888,21 @@ export default function RankleClient() {
                 className="flex flex-col items-center gap-2 text-slate-400 text-sm"
               >
                 <p>🎰 The reel draws a random stat</p>
-                <p>🎢 Pick which coaster wins the duel</p>
+                <p>🎢 Pick the coaster that wins the duel</p>
                 <p>💰 Start with {START_BANK} points · bet up to 100 a round</p>
                 <p>📈 {ROUNDS} rounds · multipliers cut both ways</p>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.45 }}
-                className="flex flex-col gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-400"
-              >
-                {TIERS.map((t) => {
-                  const rounds = roundsForTier(t);
-                  const label = rounds.length > 1 ? `rounds ${rounds[0]}–${rounds[rounds.length - 1]}` : `round ${rounds[0]}`;
-                  return (
-                    <div key={t.name} className="flex items-center gap-3">
-                      <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                      <span className="w-24" style={{ color: t.color }}>{t.name}</span>
-                      <span className="text-slate-500 normal-case font-medium tracking-normal">
-                        {label} · wins pay ×{t.mult}
-                      </span>
-                    </div>
-                  );
-                })}
               </motion.div>
               <motion.button
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.55 }}
+                transition={{ delay: 0.4 }}
                 onClick={play}
                 disabled={!pool.length}
                 className="px-12 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 text-white text-xl font-black tracking-wide shadow-2xl shadow-indigo-500/30 hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-wait"
               >
                 {pool.length ? "Start Game" : "Loading…"}
               </motion.button>
-            </>
+            </div>
           )}
         </div>
       ) : (

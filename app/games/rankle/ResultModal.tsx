@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { XMarkIcon, ShareIcon } from "@/app/components/coastle/Icons";
-import { Countdown } from "@/app/components/coastle/Countdown";
 
 interface RankleResultModalProps {
   isOpen: boolean;
@@ -30,8 +29,15 @@ export function RankleResultModal({
   onShareAll,
 }: RankleResultModalProps) {
   const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const [copied, setCopied] = useState<null | "one" | "all">(null);
   const bust = bank <= 0;
   const won = bank > startBank;
+
+  const copyFeedback = (which: "one" | "all", fn: () => void) => {
+    fn();
+    setCopied(which);
+    setTimeout(() => setCopied(null), 2000);
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -118,26 +124,21 @@ export function RankleResultModal({
             ))}
           </div>
 
-          <div className="mt-5 rounded-2xl bg-neutral-800/60 p-3 text-center">
-            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Next Rankle</div>
-            <div className="mt-1 text-slate-200"><Countdown /></div>
-          </div>
-
-          <div className="mt-5 flex flex-col gap-2.5 sm:gap-3">
+          <div className="mt-5 sm:mt-6 flex flex-col gap-2.5 sm:gap-3">
             <button
-              onClick={onShare}
-              className={`w-full py-2 sm:py-3 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center gap-2 transition cursor-pointer ${primaryBtn}`}
+              onClick={() => copyFeedback("one", onShare)}
+              className={`w-full py-2 sm:py-3 md:py-3.5 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center gap-2 transition cursor-pointer ${primaryBtn}`}
             >
               <ShareIcon className="w-5 h-5" />
-              Share Result
+              {copied === "one" ? "Copied!" : "Share Result"}
             </button>
             {allGamesPlayed && (
               <button
-                onClick={onShareAll}
-                className="w-full py-2 sm:py-3 rounded-2xl font-black text-sm sm:text-base text-white bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 hover:brightness-110 transition cursor-pointer flex items-center justify-center gap-2"
+                onClick={() => copyFeedback("all", onShareAll)}
+                className="w-full py-2 sm:py-3 md:py-3.5 rounded-2xl font-black text-sm sm:text-base text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 transition cursor-pointer flex items-center justify-center gap-2"
               >
                 <ShareIcon className="w-5 h-5" />
-                Copy all 4 results
+                {copied === "all" ? "Copied!" : "Copy all 4 results"}
               </button>
             )}
           </div>
