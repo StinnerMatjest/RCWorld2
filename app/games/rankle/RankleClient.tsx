@@ -2,7 +2,29 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import { getParkFlag, getRatingColor } from "@/app/utils/design";
+import { getTodayString, getUTCTodaySeed } from "@/app/utils/coastle";
+import type { GameStats } from "@/app/types";
+import { RankleResultModal } from "./ResultModal";
+
+// deterministic PRNG: same seed -> same round sequence for every player
+function mulberry32(seed: number) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const localYMD = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+const INITIAL_RANKLE_STATS: GameStats = { played: 0, won: 0, currentStreak: 0, maxStreak: 0, guessDistribution: [] };
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -105,7 +127,7 @@ const EXACT_KEYS = ["speed", "height", "length", "drop", "year"];
 const TILE = 80; // 5 visible tiles = 400px, same height as the cards
 const N = METRICS.length;
 const REPEATS = 48;
-const START_BANK = 100;
+const START_BANK = 150;
 const WINDOW_PAD = 2 * TILE; // window shows the 3rd of 5 visible tiles
 
 const tierFor = (r: number) => TIERS[TIER_BY_ROUND[Math.min(ROUNDS, Math.max(1, r)) - 1]];
@@ -287,6 +309,14 @@ export default function RankleClient() {
   const [started, setStarted] = useState(false);
   const [spinLaunched, setSpinLaunched] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [dailyDone, setDailyDone] = useState(false);
+  const [showResult, setShowResult] = useState(false);
+  const [stats, setStats] = useState<GameStats>(INITIAL_RANKLE_STATS);
+  const [allGamesPlayed, setAllGamesPlayed] = useState(false);
+
+  // seeded daily: every player gets the same 5 rounds today
+  const rngRef = useRef<() => number>(Math.random);
+  const savedRef = useRef(false);
 
   const stripRef = useRef<HTMLDivElement>(null);
   const roundDataRef = useRef<Round | null>(null);
@@ -306,6 +336,26 @@ export default function RankleClient() {
 
   // load coaster pool
   useEffect(() => {
+    // seed the daily PRNG and restore today's state / lifetime stats
+    rngRef.current = mulberry32(getUTCTodaySeed("rankle"));
+    try {
+      const savedStats = localStorage.getItem("rankle-stats");
+      if (savedStats) setStats(JSON.parse(savedStats));
+      const saved = localStorage.getItem(`rankle-${getTodayString()}`);
+      if (saved) {
+        const s = JSON.parse(saved);
+        if (s?.done) {
+          setDailyDone(true);
+          setBank(s.bank ?? 0);
+          bankRef.current = s.bank ?? 0;
+          const hist = Array.isArray(s.history) ? s.history : [];
+          setHistory(hist);
+          historyRef.current = hist;
+          savedRef.current = true;
+        }
+      }
+    } catch {}
+
     const num = (v: unknown): number | null => (v == null || v === "" ? null : Number(v));
     fetch("/api/coasters")
       .then((r) => r.json())
@@ -327,7 +377,12 @@ export default function RankleClient() {
               }
             : null,
         }));
-        setPool(normalized.filter((c) => c.scale !== "Kiddie" && c.rating != null && c.specs));
+        setPool(
+          normalized
+            .filter((c) => c.scale !== "Kiddie" && c.rating != null && c.specs)
+            // deterministic ordering: the seeded picks must index a stable list
+            .sort((a, b) => a.id - b.id)
+        );
       })
       .catch(() => setPhase("error"));
   }, []);
@@ -359,10 +414,11 @@ export default function RankleClient() {
         metricSet = exactSet.length ? exactSet : METRICS.filter((m) => EXACT_KEYS.includes(m.key));
       }
       if (!metricSet.length || pool.length < 6) return null;
+      const rng = rngRef.current;
       for (let t = 0; t < 3000; t++) {
-        const m = metricSet[Math.floor(Math.random() * metricSet.length)];
-        const a = pool[Math.floor(Math.random() * pool.length)];
-        const b = pool[Math.floor(Math.random() * pool.length)];
+        const m = metricSet[Math.floor(rng() * metricSet.length)];
+        const a = pool[Math.floor(rng() * pool.length)];
+        const b = pool[Math.floor(rng() * pool.length)];
         if (a.id === b.id || a.parkName === b.parkName) continue;
         const va = m.get(a), vb = m.get(b);
         if (va == null || vb == null || va === vb) continue;
@@ -374,10 +430,10 @@ export default function RankleClient() {
             if (rel < 0.004 || rel > 0.1) continue;
           }
           if (m.key === "year" && Math.abs(va - vb) > 3) continue;
-          return { m, a, b, va, vb, mode: "exact" as const, exactVal: Math.random() < 0.5 ? va : vb, tier };
+          return { m, a, b, va, vb, mode: "exact" as const, exactVal: rng() < 0.5 ? va : vb, tier };
         }
         if (!gapOk(m, va, vb, tier)) continue;
-        return { m, a, b, va, vb, mode: (Math.random() < 0.4 ? "lower" : "higher") as RoundMode, tier };
+        return { m, a, b, va, vb, mode: (rng() < 0.4 ? "lower" : "higher") as RoundMode, tier };
       }
       return null;
     },
@@ -451,7 +507,9 @@ export default function RankleClient() {
 
   // ── round flow ──────────────────────────────────────────────────────────
 
-  const pendingRoundRef = useRef<Round | null>(null);
+  // single-flight round preparation: whoever needs the next round awaits the
+  // SAME promise, so the seeded RNG stream is consumed exactly once per round
+  const pendingRoundRef = useRef<Promise<Round | null> | null>(null);
 
   /** Build a round (pair + both images) without committing it. */
   const prepareRound = useCallback(async (): Promise<Round | null> => {
@@ -472,14 +530,15 @@ export default function RankleClient() {
 
   // warm the first round while the player is still looking at the PLAY button
   useEffect(() => {
-    if (pool.length && !pendingRoundRef.current && !started) {
-      prepareRound().then((r) => { pendingRoundRef.current = r; });
+    if (pool.length && !pendingRoundRef.current && !started && !dailyDone) {
+      pendingRoundRef.current = prepareRound();
     }
-  }, [pool, started, prepareRound]);
+  }, [pool, started, dailyDone, prepareRound]);
 
   const startRound = useCallback(async () => {
-    const full = pendingRoundRef.current ?? (await prepareRound());
+    const promise = pendingRoundRef.current ?? prepareRound();
     pendingRoundRef.current = null;
+    const full = await promise;
     if (!full) { setPhase("error"); return; }
     metricCountRef.current[full.m.key] = (metricCountRef.current[full.m.key] || 0) + 1;
     roundDataRef.current = full;
@@ -514,6 +573,116 @@ export default function RankleClient() {
     setPhase("pick");
   };
 
+  const historyRef = useRef<boolean[]>([]);
+
+  const checkAllGamesPlayed = useCallback((): boolean => {
+    try {
+      const coastle = localStorage.getItem("coastle-daily-state");
+      const coastleDone = !!coastle && JSON.parse(coastle).status !== "playing";
+      const conn = localStorage.getItem(`connections-${getTodayString()}`);
+      const cp = conn ? JSON.parse(conn) : null;
+      const connDone = !!cp && (cp.playerSolvedCount === 4 || cp.mistakes >= 4);
+      const zoomle = localStorage.getItem(`zoomle-${localYMD()}`);
+      const zoomleDone = !!zoomle && JSON.parse(zoomle).done === true;
+      return coastleDone && connDone && zoomleDone;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const finalize = useCallback((finalBank: number) => {
+    setPhase("end");
+    setShowResult(true);
+    setDailyDone(true);
+    setAllGamesPlayed(checkAllGamesPlayed());
+    if (savedRef.current) return;
+    savedRef.current = true;
+    try {
+      const today = getTodayString();
+      localStorage.setItem(
+        `rankle-${today}`,
+        JSON.stringify({ done: true, bank: Math.max(0, finalBank), history: historyRef.current, date: today })
+      );
+      const raw = localStorage.getItem("rankle-stats");
+      const cur: GameStats = raw ? JSON.parse(raw) : INITIAL_RANKLE_STATS;
+      const won = finalBank > START_BANK;
+      const next: GameStats = {
+        ...cur,
+        played: (cur.played ?? 0) + 1,
+        won: (cur.won ?? 0) + (won ? 1 : 0),
+        currentStreak: won ? (cur.currentStreak ?? 0) + 1 : 0,
+        maxStreak: Math.max(won ? (cur.currentStreak ?? 0) + 1 : 0, cur.maxStreak ?? 0),
+        guessDistribution: cur.guessDistribution ?? [],
+      };
+      localStorage.setItem("rankle-stats", JSON.stringify(next));
+      setStats(next);
+    } catch {}
+  }, [checkAllGamesPlayed]);
+
+  const buildRankleShare = useCallback(() => {
+    const grid = historyRef.current.map((h) => (h ? "🟩" : "🟥")).join("");
+    return `**Daily Rankle**\n${grid}  Bank: ${Math.max(0, bankRef.current)} (start ${START_BANK})\n\nPlay at <https://parkrating.com/games/rankle>`;
+  }, []);
+
+  const buildAllShare = useCallback(() => {
+    const spoiler = (s: string) => {
+      const needed = Math.max(0, Math.ceil((22 - s.length) / 1.7));
+      return `||${s + "　".repeat(needed)}||`;
+    };
+    const colorEmoji = (c: string) =>
+      ({ yellow: "🟨", green: "🟩", blue: "🟦", purple: "🟪", orange: "🟧", red: "🟥", brown: "🟫" } as Record<string, string>)[c] ?? "⬜";
+    const sections: string[] = [`🎮 ParkRating Daily — ${localYMD()}`];
+    try {
+      const raw = localStorage.getItem("coastle-daily-state");
+      if (raw) {
+        const state = JSON.parse(raw);
+        if (state.status && state.status !== "playing") {
+          const won = state.status === "won";
+          const guesses: { matches?: Record<string, string>; coaster?: { name?: string } }[] = state.guesses ?? [];
+          const rows = guesses.map((g) => {
+            const m = g.matches ?? {};
+            const emoji = [m.manufacturer, m.country, m.length, m.height, m.speed, m.inversions]
+              .map((s) => (s === "correct" ? "🟩" : s === "close" ? "🟨" : "🟥"))
+              .join(" ");
+            return `${emoji}  ${spoiler(g.coaster?.name ?? "")}`;
+          });
+          sections.push(`🎢 Coastle — ${won ? `${guesses.length}/5` : "X/5"}\n${rows.join("\n")}`);
+        }
+      }
+    } catch {}
+    try {
+      const raw = localStorage.getItem(`connections-${getTodayString()}`);
+      if (raw) {
+        const state = JSON.parse(raw);
+        const solvedN = state.playerSolvedCount ?? 0;
+        const mistakes = state.mistakes ?? 0;
+        const grid = (state.guessHistory ?? [])
+          .map((row: { colors?: string[] }) => (row.colors ?? []).map(colorEmoji).join(" "))
+          .join("\n");
+        sections.push(`🔗 Connections — ${solvedN}/4 · ${mistakes} mistake${mistakes !== 1 ? "s" : ""}\n${grid}`);
+      }
+    } catch {}
+    try {
+      const raw = localStorage.getItem(`zoomle-${localYMD()}`);
+      if (raw) {
+        const state = JSON.parse(raw);
+        const scores: (number | null)[] = state.scores ?? [];
+        if (state.done) {
+          const total = scores.reduce<number>((s, p) => s + (p ?? 0), 0);
+          const rows = scores.map((p, i) => {
+            const sq = p === null ? "⬛" : p >= 5 ? "🟩" : p >= 4 ? "🟨" : p >= 3 ? "🟧" : "🟥";
+            return `${sq} Round ${i + 1}: ${p !== null ? `+${p} pts` : "0 pts"}`;
+          });
+          sections.push(`🔍 Zoomle — ${total}/${scores.length * 5}\n${rows.join("\n")}`);
+        }
+      }
+    } catch {}
+    const grid = historyRef.current.map((h) => (h ? "🟩" : "🟥")).join("");
+    sections.push(`🎰 Rankle — Bank ${Math.max(0, bankRef.current)} (start ${START_BANK})\n${grid}`);
+    sections.push("parkrating.com/games");
+    return sections.join("\n\n");
+  }, []);
+
   const answer = (side: "A" | "B", cardEl?: HTMLElement) => {
     if (phase !== "pick" || !round) return;
     const myVal = side === "A" ? round.va : round.vb;
@@ -522,6 +691,7 @@ export default function RankleClient() {
       round.mode === "exact" ? myVal === round.exactVal
       : round.mode === "lower" ? myVal < otherVal
       : myVal > otherVal;
+    historyRef.current = [...historyRef.current, correct];
     if (correct && cardEl) burstFrom(cardEl);
     // the multiplier cuts both ways: wins pay it, losses cost it
     const payout = Math.round(lockedBet * round.tier.mult);
@@ -534,22 +704,26 @@ export default function RankleClient() {
     // beat 1: values count up — beat 2: the score drains into the bank
     later(() => setBank(newBank), 1250);
     if (roundRef.current >= ROUNDS || newBank <= 0) {
-      later(() => setPhase("end"), 3400);
+      later(() => finalize(newBank), 3400);
     } else {
       roundRef.current += 1;
       setRoundNo(roundRef.current);
       // prepare the next matchup NOW, while the result plays out
-      prepareRound().then((r) => { pendingRoundRef.current = r; });
+      pendingRoundRef.current = prepareRound();
       // beat 3: cards bow out — beat 4: next contestants arrive, reel awaits
       later(() => setPhase("clearing"), 3200);
       later(() => { startRound(); }, 3680);
     }
   };
 
+  // error-recovery only (dailies can't be replayed): re-seed so the retry
+  // replays the exact same daily sequence
   const restart = () => {
+    rngRef.current = mulberry32(getUTCTodaySeed("rankle"));
     bankRef.current = START_BANK;
     roundRef.current = 1;
     metricCountRef.current = {};
+    historyRef.current = [];
     setBank(START_BANK);
     setRoundNo(1);
     setHistory([]);
@@ -671,35 +845,72 @@ export default function RankleClient() {
       </header>
 
       {!started ? (
-        <div className="flex flex-col items-center gap-5 mt-4 sm:mt-8">
-          <p className="text-sm text-slate-400 font-medium max-w-sm text-center">
-            The reel picks a stat, you pick a coaster. You start with {START_BANK} points and can bet
-            up to 100 each round. Survive all {ROUNDS} rounds and beat the bank.
-          </p>
-          {/* difficulty legend: this is what the colored dot in the HUD means */}
-          <div className="flex flex-col gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-400">
-            {TIERS.map((t) => {
-              const rounds = roundsForTier(t);
-              const label = rounds.length > 1 ? `rounds ${rounds[0]}–${rounds[rounds.length - 1]}` : `round ${rounds[0]}`;
-              return (
-                <div key={t.name} className="flex items-center gap-3">
-                  <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                  <span className="w-24" style={{ color: t.color }}>{t.name}</span>
-                  <span className="text-slate-500 normal-case font-medium tracking-normal">
-                    {label} · wins pay ×{t.mult}
-                  </span>
+        <div className="flex flex-col items-center gap-6 mt-6 sm:mt-10 pb-10">
+          {dailyDone ? (
+            <>
+              <div className="flex flex-col items-center gap-1 text-slate-300">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-400">
+                  Today&apos;s Rankle is done
+                </p>
+                <p className="text-5xl font-black text-brand-light mt-2">🏁 {Math.max(0, bank)}</p>
+                <div className="mt-2 flex items-center gap-1.5">
+                  {history.map((h, i) => (
+                    <span key={i} className={`w-2.5 h-2.5 rounded-full ${h ? "bg-green-400" : "bg-red-400"}`} />
+                  ))}
                 </div>
-              );
-            })}
-          </div>
-          <button
-            onClick={play}
-            disabled={!pool.length}
-            className="px-14 py-4 rounded-full font-black text-lg tracking-widest bg-gradient-to-br from-[#e9820e] to-[#d46f00] text-slate-950
-              shadow-[0_8px_32px_rgba(233,130,14,0.45)] cursor-pointer transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-wait"
-          >
-            {pool.length ? "▶ PLAY" : "LOADING…"}
-          </button>
+              </div>
+              <button
+                onClick={() => { setAllGamesPlayed(checkAllGamesPlayed()); setShowResult(true); }}
+                className="px-10 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 text-white text-base font-black tracking-wide shadow-2xl shadow-indigo-500/30 hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+              >
+                View results
+              </button>
+            </>
+          ) : (
+            <>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.25, type: "spring", stiffness: 200, damping: 20 }}
+                className="flex flex-col items-center gap-2 text-slate-400 text-sm"
+              >
+                <p>🎰 The reel draws a random stat</p>
+                <p>🎢 Pick which coaster wins the duel</p>
+                <p>💰 Start with {START_BANK} points · bet up to 100 a round</p>
+                <p>📈 {ROUNDS} rounds · multipliers cut both ways</p>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.45 }}
+                className="flex flex-col gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-400"
+              >
+                {TIERS.map((t) => {
+                  const rounds = roundsForTier(t);
+                  const label = rounds.length > 1 ? `rounds ${rounds[0]}–${rounds[rounds.length - 1]}` : `round ${rounds[0]}`;
+                  return (
+                    <div key={t.name} className="flex items-center gap-3">
+                      <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
+                      <span className="w-24" style={{ color: t.color }}>{t.name}</span>
+                      <span className="text-slate-500 normal-case font-medium tracking-normal">
+                        {label} · wins pay ×{t.mult}
+                      </span>
+                    </div>
+                  );
+                })}
+              </motion.div>
+              <motion.button
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.55 }}
+                onClick={play}
+                disabled={!pool.length}
+                className="px-12 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 text-white text-xl font-black tracking-wide shadow-2xl shadow-indigo-500/30 hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+              >
+                {pool.length ? "Start Game" : "Loading…"}
+              </motion.button>
+            </>
+          )}
         </div>
       ) : (
         <>
@@ -972,30 +1183,41 @@ export default function RankleClient() {
         </div>
       )}
 
-      {/* end overlay */}
-      {phase === "end" && (
-        <div className="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center px-4">
+      {/* finished but modal dismissed: quiet summary with a way back in */}
+      {phase === "end" && !showResult && started && (
+        <div className="fixed inset-0 z-40 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center px-4">
           <div className="bg-slate-800 border border-slate-700 rounded-2xl px-8 py-7 text-center shadow-2xl max-w-[90vw]">
             <div className="text-3xl font-black text-slate-100">
-              {bank <= 0 ? "💥 BUST" : `🏁 ${bank}`}
+              {bank <= 0 ? "💥 BUST" : `🏁 ${Math.max(0, bank)}`}
             </div>
-            <div className="text-[13px] text-slate-400 mt-1.5">
-              {bank <= 0 ? "The bank took everything." : bank > START_BANK ? `Started with ${START_BANK} — nice work.` : `Started with ${START_BANK} — ouch.`}
+            <div className="mt-2 flex items-center justify-center gap-1.5">
+              {history.map((h, i) => (
+                <span key={i} className={`w-2.5 h-2.5 rounded-full ${h ? "bg-green-400" : "bg-red-400"}`} />
+              ))}
             </div>
-            <div className="mt-4 inline-block text-left font-mono text-[13px] bg-[#0b1428] rounded-xl px-4 py-3 whitespace-pre text-slate-200">
-              {`Rankle 🎰\n${history.map((h) => (h ? "🟩" : "🟥")).join("")}\nBank: ${Math.max(0, bank)}`}
-            </div>
-            <div className="mt-5">
-              <button
-                onClick={restart}
-                className="px-8 py-3 rounded-full font-black text-sm tracking-wide bg-gradient-to-br from-[#e9820e] to-[#d46f00] text-slate-950 shadow-[0_4px_18px_rgba(233,130,14,0.4)] cursor-pointer active:scale-95"
-              >
-                SPIN AGAIN
-              </button>
-            </div>
+            <button
+              onClick={() => setShowResult(true)}
+              className="mt-5 px-8 py-3 rounded-2xl font-black text-sm bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 text-white cursor-pointer active:scale-95"
+            >
+              View results
+            </button>
           </div>
         </div>
       )}
+
+      {/* result modal (house style) */}
+      <RankleResultModal
+        isOpen={showResult}
+        bank={bank}
+        startBank={START_BANK}
+        history={history}
+        rounds={ROUNDS}
+        streak={stats.currentStreak}
+        allGamesPlayed={allGamesPlayed}
+        onClose={() => setShowResult(false)}
+        onShare={() => navigator.clipboard?.writeText(buildRankleShare())}
+        onShareAll={() => navigator.clipboard?.writeText(buildAllShare())}
+      />
 
     </div>
   );

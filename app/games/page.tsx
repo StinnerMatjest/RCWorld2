@@ -229,9 +229,11 @@ export default function GamesLauncherPage() {
   const [standardStats, setStandardStats] = useState<GameStats | null>(null);
   const [zoomleStats, setZoomleStats] = useState<GameStats | null>(null);
   const [connectionsStats, setConnectionsStats] = useState<GameStats | null>(null);
+  const [rankleStats, setRankleStats] = useState<GameStats | null>(null);
   const [dailyCoastleDone, setStandardDailyDone] = useState<boolean | null>(null);
   const [zoomleDailyDone, setZoomleDailyDone] = useState<boolean | null>(null);
   const [connectionsDailyDone, setConnectionsDailyDone] = useState<boolean | null>(null);
+  const [rankleDailyDone, setRankleDailyDone] = useState<boolean | null>(null);
 
   useEffect(() => {
     setStandardStats(
@@ -264,6 +266,14 @@ export default function GamesLauncherPage() {
         ? (connectionsDaily.solved?.length ?? 0) >= 4 || (connectionsDaily.mistakes ?? 0) >= 4
         : false
     );
+
+    setRankleStats(safeParseStats(localStorage.getItem("rankle-stats")));
+    try {
+      const rankleRaw = localStorage.getItem(`rankle-${today}`);
+      setRankleDailyDone(rankleRaw ? JSON.parse(rankleRaw)?.done === true : false);
+    } catch {
+      setRankleDailyDone(false);
+    }
   }, []);
 
   const gradient = useMemo(() => "from-blue-600 via-indigo-600 to-fuchsia-600", []);
@@ -272,7 +282,7 @@ export default function GamesLauncherPage() {
     <div className="min-h-screen bg-[#0f172a] px-4 py-6 sm:py-10 flex items-start justify-center">
       <div className="w-full max-w-7xl">
         <header className="text-center mt-2 md:mt-0 mb-4 sm:mb-12">
-          <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 drop-shadow-sm italic transform -skew-x-6">
+          <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tighter text-brand drop-shadow-sm italic transform -skew-x-6">
             Games
           </h1>
           <p className="mt-2 text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-widest">
@@ -366,8 +376,8 @@ export default function GamesLauncherPage() {
             href="/games/rankle"
             label="Rankle"
             gradient={gradient}
-            stats={null}
-            dailyDone={null}
+            stats={rankleStats}
+            dailyDone={rankleDailyDone}
             icon={<IconRankle />}
             showStats={showStats}
           />
