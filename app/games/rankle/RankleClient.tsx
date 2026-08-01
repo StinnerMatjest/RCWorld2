@@ -384,6 +384,7 @@ export default function RankleClient() {
           const hist = Array.isArray(s.history) ? s.history : [];
           setHistory(hist);
           historyRef.current = hist;
+          roundLogRef.current = Array.isArray(s.log) ? s.log : [];
           savedRef.current = true;
         }
       }
@@ -611,6 +612,8 @@ export default function RankleClient() {
   };
 
   const historyRef = useRef<boolean[]>([]);
+  // per-round record for the share text: what was bet, at what multiplier, outcome
+  const roundLogRef = useRef<{ bet: number; mult: number; win: boolean; delta: number }[]>([]);
 
   const checkAllGamesPlayed = useCallback((): boolean => {
     try {
@@ -638,7 +641,13 @@ export default function RankleClient() {
       const today = getTodayString();
       localStorage.setItem(
         `rankle-${today}`,
-        JSON.stringify({ done: true, bank: Math.max(0, finalBank), history: historyRef.current, date: today })
+        JSON.stringify({
+          done: true,
+          bank: Math.max(0, finalBank),
+          history: historyRef.current,
+          log: roundLogRef.current,
+          date: today,
+        })
       );
       const raw = localStorage.getItem("rankle-stats");
       const cur: GameStats = raw ? JSON.parse(raw) : INITIAL_RANKLE_STATS;
@@ -657,8 +666,16 @@ export default function RankleClient() {
   }, [checkAllGamesPlayed]);
 
   const buildRankleShare = useCallback(() => {
-    const grid = historyRef.current.map((h) => (h ? "🟩" : "🟥")).join("");
-    return `**Daily Rankle**\n${grid}  Bank: ${Math.max(0, bankRef.current)} (start ${START_BANK})\n\nPlay at <https://parkrating.com/games/rankle>`;
+    const log = roundLogRef.current;
+    const rows = log.length
+      ? log
+          .map(
+            (r, i) =>
+              `${r.win ? "🟩" : "🟥"} R${i + 1}: bet ${r.bet}${r.mult > 1 ? ` ×${r.mult}` : ""} → ${r.delta > 0 ? "+" : "−"}${Math.abs(r.delta)}`
+          )
+          .join("\n")
+      : historyRef.current.map((h) => (h ? "🟩" : "🟥")).join("");
+    return `**Daily Rankle**\n${rows}\nBank: ${Math.max(0, bankRef.current)} (start ${START_BANK})\n\nPlay at <https://parkrating.com/games/rankle>`;
   }, []);
 
   const buildAllShare = useCallback(() => {
@@ -730,6 +747,15 @@ export default function RankleClient() {
       : myVal > otherVal;
     historyRef.current = [...historyRef.current, correct];
     if (correct && cardEl) burstFrom(cardEl);
+    roundLogRef.current = [
+      ...roundLogRef.current,
+      {
+        bet: lockedBet,
+        mult: round.tier.mult,
+        win: correct,
+        delta: (correct ? 1 : -1) * Math.round(lockedBet * round.tier.mult),
+      },
+    ];
     // the multiplier cuts both ways: wins pay it, losses cost it
     const payout = Math.round(lockedBet * round.tier.mult);
     const newBank = bankRef.current + (correct ? payout : -payout);
@@ -762,6 +788,7 @@ export default function RankleClient() {
     roundRef.current = 1;
     metricCountRef.current = {};
     historyRef.current = [];
+    roundLogRef.current = [];
     setBank(START_BANK);
     setRoundNo(1);
     setHistory([]);
