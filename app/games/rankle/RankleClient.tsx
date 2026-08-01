@@ -168,7 +168,9 @@ function TransferAmount({ amount, positive, mult }: { amount: number; positive: 
       ✅{shown > 0 && <> +{shown}{shown === amount && mult > 1 && <span className="text-green-400/60"> (×{mult})</span>}</>}
     </span>
   ) : (
-    <span className="text-red-400">❌{shown > 0 && <> −{shown}</>}</span>
+    <span className="text-red-400">
+      ❌{shown > 0 && <> −{shown}{shown === amount && mult > 1 && <span className="text-red-400/60"> (×{mult})</span>}</>}
+    </span>
   );
 }
 
@@ -365,8 +367,13 @@ export default function RankleClient() {
         const va = m.get(a), vb = m.get(b);
         if (va == null || vb == null || va === vb) continue;
         if (tier.exact) {
-          // any honest gap works: the question names one coaster's exact value
-          if (["speed", "height", "length", "drop"].includes(m.key) && Math.abs(va - vb) / Math.max(va, vb) < 0.02) continue;
+          // the two candidates must be NEIGHBOURS (62 vs 61, not 62 vs 30) —
+          // otherwise the named value gives the answer away
+          if (["speed", "height", "length", "drop"].includes(m.key)) {
+            const rel = Math.abs(va - vb) / Math.max(va, vb);
+            if (rel < 0.004 || rel > 0.1) continue;
+          }
+          if (m.key === "year" && Math.abs(va - vb) > 3) continue;
           return { m, a, b, va, vb, mode: "exact" as const, exactVal: Math.random() < 0.5 ? va : vb, tier };
         }
         if (!gapOk(m, va, vb, tier)) continue;
@@ -516,8 +523,9 @@ export default function RankleClient() {
       : round.mode === "lower" ? myVal < otherVal
       : myVal > otherVal;
     if (correct && cardEl) burstFrom(cardEl);
+    // the multiplier cuts both ways: wins pay it, losses cost it
     const payout = Math.round(lockedBet * round.tier.mult);
-    const newBank = bankRef.current + (correct ? payout : -lockedBet);
+    const newBank = bankRef.current + (correct ? payout : -payout);
     bankRef.current = newBank;
     setPicked(side);
     setLastCorrect(correct);
@@ -743,7 +751,7 @@ export default function RankleClient() {
               ) : (phase === "result" || phase === "clearing") && lastCorrect !== null ? (
                 <TransferAmount
                   key={history.length}
-                  amount={lastCorrect ? Math.round(lockedBet * (round?.tier.mult ?? 1)) : lockedBet}
+                  amount={Math.round(lockedBet * (round?.tier.mult ?? 1))}
                   positive={lastCorrect}
                   mult={round?.tier.mult ?? 1}
                 />
@@ -940,9 +948,9 @@ export default function RankleClient() {
               <h2 className="text-xl font-black uppercase tracking-wide text-white">How To Play</h2>
               <p className="mt-3 text-sm text-slate-300 leading-6">
                 Spin the wheel to draw a stat, place your bet, then pick the coaster you think wins the duel.
-                You start with {START_BANK} points and can bet up to 100 each round. Wins pay your bet times
-                the round multiplier; losses cost the bet. Survive all {ROUNDS} rounds with the biggest bank
-                you can, and don&apos;t go bust.
+                You start with {START_BANK} points and can bet up to 100 each round. The round multiplier
+                cuts both ways: wins pay your bet times it, and losses cost the same. Survive all {ROUNDS}{" "}
+                rounds with the biggest bank you can, and don&apos;t go bust.
               </p>
               <div className="mt-5 flex flex-col gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-400">
                 {TIERS.map((t) => {
