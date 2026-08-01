@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Countdown } from "@/app/components/coastle/Countdown";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
-import { PlayIcon, BookOpenIcon, ChartBarIcon } from "@/app/components/coastle/Icons";
+import { ChartBarIcon } from "@/app/components/coastle/Icons";
 import {
   ResultModal,
   buildConnectionsShareText,
@@ -383,28 +383,29 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
         </p>
       </header>
 
-      {!isPractice && <div className="w-full max-w-[280px] sm:max-w-xs grid grid-cols-3 gap-1 bg-slate-800 p-1 rounded-lg mb-3 mx-auto animate-reveal">
-        {([
-          { id: "play", label: "Play", icon: PlayIcon },
-          { id: "howto", label: "How To", icon: BookOpenIcon },
-          ...(!isPractice ? [{ id: "leaderboard", label: "Stats", icon: ChartBarIcon }] : []),
-        ] as { id: string; label: string; icon: React.ComponentType<{ className?: string }> }[]).map((tab) => {
-          const isActive = activeTab === tab.id;
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as "play" | "howto" | "leaderboard")}
-              className={`flex flex-col items-center justify-center py-1.5 sm:py-2 rounded-md text-[10px] sm:text-xs font-bold transition-all duration-200 cursor-pointer ${isActive ? " bg-neutral-700 text-blue-400 shadow-sm scale-100" : " text-slate-400 hover:bg-neutral-700/50 hover:scale-95"}`}
-            >
-              <Icon className="w-4 h-4 sm:w-5 sm:h-5 mb-0.5" />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>}
+      {/* how-to and stats live behind these small buttons instead of a tab bar */}
+      <div className="flex items-center justify-center gap-2 mb-3 animate-reveal">
+        <button
+          onClick={() => setActiveTab("howto")}
+          title="How to play"
+          aria-label="How to play"
+          className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 text-slate-400 hover:text-blue-400 hover:border-blue-400 text-sm font-black transition-all cursor-pointer"
+        >
+          ?
+        </button>
+        {!isPractice && (
+          <button
+            onClick={() => setActiveTab("leaderboard")}
+            title="Stats"
+            aria-label="Stats"
+            className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 text-slate-400 hover:text-blue-400 hover:border-blue-400 transition-all cursor-pointer flex items-center justify-center"
+          >
+            <ChartBarIcon className="w-4 h-4 mx-auto" />
+          </button>
+        )}
+      </div>
 
-      {(isPractice || activeTab === "play") && (
+      {(
         <div className="w-full max-w-3xl flex flex-col items-center animate-reveal">
           {!isPractice && (mistakes >= MAX_MISTAKES || solved.length === groups.length) && (
             <div className="w-full max-w-md mb-4"><Countdown /></div>
@@ -489,21 +490,36 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
         </div>
       )}
 
-      {activeTab === "howto" && (
-        <div className="w-full max-w-xl animate-reveal rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-sm">
-          <h2 className="text-xl font-black uppercase tracking-wide text-white">How To Play</h2>
-          <p className="mt-3 text-sm text-slate-300 leading-6">
-            Select four coasters that belong together, then press submit. Find all four groups before you run out of mistakes.
-          </p>
+      {/* fold-out overlay for how-to / stats */}
+      {activeTab !== "play" && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-start sm:items-center justify-center overflow-y-auto px-4 py-10"
+          onClick={() => setActiveTab("play")}
+        >
+          <div className="relative w-full max-w-xl" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setActiveTab("play")}
+              aria-label="Close"
+              className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full bg-slate-700 text-slate-200 font-bold shadow-lg hover:bg-slate-600 cursor-pointer"
+            >
+              ✕
+            </button>
+            {activeTab === "howto" ? (
+              <div className="w-full rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-sm">
+                <h2 className="text-xl font-black uppercase tracking-wide text-white">How To Play</h2>
+                <p className="mt-3 text-sm text-slate-300 leading-6">
+                  Select four coasters that belong together, then press submit. Find all four groups before you run out of mistakes.
+                </p>
+              </div>
+            ) : !isPractice ? (
+              <ConnectionsStatsView
+                stats={stats}
+                gameState={mistakes >= MAX_MISTAKES ? "lost" : solved.length === groups.length ? "won" : "playing"}
+                onShare={handleShare}
+              />
+            ) : null}
+          </div>
         </div>
-      )}
-
-      {activeTab === "leaderboard" && !isPractice && (
-        <ConnectionsStatsView
-          stats={stats}
-          gameState={mistakes >= MAX_MISTAKES ? "lost" : solved.length === groups.length ? "won" : "playing"}
-          onShare={handleShare}
-        />
       )}
 
       <ResultModal

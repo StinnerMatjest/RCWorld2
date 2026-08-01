@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { getTodayString } from "@/app/utils/coastle";
 import type { GameStats } from "@/app/types";
@@ -55,17 +54,67 @@ function safeParseConnectionsState(raw: string | null): ConnectionsSavedState | 
   return null;
 }
 
-function ModeIcon({
-  darkSrc,
-  className,
-}: {
-  darkSrc: string;
-  className: string;
-}) {
+// ─── Game icons: navy badge + glyph, one per game ────────────────────────────
+
+function IconBadge({ children }: { children: React.ReactNode }) {
   return (
-    <div className={`relative ${className}`}>
-      <Image src={darkSrc} alt="" fill priority className="object-contain" />
+    <div className="relative w-full h-full rounded-full bg-[#0b2b48] border-[3px] border-[#e9820e] shadow-lg flex items-center justify-center overflow-hidden">
+      {children}
     </div>
+  );
+}
+
+/** Coastle: a mystery guess with Wordle-style feedback tiles. */
+function IconCoastle() {
+  return (
+    <IconBadge>
+      <svg viewBox="0 0 48 48" className="w-[60%] h-[60%]" fill="none">
+        <text x="24" y="24" textAnchor="middle" fontSize="24" fontWeight="900" fill="#e9820e" fontFamily="inherit">?</text>
+        <rect x="6" y="30" width="10" height="10" rx="2.5" fill="#4ade80" />
+        <rect x="19" y="30" width="10" height="10" rx="2.5" fill="#facc15" />
+        <rect x="32" y="30" width="10" height="10" rx="2.5" fill="#475569" />
+      </svg>
+    </IconBadge>
+  );
+}
+
+/** Connections: the four color groups. */
+function IconConnections() {
+  return (
+    <IconBadge>
+      <svg viewBox="0 0 48 48" className="w-[54%] h-[54%]">
+        <rect x="4" y="4" width="18" height="18" rx="4.5" fill="#facc15" />
+        <rect x="26" y="4" width="18" height="18" rx="4.5" fill="#4ade80" />
+        <rect x="4" y="26" width="18" height="18" rx="4.5" fill="#60a5fa" />
+        <rect x="26" y="26" width="18" height="18" rx="4.5" fill="#c084fc" />
+      </svg>
+    </IconBadge>
+  );
+}
+
+/** Zoomle: a magnifier — clean lens, nothing inside. */
+function IconZoomle() {
+  return (
+    <IconBadge>
+      <svg viewBox="0 0 48 48" className="w-[64%] h-[64%]" fill="none">
+        <circle cx="20" cy="20" r="12.5" stroke="#fff" strokeWidth="3.4" />
+        <line x1="29.5" y1="29.5" x2="41" y2="41" stroke="#e9820e" strokeWidth="4.4" strokeLinecap="round" />
+      </svg>
+    </IconBadge>
+  );
+}
+
+/** Rankle: the slot reel with the lit center window. */
+function IconRankle() {
+  return (
+    <IconBadge>
+      <svg viewBox="0 0 48 48" className="w-[58%] h-[58%]" fill="none">
+        <rect x="7" y="4" width="34" height="40" rx="7" stroke="#fff" strokeWidth="3" />
+        <rect x="11.5" y="18.5" width="25" height="11" rx="3.5" fill="rgba(233,130,14,0.25)" stroke="#e9820e" strokeWidth="2.6" />
+        <line x1="15" y1="11.5" x2="33" y2="11.5" stroke="#ffffff88" strokeWidth="3" strokeLinecap="round" />
+        <line x1="15" y1="36.5" x2="33" y2="36.5" stroke="#ffffff88" strokeWidth="3" strokeLinecap="round" />
+      </svg>
+    </IconBadge>
   );
 }
 
@@ -118,112 +167,56 @@ function ModeButton({
   gradient,
   stats,
   dailyDone,
-  iconDarkSrc,
+  icon,
+  showStats,
 }: {
   href: string;
   label: string;
   gradient: string;
   stats: GameStats | null;
   dailyDone: boolean | null;
-  iconDarkSrc: string;
+  icon: React.ReactNode;
+  showStats: boolean;
 }) {
   return (
     <Link href={href} aria-label={label} className="group w-full min-w-0 cursor-pointer focus:outline-none">
-      {/* Desktop */}
-      <div className="hidden sm:flex flex-col items-center justify-center py-10">
-        <div
-          className={`
-            flex flex-col items-center
-            transition-transform duration-200
-            group-hover:scale-[1.055]
-            group-active:scale-[0.99]
-            origin-center
-          `}
-        >
-          <ModeIcon darkSrc={iconDarkSrc} className="w-28 h-28 md:w-32 md:h-32" />
+      <div className="flex flex-col items-center justify-start py-4 sm:py-10 transition-transform duration-200 group-hover:scale-[1.05] group-active:scale-[0.99] origin-center">
+        <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32">{icon}</div>
 
-          <div className="mt-4 flex flex-col items-center">
-            <div
-              className={`
-                text-5xl md:text-6xl
-                font-black tracking-tighter
-                bg-clip-text text-transparent
-                bg-gradient-to-r ${gradient}
-                drop-shadow-sm italic
-                leading-none
-                pr-2
-                whitespace-nowrap
-              `}
-            >
-              {label}
-            </div>
-
-            <div className="mt-3 w-full">
-              <div
-                className={`
-                  h-[3px] rounded-full
-                  bg-gradient-to-r ${gradient}
-                  opacity-70
-                  transform origin-left scale-x-0
-                  transition-transform duration-200
-                  group-hover:scale-x-100
-                  group-focus-visible:scale-x-100
-                `}
-              />
-            </div>
+        <div className="mt-3 sm:mt-4 flex flex-col items-center">
+          <div
+            className={`
+              text-[26px] sm:text-4xl xl:text-[2.6rem]
+              font-black tracking-tighter
+              bg-clip-text text-transparent
+              bg-gradient-to-r ${gradient}
+              drop-shadow-sm italic
+              leading-none
+              pr-1 sm:pr-2
+              whitespace-nowrap
+            `}
+          >
+            {label}
           </div>
 
-          <StatsRow stats={stats} dailyDone={dailyDone} />
+          <div className="mt-2 sm:mt-3 w-full">
+            <div
+              className={`
+                h-[3px] rounded-full
+                bg-gradient-to-r ${gradient}
+                opacity-70
+                transform origin-left scale-x-0
+                transition-transform duration-200
+                group-hover:scale-x-100
+                group-focus-visible:scale-x-100
+              `}
+            />
+          </div>
         </div>
-      </div>
 
-      {/* Mobile */}
-      <div className="sm:hidden py-4">
-        <div
-          className={`
-            grid grid-cols-[104px_1fr] items-center gap-4
-            transition-transform duration-200
-            group-hover:scale-[1.03]
-            group-active:scale-[0.99]
-            origin-center
-          `}
-        >
-          <div className="flex items-center justify-center">
-            <ModeIcon darkSrc={iconDarkSrc} className="w-24 h-24" />
-          </div>
-
-          <div className="flex flex-col items-center">
-            <div
-              className={`
-                text-4xl
-                font-black tracking-tighter
-                bg-clip-text text-transparent
-                bg-gradient-to-r ${gradient}
-                drop-shadow-sm italic
-                leading-none
-                pr-2
-                whitespace-nowrap
-              `}
-            >
-              {label}
-            </div>
-
-            <div className="mt-2 w-full">
-              <div
-                className={`
-                  h-[3px] rounded-full
-                  bg-gradient-to-r ${gradient}
-                  opacity-70
-                  transform origin-left scale-x-0
-                  transition-transform duration-200
-                  group-hover:scale-x-100
-                  group-focus-visible:scale-x-100
-                `}
-              />
-            </div>
-
-            <StatsRow stats={stats} dailyDone={dailyDone} />
-          </div>
+        {/* stats hidden on phones unless toggled, always visible from sm up */}
+        <div className={showStats ? "block w-full" : "hidden sm:block w-full"}>
+          <StatsRow stats={stats} dailyDone={dailyDone} />
         </div>
       </div>
     </Link>
@@ -232,6 +225,7 @@ function ModeButton({
 
 export default function GamesLauncherPage() {
   const { isAdminMode } = useAdminMode();
+  const [showStats, setShowStats] = useState(false);
   const [standardStats, setStandardStats] = useState<GameStats | null>(null);
   const [zoomleStats, setZoomleStats] = useState<GameStats | null>(null);
   const [connectionsStats, setConnectionsStats] = useState<GameStats | null>(null);
@@ -295,17 +289,28 @@ export default function GamesLauncherPage() {
             <span className="block">
               <span className="font-bold text-slate-100">Zoomle</span> = Guess the coaster as the image slowly reveals.
             </span>
+            <span className="block">
+              <span className="font-bold text-slate-100">Rankle</span> = Spin the reel and bet on coaster stat duels.
+            </span>
           </div>
+          {/* phones: stats live behind this toggle so all 4 games fit at once */}
+          <button
+            onClick={() => setShowStats((s) => !s)}
+            className="sm:hidden mt-3 text-[11px] font-bold uppercase tracking-widest text-slate-400 underline underline-offset-4 decoration-slate-600 active:text-slate-200 cursor-pointer"
+          >
+            📊 {showStats ? "Hide stats" : "Show stats"}
+          </button>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-8">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-6 xl:gap-8">
           <ModeButton
             href="/games/coastle"
             label="Coastle"
             gradient={gradient}
             stats={standardStats}
             dailyDone={dailyCoastleDone}
-            iconDarkSrc="/logos/faviconload.svg"
+            icon={<IconCoastle />}
+            showStats={showStats}
           />
 
           <div className="flex flex-col h-full relative">
@@ -315,7 +320,8 @@ export default function GamesLauncherPage() {
               gradient={gradient}
               stats={connectionsStats}
               dailyDone={connectionsDailyDone}
-              iconDarkSrc="/logos/faviconbw.svg"
+              icon={<IconConnections />}
+              showStats={showStats}
             />
 
             {isAdminMode && (
@@ -343,7 +349,8 @@ export default function GamesLauncherPage() {
               gradient={gradient}
               stats={zoomleStats}
               dailyDone={zoomleDailyDone}
-              iconDarkSrc="/logos/faviconload.svg"
+              icon={<IconZoomle />}
+              showStats={showStats}
             />
             {isAdminMode && (
               <div className="sm:absolute sm:-bottom-14 left-0 right-0 flex justify-center pb-2 sm:pb-0">
@@ -354,6 +361,16 @@ export default function GamesLauncherPage() {
               </div>
             )}
           </div>
+
+          <ModeButton
+            href="/games/rankle"
+            label="Rankle"
+            gradient={gradient}
+            stats={null}
+            dailyDone={null}
+            icon={<IconRankle />}
+            showStats={showStats}
+          />
         </div>
       </div>
     </div>
