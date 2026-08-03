@@ -731,9 +731,17 @@ export default function RankleClient() {
         }
       }
     } catch {}
-    const grid = historyRef.current.map((h) => (h ? "🟩" : "🟥")).join("");
-    sections.push(`🎰 Rankle — Bank ${Math.max(0, bankRef.current)} (start ${START_BANK})\n${grid}`);
-    sections.push("parkrating.com/games");
+    const log = roundLogRef.current;
+    const rankleRows = log.length
+      ? log
+          .map(
+            (r, i) =>
+              `${r.win ? "🟩" : "🟥"} R${i + 1}: bet ${r.bet}${r.mult > 1 ? ` ×${r.mult}` : ""} → ${r.delta > 0 ? "+" : "−"}${Math.abs(r.delta)}`
+          )
+          .join("\n")
+      : historyRef.current.map((h) => (h ? "🟩" : "🟥")).join("");
+    sections.push(`🎰 Rankle — Bank ${Math.max(0, bankRef.current)} (start ${START_BANK})\n${rankleRows}`);
+    sections.push("Play at <https://parkrating.com/games>");
     return sections.join("\n\n");
   }, []);
 

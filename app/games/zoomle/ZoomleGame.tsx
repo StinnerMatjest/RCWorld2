@@ -33,95 +33,6 @@ function getTodayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function buildCombinedShareText(
-  date: string,
-  zoomleScores: (number | null)[],
-  maxScore: number,
-  roundResults: RoundResult[],
-): string {
-  const colorEmoji = (c: string) =>
-    ({ yellow: "🟨", green: "🟩", blue: "🟦", purple: "🟪", orange: "🟧", red: "🟥", brown: "🟫" } as Record<string, string>)[c] ?? "⬜";
-  const scoreEmoji = (p: number | null) =>
-    p === null ? "⬛" : p >= 5 ? "🟩" : p >= 4 ? "🟨" : p >= 3 ? "🟧" : "🟥";
-  // Discord spoiler with ideographic-space padding so the bar length doesn't
-  // hint at the hidden name — same trick as the individual Coastle share
-  const spoiler = (s: string) => {
-    const needed = Math.max(0, Math.ceil((22 - s.length) / 1.7));
-    return `||${s + "　".repeat(needed)}||`;
-  };
-
-  const sections: string[] = [`🎮 ParkRating Daily — ${date}`];
-
-  // ── Coastle ──────────────────────────────────────────────────────────────
-  try {
-    const raw = localStorage.getItem("coastle-daily-state");
-    if (raw) {
-      const state = JSON.parse(raw);
-      if (state.status && state.status !== "playing") {
-        const won = state.status === "won";
-        const guesses: any[] = state.guesses ?? [];
-        const count = guesses.length;
-
-        const rows = guesses.map((g: any) => {
-          const m = g.matches ?? {};
-          const emoji = [m.manufacturer, m.country, m.length, m.height, m.speed, m.inversions]
-            .map((s: string) => s === "correct" ? "🟩" : s === "close" ? "🟨" : "🟥")
-            .join(" ");
-          const name: string = g.coaster?.name ?? "";
-          return `${emoji}  ${spoiler(name)}`;
-        });
-
-        sections.push(`🎢 Coastle — ${won ? `${count}/5` : "X/5"}\n${rows.join("\n")}`);
-      }
-    }
-  } catch { }
-
-  // ── Connections ───────────────────────────────────────────────────────────
-  try {
-    const raw = localStorage.getItem(`connections-${getTodayString()}`);
-    if (raw) {
-      const state = JSON.parse(raw);
-      const solved = state.playerSolvedCount ?? 0;
-      const mistakes = state.mistakes ?? 0;
-      const grid = (state.guessHistory ?? [])
-        .map((row: any) => (row.colors ?? []).map(colorEmoji).join(" "))
-        .join("\n");
-      sections.push(`🔗 Connections — ${solved}/4 · ${mistakes} mistake${mistakes !== 1 ? "s" : ""}\n${grid}`);
-    }
-  } catch { }
-
-  // ── Zoomle ────────────────────────────────────────────────────────────────
-  const total = zoomleScores.reduce<number>((s, p) => s + (p ?? 0), 0);
-  const rows = zoomleScores.map((p, i) => {
-    const result = roundResults[i];
-    if (!result) return `${scoreEmoji(p)} Round ${i + 1}`;
-    const correct = p !== null && p > 0;
-    if (correct) {
-      return `${scoreEmoji(p)} +${p} pts  ·  ${spoiler(`${result.answer.name} (${result.answer.park_name})`)}`;
-    } else {
-      const guessed = result.guessedCoaster?.name ?? "—";
-      return `${scoreEmoji(p)} 0 pts  ·  ${spoiler(result.answer.name)} ✗ (guessed ${spoiler(guessed)})`;
-    }
-  });
-  sections.push(`🔍 Zoomle — ${total}/${maxScore}\n${rows.join("\n")}`);
-
-  // ── Rankle ────────────────────────────────────────────────────────────────
-  try {
-    const raw = localStorage.getItem(`rankle-${getTodayString()}`);
-    if (raw) {
-      const state = JSON.parse(raw);
-      if (state.done) {
-        const grid = (state.history ?? []).map((h: boolean) => (h ? "🟩" : "🟥")).join("");
-        sections.push(`🎰 Rankle — Bank ${state.bank ?? 0}\n${grid}`);
-      }
-    }
-  } catch { }
-
-  sections.push("parkrating.com/games");
-
-  return sections.join("\n\n");
-}
-
 function buildShareText(date: string, scores: (number | null)[], maxScore: number): string {
   const total = scores.reduce<number>((s, p) => s + (p ?? 0), 0);
   const lines = scores.map((p, i) => {
@@ -520,18 +431,6 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
 
   const maxScore = rounds.length * 5;
 
-  const allGamesPlayed = (() => {
-    if (typeof window === "undefined") return false;
-    try {
-      const coastle = localStorage.getItem("coastle-daily-state");
-      const connections = localStorage.getItem(`connections-${getTodayString()}`);
-      const coastleDone = !!coastle && JSON.parse(coastle).status !== "playing";
-      const parsed = connections ? JSON.parse(connections) : null;
-      const connectionsDone = !!parsed && (parsed.playerSolvedCount === 4 || parsed.mistakes >= MAX_MISTAKES);
-      return coastleDone && connectionsDone;
-    } catch { return false; }
-  })();
-
   if (done) return (
     <div className={`flex flex-col gap-0 ${isMobile ? "bg-[#0f172a] px-4 pt-8 pb-12" : "w-full py-6"}`}>
       {/* Total score — animated count-up */}
@@ -602,18 +501,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
           </svg>
           Share Zoomle
         </button>
-        {allGamesPlayed && (
-          <button
-            onClick={() => {
-              navigator.clipboard?.writeText(buildCombinedShareText(dailyDate, dailyScores, maxScore, roundResults));
-            }}
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-slate-800 text-white font-black text-sm hover:opacity-80 transition-opacity cursor-pointer">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-            </svg>
-            Share all results
-          </button>
-        )}
+        {/* the combined "all results" share lives on Rankle, the final game */}
         {(() => {
           // Rankle is the final game in the daily set — hand the player over
           let rankleDone = false;
