@@ -7,6 +7,7 @@ import { getParkFlag, getRatingColor } from "@/app/utils/design";
 import { getTodayString, getUTCTodaySeed } from "@/app/utils/coastle";
 import type { GameStats } from "@/app/types";
 import { RankleResultModal } from "./ResultModal";
+import { AllInRound, type AllInResolution } from "./AllInRound";
 
 // deterministic PRNG: same seed -> same round sequence for every player
 function mulberry32(seed: number) {
@@ -50,7 +51,7 @@ function copyText(text: string) {
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type ApiCoaster = {
+export type ApiCoaster = {
   id: number;
   name: string;
   year: number | null;
@@ -106,7 +107,18 @@ type Round = {
   imgB: string;
 };
 
-type Phase = "loading" | "error" | "spin" | "bet" | "pick" | "result" | "clearing" | "end";
+type Phase = "loading" | "error" | "spin" | "bet" | "pick" | "result" | "clearing" | "bonus" | "end";
+
+// how the all-in bonus round ended, persisted with the daily state
+type AllInOutcome = {
+  choice: "cash" | "allin";
+  preBank: number;
+  mult?: number;
+  guess?: number;
+  actual?: number;
+  metricKey?: string;
+  coasterName?: string;
+};
 
 // ─── Game config ─────────────────────────────────────────────────────────────
 
@@ -350,6 +362,7 @@ export default function RankleClient() {
   // seeded daily: every player gets the same 5 rounds today
   const rngRef = useRef<() => number>(Math.random);
   const savedRef = useRef(false);
+  const allInRef = useRef<AllInOutcome | null>(null);
 
   const stripRef = useRef<HTMLDivElement>(null);
   const roundDataRef = useRef<Round | null>(null);
@@ -385,6 +398,7 @@ export default function RankleClient() {
           setHistory(hist);
           historyRef.current = hist;
           roundLogRef.current = Array.isArray(s.log) ? s.log : [];
+          allInRef.current = s.allIn ?? null;
           savedRef.current = true;
         }
       }
@@ -427,7 +441,9 @@ export default function RankleClient() {
       const r = await fetch(
         `/api/coasters/${c.id}/gallery?parkId=${c.parkId}&name=${encodeURIComponent(c.name)}`
       );
-      const img = r.ok ? (await r.json()).headerImage ?? null : null;
+      const raw = r.ok ? (await r.json()).headerImage ?? null : null;
+      // some coasters only have a video as their "header" (e.g. Desert Race) — no card for them
+      const img = raw && !/\.(mp4|webm|mov)(\?|$)/i.test(raw) ? raw : null;
       imgCacheRef.current[c.id] = img;
       return img;
     } catch {
@@ -646,6 +662,7 @@ export default function RankleClient() {
           bank: Math.max(0, finalBank),
           history: historyRef.current,
           log: roundLogRef.current,
+          allIn: allInRef.current,
           date: today,
         })
       );
@@ -665,6 +682,17 @@ export default function RankleClient() {
     } catch {}
   }, [checkAllGamesPlayed]);
 
+  // the bonus round's line in share texts, e.g. "🟩 ALL IN: hit ×2 (480 → 960)"
+  const allInShareRow = useCallback((): string => {
+    const ai = allInRef.current;
+    if (!ai) return "";
+    if (ai.choice === "cash") return `\n💰 ALL IN: declined, cashed out at ${ai.preBank}`;
+    const m = ai.mult ?? 0;
+    if (m === 0) return `\n🟥 ALL IN: busted (${ai.preBank} → 0)`;
+    if (m === 1) return `\n🟧 ALL IN: ballpark, bank safe (${ai.preBank})`;
+    return `\n🟩 ALL IN: hit ×${m} (${ai.preBank} → ${Math.round(ai.preBank * m)})`;
+  }, []);
+
   const buildRankleShare = useCallback(() => {
     const log = roundLogRef.current;
     const rows = log.length
@@ -675,8 +703,8 @@ export default function RankleClient() {
           )
           .join("\n")
       : historyRef.current.map((h) => (h ? "🟩" : "🟥")).join("");
-    return `**Daily Rankle**\n${rows}\nBank: ${Math.max(0, bankRef.current)} (start ${START_BANK})\n\nPlay at <https://parkrating.com/games/rankle>`;
-  }, []);
+    return `**Daily Rankle**\n${rows}${allInShareRow()}\nBank: ${Math.max(0, bankRef.current)}\n\nPlay at <https://parkrating.com/games/rankle>`;
+  }, [allInShareRow]);
 
   const buildAllShare = useCallback(() => {
     const spoiler = (s: string) => {
@@ -740,10 +768,10 @@ export default function RankleClient() {
           )
           .join("\n")
       : historyRef.current.map((h) => (h ? "🟩" : "🟥")).join("");
-    sections.push(`🎰 Rankle — Bank ${Math.max(0, bankRef.current)} (start ${START_BANK})\n${rankleRows}`);
+    sections.push(`🎰 Rankle — Bank ${Math.max(0, bankRef.current)}\n${rankleRows}${allInShareRow()}`);
     sections.push("Play at <https://parkrating.com/games>");
     return sections.join("\n\n");
-  }, []);
+  }, [allInShareRow]);
 
   const answer = (side: "A" | "B", cardEl?: HTMLElement) => {
     if (phase !== "pick" || !round) return;
@@ -776,7 +804,9 @@ export default function RankleClient() {
     // score — beat 2: the score drains into the bank
     later(() => setBank(newBank), 2100);
     if (roundRef.current >= ROUNDS || newBank <= 0) {
-      later(() => finalize(newBank), 4200);
+      // busted players are done; survivors get the all-in bonus choice
+      if (newBank <= 0) later(() => finalize(newBank), 4200);
+      else later(() => setPhase("bonus"), 4200);
     } else {
       roundRef.current += 1;
       setRoundNo(roundRef.current);
@@ -788,6 +818,29 @@ export default function RankleClient() {
     }
   };
 
+  // ── all-in bonus round callbacks ─────────────────────────────────────────
+  const allInCashOut = useCallback(() => {
+    allInRef.current = { choice: "cash", preBank: bankRef.current };
+    finalize(bankRef.current);
+  }, [finalize]);
+
+  const allInResolved = useCallback((r: AllInResolution) => {
+    const pre = bankRef.current;
+    const newBank = Math.round(pre * r.mult);
+    bankRef.current = newBank;
+    setBank(newBank);
+    allInRef.current = {
+      choice: "allin",
+      preBank: pre,
+      mult: r.mult,
+      guess: r.guess,
+      actual: r.actual,
+      metricKey: r.metricKey,
+      coasterName: r.coasterName,
+    };
+    finalize(newBank);
+  }, [finalize]);
+
   // error-recovery only (dailies can't be replayed): re-seed so the retry
   // replays the exact same daily sequence
   const restart = () => {
@@ -797,6 +850,7 @@ export default function RankleClient() {
     metricCountRef.current = {};
     historyRef.current = [];
     roundLogRef.current = [];
+    allInRef.current = null;
     setBank(START_BANK);
     setRoundNo(1);
     setHistory([]);
@@ -1046,11 +1100,19 @@ export default function RankleClient() {
             </div>
             <span className="text-slate-700">·</span>
             {/* tier: the colored dot carries it on phones; name + payout from sm up */}
-            <div className="text-xs font-black uppercase tracking-widest flex items-center gap-1.5">
-              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tier.color }} />
-              <span className="hidden sm:inline" style={{ color: tier.color }}>{tier.name}</span>
-              <span className="text-slate-300">×{tier.mult}</span>
-            </div>
+            {phase === "bonus" ? (
+              <div className="text-xs font-black uppercase tracking-widest flex items-center gap-1.5">
+                <span className="inline-block w-2.5 h-2.5 rounded-full bg-brand shadow-[0_0_10px_rgba(233,130,14,0.8)] animate-pulse" />
+                <span className="hidden sm:inline text-brand-light">ALL IN</span>
+                <span className="text-slate-300">×3</span>
+              </div>
+            ) : (
+              <div className="text-xs font-black uppercase tracking-widest flex items-center gap-1.5">
+                <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tier.color }} />
+                <span className="hidden sm:inline" style={{ color: tier.color }}>{tier.name}</span>
+                <span className="text-slate-300">×{tier.mult}</span>
+              </div>
+            )}
             <button
               onClick={() => setShowHelp(true)}
               title="How to play"
@@ -1061,6 +1123,17 @@ export default function RankleClient() {
             </button>
           </div>
 
+          {phase === "bonus" ? (
+            <AllInRound
+              pool={pool}
+              bank={Math.max(0, bank)}
+              rng={rngRef.current}
+              fetchImage={fetchImage}
+              onCashOut={allInCashOut}
+              onResolved={allInResolved}
+            />
+          ) : (
+          <>
           {/* question banner: fixed height + one line on desktop so the cards never shift */}
           <div className="h-[64px] sm:h-[72px] mt-3 mb-3 flex flex-col items-center justify-center text-center max-w-3xl" style={{ animation: "rankle-rise 0.5s ease 0.08s both" }}>
             <div className="text-xl sm:text-3xl font-black leading-tight text-slate-100 md:whitespace-nowrap">
@@ -1247,6 +1320,8 @@ export default function RankleClient() {
               </button>
             </div>
           </div>
+          </>
+          )}
         </>
       )}
 
@@ -1323,6 +1398,7 @@ export default function RankleClient() {
         rounds={ROUNDS}
         streak={stats.currentStreak}
         allGamesPlayed={allGamesPlayed}
+        allIn={allInRef.current}
         onClose={() => setShowResult(false)}
         onShare={() => copyText(buildRankleShare())}
         onShareAll={() => copyText(buildAllShare())}

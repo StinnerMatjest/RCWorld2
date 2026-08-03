@@ -11,6 +11,7 @@ interface RankleResultModalProps {
   rounds: number;
   streak: number;
   allGamesPlayed: boolean;
+  allIn?: { choice: "cash" | "allin"; preBank: number; mult?: number } | null;
   onClose: () => void;
   onShare: () => void;
   onShareAll: () => void;
@@ -24,6 +25,7 @@ export function RankleResultModal({
   rounds,
   streak,
   allGamesPlayed,
+  allIn,
   onClose,
   onShare,
   onShareAll,
@@ -58,6 +60,15 @@ export function RankleResultModal({
 
   const title = bust ? "BUSTED" : won ? "IN THE MONEY!" : "BROKE EVEN-ISH";
   const correct = history.filter(Boolean).length;
+  const allInLine = !allIn
+    ? null
+    : allIn.choice === "cash"
+      ? "💰 Cashed out before the bonus round"
+      : (allIn.mult ?? 0) === 0
+        ? `Went all in and busted (${allIn.preBank} → 0)`
+        : (allIn.mult ?? 0) === 1
+          ? "Went all in, landed the ballpark, bank safe"
+          : `Went all in and hit ×${allIn.mult} (${allIn.preBank} → ${bank})`;
 
   const primaryBtn = "hover:opacity-90 bg-slate-100 text-slate-900";
 
@@ -112,6 +123,9 @@ export function RankleResultModal({
               {Math.max(0, bank)}
             </div>
             <div className="mt-1 text-xs font-bold text-slate-500">started with {startBank}</div>
+            {allInLine && (
+              <div className="mt-2 text-xs font-bold text-brand-light">{allInLine}</div>
+            )}
           </div>
 
           <div className="mt-5 flex items-center justify-center gap-2">

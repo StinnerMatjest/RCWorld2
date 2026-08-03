@@ -29,8 +29,9 @@ type Coaster = {
 };
 
 // ——— Helpers ———
+// pinned locale AND timezone: server and client must format identically (hydration)
 const formatDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("en-GB") : "—";
+  iso ? new Date(iso).toLocaleDateString("en-GB", { timeZone: "UTC" }) : "—";
 const isDefined = (v: unknown) => v !== null && v !== undefined;
 
 const compare = (a: unknown, b: unknown, dir: "asc" | "desc"): number => {
@@ -65,18 +66,24 @@ const ALL_COLUMNS = [
 type ColumnKey = (typeof ALL_COLUMNS)[number]["key"];
 
 const DESKTOP_DEFAULT: ColumnKey[] = ["rating", "manufacturer", "parkName", "year", "rideCount"];
-const MOBILE_DEFAULT: ColumnKey[] = ["rating", "manufacturer"];
 const DESC_BY_DEFAULT: ColumnKey[] = ["rating", "rideCount", "lastVisitDate"];
 
-const ROW_H = 48;
-const INDEX_W = 52;
-const NAME_W_M = 130;
-const NAME_W_D = 260;
+// rank colours: podium ranks pop, the rest stay quiet
+const rankClass = (i: number) =>
+  i === 0 ? "text-yellow-400 font-black"
+  : i === 1 ? "text-slate-300 font-black"
+  : i === 2 ? "text-amber-600 font-black"
+  : "text-slate-500 font-semibold";
 
-const COL_MIN_W: Record<ColumnKey, number> = {
-  rating: 80, manufacturer: 130, parkName: 150, country: 120,
-  rideCount: 90, lastVisitDate: 130, year: 80,
-};
+// mobile lenses: one segmented control that both sorts the list and decides
+// which stat each row displays — you can never sort by something you can't see
+// (maker lives in every row's subline instead of being a lens)
+const LENSES = [
+  { key: "rating", label: "Score" },
+  { key: "year", label: "Year" },
+  { key: "rideCount", label: "Rides" },
+  { key: "lastVisitDate", label: "Last" },
+] as const;
 
 function parseCoasterList(raw: any[]): Coaster[] {
   return raw.map((c): Coaster => ({
@@ -121,9 +128,9 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
   const [error, setError] = useState("");
   const [sortBy, setSortBy] = useState<ColumnKey | "name">("rating");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [visibleCols, setVisibleCols] = useState<ColumnKey[]>(() =>
-    typeof window !== "undefined" && window.innerWidth < 640 ? MOBILE_DEFAULT : DESKTOP_DEFAULT
-  );
+  // must be identical on server and client (hydration) — the mobile layout is
+  // handled by responsive classes, not by trimming this list at first render
+  const [visibleCols, setVisibleCols] = useState<ColumnKey[]>(DESKTOP_DEFAULT);
 
   const searchCtx = useSearch() as { query: string; setQuery?: (q: string) => void };
   const rawQuery = searchCtx?.query ?? "";
@@ -207,6 +214,19 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
   }
   const colOn = (k: ColumnKey) => visibleCols.includes(k);
 
+  // one shared grid template so header labels and row values stay column-aligned
+  const gridTemplate = useMemo(() => [
+    "44px",                                        // rank
+    "minmax(0, 1.4fr)",                            // name
+    visibleCols.includes("manufacturer") ? "minmax(110px, 0.8fr)" : null,
+    visibleCols.includes("parkName") ? "minmax(120px, 0.9fr)" : null,
+    visibleCols.includes("country") ? "minmax(90px, 0.6fr)" : null,
+    visibleCols.includes("year") ? "60px" : null,
+    visibleCols.includes("rideCount") ? "60px" : null,
+    visibleCols.includes("lastVisitDate") ? "105px" : null,
+    visibleCols.includes("rating") ? "84px" : null, // score anchors the right
+  ].filter(Boolean).join(" "), [visibleCols]);
+
   if (loading) return <LoadingSpinner className="pt-24" />;
   if (error) return <p className="p-4 text-red-400">Error: {error}</p>;
 
@@ -226,9 +246,9 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
             Click any name for the full breakdown.
           </p>
 
-          {/* Stats strip */}
+          {/* Stats strip: 2x2 on phones, one row from sm up */}
           {coasters.length > 0 && (
-            <div className="flex flex-wrap gap-6 mt-8">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:flex sm:flex-wrap sm:gap-6 mt-8">
               {[
                 { label: "Coasters rated", value: coasters.length.toLocaleString() },
                 { label: "Parks visited", value: new Set(coasters.map(c => c.parkId)).size.toLocaleString() },
@@ -273,145 +293,210 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex flex-wrap justify-center gap-1.5 flex-1">
-            {ALL_COLUMNS.map(({ key, label }) => {
-              const on = colOn(key);
-              return (
-                <button
-                  key={key}
-                  onClick={() => toggleCol(key)}
-                  aria-pressed={on}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${on
-                    ? "bg-brand/10 border-brand/40 text-brand/80"
-                    : "bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300"
-                    }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${on ? "bg-brand" : "bg-slate-600"}`} />
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+        {/* detail toggles: which extras show on each row */}
+        <div className="hidden sm:flex flex-wrap justify-center gap-1.5">
+          {ALL_COLUMNS.map(({ key, label }) => {
+            const on = colOn(key);
+            return (
+              <button
+                key={key}
+                onClick={() => toggleCol(key)}
+                aria-pressed={on}
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${on
+                  ? "bg-brand/10 border-brand/40 text-brand/80"
+                  : "bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300"
+                  }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${on ? "bg-brand" : "bg-slate-600"}`} />
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* ── Table ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-        <div className="rounded-2xl border border-slate-700 bg-slate-800/60 overflow-x-auto">
-          {/* FIX 1: Changed w-full to w-max min-w-full so the table can exceed screen width and scroll */}
-          <table className="w-max min-w-full table-fixed text-sm text-left">
-            <thead className="sticky top-0 z-20">
-              <tr className="bg-slate-900 text-[11px] uppercase text-slate-400 border-b border-slate-800">
-                {/* FIX 2: Switched to solid bg-slate-900 and bumped z-index */}
-                <th className="sticky left-0 z-[22] bg-slate-900 text-center font-semibold" style={{ width: INDEX_W }}>#</th>
-                <ThSort label="Name" active={sortBy === "name"} dir={sortDir} onClick={() => handleSort("name")} sticky style={{ left: INDEX_W, width: NAME_W_D }} />
+      {/* ── Leaderboard: aligned columns, list skin, score anchored right ── */}
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 pb-12">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/40">
+          {/* header: real aligned column labels on desktop, sort pills on mobile */}
+          <div className="sticky top-0 z-20 rounded-t-2xl bg-slate-900/95 backdrop-blur border-b border-slate-800">
+            <div
+              className="hidden md:grid items-center gap-x-4 px-5 py-2.5 text-[11px] uppercase tracking-wider font-semibold text-slate-400"
+              style={{ gridTemplateColumns: gridTemplate }}
+            >
+              <span className="text-right text-slate-600">#</span>
+              <HeadSort label="Coaster" k="name" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+              {colOn("manufacturer") && <HeadSort label="Manufacturer" k="manufacturer" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />}
+              {colOn("parkName") && <HeadSort label="Park" k="parkName" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />}
+              {colOn("country") && <HeadSort label="Country" k="country" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />}
+              {colOn("year") && <HeadSort label="Year" k="year" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />}
+              {colOn("rideCount") && <HeadSort label="Rides" k="rideCount" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />}
+              {colOn("lastVisitDate") && <HeadSort label="Last ridden" k="lastVisitDate" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />}
+              {colOn("rating") && <HeadSort label="Score" k="rating" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} right />}
+            </div>
+            {/* mobile: the lens — picking a stat sorts by it AND makes it the row value */}
+            <div className="md:hidden px-2 py-2">
+              <div className="flex rounded-full bg-slate-800/80 border border-slate-700/60 p-1">
+                {LENSES.map((l) => {
+                  const active = sortBy === l.key;
+                  return (
+                    <button
+                      key={l.key}
+                      onClick={() => handleSort(l.key)}
+                      className={`flex-1 py-1.5 rounded-full text-[10.5px] font-black uppercase tracking-wide transition cursor-pointer ${active ? "bg-brand text-slate-950" : "text-slate-400"}`}
+                    >
+                      {l.label}
+                      {active && <span className="ml-0.5">{sortDir === "asc" ? "↑" : "↓"}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
 
-                {ALL_COLUMNS.map(({ key, label }) => colOn(key) ? (
-                  <ThSort
-                    key={key}
-                    label={label}
-                    active={sortBy === key}
-                    dir={sortDir}
-                    onClick={() => handleSort(key)}
-                    style={{ width: COL_MIN_W[key] }}
-                  />
-                ) : null)}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {sorted.map((c, i) => (
-                <tr key={c.id} className="group hover:bg-slate-700/30 transition-colors">
-                  {/* FIX 4: Applied solid backgrounds (bg-slate-900) to the sticky cells so text doesn't bleed through */}
-                  <td className="sticky left-0 z-[11] bg-slate-900 group-hover:bg-slate-800 text-center text-slate-500 text-xs font-medium transition-colors" style={{ width: INDEX_W }}>
+          {/* ranked list: ol keeps the ranking semantic for crawlers */}
+          <ol className="divide-y divide-slate-800/60">
+            {sorted.map((c, i) => (
+              <li key={c.id} className="group hover:bg-slate-800/40 transition-colors last:rounded-b-2xl">
+                <div
+                  className="flex items-center gap-2.5 px-3 py-2 md:grid md:gap-x-4 md:px-5 md:py-2.5"
+                  style={{ gridTemplateColumns: gridTemplate }}
+                >
+                  {/* rank */}
+                  <span className={`w-7 md:w-auto shrink-0 text-right tabular-nums text-sm ${rankClass(i)}`}>
                     {i + 1}
-                  </td>
-                  <td className="sticky z-[11] bg-slate-900 group-hover:bg-slate-800 py-0 pr-6 font-semibold text-slate-100 whitespace-nowrap overflow-hidden text-ellipsis transition-colors" style={{ left: INDEX_W, width: NAME_W_D, height: ROW_H }}>
-                    <Link href={`/coasters/${c.slug}`} className="hover:text-brand transition-colors hover:underline">
+                  </span>
+
+                  {/* name (+ mobile-only subline): truncate so long names never blow up the row */}
+                  <div className="min-w-0 flex-1 md:flex-none">
+                    <Link
+                      href={`/coasters/${c.slug}`}
+                      className="block truncate text-[14px] sm:text-[15px] font-semibold text-slate-100 group-hover:text-brand-light hover:text-brand transition-colors"
+                    >
                       {c.name}
                     </Link>
-                  </td>
-                  {colOn("rating") && (
-                    <td className="px-4" style={{ height: ROW_H }}><RatingBadge rating={c.rating} /></td>
-                  )}
-                  {colOn("manufacturer") && (
-                    <td className="px-4 whitespace-nowrap text-slate-300" style={{ height: ROW_H }}>
-                      {/* FIX: Now correctly uses the mapped 'manufacturer' property which holds the string name */}
-                      <button onClick={() => setQuery?.(c.manufacturer)} className="hover:text-brand hover:underline cursor-pointer transition-colors">
-                        {c.manufacturer}
-                      </button>
-                    </td>
-                  )}
-                  {colOn("parkName") && (
-                    <td className="px-4 whitespace-nowrap" style={{ height: ROW_H }}>
-                      <Link href={`/park/${c.parkId}`} className="text-slate-300 hover:text-brand hover:underline transition-colors">
+                    <div className="md:hidden truncate text-[11px] text-slate-500">
+                      <Link href={`/park/${c.parkId}`} className="hover:text-brand transition-colors">
                         {c.parkName}
                       </Link>
-                    </td>
+                      {colOn("country") && (
+                        <>
+                          {" · "}
+                          <button onClick={() => setQuery?.(c.country)} className="hover:text-brand transition-colors cursor-pointer">
+                            {c.country}
+                          </button>
+                        </>
+                      )}
+                      {" · "}
+                      <span className="text-slate-400">{c.manufacturer}</span>
+                    </div>
+                  </div>
+
+                  {/* aligned data columns, desktop only */}
+                  {colOn("manufacturer") && (
+                    <button
+                      onClick={() => setQuery?.(c.manufacturer)}
+                      className="hidden md:block truncate text-left text-[13px] text-slate-300 hover:text-brand-light transition cursor-pointer"
+                    >
+                      {c.manufacturer}
+                    </button>
+                  )}
+                  {colOn("parkName") && (
+                    <Link
+                      href={`/park/${c.parkId}`}
+                      className="hidden md:block truncate text-[13px] text-slate-300 hover:text-brand-light transition-colors"
+                    >
+                      {c.parkName}
+                    </Link>
                   )}
                   {colOn("country") && (
-                    <td className="px-4 whitespace-nowrap" style={{ height: ROW_H }}>
-                      <button onClick={() => setQuery?.(c.country)} className="text-slate-300 hover:text-brand hover:underline transition-colors cursor-pointer">
-                        {c.country}
-                      </button>
-                    </td>
+                    <button
+                      onClick={() => setQuery?.(c.country)}
+                      className="hidden md:block truncate text-left text-[13px] text-slate-400 hover:text-brand-light transition cursor-pointer"
+                    >
+                      {c.country}
+                    </button>
                   )}
                   {colOn("year") && (
-                    <td className="px-4 whitespace-nowrap text-slate-400" style={{ height: ROW_H }}>{c.year || "—"}</td>
+                    <span className="hidden md:block text-[13px] text-slate-400 tabular-nums">{c.year || "—"}</span>
                   )}
                   {colOn("rideCount") && (
-                    <td className="px-4 whitespace-nowrap text-slate-300" style={{ height: ROW_H }}>
-                      <div className="flex items-baseline gap-1">
-                        <span>{c.rideCount}</span>
-                      </div>
-                    </td>
+                    <span className="hidden md:block text-[13px] text-slate-300 tabular-nums">{c.rideCount}</span>
                   )}
                   {colOn("lastVisitDate") && (
-                    <td className="px-4 whitespace-nowrap text-slate-400 text-xs" style={{ height: ROW_H }}>{formatDate(c.lastVisitDate)}</td>
+                    <span className="hidden md:block text-[13px] text-slate-400 tabular-nums">{formatDate(c.lastVisitDate)}</span>
                   )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+                  {/* desktop: score anchors the right */}
+                  {colOn("rating") && (
+                    <div className={`hidden md:block text-right ${c.rating != null ? getRatingColor(c.rating) : "text-slate-600"}`}>
+                      <div className="text-lg font-black tabular-nums leading-tight">
+                        {c.rating != null ? c.rating.toFixed(1) : "—"}
+                      </div>
+                      {c.rating != null && (
+                        <div className="h-[3px] mt-0.5 rounded-full bg-slate-700/60 overflow-hidden">
+                          <div className="h-full bg-current rounded-full" style={{ width: `${Math.min(100, c.rating * 10)}%` }} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* mobile: the active lens is the row value; score rides along small */}
+                  <div className="md:hidden shrink-0 text-right max-w-[120px]">
+                    {sortBy === "rating" || !LENSES.some((l) => l.key === sortBy) ? (
+                      <div className={`w-12 ml-auto ${c.rating != null ? getRatingColor(c.rating) : "text-slate-600"}`}>
+                        <div className="text-[15px] font-black tabular-nums leading-tight">
+                          {c.rating != null ? c.rating.toFixed(1) : "—"}
+                        </div>
+                        {c.rating != null && (
+                          <div className="h-[3px] mt-0.5 rounded-full bg-slate-700/60 overflow-hidden">
+                            <div className="h-full bg-current rounded-full" style={{ width: `${Math.min(100, c.rating * 10)}%` }} />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-[14px] font-black text-slate-100 tabular-nums truncate leading-tight">
+                          {sortBy === "year"
+                            ? c.year || "—"
+                            : sortBy === "rideCount"
+                              ? `${c.rideCount} ${c.rideCount === 1 ? "ride" : "rides"}`
+                              : formatDate(c.lastVisitDate)}
+                        </div>
+                        <div className={`text-[11px] font-bold tabular-nums ${c.rating != null ? getRatingColor(c.rating) : "text-slate-600"}`}>
+                          {c.rating != null ? c.rating.toFixed(1) : "—"}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
         </div>
       </div>
     </div>
   );
 }
 
-function RatingBadge({ rating }: { rating: number | null }) {
-  if (rating == null) return <span className="text-slate-600">—</span>;
-  return (
-    <span className={`inline-block tabular-nums font-bold text-sm ${getRatingColor(rating)}`}>
-      {rating.toFixed(1)}
-    </span>
-  );
-}
-
-function ThSort({ label, active, dir, onClick, sticky, style }: ThSortProps) {
-  return (
-    <th
-      scope="col"
-      onClick={onClick}
-      className={`px-4 py-3 select-none font-semibold cursor-pointer hover:text-white transition-colors ${active ? "text-brand" : "text-slate-300"
-        } ${sticky ? "sticky z-[22] bg-slate-900" : ""}`}
-      style={style}
-    >
-      <span className="inline-flex items-center gap-1">
-        {label}
-        {active && <span className="ml-1">{dir === "asc" ? "↑" : "↓"}</span>}
-      </span>
-    </th>
-  );
-}
-
-interface ThSortProps {
+function HeadSort({ label, k, sortBy, sortDir, onSort, right }: {
   label: string;
-  active: boolean;
-  dir: "asc" | "desc";
-  onClick: () => void;
-  sticky?: boolean;
-  style?: React.CSSProperties;
+  k: ColumnKey | "name";
+  sortBy: ColumnKey | "name";
+  sortDir: "asc" | "desc";
+  onSort: (k: ColumnKey | "name") => void;
+  right?: boolean;
+}) {
+  const active = sortBy === k;
+  return (
+    <button
+      onClick={() => onSort(k)}
+      className={`select-none cursor-pointer uppercase tracking-wider font-semibold transition-colors ${right ? "text-right" : "text-left"} ${active ? "text-brand" : "text-slate-400 hover:text-slate-200"}`}
+    >
+      {label}
+      {active && <span className="ml-1">{sortDir === "asc" ? "↑" : "↓"}</span>}
+    </button>
+  );
 }
 
 export default function CoasterRatingsPage({ initialCoasters }: { initialCoasters?: any[] }) {
