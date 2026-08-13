@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getTodayString } from "@/app/utils/coastle";
 import type { GameStats } from "@/app/types";
@@ -121,23 +122,23 @@ function IconRankle() {
 function StatsRow({
   stats,
   dailyDone,
+  href,
 }: {
   stats: GameStats | null;
   dailyDone: boolean | null;
+  href: string;
 }) {
   const played = stats?.played ?? null;
   const winPct =
     stats && stats.played > 0 ? Math.round((stats.won / stats.played) * 100) : null;
   const streak = stats?.currentStreak ?? null;
+  const router = useRouter();
 
   const items = [
     { label: "Streak", value: streak },
     { label: "Played", value: played },
     { label: "Win %", value: winPct },
   ];
-
-  const dailyText =
-    dailyDone === null ? "Daily available" : dailyDone ? "Daily done ✅" : "Daily available";
 
   return (
     <div className="mt-3 w-full flex flex-col items-center">
@@ -154,8 +155,26 @@ function StatsRow({
         ))}
       </div>
 
-      <div className="mt-2 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-slate-400">
-        {dailyText}
+      <div className="mt-4">
+        {dailyDone ? (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              router.push(`${href}?results=true`);
+            }}
+            className="px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-colors flex items-center justify-center gap-1.5 cursor-pointer relative z-10"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+              <path fillRule="evenodd" d="M8.603 3.799A4.49 4.49 0 0 1 12 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 0 1 3.498 1.307 4.491 4.491 0 0 1 1.307 3.497A4.49 4.49 0 0 1 21.75 12a4.49 4.49 0 0 1-1.549 3.397 4.491 4.491 0 0 1-1.307 3.497 4.491 4.491 0 0 1-3.497 1.307A4.49 4.49 0 0 1 12 21.75a4.49 4.49 0 0 1-3.397-1.549 4.49 4.49 0 0 1-3.498-1.306 4.491 4.491 0 0 1-1.307-3.498A4.49 4.49 0 0 1 2.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 0 1 1.307-3.497 4.49 4.49 0 0 1 3.497-1.307Zm7.007 6.387a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
+            </svg>
+            Results
+          </button>
+        ) : (
+          <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-slate-400">
+            Daily available
+          </div>
+        )}
       </div>
     </div>
   );
@@ -178,8 +197,17 @@ function ModeButton({
   icon: React.ReactNode;
   showStats: boolean;
 }) {
+  const router = useRouter();
+
   return (
-    <Link href={href} aria-label={label} className="group w-full min-w-0 cursor-pointer focus:outline-none">
+    <div
+      onClick={() => router.push(href)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter') router.push(href); }}
+      aria-label={label}
+      className="group w-full min-w-0 cursor-pointer focus:outline-none"
+    >
       <div className="flex flex-col items-center justify-start py-4 sm:py-10 transition-transform duration-200 group-hover:scale-[1.05] group-active:scale-[0.99] origin-center">
         <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32">{icon}</div>
 
@@ -214,12 +242,11 @@ function ModeButton({
           </div>
         </div>
 
-        {/* stats hidden on phones unless toggled, always visible from sm up */}
         <div className={showStats ? "block w-full" : "hidden sm:block w-full"}>
-          <StatsRow stats={stats} dailyDone={dailyDone} />
+          <StatsRow stats={stats} dailyDone={dailyDone} href={href} />
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -244,16 +271,24 @@ export default function GamesLauncherPage() {
     // Zoomle has no cumulative stats yet — future feature
     setConnectionsStats(safeParseStats(localStorage.getItem("connections-stats")));
 
+
+    // Fix: Check for both the new and legacy daily state keys
+    const stdDaily =
+      safeParseDaily(localStorage.getItem("coastle-daily-state")) ??
+      safeParseDaily(localStorage.getItem("coastle-standard-daily-state"));
+
+    // Inside the useEffect in games/page.tsx
     const today = getTodayString();
 
-    const stdDaily = safeParseDaily(localStorage.getItem("coastle-standard-daily-state"));
+    // Add the admin suffix check here:
+    const connectionsKey = isAdminMode ? `connections-${today}-admin` : `connections-${today}`;
+    const connectionsDaily = safeParseConnectionsState(
+      localStorage.getItem(connectionsKey)
+    );
+
     const today2 = getTodayString();
     const zoomleRaw = localStorage.getItem(`zoomle-${today2}`);
     const zoomleState = zoomleRaw ? JSON.parse(zoomleRaw) : null;
-
-    const connectionsDaily = safeParseConnectionsState(
-      localStorage.getItem(`connections-${today}`)
-    );
 
     setStandardDailyDone(
       stdDaily ? stdDaily.date === today && stdDaily.status !== "playing" : false

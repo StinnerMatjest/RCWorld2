@@ -317,7 +317,7 @@ function buildDynamicCategories(coasters: ConnectionsCoaster[]): CategoryDefinit
         )
     )
   )
-  
+
 
   // track type
   for (const trackType of uniqueValues(
@@ -873,27 +873,34 @@ function buildDynamicCategories(coasters: ConnectionsCoaster[]): CategoryDefinit
         id: "animal-names",
         label: "Animal-related coaster names",
         keywords: [
-          "wolf",
-          "ulven",
-          "kat",
-          "cat",
-          "dog",
-          "hunde",
-          "camel",
-          "kamel",
-          "bat",
-          "flagermus",
-          "boar",
-          "svin",
-          "falcon",
-          "falk",
-          "hedgehog",
-          "pindsvin",
-          "mamba",
-          "vampire",
-          "bee",
-          "dragon",
+          "wolf", "ulven", "kat", "cat", "dog", "hunde", "camel", "kamel",
+          "bat", "flagermus", "boar", "svin", "falcon", "falk", "hedgehog",
+          "pindsvin", "mamba", "vampire", "bee", "dragon", "mus", "mouse", "orm", "schlange", "snake", "eagle", "ørn", "bear", "bjørn"
         ],
+        difficulty: "purple",
+      },
+      {
+        id: "metal-names",
+        label: "Named after metals",
+        keywords: ["gold", "guld", "silver", "sølv", "iron", "jern", "steel", "stål", "copper", "kobber"],
+        difficulty: "purple",
+      },
+      {
+        id: "wild-names",
+        label: 'Names containing "Wild" or "Crazy"',
+        keywords: ["wild", "vilde", "vild", "crazy", "mad", "gal"],
+        difficulty: "purple",
+      },
+      {
+        id: "water-names",
+        label: "Water / Aquatic themed names",
+        keywords: ["water", "vand", "aqua", "splash", "wave", "sea", "ocean", "surf", "poseidon", "atlantis"],
+        difficulty: "purple",
+      },
+      {
+        id: "flight-names",
+        label: "Flight / Aviation themed names",
+        keywords: ["flight", "fly", "aero", "jet", "air", "sky", "glider", "pilot"],
         difficulty: "purple",
       },
       {

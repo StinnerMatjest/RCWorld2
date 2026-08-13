@@ -20,7 +20,7 @@ type Coaster = {
 };
 
 type PhotoRound = { image: string; focus: string; focal_index: number; answer: Coaster; options: Coaster[] };
-type DailyState = { date: string; scores: (number | null)[]; done: boolean };
+type DailyState = { date: string; scores: (number | null)[]; done: boolean; results?: RoundResult[] };
 type RoundResult = {
   image: string; focus: string; focal_index: number;
   answer: Coaster; guessedId: number | null; guessedCoaster: Coaster | null; pts: number | null;
@@ -36,7 +36,7 @@ function getTodayStr() {
 function buildShareText(date: string, scores: (number | null)[], maxScore: number): string {
   const total = scores.reduce<number>((s, p) => s + (p ?? 0), 0);
   const lines = scores.map((p, i) => {
-    const sq = p === null ? "⬛" : p >= 5 ? "🟩" : p >= 4 ? "🟨" : p >= 3 ? "🟧" : "🟥";
+    const sq = p === null ? "⬛" : p >= 9 ? "🟩" : p >= 6 ? "🟨" : p >= 3 ? "🟧" : "🟥";
     return `${sq} Round ${i + 1}: ${p !== null ? `+${p} pts` : "0 pts"}`;
   });
   return [
@@ -58,11 +58,16 @@ const OPTION_INITIAL_DELAY = 600;  // pause before first option appears
 const POST_OPTIONS_PAUSE = 4500; // study time after all options visible
 
 const POINT_BRACKETS = [
-  { threshold: 0.22, points: 5, label: "INCREDIBLE! 🔥" },  // 0-4.4s
-  { threshold: 0.45, points: 4, label: "Sharp eye! 👁️" },  // 4.4-9s
-  { threshold: 0.65, points: 3, label: "Nice one! 🎢" },  // 9-13s
-  { threshold: 0.82, points: 2, label: "Getting there!" },  // 13-16.4s
-  { threshold: 1.00, points: 1, label: "Close enough!" },  // 16.4-20s
+  { threshold: 0.10, points: 10, label: "GODLIKE! 👑" },      // 0-2s
+  { threshold: 0.20, points: 9, label: "INCREDIBLE! 🔥" },    // 2-4s
+  { threshold: 0.30, points: 8, label: "Amazing! ⚡" },        // 4-6s
+  { threshold: 0.40, points: 7, label: "Sharp eye! 👁️" },       // 6-8s
+  { threshold: 0.50, points: 6, label: "Great spot! 🎯" },    // 8-10s
+  { threshold: 0.60, points: 5, label: "Nice one! 🎢" },      // 10-12s
+  { threshold: 0.70, points: 4, label: "Good catch! 👏" },    // 12-14s
+  { threshold: 0.80, points: 3, label: "Getting there!" },    // 14-16s
+  { threshold: 0.90, points: 2, label: "Cutting it close!" }, // 16-18s
+  { threshold: 1.00, points: 1, label: "Just in time!" },     // 18-20s
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -206,13 +211,30 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
   }, [dailyRounds]);
 
   const buildRounds = useCallback(() => {
-    // Use pre-built daily rounds from the server
+    // Restore from local storage if done so clicking "Results" from launcher jumps right to results
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY(dailyDate));
+      if (saved) {
+        const state = JSON.parse(saved);
+        if (state.done && state.results) {
+          setRounds(dailyRounds);
+          setDailyScores(state.scores);
+          setRoundResults(state.results);
+          setScore(state.scores.reduce((s: number, p: number | null) => s + (p ?? 0), 0));
+          setDone(true);
+          setStarted(true); // Skip straight to results
+          return;
+        }
+      }
+    } catch { }
+
+    // Original init
     setRounds(dailyRounds);
     setRound(0); setGuessedId(null); setVisibleCount(0);
     setScore(0); setDone(false); setPointsEarned(null); setPhase("intro"); setPaused(false);
-    setSecsLeft(REVEAL_DURATION); setPtsAvail(5); setDailyScores([]); setRoundResults([]); setIntroSecs(null);
+    setSecsLeft(REVEAL_DURATION); setPtsAvail(10); setDailyScores([]); setRoundResults([]); setIntroSecs(null);
     progressRef.current = 0;
-  }, [dailyRounds]);
+  }, [dailyRounds, dailyDate]);
 
   useEffect(() => { if (dailyRounds.length > 0) buildRounds(); }, [dailyRounds.length]);
 
@@ -315,10 +337,10 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
     if (!done) return;
     showNav();
     if (dailyDate) {
-      const state: DailyState = { date: dailyDate, scores: dailyScores, done: true };
+      const state: DailyState = { date: dailyDate, scores: dailyScores, done: true, results: roundResults };
       try { localStorage.setItem(STORAGE_KEY(dailyDate), JSON.stringify(state)); } catch { }
     }
-  }, [done]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [done, dailyDate, dailyScores, roundResults]);
 
   function handleGuess(coasterId: number) {
     if (phase !== "playing" || guessedId !== null) return;
@@ -355,7 +377,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
       setTimeout(() => {
         if (round + 1 >= rounds.length) { setDone(true); return; }
         setRound(r => r + 1); setGuessedId(null); setPointsEarned(null); setPhase("intro");
-        setSecsLeft(REVEAL_DURATION); setPtsAvail(5); progressRef.current = 0;
+        setSecsLeft(REVEAL_DURATION); setPtsAvail(10); progressRef.current = 0;
       }, 550);
     }, 3200);
   }
@@ -429,7 +451,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
   );
 
 
-  const maxScore = rounds.length * 5;
+  const maxScore = rounds.length * 10;
 
   if (done) return (
     <div className={`flex flex-col gap-0 ${isMobile ? "bg-[#0f172a] px-4 pt-8 pb-12" : "w-full py-6"}`}>
@@ -476,8 +498,9 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
               </div>
               {/* Score — plain coloured text, no box */}
               <p className={`flex-shrink-0 text-2xl font-black tabular-nums ${r.pts === null ? "text-rose-400"
-                  : r.pts >= 4 ? "text-amber-400"
-                    : "text-emerald-400"
+                : r.pts >= 8 ? "text-emerald-400"
+                  : r.pts >= 5 ? "text-amber-400"
+                    : "text-orange-400"
                 }`}>
                 {r.pts === null ? "0" : `+${r.pts}`}
               </p>
@@ -616,7 +639,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
           </div>
           <motion.div key={`pts-${round}-${ptsAvail}`} initial={{ scale: 1.3 }} animate={{ scale: 1 }}
             className="flex-shrink-0 flex flex-col items-center leading-none">
-            <span className={`text-xl font-black tabular-nums ${ptsAvail >= 4 ? "text-amber-500" : "text-slate-500"}`}>{ptsAvail}</span>
+            <span className={`text-xl font-black tabular-nums ${ptsAvail >= 8 ? "text-emerald-400" : ptsAvail >= 5 ? "text-amber-400" : "text-slate-500"}`}>{ptsAvail}</span>
             <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">pts</span>
           </motion.div>
           <button onClick={paused ? handleResume : handlePause}
@@ -765,7 +788,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
         </div>
         <motion.div key={`pts-${round}-${ptsAvail}`} initial={{ scale: 1.3 }} animate={{ scale: 1 }}
           className="flex-shrink-0 flex flex-col items-center leading-none">
-          <span className={`text-xl font-black tabular-nums ${ptsAvail >= 4 ? "text-amber-400" : "text-slate-500"}`}>{ptsAvail}</span>
+          <span className={`text-xl font-black tabular-nums ${ptsAvail >= 8 ? "text-emerald-400" : ptsAvail >= 5 ? "text-amber-400" : "text-slate-500"}`}>{ptsAvail}</span>
           <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wide">pts</span>
         </motion.div>
         <button onClick={paused ? handleResume : handlePause}

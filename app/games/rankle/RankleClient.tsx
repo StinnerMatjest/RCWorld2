@@ -40,7 +40,7 @@ function copyText(text: string) {
       ta.select();
       document.execCommand("copy");
       ta.remove();
-    } catch {}
+    } catch { }
   };
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(text).catch(legacy);
@@ -123,25 +123,39 @@ type AllInOutcome = {
 // ─── Game config ─────────────────────────────────────────────────────────────
 
 const METRICS: Metric[] = [
-  { key: "speed", em: "⚡", name: "Top speed", unit: " km/h", get: (c) => c.specs?.speed ?? null,
+  {
+    key: "speed", em: "⚡", name: "Top speed", unit: " mph", get: (c) => c.specs?.speed ?? null,
     qHigh: "Which coaster is <hl>faster</hl>?", qLow: "Which coaster is <hl>slower</hl>?",
-    qExact: "Which coaster tops out at exactly <hl>{v}</hl>?" },
-  { key: "height", em: "🗼", name: "Height", unit: " m", get: (c) => c.specs?.height ?? null,
+    qExact: "Which coaster tops out at exactly <hl>{v}</hl>?"
+  },
+  {
+    key: "height", em: "🗼", name: "Height", unit: " ft", get: (c) => c.specs?.height ?? null,
     qHigh: "Which coaster is <hl>taller</hl>?", qLow: "Which coaster is <hl>shorter</hl>?",
-    qExact: "Which coaster is exactly <hl>{v}</hl> tall?" },
-  { key: "length", em: "📏", name: "Track length", unit: " m", get: (c) => c.specs?.length ?? null,
+    qExact: "Which coaster is exactly <hl>{v}</hl> tall?"
+  },
+  {
+    key: "length", em: "📏", name: "Track length", unit: " ft", get: (c) => c.specs?.length ?? null,
     qHigh: "Which coaster has the <hl>longer track</hl>?", qLow: "Which has the <hl>shorter track</hl>?",
-    qExact: "Which track is exactly <hl>{v}</hl> long?" },
-  { key: "drop", em: "⛰️", name: "Drop", unit: " m", get: (c) => c.specs?.drop ?? null,
+    qExact: "Which track is exactly <hl>{v}</hl> long?"
+  },
+  {
+    key: "drop", em: "⛰️", name: "Drop", unit: " ft", get: (c) => c.specs?.drop ?? null,
     qHigh: "Which coaster has the <hl>bigger drop</hl>?", qLow: "Which has the <hl>smaller drop</hl>?",
-    qExact: "Which coaster drops exactly <hl>{v}</hl>?" },
-  { key: "inversions", em: "🌀", name: "Inversions", unit: "", get: (c) => c.specs?.inversions ?? null,
-    qHigh: "Which coaster has <hl>more inversions</hl>?", qLow: "Which has <hl>fewer inversions</hl>?" },
-  { key: "year", em: "📅", name: "Year", unit: "", get: (c) => c.year,
+    qExact: "Which coaster drops exactly <hl>{v}</hl>?"
+  },
+  {
+    key: "inversions", em: "🌀", name: "Inversions", unit: "", get: (c) => c.specs?.inversions ?? null,
+    qHigh: "Which coaster has <hl>more inversions</hl>?", qLow: "Which has <hl>fewer inversions</hl>?"
+  },
+  {
+    key: "year", em: "📅", name: "Year", unit: "", get: (c) => c.year,
     qHigh: "Which coaster is <hl>newer</hl>?", qLow: "Which coaster was <hl>built first</hl>?",
-    qExact: "Which coaster opened exactly in <hl>{v}</hl>?" },
-  { key: "rating", em: "⭐", name: "Our rating", unit: "/10", get: (c) => c.rating,
-    qHigh: "Which coaster did <hl>we rate higher</hl>?", qLow: "Which did <hl>we rate lower</hl>?" },
+    qExact: "Which coaster opened exactly in <hl>{v}</hl>?"
+  },
+  {
+    key: "rating", em: "⭐", name: "Our rating", unit: "/10", get: (c) => c.rating,
+    qHigh: "Which coaster did <hl>we rate higher</hl>?", qLow: "Which did <hl>we rate lower</hl>?"
+  },
 ];
 
 // five tiers, one per round; the finale asks for an EXACT value
@@ -263,9 +277,8 @@ function BankTween({ value }: { value: number }) {
   }, [value]);
   return (
     <b
-      className={`text-base inline-block transition-all duration-300 ${
-        dir === 1 ? "text-green-400 scale-125" : dir === -1 ? "text-red-400 scale-125" : "text-brand-light"
-      }`}
+      className={`text-base inline-block transition-all duration-300 ${dir === 1 ? "text-green-400 scale-125" : dir === -1 ? "text-red-400 scale-125" : "text-brand-light"
+        }`}
     >
       {shown}
     </b>
@@ -274,19 +287,23 @@ function BankTween({ value }: { value: number }) {
 
 function CountUpVal({ value, unit }: { value: number; unit: string }) {
   const [shown, setShown] = useState(0);
+
   useEffect(() => {
     const t0 = performance.now();
     const dur = 850;
     let raf: number;
     const step = (t: number) => {
       const p = Math.min(1, (t - t0) / dur);
+      // Removed the extra closing parenthesis here!
       setShown(value * (1 - Math.pow(1 - p, 3)));
       if (p < 1) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
   }, [value]);
+
   const isYearLike = Number.isInteger(value) && value > 1800 && value < 2100 && unit === "";
+
   return (
     <span>
       {Number.isInteger(value)
@@ -341,6 +358,7 @@ function burstFrom(el: HTMLElement) {
 // ─── Main component ──────────────────────────────────────────────────────────
 
 export default function RankleClient() {
+  const [gameMode, setGameMode] = useState<"daily" | "endless">("daily");
   const [phase, setPhase] = useState<Phase>("loading");
   const [pool, setPool] = useState<ApiCoaster[]>([]);
   const [bank, setBank] = useState(START_BANK);
@@ -363,6 +381,7 @@ export default function RankleClient() {
   const rngRef = useRef<() => number>(Math.random);
   const savedRef = useRef(false);
   const allInRef = useRef<AllInOutcome | null>(null);
+  const usedAnswersRef = useRef<Set<string>>(new Set());
 
   const stripRef = useRef<HTMLDivElement>(null);
   const roundDataRef = useRef<Round | null>(null);
@@ -400,9 +419,13 @@ export default function RankleClient() {
           roundLogRef.current = Array.isArray(s.log) ? s.log : [];
           allInRef.current = s.allIn ?? null;
           savedRef.current = true;
+
+          if (window.location.search.includes("results=true")) {
+            setTimeout(() => setShowResult(true), 150);
+          }
         }
       }
-    } catch {}
+    } catch { }
 
     const num = (v: unknown): number | null => (v == null || v === "" ? null : Number(v));
     fetch("/api/coasters")
@@ -417,12 +440,12 @@ export default function RankleClient() {
           rating: num(c.rating),
           specs: c.specs
             ? {
-                height: num(c.specs.height),
-                speed: num(c.specs.speed),
-                length: num(c.specs.length),
-                drop: num(c.specs.drop),
-                inversions: num(c.specs.inversions),
-              }
+              height: num(c.specs.height),
+              speed: num(c.specs.speed),
+              length: num(c.specs.length),
+              drop: num(c.specs.drop),
+              inversions: num(c.specs.inversions),
+            }
             : null,
         }));
         setPool(
@@ -465,6 +488,7 @@ export default function RankleClient() {
       }
       if (!metricSet.length || pool.length < 6) return null;
       const rng = rngRef.current;
+
       for (let t = 0; t < 3000; t++) {
         const m = metricSet[Math.floor(rng() * metricSet.length)];
         const a = pool[Math.floor(rng() * pool.length)];
@@ -472,18 +496,36 @@ export default function RankleClient() {
         if (a.id === b.id || a.parkName === b.parkName) continue;
         const va = m.get(a), vb = m.get(b);
         if (va == null || vb == null || va === vb) continue;
+
+        let mode: RoundMode;
+        let exactVal: number | undefined;
+        let correctId: number;
+
         if (tier.exact) {
-          // the two candidates must be NEIGHBOURS (62 vs 61, not 62 vs 30) —
-          // otherwise the named value gives the answer away
+          // the two candidates must be NEIGHBOURS (62 vs 61, not 62 vs 30)
           if (["speed", "height", "length", "drop"].includes(m.key)) {
             const rel = Math.abs(va - vb) / Math.max(va, vb);
             if (rel < 0.004 || rel > 0.1) continue;
           }
           if (m.key === "year" && Math.abs(va - vb) > 3) continue;
-          return { m, a, b, va, vb, mode: "exact" as const, exactVal: rng() < 0.5 ? va : vb, tier };
+
+          mode = "exact";
+          exactVal = rng() < 0.5 ? va : vb;
+          correctId = exactVal === va ? a.id : b.id;
+        } else {
+          if (!gapOk(m, va, vb, tier)) continue;
+
+          mode = (rng() < 0.4 ? "lower" : "higher") as RoundMode;
+          correctId = mode === "lower"
+            ? (va < vb ? a.id : b.id)
+            : (va > vb ? a.id : b.id);
         }
-        if (!gapOk(m, va, vb, tier)) continue;
-        return { m, a, b, va, vb, mode: (rng() < 0.4 ? "lower" : "higher") as RoundMode, tier };
+
+        // Prevent identical correct stat pairs from reappearing in the same game
+        const ansKey = `${correctId}-${m.key}`;
+        if (usedAnswersRef.current.has(ansKey)) continue;
+
+        return { m, a, b, va, vb, mode, exactVal, tier };
       }
       return null;
     },
@@ -595,6 +637,15 @@ export default function RankleClient() {
     const full = await promise;
     if (!full) { setPhase("error"); return; }
     metricCountRef.current[full.m.key] = (metricCountRef.current[full.m.key] || 0) + 1;
+
+    // Register the correct answer to prevent future duplicates in the game
+    const correctId = full.mode === "exact"
+      ? (full.va === full.exactVal ? full.a.id : full.b.id)
+      : full.mode === "lower"
+        ? (full.va < full.vb ? full.a.id : full.b.id)
+        : (full.va > full.vb ? full.a.id : full.b.id);
+    usedAnswersRef.current.add(`${correctId}-${full.m.key}`);
+
     roundDataRef.current = full;
     spinLockRef.current = false;
     setSpinLaunched(false);
@@ -603,7 +654,7 @@ export default function RankleClient() {
     setLastCorrect(null);
     rebaseStrip();          // invisible: same tile face, fresh travel room both ways
     setPhase("spin");       // cards fade in; the reel now waits for the player
-  }, [pickPair, fetchImage]);
+  }, [prepareRound]);
 
   const statusRowRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
@@ -627,6 +678,64 @@ export default function RankleClient() {
     setPhase("pick");
   };
 
+  const unlockBet = () => {
+    if (phase !== "pick") return;
+    setPhase("bet");
+  };
+
+  const switchMode = useCallback((mode: "daily" | "endless") => {
+    setGameMode(mode);
+    setFirstReady(false);
+
+    if (mode === "daily") {
+      rngRef.current = mulberry32(getUTCTodaySeed("rankle"));
+      const saved = localStorage.getItem(`rankle-${getTodayString()}`);
+      if (saved) {
+        try {
+          const s = JSON.parse(saved);
+          if (s?.done) {
+            setDailyDone(true);
+            setBank(s.bank ?? 0);
+            bankRef.current = s.bank ?? 0;
+            setHistory(Array.isArray(s.history) ? s.history : []);
+            historyRef.current = Array.isArray(s.history) ? s.history : [];
+            roundLogRef.current = Array.isArray(s.log) ? s.log : [];
+            allInRef.current = s.allIn ?? null;
+            savedRef.current = true;
+            setStarted(false);
+            return;
+          }
+        } catch { }
+      }
+    } else {
+      rngRef.current = Math.random;
+    }
+
+    bankRef.current = START_BANK;
+    roundRef.current = 1;
+    metricCountRef.current = {};
+    historyRef.current = [];
+    roundLogRef.current = [];
+    allInRef.current = null;
+    usedAnswersRef.current.clear();
+    pendingRoundRef.current = null;
+    savedRef.current = false;
+
+    setBank(START_BANK);
+    setRoundNo(1);
+    setHistory([]);
+    setRound(null);
+    roundDataRef.current = null;
+    setStarted(false);
+    setDailyDone(false);
+    setShowResult(false);
+    setPhase("loading");
+
+    const p = prepareRound();
+    pendingRoundRef.current = p;
+    p.then(() => setFirstReady(true));
+  }, [prepareRound]);
+
   const historyRef = useRef<boolean[]>([]);
   // per-round record for the share text: what was bet, at what multiplier, outcome
   const roundLogRef = useRef<{ bet: number; mult: number; win: boolean; delta: number }[]>([]);
@@ -637,7 +746,7 @@ export default function RankleClient() {
       const coastleDone = !!coastle && JSON.parse(coastle).status !== "playing";
       const conn = localStorage.getItem(`connections-${getTodayString()}`);
       const cp = conn ? JSON.parse(conn) : null;
-      const connDone = !!cp && (cp.playerSolvedCount === 4 || cp.mistakes >= 4);
+      const connDone = !!cp && ((cp.solved?.length ?? cp.playerSolvedCount ?? 0) >= 4 || (cp.mistakes ?? 0) >= 4);
       const zoomle = localStorage.getItem(`zoomle-${localYMD()}`);
       const zoomleDone = !!zoomle && JSON.parse(zoomle).done === true;
       return coastleDone && connDone && zoomleDone;
@@ -651,8 +760,11 @@ export default function RankleClient() {
     setShowResult(true);
     setDailyDone(true);
     setAllGamesPlayed(checkAllGamesPlayed());
-    if (savedRef.current) return;
+
+    // Only persist daily state and streak stats if in Daily mode
+    if (gameMode !== "daily" || savedRef.current) return;
     savedRef.current = true;
+
     try {
       const today = getTodayString();
       localStorage.setItem(
@@ -679,8 +791,8 @@ export default function RankleClient() {
       };
       localStorage.setItem("rankle-stats", JSON.stringify(next));
       setStats(next);
-    } catch {}
-  }, [checkAllGamesPlayed]);
+    } catch { }
+  }, [checkAllGamesPlayed, gameMode]);
 
   // the bonus round's line in share texts, e.g. "🟩 ALL IN: hit ×2 (480 → 960)"
   const allInShareRow = useCallback((): string => {
@@ -697,41 +809,50 @@ export default function RankleClient() {
     const log = roundLogRef.current;
     const rows = log.length
       ? log
-          .map(
-            (r, i) =>
-              `${r.win ? "🟩" : "🟥"} R${i + 1}: bet ${r.bet}${r.mult > 1 ? ` ×${r.mult}` : ""} → ${r.delta > 0 ? "+" : "−"}${Math.abs(r.delta)}`
-          )
-          .join("\n")
+        .map(
+          (r, i) =>
+            `${r.win ? "🟩" : "🟥"} R${i + 1}: bet ${r.bet}${r.mult > 1 ? ` ×${r.mult}` : ""} → ${r.delta > 0 ? "+" : "−"}${Math.abs(r.delta)}`
+        )
+        .join("\n")
       : historyRef.current.map((h) => (h ? "🟩" : "🟥")).join("");
-    return `**Daily Rankle**\n${rows}${allInShareRow()}\nBank: ${Math.max(0, bankRef.current)}\n\nPlay at <https://parkrating.com/games/rankle>`;
-  }, [allInShareRow]);
+    return `**${gameMode === "daily" ? "Daily" : "Endless"} Rankle**\n${rows}${allInShareRow()}\nBank: ${Math.max(0, bankRef.current)}\n\nPlay at <https://parkrating.com/games/rankle>`;
+  }, [allInShareRow, gameMode]);
 
   const buildAllShare = useCallback(() => {
     const spoiler = (s: string) => {
       const needed = Math.max(0, Math.ceil((22 - s.length) / 1.7));
-      return `||${s + "　".repeat(needed)}||`;
+      return `||${s + " ".repeat(needed)}||`;
     };
     const colorEmoji = (c: string) =>
       ({ yellow: "🟨", green: "🟩", blue: "🟦", purple: "🟪", orange: "🟧", red: "🟥", brown: "🟫" } as Record<string, string>)[c] ?? "⬜";
     const sections: string[] = [`🎮 ParkRating Daily — ${localYMD()}`];
     try {
-      const raw = localStorage.getItem("coastle-daily-state");
+      const raw = localStorage.getItem(`connections-${getTodayString()}`);
       if (raw) {
         const state = JSON.parse(raw);
-        if (state.status && state.status !== "playing") {
-          const won = state.status === "won";
-          const guesses: { matches?: Record<string, string>; coaster?: { name?: string } }[] = state.guesses ?? [];
-          const rows = guesses.map((g) => {
-            const m = g.matches ?? {};
-            const emoji = [m.manufacturer, m.country, m.length, m.height, m.speed, m.inversions]
-              .map((s) => (s === "correct" ? "🟩" : s === "close" ? "🟨" : "🟥"))
-              .join(" ");
-            return `${emoji}  ${spoiler(g.coaster?.name ?? "")}`;
-          });
-          sections.push(`🎢 Coastle — ${won ? `${guesses.length}/5` : "X/5"}\n${rows.join("\n")}`);
-        }
+        // Safely parse regardless of the exact variable names used in the connections state
+        const solvedN = state.solved?.length ?? state.playerSolvedCount ?? 0;
+        const mistakes = state.mistakes ?? 0;
+        const historyList = state.guessHistory ?? state.guesses ?? state.history ?? [];
+
+        const grid = historyList
+          .map((row: any) => {
+            const colors = Array.isArray(row) ? row : (row.colors ?? row.guess ?? []);
+            return colors.map((c: any) => {
+              const colorStr = typeof c === "string" ? c : (c.color || c.difficulty || "unknown");
+              if (colorStr.includes("yellow") || colorStr.includes("amber")) return "🟨";
+              if (colorStr.includes("green") || colorStr.includes("emerald")) return "🟩";
+              if (colorStr.includes("blue") || colorStr.includes("sky")) return "🟦";
+              if (colorStr.includes("purple") || colorStr.includes("violet")) return "🟪";
+              return "⬛";
+            }).join(" ");
+          })
+          .filter((r: string) => r.trim().length > 0)
+          .join("\n");
+
+        sections.push(`🔗 Connections — ${solvedN}/4 · ${mistakes} mistake${mistakes !== 1 ? "s" : ""}${grid ? `\n${grid}` : ""}`);
       }
-    } catch {}
+    } catch { }
     try {
       const raw = localStorage.getItem(`connections-${getTodayString()}`);
       if (raw) {
@@ -743,7 +864,7 @@ export default function RankleClient() {
           .join("\n");
         sections.push(`🔗 Connections — ${solvedN}/4 · ${mistakes} mistake${mistakes !== 1 ? "s" : ""}\n${grid}`);
       }
-    } catch {}
+    } catch { }
     try {
       const raw = localStorage.getItem(`zoomle-${localYMD()}`);
       if (raw) {
@@ -752,21 +873,21 @@ export default function RankleClient() {
         if (state.done) {
           const total = scores.reduce<number>((s, p) => s + (p ?? 0), 0);
           const rows = scores.map((p, i) => {
-            const sq = p === null ? "⬛" : p >= 5 ? "🟩" : p >= 4 ? "🟨" : p >= 3 ? "🟧" : "🟥";
+            const sq = p === null ? "⬛" : p >= 9 ? "🟩" : p >= 6 ? "🟨" : p >= 3 ? "🟧" : "🟥";
             return `${sq} Round ${i + 1}: ${p !== null ? `+${p} pts` : "0 pts"}`;
           });
-          sections.push(`🔍 Zoomle — ${total}/${scores.length * 5}\n${rows.join("\n")}`);
+          sections.push(`🔍 Zoomle — ${total}/${scores.length * 10}\n${rows.join("\n")}`);
         }
       }
-    } catch {}
+    } catch { }
     const log = roundLogRef.current;
     const rankleRows = log.length
       ? log
-          .map(
-            (r, i) =>
-              `${r.win ? "🟩" : "🟥"} R${i + 1}: bet ${r.bet}${r.mult > 1 ? ` ×${r.mult}` : ""} → ${r.delta > 0 ? "+" : "−"}${Math.abs(r.delta)}`
-          )
-          .join("\n")
+        .map(
+          (r, i) =>
+            `${r.win ? "🟩" : "🟥"} R${i + 1}: bet ${r.bet}${r.mult > 1 ? ` ×${r.mult}` : ""} → ${r.delta > 0 ? "+" : "−"}${Math.abs(r.delta)}`
+        )
+        .join("\n")
       : historyRef.current.map((h) => (h ? "🟩" : "🟥")).join("");
     sections.push(`🎰 Rankle — Bank ${Math.max(0, bankRef.current)}\n${rankleRows}${allInShareRow()}`);
     sections.push("Play at <https://parkrating.com/games>");
@@ -779,8 +900,8 @@ export default function RankleClient() {
     const otherVal = side === "A" ? round.vb : round.va;
     const correct =
       round.mode === "exact" ? myVal === round.exactVal
-      : round.mode === "lower" ? myVal < otherVal
-      : myVal > otherVal;
+        : round.mode === "lower" ? myVal < otherVal
+          : myVal > otherVal;
     historyRef.current = [...historyRef.current, correct];
     if (correct && cardEl) burstFrom(cardEl);
     roundLogRef.current = [
@@ -844,13 +965,18 @@ export default function RankleClient() {
   // error-recovery only (dailies can't be replayed): re-seed so the retry
   // replays the exact same daily sequence
   const restart = () => {
-    rngRef.current = mulberry32(getUTCTodaySeed("rankle"));
+    if (gameMode === "daily") {
+      rngRef.current = mulberry32(getUTCTodaySeed("rankle"));
+    } else {
+      rngRef.current = Math.random;
+    }
     bankRef.current = START_BANK;
     roundRef.current = 1;
     metricCountRef.current = {};
     historyRef.current = [];
     roundLogRef.current = [];
     allInRef.current = null;
+    usedAnswersRef.current.clear();
     setBank(START_BANK);
     setRoundNo(1);
     setHistory([]);
@@ -958,6 +1084,15 @@ export default function RankleClient() {
         @keyframes rankle-fadein { from { opacity:0; } to { opacity:1; } }
         @keyframes rankle-out { to { opacity:0; transform: scale(0.95) translateY(10px); } }
         @keyframes rankle-nudge { 0%,100% { transform: translateY(0); } 50% { transform: translateY(7px); } }
+        
+        /* Question slam animation */
+        @keyframes rankle-question-slam {
+          0% { opacity: 0; transform: translateY(min(25vh, 180px)) scale(1.3); filter: drop-shadow(0 15px 15px rgba(0,0,0,0.8)); }
+          20% { opacity: 1; transform: translateY(min(25vh, 180px)) scale(1.3); filter: drop-shadow(0 15px 15px rgba(0,0,0,0.8)); }
+          60% { opacity: 1; transform: translateY(min(25vh, 180px)) scale(1.3); filter: drop-shadow(0 15px 15px rgba(0,0,0,0.8)); }
+          100% { opacity: 1; transform: translateY(0) scale(1); filter: none; }
+        }
+
         /* mobile-only entrance for elements that take the stage sequentially */
         @media (max-width: 767px) {
           .m-rise { animation: rankle-rise 0.5s cubic-bezier(0.22,1,0.36,1) both; }
@@ -977,7 +1112,28 @@ export default function RankleClient() {
 
       {!started ? (
         <div className="flex flex-col items-center gap-6 mt-6 sm:mt-10 pb-10">
-          {dailyDone ? (
+          <div className="bg-slate-800 p-1 rounded-full flex gap-1 items-center mx-auto w-fit mb-4">
+            <button
+              onClick={() => switchMode("daily")}
+              className={`px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${gameMode === "daily"
+                ? "bg-slate-700 text-blue-400 shadow-sm"
+                : "text-slate-500 hover:text-slate-300"
+                }`}
+            >
+              Daily
+            </button>
+            <button
+              onClick={() => switchMode("endless")}
+              className={`px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${gameMode === "endless"
+                ? "bg-slate-700 text-fuchsia-400 shadow-sm"
+                : "text-slate-500 hover:text-slate-300"
+                }`}
+            >
+              Endless
+            </button>
+          </div>
+
+          {dailyDone && gameMode === "daily" ? (
             <>
               <div className="flex flex-col items-center gap-1 text-slate-300">
                 <p className="text-xs font-black uppercase tracking-widest text-slate-400">
@@ -1087,11 +1243,10 @@ export default function RankleClient() {
               {Array.from({ length: ROUNDS }).map((_, i) => (
                 <span
                   key={i}
-                  className={`w-2 h-2 rounded-full ${
-                    i < history.length
+                  className={`w-2 h-2 rounded-full ${i < history.length
                       ? history[i] ? "bg-green-400" : "bg-red-400"
                       : i === history.length ? "bg-brand" : "bg-slate-700"
-                  }`}
+                    }`}
                 />
               ))}
               <span className="ml-1.5 text-[11px] font-black uppercase tracking-widest text-slate-500">
@@ -1113,14 +1268,29 @@ export default function RankleClient() {
                 <span className="text-slate-300">×{tier.mult}</span>
               </div>
             )}
-            <button
-              onClick={() => setShowHelp(true)}
-              title="How to play"
-              aria-label="How to play"
-              className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 text-slate-400 hover:text-brand-light hover:border-brand text-[13px] font-black transition-all cursor-pointer"
-            >
-              ?
-            </button>
+
+            <div className="flex items-center gap-2">
+              {(dailyDone || phase === "end") && (
+                <button
+                  onClick={() => setShowResult(true)}
+                  title="Show Results"
+                  aria-label="Show Results"
+                  className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 text-slate-400 hover:text-blue-400 hover:border-blue-400 transition-all cursor-pointer flex items-center justify-center"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                    <path fillRule="evenodd" d="M8.603 3.799A4.49 4.49 0 0 1 12 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 0 1 3.498 1.307 4.491 4.491 0 0 1 1.307 3.497A4.49 4.49 0 0 1 21.75 12a4.49 4.49 0 0 1-1.549 3.397 4.491 4.491 0 0 1-1.307 3.497 4.491 4.491 0 0 1-3.497 1.307A4.49 4.49 0 0 1 12 21.75a4.49 4.49 0 0 1-3.397-1.549 4.49 4.49 0 0 1-3.498-1.306 4.491 4.491 0 0 1-1.307-3.498A4.49 4.49 0 0 1 2.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 0 1 1.307-3.497 4.49 4.49 0 0 1 3.497-1.307Zm7.007 6.387a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={() => setShowHelp(true)}
+                title="How to play"
+                aria-label="How to play"
+                className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 text-slate-400 hover:text-brand-light hover:border-brand text-[13px] font-black transition-all cursor-pointer"
+              >
+                ?
+              </button>
+            </div>
           </div>
 
           {phase === "bonus" ? (
@@ -1133,194 +1303,210 @@ export default function RankleClient() {
               onResolved={allInResolved}
             />
           ) : (
-          <>
-          {/* question banner: fixed height + one line on desktop so the cards never shift */}
-          <div className="h-[64px] sm:h-[72px] mt-3 mb-3 flex flex-col items-center justify-center text-center max-w-3xl" style={{ animation: "rankle-rise 0.5s ease 0.08s both" }}>
-            <div className="text-xl sm:text-3xl font-black leading-tight text-slate-100 md:whitespace-nowrap">
-              {phase === "loading" ? (
-                <span className="text-slate-500">…</span>
-              ) : phase === "spin" ? (
-                <span className="text-slate-400">{spinLaunched ? "…" : <>Spin the wheel <span className="inline-block" style={{ animation: "rankle-nudge 1.4s ease-in-out infinite" }}>👇</span></>}</span>
-              ) : (phase === "result" || phase === "clearing") && lastCorrect !== null ? (
-                <TransferAmount
-                  key={history.length}
-                  amount={Math.round(lockedBet * (round?.tier.mult ?? 1))}
-                  positive={lastCorrect}
-                  mult={round?.tier.mult ?? 1}
-                />
-              ) : (
-                <QText html={questionHtml} />
-              )}
-            </div>
-          </div>
+            <>
+              {/* question banner: fixed height + one line on desktop so the cards never shift */}
+              <div className="relative z-50 h-[64px] sm:h-[72px] mt-3 mb-3 flex flex-col items-center justify-center text-center max-w-3xl" style={{ animation: "rankle-rise 0.5s ease 0.08s both" }}>
+                <div className="text-xl sm:text-3xl font-black leading-tight text-slate-100 md:whitespace-nowrap">
+                  {phase === "loading" ? (
+                    <span className="text-slate-500">…</span>
+                  ) : phase === "spin" ? (
+                    <span className="text-slate-400">{spinLaunched ? "…" : <>Spin the wheel <span className="inline-block" style={{ animation: "rankle-nudge 1.4s ease-in-out infinite" }}>👇</span></>}</span>
+                  ) : (phase === "result" || phase === "clearing") && lastCorrect !== null ? (
+                    <TransferAmount
+                      key={history.length}
+                      amount={Math.round(lockedBet * (round?.tier.mult ?? 1))}
+                      positive={lastCorrect}
+                      mult={round?.tier.mult ?? 1}
+                    />
+                  ) : (
+                    <div key={`q-${roundNo}`} style={{ animation: "rankle-question-slam 1.2s cubic-bezier(0.16, 1, 0.3, 1) both" }} className="relative pointer-events-none">
+                      <QText html={questionHtml} />
+                    </div>
+                  )}
+                </div>
+              </div>
 
-          {/* table: slot / reel / slot */}
-          <div
-            className="w-full max-w-4xl grid gap-4 items-center justify-items-center grid-cols-2 md:grid-cols-[1fr_auto_1fr] [grid-template-areas:'reel_reel'_'a_b'] md:[grid-template-areas:'a_reel_b'] mb-6"
-            style={{ animation: "rankle-rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.16s both" }}
-          >
-            {(["A", "B"] as const).map((side) => {
-              const c = side === "A" ? round?.a : round?.b;
-              const img = side === "A" ? round?.imgA : round?.imgB;
-              const v = side === "A" ? round?.va : round?.vb;
-              const filled = !!round && phase !== "loading" && phase !== "end";
-              const pickable = phase === "pick";
-              const showVal = phase === "result" || phase === "clearing";
-              const winner = showVal && isAnswerSide(side);
-              const loser = showVal && picked === side && !lastCorrect;
-              return (
-                <div
-                  key={side}
-                  onClick={(e) => pickable && answer(side, e.currentTarget)}
-                  style={
-                    phase === "clearing"
-                      ? { animation: "rankle-out 0.45s ease both" }
-                      : phase === "spin"
-                      ? { animation: `rankle-rise 0.55s cubic-bezier(0.22,1,0.36,1) ${side === "A" ? "0s" : "0.15s"} both` }
-                      : loser
-                      ? { animation: "rankle-shake 0.4s" }
-                      : undefined
-                  }
-                  className={`w-full max-w-[320px] h-[300px] sm:h-[400px] rounded-2xl overflow-hidden relative
+              {/* table: slot / reel / slot */}
+              <div
+                className="w-full max-w-4xl grid gap-4 items-center justify-items-center grid-cols-2 md:grid-cols-[1fr_auto_1fr] [grid-template-areas:'reel_reel'_'a_b'] md:[grid-template-areas:'a_reel_b'] mb-6"
+                style={{ animation: "rankle-rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.16s both" }}
+              >
+                {(["A", "B"] as const).map((side) => {
+                  const c = side === "A" ? round?.a : round?.b;
+                  const img = side === "A" ? round?.imgA : round?.imgB;
+                  const v = side === "A" ? round?.va : round?.vb;
+                  const filled = !!round && phase !== "loading" && phase !== "end";
+                  const pickable = phase === "pick";
+                  const showVal = phase === "result" || phase === "clearing";
+                  const winner = showVal && isAnswerSide(side);
+                  const loser = showVal && picked === side && !lastCorrect;
+                  return (
+                    <div
+                      key={side}
+                      onClick={(e) => pickable && answer(side, e.currentTarget)}
+                      style={
+                        phase === "clearing"
+                          ? { animation: "rankle-out 0.45s ease both" }
+                          : phase === "spin"
+                            ? { animation: `rankle-rise 0.55s cubic-bezier(0.22,1,0.36,1) ${side === "A" ? "0s" : "0.15s"} both` }
+                            : loser
+                              ? { animation: "rankle-shake 0.4s" }
+                              : undefined
+                      }
+                      className={`w-full max-w-[320px] h-[300px] sm:h-[400px] rounded-2xl overflow-hidden relative
                     border-2 transition-all duration-200
                     ${side === "A" ? "[grid-area:a]" : "[grid-area:b]"}
                     ${mobileReelStage ? "hidden md:block" : ""}
                     ${phase === "bet" ? "m-rise" : ""}
                     ${!filled ? "border-transparent bg-transparent" : "bg-gray-900 shadow-md"}
                     ${winner ? "border-green-400 shadow-[0_0_30px_rgba(74,222,128,0.3)]"
-                      : loser ? "border-red-400"
-                      : pickable ? "border-slate-600 cursor-pointer hover:border-brand hover:-translate-y-1 hover:shadow-[0_12px_36px_rgba(233,130,14,0.25)]"
-                      : filled ? "border-slate-700" : ""}`}
-                >
-                  {filled && c && (
-                    <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={img ?? ""} alt={c.name} className="absolute inset-0 w-full h-full object-cover" />
-                      <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent px-4 pt-3 pb-12 pointer-events-none">
-                        <div className="flex items-center gap-2">
-                          {c.country && (
-                            <Image src={getParkFlag(c.country)} alt="" width={20} height={14} className="rounded-sm shrink-0" unoptimized />
+                          : loser ? "border-red-400"
+                            : pickable ? "border-slate-600 cursor-pointer hover:border-brand hover:-translate-y-1 hover:shadow-[0_12px_36px_rgba(233,130,14,0.25)]"
+                              : filled ? "border-slate-700" : ""}`}
+                    >
+                      {filled && c && (
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={img ?? ""} alt={c.name} className="absolute inset-0 w-full h-full object-cover" />
+                          <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent px-4 pt-3 pb-12 pointer-events-none">
+                            <div className="flex items-center gap-2">
+                              {c.country && (
+                                <Image src={getParkFlag(c.country)} alt="" width={20} height={14} className="rounded-sm shrink-0" unoptimized />
+                              )}
+                              <span className="text-white/90 text-sm font-bold drop-shadow-md leading-tight">{c.parkName}</span>
+                            </div>
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent px-4 pt-14 pb-4 pointer-events-none">
+                            <h3 className="text-white font-black text-xl sm:text-2xl leading-tight drop-shadow-md">{c.name}</h3>
+                            {c.manufacturerName && (
+                              <div className="text-white/60 text-[11px] font-medium mt-0.5">{c.manufacturerName}</div>
+                            )}
+                          </div>
+                          {/* stage-lighting veil: dark while the reel/bet own the moment */}
+                          <div
+                            className="absolute inset-0 bg-[#0f172a] pointer-events-none transition-opacity duration-500 z-[5]"
+                            style={{ opacity: cardVeil }}
+                          />
+                          {showVal && v != null && (
+                            <div
+                              className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none bg-black/60 z-[6]"
+                              style={{ animation: "rankle-fadein 0.45s ease both" }}
+                            >
+                              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-white/60 mb-1">
+                                {round!.m.name}
+                              </span>
+                              <span
+                                className={`text-4xl sm:text-5xl font-black tabular-nums drop-shadow-[0_4px_18px_rgba(0,0,0,0.9)] ${round!.m.key === "rating" ? getRatingColor(v) : winner ? "text-green-300" : "text-white"
+                                  }`}
+                              >
+                                <CountUpVal value={v} unit={round!.m.unit} />
+                              </span>
+                            </div>
                           )}
-                          <span className="text-white/90 text-sm font-bold drop-shadow-md leading-tight">{c.parkName}</span>
-                        </div>
-                      </div>
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent px-4 pt-14 pb-4 pointer-events-none">
-                        <h3 className="text-white font-black text-xl sm:text-2xl leading-tight drop-shadow-md">{c.name}</h3>
-                        {c.manufacturerName && (
-                          <div className="text-white/60 text-[11px] font-medium mt-0.5">{c.manufacturerName}</div>
-                        )}
-                      </div>
-                      {/* stage-lighting veil: dark while the reel/bet own the moment */}
-                      <div
-                        className="absolute inset-0 bg-[#0f172a] pointer-events-none transition-opacity duration-500 z-[5]"
-                        style={{ opacity: cardVeil }}
-                      />
-                      {showVal && v != null && (
-                        <div
-                          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none bg-black/60 z-[6]"
-                          style={{ animation: "rankle-fadein 0.45s ease both" }}
-                        >
-                          <span className="text-[10px] font-black uppercase tracking-[0.25em] text-white/60 mb-1">
-                            {round!.m.name}
-                          </span>
-                          <span
-                            className={`text-4xl sm:text-5xl font-black tabular-nums drop-shadow-[0_4px_18px_rgba(0,0,0,0.9)] ${
-                              round!.m.key === "rating" ? getRatingColor(v) : winner ? "text-green-300" : "text-white"
-                            }`}
-                          >
-                            <CountUpVal value={v} unit={round!.m.unit} />
-                          </span>
-                        </div>
+                        </>
                       )}
-                    </>
-                  )}
-                </div>
-              );
-            })}
+                    </div>
+                  );
+                })}
 
-            {/* reel — grab it, flick it either way, or click to pull */}
-            <div className={`[grid-area:reel] ${mobileReelStage ? "m-rise" : "hidden md:block"} max-md:h-[368px]`}>
-              <div
-                onPointerDown={onReelPointerDown}
-                onPointerMove={onReelPointerMove}
-                onPointerUp={onReelPointerUp}
-                onPointerCancel={onReelPointerUp}
-                className={`relative w-[230px] h-[400px] max-md:scale-[0.92] max-md:origin-top rounded-2xl bg-[#0b1428] border-2 overflow-hidden select-none transition-shadow duration-300
+                {/* reel — grab it, flick it either way, or click to pull */}
+                <div className={`[grid-area:reel] ${mobileReelStage ? "m-rise" : "hidden md:block"} max-md:h-[368px]`}>
+                  <div
+                    onPointerDown={onReelPointerDown}
+                    onPointerMove={onReelPointerMove}
+                    onPointerUp={onReelPointerUp}
+                    onPointerCancel={onReelPointerUp}
+                    className={`relative w-[230px] h-[400px] max-md:scale-[0.92] max-md:origin-top rounded-2xl bg-[#0b1428] border-2 overflow-hidden select-none transition-shadow duration-300
                   ${reelInteractive
-                    ? "border-brand/70 cursor-grab active:cursor-grabbing shadow-[0_16px_44px_rgba(0,0,0,0.45),0_0_34px_rgba(233,130,14,0.28),inset_0_0_34px_rgba(0,0,0,0.6)]"
-                    : "border-slate-700 shadow-[0_16px_44px_rgba(0,0,0,0.45),inset_0_0_34px_rgba(0,0,0,0.6)]"}`}
-                style={{ touchAction: "none" }}
-              >
-                <div className="absolute inset-x-0 top-0 h-[160px] z-[3] pointer-events-none bg-gradient-to-b from-[#0b1428] via-[#0b1428d9] to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 h-[160px] z-[3] pointer-events-none bg-gradient-to-t from-[#0b1428] via-[#0b1428d9] to-transparent" />
-                <div
-                  className={`absolute top-[160px] left-[5px] right-[5px] h-[80px] rounded-xl border-[2.5px] z-[4] pointer-events-none transition-all duration-300 ${
-                    phase === "bet" || phase === "pick" || phase === "result" || phase === "clearing"
-                      ? "border-brand shadow-[0_0_22px_rgba(233,130,14,0.35),inset_0_0_16px_rgba(233,130,14,0.12)]"
-                      : "border-slate-700"
-                  }`}
-                />
-                <div ref={stripRef} className="absolute inset-x-0 top-0 will-change-transform">
-                  {Array.from({ length: REPEATS }).flatMap((_, r) =>
-                    METRICS.map((m) => (
-                      <div key={`${r}-${m.key}`} className="h-[80px] flex items-center justify-center gap-2.5">
-                        <span className="text-[25px]">{m.em}</span>
-                        <span className="text-[16px] font-black tracking-wide uppercase text-slate-100">{m.name}</span>
-                      </div>
-                    ))
-                  )}
+                        ? "border-brand/70 cursor-grab active:cursor-grabbing shadow-[0_16px_44px_rgba(0,0,0,0.45),0_0_34px_rgba(233,130,14,0.28),inset_0_0_34px_rgba(0,0,0,0.6)]"
+                        : "border-slate-700 shadow-[0_16px_44px_rgba(0,0,0,0.45),inset_0_0_34px_rgba(0,0,0,0.6)]"}`}
+                    style={{ touchAction: "none" }}
+                  >
+                    <div className="absolute inset-x-0 top-0 h-[160px] z-[3] pointer-events-none bg-gradient-to-b from-[#0b1428] via-[#0b1428d9] to-transparent" />
+                    <div className="absolute inset-x-0 bottom-0 h-[160px] z-[3] pointer-events-none bg-gradient-to-t from-[#0b1428] via-[#0b1428d9] to-transparent" />
+                    <div
+                      className={`absolute top-[160px] left-[5px] right-[5px] h-[80px] rounded-xl border-[2.5px] z-[4] pointer-events-none transition-all duration-300 ${phase === "bet" || phase === "pick" || phase === "result" || phase === "clearing"
+                        ? "border-brand shadow-[0_0_22px_rgba(233,130,14,0.35),inset_0_0_16px_rgba(233,130,14,0.12)]"
+                        : "border-slate-700"
+                        }`}
+                    />
+                    <div ref={stripRef} className="absolute inset-x-0 top-0 will-change-transform">
+                      {Array.from({ length: REPEATS }).flatMap((_, r) =>
+                        METRICS.map((m) => (
+                          <div key={`${r}-${m.key}`} className="h-[80px] flex items-center justify-center gap-2.5">
+                            <span className="text-[25px]">{m.em}</span>
+                            <span className="text-[16px] font-black tracking-wide uppercase text-slate-100">{m.name}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* bet bar: bottom sheet on mobile, floating pill on desktop */}
-          <div
-            className={`fixed z-20 inset-x-0 bottom-0 md:inset-x-auto md:bottom-5 md:left-1/2 md:-translate-x-1/2
+              {/* bet bar: bottom sheet on mobile, floating pill on desktop */}
+              <div
+                className={`fixed z-20 inset-x-0 bottom-0 md:inset-x-auto md:bottom-5 md:left-1/2 md:-translate-x-1/2
               bg-slate-900/95 md:bg-slate-800/95 backdrop-blur-sm border-t md:border rounded-t-2xl md:rounded-full
               px-4 pt-3 pb-4 md:px-5 md:py-2.5 flex flex-col md:flex-row items-stretch md:items-center gap-3
               shadow-2xl transition-all duration-300 md:max-w-[96vw]
-              ${phase === "bet"
-                ? "opacity-100 border-brand/70 md:scale-[1.03] shadow-[0_-10px_44px_rgba(233,130,14,0.22)] md:shadow-[0_12px_44px_rgba(233,130,14,0.3)]"
-                : "opacity-35 saturate-50 pointer-events-none border-slate-700"}`}
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Bet</span>
-              <input
-                type="range"
-                min={1}
-                max={Math.min(100, bank)}
-                value={bet}
-                onChange={(e) => setBet(parseInt(e.target.value))}
-                className="flex-1 md:flex-none md:w-36 accent-[#e9820e]"
-              />
-              <span className="text-xl font-black text-brand-light min-w-[42px] text-center">{bet}</span>
-            </div>
-            <div className="flex items-center gap-2 md:gap-3">
-              {[10, 25, 50].map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setBet(Math.min(v, Math.min(100, bank)))}
-                  className="flex-1 md:flex-none text-[11px] font-bold px-3 py-2 md:py-1.5 rounded-xl md:rounded-full border border-slate-600 text-slate-300 hover:border-brand hover:text-brand-light cursor-pointer"
-                >
-                  {v}
-                </button>
-              ))}
-              <button
-                onClick={() => setBet(Math.min(100, bank))}
-                className="flex-1 md:flex-none text-[11px] font-bold px-3 py-2 md:py-1.5 rounded-xl md:rounded-full border border-slate-600 text-slate-300 hover:border-brand hover:text-brand-light cursor-pointer"
+              ${phase === "bet" || phase === "pick"
+                    ? "opacity-100 border-brand/70 md:scale-[1.03] shadow-[0_-10px_44px_rgba(233,130,14,0.22)] md:shadow-[0_12px_44px_rgba(233,130,14,0.3)]"
+                    : "opacity-35 saturate-50 pointer-events-none border-slate-700"}`}
               >
-                MAX
-              </button>
-              <button
-                onClick={lockBet}
-                className="flex-[2] md:flex-none text-[13px] font-black tracking-wide px-6 py-2.5 rounded-xl md:rounded-full bg-gradient-to-br from-[#e9820e] to-[#d46f00] text-slate-950 shadow-[0_4px_18px_rgba(233,130,14,0.4)] active:scale-95 cursor-pointer"
-              >
-                LOCK 🔒
-              </button>
-            </div>
-          </div>
-          </>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Bet</span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={Math.min(100, bank)}
+                    value={phase === "pick" ? lockedBet : bet}
+                    onChange={(e) => setBet(parseInt(e.target.value))}
+                    disabled={phase !== "bet"}
+                    className={`flex-1 md:flex-none md:w-36 accent-[#e9820e] ${phase !== "bet" ? "opacity-50 cursor-not-allowed" : ""}`}
+                  />
+                  <span className="text-xl font-black text-brand-light min-w-[42px] text-center">
+                    {phase === "pick" ? lockedBet : bet}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 md:gap-3">
+                  {[10, 25, 50].map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setBet(Math.min(v, Math.min(100, bank)))}
+                      disabled={phase !== "bet"}
+                      className="flex-1 md:flex-none text-[11px] font-bold px-3 py-2 md:py-1.5 rounded-xl md:rounded-full border border-slate-600 text-slate-300 hover:border-brand hover:text-brand-light cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-slate-600 disabled:hover:text-slate-300"
+                    >
+                      {v}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setBet(Math.min(100, bank))}
+                    disabled={phase !== "bet"}
+                    className="flex-1 md:flex-none text-[11px] font-bold px-3 py-2 md:py-1.5 rounded-xl md:rounded-full border border-slate-600 text-slate-300 hover:border-brand hover:text-brand-light cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-slate-600 disabled:hover:text-slate-300"
+                  >
+                    MAX
+                  </button>
+
+                  {phase === "pick" ? (
+                    <button
+                      onClick={unlockBet}
+                      className="flex-[2] md:flex-none text-[13px] font-black tracking-wide px-4 py-2.5 rounded-xl md:rounded-full bg-slate-700 text-slate-300 shadow-sm active:scale-95 cursor-pointer hover:bg-slate-600 hover:text-white transition-colors"
+                    >
+                      UNLOCK 🔓
+                    </button>
+                  ) : (
+                    <button
+                      onClick={lockBet}
+                      className="flex-[2] md:flex-none text-[13px] font-black tracking-wide px-6 py-2.5 rounded-xl md:rounded-full bg-gradient-to-br from-[#e9820e] to-[#d46f00] text-slate-950 shadow-[0_4px_18px_rgba(233,130,14,0.4)] active:scale-95 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                      disabled={phase !== "bet"}
+                    >
+                      LOCK 🔒
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
           )}
         </>
       )}
@@ -1396,14 +1582,15 @@ export default function RankleClient() {
         startBank={START_BANK}
         history={history}
         rounds={ROUNDS}
-        streak={stats.currentStreak}
+        streak={gameMode === "daily" ? stats.currentStreak : 0}
         allGamesPlayed={allGamesPlayed}
         allIn={allInRef.current}
         onClose={() => setShowResult(false)}
         onShare={() => copyText(buildRankleShare())}
         onShareAll={() => copyText(buildAllShare())}
+        gameMode={gameMode}
+        onReset={restart}
       />
-
     </div>
   );
 }

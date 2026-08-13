@@ -29,12 +29,12 @@ export const TILE_TEXT = "text-[11px] md:text-[15px]";
 
 export const GROUP_COLOR_CLASS_MAP: Record<ConnectionsColor, string> = {
   yellow: "bg-amber-300 text-slate-950",
-  green:  "bg-emerald-400 text-white",
-  blue:   "bg-sky-400 text-white",
+  green: "bg-emerald-400 text-white",
+  blue: "bg-sky-400 text-white",
   purple: "bg-violet-400 text-white",
   orange: "bg-orange-400 text-white",
-  red:    "bg-red-500 text-white",
-  brown:  "bg-amber-800 text-white",
+  red: "bg-red-500 text-white",
+  brown: "bg-amber-800 text-white",
 };
 
 export const shuffle = <T,>(items: T[]) => {
@@ -66,8 +66,8 @@ interface ConnectionsGameProps {
 export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard, onComplete }: ConnectionsGameProps) {
   const isPractice = !persistKey;
 
-  const [groups]    = useState<Group[]>(initialGroups);
-  const [tiles,     setTiles]     = useState<string[]>(() => {
+  const [groups] = useState<Group[]>(initialGroups);
+  const [tiles, setTiles] = useState<string[]>(() => {
     if (!isPractice && persistKey) {
       try {
         const saved = localStorage.getItem(persistKey);
@@ -75,51 +75,51 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
           const parsed = JSON.parse(saved);
           if (parsed.tiles?.length) return parsed.tiles;
         }
-      } catch {}
+      } catch { }
     }
     return shuffle(initialGroups.flatMap((g) => g.coasters));
   });
 
-  const [selected,          setSelected]          = useState<string[]>([]);
-  const [solved,            setSolved]            = useState<string[]>(() => {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [solved, setSolved] = useState<string[]>(() => {
     if (!isPractice && persistKey) {
-      try { return JSON.parse(localStorage.getItem(persistKey) || "{}").solved || []; } catch {}
+      try { return JSON.parse(localStorage.getItem(persistKey) || "{}").solved || []; } catch { }
     }
     return [];
   });
   const [playerSolvedCount, setPlayerSolvedCount] = useState<number>(() => {
     if (!isPractice && persistKey) {
-      try { return JSON.parse(localStorage.getItem(persistKey) || "{}").playerSolvedCount || 0; } catch {}
+      try { return JSON.parse(localStorage.getItem(persistKey) || "{}").playerSolvedCount || 0; } catch { }
     }
     return 0;
   });
-  const [mistakes,          setMistakes]          = useState<number>(() => {
+  const [mistakes, setMistakes] = useState<number>(() => {
     if (!isPractice && persistKey) {
-      try { return JSON.parse(localStorage.getItem(persistKey) || "{}").mistakes || 0; } catch {}
+      try { return JSON.parse(localStorage.getItem(persistKey) || "{}").mistakes || 0; } catch { }
     }
     return 0;
   });
-  const [failedGuesses,     setFailedGuesses]     = useState<string[][]>(() => {
+  const [failedGuesses, setFailedGuesses] = useState<string[][]>(() => {
     if (!isPractice && persistKey) {
-      try { return JSON.parse(localStorage.getItem(persistKey) || "{}").failedGuesses || []; } catch {}
+      try { return JSON.parse(localStorage.getItem(persistKey) || "{}").failedGuesses || []; } catch { }
     }
     return [];
   });
-  const [guessHistory,      setGuessHistory]      = useState<ConnectionsGuessHistoryEntry[]>(() => {
+  const [guessHistory, setGuessHistory] = useState<ConnectionsGuessHistoryEntry[]>(() => {
     if (!isPractice && persistKey) {
-      try { return JSON.parse(localStorage.getItem(persistKey) || "{}").guessHistory || []; } catch {}
+      try { return JSON.parse(localStorage.getItem(persistKey) || "{}").guessHistory || []; } catch { }
     }
     return [];
   });
-  const [stats,             setStats]             = useState<ConnectionsStats>(INITIAL_STATS);
-  const [toast,             setToast]             = useState<string | null>(null);
-  const [animState,         setAnimState]         = useState<"idle" | "bouncing" | "shaking" | "revealing">("idle");
-  const [activeTab,         setActiveTab]         = useState<"play" | "howto" | "leaderboard">("play");
-  const [showModal,         setShowModal]         = useState(false);
+  const [stats, setStats] = useState<ConnectionsStats>(INITIAL_STATS);
+  const [toast, setToast] = useState<string | null>(null);
+  const [animState, setAnimState] = useState<"idle" | "bouncing" | "shaking" | "revealing">("idle");
+  const [activeTab, setActiveTab] = useState<"play" | "howto" | "leaderboard">("play");
+  const [showModal, setShowModal] = useState(false);
 
-  const toastTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const revealTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const resolvingRef   = useRef(false);
+  const resolvingRef = useRef(false);
   const modalOpenedRef = useRef(false);
 
   const normalizedFailedGuesses = useMemo(
@@ -155,19 +155,30 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (typeof parsed?.played === "number") setStats(parsed);
-    } catch {}
+    } catch { }
+  }, []);
+
+  // ── Auto-open results ──────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (window.location.search.includes("results=true")) {
+      const isGameOver = mistakes >= MAX_MISTAKES || (groups.length > 0 && solved.length === groups.length);
+      if (isGameOver) {
+        setTimeout(() => setShowModal(true), 150);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Persist state ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (isPractice || !persistKey) return;
-    const data = { solved, playerSolvedCount, mistakes, failedGuesses, guessHistory, tiles };
-    if (process.env.NODE_ENV !== "development") {
-      localStorage.setItem(persistKey, JSON.stringify(data));
-    }
 
-  }, [solved, playerSolvedCount, mistakes, failedGuesses, guessHistory, tiles]);
+    const data = { solved, playerSolvedCount, mistakes, failedGuesses, guessHistory, tiles };
+    localStorage.setItem(persistKey, JSON.stringify(data));
+
+  }, [solved, playerSolvedCount, mistakes, failedGuesses, guessHistory, tiles, persistKey, isPractice]);
 
   // ── Loss reveal ────────────────────────────────────────────────────────────
 
@@ -403,6 +414,20 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
             <ChartBarIcon className="w-4 h-4 mx-auto" />
           </button>
         )}
+
+        {/* Results button if the game is over */}
+        {(mistakes >= MAX_MISTAKES || (groups.length > 0 && solved.length === groups.length)) && (
+          <button
+            onClick={() => setShowModal(true)}
+            title="Show Results"
+            aria-label="Show Results"
+            className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 text-slate-400 hover:text-blue-400 hover:border-blue-400 transition-all cursor-pointer flex items-center justify-center"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path fillRule="evenodd" d="M8.603 3.799A4.49 4.49 0 0 1 12 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 0 1 3.498 1.307 4.491 4.491 0 0 1 1.307 3.497A4.49 4.49 0 0 1 21.75 12a4.49 4.49 0 0 1-1.549 3.397 4.491 4.491 0 0 1-1.307 3.497 4.491 4.491 0 0 1-3.497 1.307A4.49 4.49 0 0 1 12 21.75a4.49 4.49 0 0 1-3.397-1.549 4.49 4.49 0 0 1-3.498-1.306 4.491 4.491 0 0 1-1.307-3.498A4.49 4.49 0 0 1 2.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 0 1 1.307-3.497 4.49 4.49 0 0 1 3.497-1.307Zm7.007 6.387a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {(
@@ -461,7 +486,7 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
                           className={`${TILE_ROW_HEIGHT} ${TILE_TEXT} flex w-full items-center justify-center rounded-2xl border-2 px-2 text-center font-black leading-tight transition-colors duration-200 ${isSelected
                             ? `z-10 border-transparent bg-gradient-to-br from-blue-600 via-indigo-600 to-fuchsia-600 text-white shadow-[0_12px_30px_rgba(79,70,229,0.28)] ${animState === "bouncing" ? "animate-bounce-seq" : animState === "shaking" ? "animate-shake-custom" : ""}`
                             : " shadow-md hover:scale-[1.02] hover:shadow-md active:scale-[0.98] border-slate-700 bg-slate-800 text-slate-200 hover:border-slate-500 hover:bg-slate-700 hover:text-white"
-                          }`}
+                            }`}
                         >
                           <span className="line-clamp-3 leading-tight px-1 whitespace-normal [overflow-wrap:anywhere]">{tile}</span>
                         </motion.button>

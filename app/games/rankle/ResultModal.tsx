@@ -9,9 +9,11 @@ interface RankleResultModalProps {
   startBank: number;
   history: boolean[];
   rounds: number;
-  streak: number;
+  streak?: number; // Made optional to fix the TS error
   allGamesPlayed: boolean;
   allIn?: { choice: "cash" | "allin"; preBank: number; mult?: number } | null;
+  gameMode: "daily" | "endless";
+  onReset: () => void;
   onClose: () => void;
   onShare: () => void;
   onShareAll: () => void;
@@ -26,6 +28,8 @@ export function RankleResultModal({
   streak,
   allGamesPlayed,
   allIn,
+  gameMode,
+  onReset,
   onClose,
   onShare,
   onShareAll,
@@ -104,7 +108,7 @@ export function RankleResultModal({
             <div className="mt-1 text-xs sm:text-sm font-bold text-slate-300">
               {correct}/{rounds} duels won
             </div>
-            {streak > 0 && (
+            {gameMode === "daily" && streak !== undefined && streak > 0 && (
               <div className="mt-2 text-[11px] sm:text-xs font-black uppercase tracking-widest text-slate-400">
                 🔥 Streak: {streak}
               </div>
@@ -116,9 +120,8 @@ export function RankleResultModal({
               Final bank
             </div>
             <div
-              className={`mt-1 text-5xl sm:text-6xl font-black tracking-tight ${
-                bust ? "text-red-400" : won ? "text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-orange-400 to-red-400" : "text-slate-200"
-              }`}
+              className={`mt-1 text-5xl sm:text-6xl font-black tracking-tight ${bust ? "text-red-400" : won ? "text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-orange-400 to-red-400" : "text-slate-200"
+                }`}
             >
               {Math.max(0, bank)}
             </div>
@@ -146,14 +149,24 @@ export function RankleResultModal({
               <ShareIcon className="w-5 h-5" />
               {copied === "one" ? "Copied!" : "Share Result"}
             </button>
-            <button
-              onClick={() => copyFeedback("all", onShareAll)}
-              title={allGamesPlayed ? "Copy today's results from all four games" : "Copies whichever games you've finished today"}
-              className="w-full py-2 sm:py-3 md:py-3.5 rounded-2xl font-black text-sm sm:text-base text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 transition cursor-pointer flex items-center justify-center gap-2"
-            >
-              <ShareIcon className="w-5 h-5" />
-              {copied === "all" ? "Copied!" : "Copy all 4 results"}
-            </button>
+
+            {gameMode === "endless" ? (
+              <button
+                onClick={onReset}
+                className="w-full py-2 sm:py-3 md:py-3.5 rounded-2xl font-black text-sm sm:text-base text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 transition cursor-pointer flex items-center justify-center gap-2"
+              >
+                Play Again
+              </button>
+            ) : (
+              <button
+                onClick={() => copyFeedback("all", onShareAll)}
+                title={allGamesPlayed ? "Copy today's results from all four games" : "Copies whichever games you've finished today"}
+                className="w-full py-2 sm:py-3 md:py-3.5 rounded-2xl font-black text-sm sm:text-base text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 transition cursor-pointer flex items-center justify-center gap-2"
+              >
+                <ShareIcon className="w-5 h-5" />
+                {copied === "all" ? "Copied!" : "Copy all 4 results"}
+              </button>
+            )}
           </div>
         </div>
       </div>

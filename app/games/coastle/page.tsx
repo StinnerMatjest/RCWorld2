@@ -109,6 +109,11 @@ export default function CoastlePage() {
                 setGuesses(parsed.guesses);
                 setGameState(parsed.status);
                 restored = true;
+
+                // NEW: Auto-open modal if they clicked the Results button on the games page
+                if (parsed.status !== "playing" && window.location.search.includes("results=true")) {
+                  setTimeout(() => setShowModal(true), 150);
+                }
               }
             } catch (e) { }
           }
@@ -497,9 +502,22 @@ export default function CoastlePage() {
           >
             <ChartBarIcon className="w-4 h-4" />
           </button>
+
+          {/* Results Button */}
+          {gameState !== "playing" && (
+            <button
+              onClick={() => setShowModal(true)}
+              title="Show Results"
+              aria-label="Show Results"
+              className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 text-slate-400 hover:text-blue-400 hover:border-blue-400 transition-all cursor-pointer flex items-center justify-center"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                <path fillRule="evenodd" d="M8.603 3.799A4.49 4.49 0 0 1 12 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 0 1 3.498 1.307 4.491 4.491 0 0 1 1.307 3.497A4.49 4.49 0 0 1 21.75 12a4.49 4.49 0 0 1-1.549 3.397 4.491 4.491 0 0 1-1.307 3.497 4.491 4.491 0 0 1-3.497 1.307A4.49 4.49 0 0 1 12 21.75a4.49 4.49 0 0 1-3.397-1.549 4.49 4.49 0 0 1-3.498-1.306 4.491 4.491 0 0 1-1.307-3.498A4.49 4.49 0 0 1 2.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 0 1 1.307-3.497 4.49 4.49 0 0 1 3.497-1.307Zm7.007 6.387a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
-
       {(
         <div
           key="play-tab"
@@ -507,16 +525,16 @@ export default function CoastlePage() {
         >
           <div
             className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${showMenu
-                ? "max-h-[50px] opacity-100 mb-0"
-                : "max-h-0 opacity-0 mb-0"
+              ? "max-h-[50px] opacity-100 mb-0"
+              : "max-h-0 opacity-0 mb-0"
               } md:max-h-none md:opacity-100 md:mb-0`}
           >
             <div className="bg-slate-800 p-1 rounded-full flex gap-1 relative z-10 items-center mx-auto w-fit">
               <button
                 onClick={() => switchMode("daily")}
                 className={`px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${gameMode === "daily"
-                    ? "bg-slate-700 text-blue-400 shadow-sm"
-                    : "text-slate-500 hover:text-slate-300"
+                  ? "bg-slate-700 text-blue-400 shadow-sm"
+                  : "text-slate-500 hover:text-slate-300"
                   }`}
               >
                 Daily
@@ -524,8 +542,8 @@ export default function CoastlePage() {
               <button
                 onClick={() => switchMode("endless")}
                 className={`px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${gameMode === "endless"
-                    ? "bg-slate-700 text-fuchsia-400 shadow-sm"
-                    : "text-slate-500 hover:text-slate-300"
+                  ? "bg-slate-700 text-fuchsia-400 shadow-sm"
+                  : "text-slate-500 hover:text-slate-300"
                   }`}
               >
                 Endless
@@ -565,8 +583,8 @@ export default function CoastlePage() {
                       onClick={gameState !== "playing" ? resetGame : undefined}
                       disabled={gameState === "playing" && !input.trim()}
                       className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wide transition border border-transparent shadow-sm flex items-center gap-2 cursor-pointer ${gameState !== "playing"
-                          ? "bg-blue-600 text-white hover:bg-blue-500 w-auto whitespace-nowrap"
-                          : "bg-white text-slate-900 hover:opacity-80 disabled:opacity-30"
+                        ? "bg-blue-600 text-white hover:bg-blue-500 w-auto whitespace-nowrap"
+                        : "bg-white text-slate-900 hover:opacity-80 disabled:opacity-30"
                         }`}
                     >
                       {gameState === "playing" ? (
@@ -600,8 +618,8 @@ export default function CoastlePage() {
                     key={s.id}
                     onClick={() => handleGuess(s)}
                     className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors border-b border-slate-800 last:border-0 group cursor-pointer ${index === activeIndex
-                        ? "bg-slate-800"
-                        : "hover:bg-slate-800/50"
+                      ? "bg-slate-800"
+                      : "hover:bg-slate-800/50"
                       }`}
                   >
                     {s.countryName && (

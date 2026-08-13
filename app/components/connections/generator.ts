@@ -43,7 +43,7 @@ function shuffleWithSeed<T>(array: T[], seed: string): T[] {
 
   for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1))
-    ;[result[i], result[j]] = [result[j], result[i]]
+      ;[result[i], result[j]] = [result[j], result[i]]
   }
 
   return result
@@ -352,6 +352,74 @@ function findBestBoard(
   return best
 }
 
+function getPreviousDateSeed(seed: string, daysAgo: number): string {
+  const parts = seed.split("-");
+  if (parts.length !== 3) return seed; // fallback if seed isn't YYYY-MM-DD format
+
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10) - 1; // JS months are 0-indexed
+  const d = parseInt(parts[2], 10);
+
+  // Use UTC to prevent weird timezone shifting across midnight
+  const date = new Date(Date.UTC(y, m, d));
+  date.setUTCDate(date.getUTCDate() - daysAgo);
+
+  const outY = date.getUTCFullYear();
+  const outM = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const outD = String(date.getUTCDate()).padStart(2, "0");
+
+  return `${outY}-${outM}-${outD}`;
+}
+
+function generateBaseBoards(
+  allCategories: ResolvedConnectionsCategory[],
+  seed: string,
+  excludedCategoryIds: Set<string>
+) {
+  // Only build candidate groups for categories that aren't on cooldown
+  const allowedCategories = allCategories.filter((c) => !excludedCategoryIds.has(c.id));
+  const candidates = buildCandidateGroups(allowedCategories, seed);
+
+  const boards: GeneratedBoard[] = [];
+
+  for (let i = 0; i < 100; i++) {
+    const attemptSeed = `${seed}-${i}`;
+    const pool = buildAttemptPool(candidates, attemptSeed, 26);
+    // Pass allCategories (not just allowed) to ensure we strictly check for overlaps/bleeds
+    // against even the excluded categories.
+    const board = findBestBoard(pool, allCategories);
+
+    if (board.length !== 4) continue;
+
+    boards.push({
+      groups: board,
+      score: getBoardScore(board),
+      seed: attemptSeed,
+      isStandardValid: isStandardBoard(board),
+    });
+  }
+
+  boards.sort((a, b) => b.score - a.score);
+
+  const validStandardBoards = boards.filter((b) => b.isStandardValid);
+  const bestStandard = validStandardBoards[0]?.groups || [];
+
+  let bestAdmin = bestStandard;
+
+  if (bestStandard.length > 0) {
+    const standardIds = new Set(bestStandard.map((g) => g.categoryId));
+    // Requirement 1: Admin board must have at least one different category than Standard
+    const diffAdmin = boards.find((b) => {
+      return b.groups.some((g) => !standardIds.has(g.categoryId));
+    });
+    if (diffAdmin) bestAdmin = diffAdmin.groups;
+  } else {
+    bestAdmin = boards[0]?.groups || [];
+  }
+
+  return { bestAdmin, bestStandard, boards };
+}
+
 export function buildDailyPuzzleGroups(
   categories: ResolvedConnectionsCategory[],
   seed: string
@@ -360,48 +428,39 @@ export function buildDailyPuzzleGroups(
   bestStandard: CandidateGroup[]
   boards: GeneratedBoard[]
 } {
-  const candidates = buildCandidateGroups(categories, seed)
+  // Requirement 2: 2-day deterministic cooldown
+  const excluded = new Set<string>();
 
-  let best: CandidateGroup[] = []
-  let bestScore = -1
+  // 1. Simulate Day -2
+  const seedMinus2 = getPreviousDateSeed(seed, 2);
+  const resMinus2 = generateBaseBoards(categories, seedMinus2, new Set());
+  resMinus2.bestStandard.forEach((g) => excluded.add(g.categoryId));
+  resMinus2.bestAdmin.forEach((g) => excluded.add(g.categoryId));
 
-  let bestStandard: CandidateGroup[] = []
-  let bestStandardScore = -1
+  // 2. Simulate Day -1 (which naturally excluded Day -2)
+  const seedMinus1 = getPreviousDateSeed(seed, 1);
+  const resMinus1 = generateBaseBoards(categories, seedMinus1, excluded);
+  resMinus1.bestStandard.forEach((g) => excluded.add(g.categoryId));
+  resMinus1.bestAdmin.forEach((g) => excluded.add(g.categoryId));
 
-  const boards: GeneratedBoard[] = []
+  // 3. Generate Today's board with Day -1 and Day -2 excluded
+  const todayRes = generateBaseBoards(categories, seed, excluded);
 
-  for (let i = 0; i < 100; i++) {
-    const attemptSeed = `${seed}-${i}`
-    const pool = buildAttemptPool(candidates, attemptSeed, 26)
-    const board = findBestBoard(pool, categories)
-
-    if (board.length !== 4) continue
-
-    const score = getBoardScore(board)
-
-    boards.push({
-      groups: board,
-      score,
-      seed: attemptSeed,
-      isStandardValid: board.every((g) => !g.adminOnly),
-    })
-
-    if (score > bestScore) {
-      bestScore = score
-      best = board
-    }
-
-    if (isStandardBoard(board) && score > bestStandardScore) {
-      bestStandardScore = score
-      bestStandard = board
-    }
+  // Graceful fallback: If excluding categories left us with too few combinations 
+  // to generate a valid board, fallback to no cooldowns for today to prevent crashing.
+  if (todayRes.bestStandard.length !== 4) {
+    console.warn("Cooldown caused generation failure. Falling back to no exclusions.");
+    const fallbackRes = generateBaseBoards(categories, seed, new Set());
+    return {
+      best: fallbackRes.bestAdmin,
+      bestStandard: fallbackRes.bestStandard,
+      boards: fallbackRes.boards,
+    };
   }
-
-  boards.sort((a, b) => b.score - a.score)
 
   return {
-    best: boards[0]?.groups || best,
-    bestStandard,
-    boards,
-  }
+    best: todayRes.bestAdmin,
+    bestStandard: todayRes.bestStandard,
+    boards: todayRes.boards,
+  };
 }

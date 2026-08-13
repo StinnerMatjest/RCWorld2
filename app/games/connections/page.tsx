@@ -18,9 +18,9 @@ function getTodaySeed() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
-function getStorageKey() {
-  if (process.env.NODE_ENV === "development") return "connections-dev";
-  return `connections-${getTodayString()}`;
+function getStorageKey(isAdminMode: boolean) {
+  const adminSuffix = isAdminMode ? "-admin" : "";
+  return `connections-${getTodayString()}${adminSuffix}`;
 }
 
 export default function ConnectionsPage() {
@@ -30,12 +30,20 @@ export default function ConnectionsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isActive = true;
+
+    // Force the game to unmount while fetching the new board to prevent state bleeding
+    setMounted(false);
+    setError(null);
+
     async function loadDailyPuzzle() {
       try {
         const [allCoasters, disabledRes] = await Promise.all([
           fetchConnectionsData(),
           fetch("/api/connections/categories"),
         ]);
+
+        if (!isActive) return;
 
         const disabledData = await disabledRes.json();
         const disabledCategories = new Set<string>(disabledData.disabledCategories || []);
@@ -56,13 +64,21 @@ export default function ConnectionsPage() {
           coasters: group.coasters.map((c) => c.name),
         })));
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load puzzle");
+        if (isActive) {
+          setError(err instanceof Error ? err.message : "Failed to load puzzle");
+        }
       } finally {
-        setMounted(true);
+        if (isActive) {
+          setMounted(true);
+        }
       }
     }
 
     loadDailyPuzzle();
+
+    return () => {
+      isActive = false;
+    };
   }, [isAdminMode]);
 
   if (!mounted) {
@@ -109,5 +125,13 @@ export default function ConnectionsPage() {
     );
   }
 
-  return <ConnectionsGame initialGroups={groups} persistKey={getStorageKey()} />;
+  const storageKey = getStorageKey(isAdminMode);
+
+  return (
+    <ConnectionsGame
+      key={storageKey}
+      initialGroups={groups}
+      persistKey={storageKey}
+    />
+  );
 }

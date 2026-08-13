@@ -258,7 +258,7 @@ export function ResultModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/80 animate-in fade-in duration-300"
       role="dialog"
       aria-modal="true"
       onMouseDown={(e) => {
