@@ -13,7 +13,9 @@ interface RatingWarningProps {
   coasters: import("@/app/types").RollerCoaster[];
   tooltipDirection?: "up" | "down";
   iconSizeClass?: string;
-  align?: "left" | "center" | "right" | "auto"; // NEW PROP
+  align?: "left" | "center" | "right" | "auto";
+  trigger?: "icon" | "manual"; // NEW PROP
+  show?: boolean; // NEW PROP
 }
 
 const RatingWarning: React.FC<RatingWarningProps> = ({
@@ -25,20 +27,24 @@ const RatingWarning: React.FC<RatingWarningProps> = ({
   tooltipDirection = "down",
   iconSizeClass = "w-3.5 h-3.5",
   align = "auto",
+  trigger = "icon",
+  show = false,
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [flipped, setFlipped] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
+  // When manual, we derive visibility strictly from the parent
+  const isVisible = trigger === "manual" ? show : showTooltip;
+
   useEffect(() => {
-    if (align !== "auto") return; // Skip auto-flip if alignment is explicitly provided
-    if (showTooltip && tooltipRef.current) {
+    if (align !== "auto") return;
+    if (isVisible && tooltipRef.current) {
       const rect = tooltipRef.current.getBoundingClientRect();
       const container = tooltipRef.current.closest('.overflow-hidden');
       let isClipped = false;
 
-      // Upgrade flip check to respect overflow-hidden containers
       if (container) {
         isClipped = rect.right > container.getBoundingClientRect().right - 8;
       } else {
@@ -46,7 +52,7 @@ const RatingWarning: React.FC<RatingWarningProps> = ({
       }
       setFlipped(isClipped);
     }
-  }, [showTooltip, align]);
+  }, [isVisible, align]);
 
   const warningsArray = Array.isArray(warning) ? warning : [warning];
 
@@ -71,16 +77,15 @@ const RatingWarning: React.FC<RatingWarningProps> = ({
 
   let colorClass = "";
   if (warningsArray.length === 1) {
-    if (highestSeverityLevel === 2) colorClass = "text-red-400"; // Changed from 600
-    else if (highestSeverityLevel === 1) colorClass = "text-yellow-400"; // Bumped from 500 to match
-    else colorClass = "text-slate-400";
+    if (highestSeverityLevel === 2) colorClass = "text-red-400";
+    else if (highestSeverityLevel === 1) colorClass = "text-yellow-400";
+    else colorClass = "text-gray-400";
   } else {
-    if (highestSeverityLevel === 2) colorClass = "text-white drop-shadow-sm";
-    else if (highestSeverityLevel === 1) colorClass = "text-red-400"; // Changed from 600
-    else colorClass = "text-yellow-400"; // Bumped from 500 to match
+    if (highestSeverityLevel === 2) colorClass = " text-white drop-shadow-sm";
+    else if (highestSeverityLevel === 1) colorClass = "text-red-400";
+    else colorClass = "text-yellow-400";
   }
 
-  // Determine horizontal positioning classes based on the new align prop
   let horizontalClass = "left-0";
   if (align === "right" || (align === "auto" && flipped)) {
     horizontalClass = "right-0";
@@ -88,6 +93,45 @@ const RatingWarning: React.FC<RatingWarningProps> = ({
     horizontalClass = "left-1/2 -translate-x-1/2";
   }
 
+  // HEADLESS MANUAL MODE (No Icon)
+  if (trigger === "manual") {
+    return (
+      <>
+        {isVisible && warningsArray.length > 0 && (
+          <div
+            ref={tooltipRef}
+            className={`absolute ${tooltipDirection === "up" ? "bottom-full mb-2" : "top-full mt-2"} w-56 p-2 rounded-2xl bg-neutral-800 text-white text-sm shadow-lg z-[60] whitespace-pre-line pointer-events-none ${horizontalClass}`}
+          >
+            {warningsArray.map((w, i) => (
+              <div key={i} className="mb-2 last:mb-0 text-left">
+                <div className="flex justify-between items-center mb-0.5">
+                  <p className="font-semibold text-yellow-400">{w.ride}</p>
+                  <span className={`text-[10px] px-1.5 rounded-full ${w.severity === "Major" ? "bg-red-500/20 text-red-300" :
+                      w.severity === "Minor" ? "bg-gray-500/30 text-gray-300" :
+                        "bg-yellow-500/20 text-yellow-300"
+                    }`}>
+                    {w.severity || "Moderate"}
+                  </span>
+                </div>
+                <p className="text-xs opacity-90">{w.note}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        {showModal && ratingId && (
+          <WarningCreatorModal
+            ratingId={ratingId}
+            existingWarnings={warningsArray}
+            onClose={() => setShowModal(false)}
+            onSaved={() => { if (onUpdate) onUpdate(); }}
+            coasters={coasters}
+          />
+        )}
+      </>
+    );
+  }
+
+  // STANDARD ICON MODE
   return (
     <>
       <div
@@ -107,12 +151,12 @@ const RatingWarning: React.FC<RatingWarningProps> = ({
             className={`absolute ${tooltipDirection === "up" ? "bottom-full mb-2" : "top-full mt-2"} w-56 p-2 rounded-2xl bg-neutral-800 text-white text-sm shadow-lg z-50 whitespace-pre-line pointer-events-none ${horizontalClass}`}
           >
             {warningsArray.map((w, i) => (
-              <div key={i} className="mb-2 last:mb-0">
+              <div key={i} className="mb-2 last:mb-0 text-left">
                 <div className="flex justify-between items-center mb-0.5">
                   <p className="font-semibold text-yellow-400">{w.ride}</p>
                   <span className={`text-[10px] px-1.5 rounded-full ${w.severity === "Major" ? "bg-red-500/20 text-red-300" :
-                    w.severity === "Minor" ? "bg-gray-500/30 text-gray-300" :
-                      "bg-yellow-500/20 text-yellow-300"
+                      w.severity === "Minor" ? "bg-gray-500/30 text-gray-300" :
+                        "bg-yellow-500/20 text-yellow-300"
                     }`}>
                     {w.severity || "Moderate"}
                   </span>

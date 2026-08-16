@@ -143,18 +143,16 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     img.style.top = `${c.clientHeight / 2 - cy * dh}px`;
   }, []);
 
-  const getCardEntry = useCallback((label: string): { src: string; focus: string } | null => {
+  const getCardEntry = useCallback((label: string): { src: string; focus: string } => {
     const key = label.toLowerCase() as CardCat;
     const entry = park.cardImages?.[key];
     if (entry?.src) return entry;
-    if (key === "coasters") return { src: cardSrc, focus: cardFocusStr };
-    return null;
+    return { src: cardSrc, focus: cardFocusStr };
   }, [park.cardImages, cardSrc, cardFocusStr]);
 
   const getCycleImages = useCallback(() =>
     FULL_BLEED_GROUPS
-      .map(g => { const e = getCardEntry(g.label); return e ? { label: g.label, ...e } : null; })
-      .filter((x): x is { label: string; src: string; focus: string } => x !== null),
+      .map(g => ({ label: g.label, ...getCardEntry(g.label) })),
     [getCardEntry]);
 
   // Two-slot cross-fade — both slots always sum to opacity 0.7, no black ever shows
@@ -463,34 +461,32 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
                 }) ?? [];
 
                 return (
-                  <div key={g.label} className="flex flex-col items-center gap-0.5 cursor-pointer"
+                  <div key={g.label} className="relative flex flex-col items-center gap-0.5 cursor-pointer"
                     onPointerEnter={(e) => { if (e.pointerType === "mouse") handleCatEnter(g.label); }}
                     onPointerLeave={(e) => { if (e.pointerType === "mouse") handleCatLeave(); }}
                     onClick={(e) => handleCatTap(e, g.label)}
                   >
+                    {warningsForGroup.length > 0 && (
+                      <RatingWarning
+                        warning={warningsForGroup}
+                        coasters={[]}
+                        tooltipDirection="up"
+                        align={index < 2 ? "left" : index === 2 ? "center" : "right"}
+                        trigger="manual"
+                        show={highlighted}
+                      />
+                    )}
+
                     <span className={`transition-transform duration-300 leading-none ${highlighted ? "scale-125" : "text-base"}`}>{g.emoji}</span>
-
-                    {/* Relative wrapper with absolute positioning for the warning */}
-                    <div className="relative flex items-center justify-center">
-                      {warningsForGroup.length > 0 && (
-                        <div className="absolute right-full mr-0.5 z-50 flex items-center">
-                          <RatingWarning
-                            warning={warningsForGroup}
-                            coasters={[]}
-                            tooltipDirection="up"
-                            iconSizeClass="w-3 h-3"
-                            align={index < 2 ? "left" : index === 2 ? "center" : "right"}
-                          />
-                        </div>
-                      )}
-                      <span className={`text-xs font-bold tabular-nums ${getRatingColor(parseFloat(g.getValue(rating)))}`}>
-                        {g.getValue(rating)}
-                      </span>
-                    </div>
-
-                    <span className={`text-[9px] uppercase tracking-wide transition-all duration-300 ${highlighted ? "text-white/90 border-b border-white/60 pb-px" : "text-white/40"}`}>
-                      {g.label}
+                    <span className={`text-xs font-bold tabular-nums ${getRatingColor(parseFloat(g.getValue(rating)))}`}>
+                      {g.getValue(rating)}
                     </span>
+                    <div className={`flex items-center gap-[3px] text-[9px] uppercase tracking-wide transition-all duration-300 ${highlighted ? "text-white/90 border-b border-white/60 pb-px" : "text-white/40"}`}>
+                      <span>{g.label}</span>
+                      {warningsForGroup.length > 0 && !highlighted && (
+                        <span className="w-[3px] h-[3px] rounded-full bg-red-400/50 mb-[1px]" />
+                      )}
+                    </div>
                   </div>
                 );
               })}

@@ -303,11 +303,6 @@ const RatingCard: React.FC<RatingCardProps> = ({
                       <div className="grid grid-cols-[1fr_auto] items-baseline gap-2 w-full min-w-0">
                         <span className="text-[1.05rem] font-semibold truncate flex items-center gap-1 text-slate-200">
                           {group.emoji} {group.label}
-                          {hasWarnings && (
-                            <div className="ml-0.5 relative z-50">
-                              <RatingWarning warning={warningsForGroup} coasters={[]} tooltipDirection="up" align="left" />
-                            </div>
-                          )}
                         </span>
                         <span className={`text-[1.1rem] font-bold tabular-nums ${getRatingColor(group.average)}`}>
                           {group.average.toFixed(2)}
@@ -319,11 +314,6 @@ const RatingCard: React.FC<RatingCardProps> = ({
                         <div className="flex items-center gap-6 w-full justify-between">
                           <span className="text-lg font-semibold flex items-center gap-1">
                             {group.label}
-                            {hasWarnings && (
-                              <div className="ml-1 relative z-50">
-                                <RatingWarning warning={warningsForGroup} coasters={[]} tooltipDirection="up" align="left" />
-                              </div>
-                            )}
                           </span>
                           <span className={`text-2xl font-bold ${getRatingColor(group.average)}`}>
                             {group.average.toFixed(2)}
