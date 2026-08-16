@@ -331,7 +331,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
             coasters={coasters}
           />
           {(selectedRating ?? visibleRatings[0]) && (
-            <VisitPanelDropdown rating={selectedRating ?? visibleRatings[0]} />
+            <VisitPanelDropdown rating={selectedRating ?? visibleRatings[0]} coasters={coasters} />
           )}
         </div>
 
