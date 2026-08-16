@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import type { Rating } from "@/app/types";
+import type { Rating, RollerCoaster } from "@/app/types";
 import { getRatingColor } from "@/app/utils/design";
+import RatingWarning from "../warnings/RatingWarning";
 
 const groups = [
   {
@@ -48,7 +49,12 @@ const groups = [
   },
 ] as const;
 
-const VisitPanelDropdown: React.FC<{ rating: Rating }> = ({ rating }) => {
+interface VisitPanelDropdownProps {
+  rating: Rating;
+  coasters: RollerCoaster[];
+}
+
+const VisitPanelDropdown: React.FC<VisitPanelDropdownProps> = ({ rating, coasters }) => {
   // Use an array to track multiple open categories
   const [openGroups, setOpenGroups] = useState<string[]>([]);
 
@@ -70,6 +76,18 @@ const VisitPanelDropdown: React.FC<{ rating: Rating }> = ({ rating }) => {
     );
   };
 
+  // Helper to filter warnings down to the specific category or sub-category keys
+  const getWarnings = (keys: string[], labels: string[]) => {
+    if (!rating.warnings) return [];
+    return rating.warnings.filter((w) => {
+      const norm = w.category.toLowerCase().replace(/\s+/g, "");
+      return (
+        keys.some((k) => k.toLowerCase().replace(/\s+/g, "") === norm) ||
+        labels.some((l) => l.toLowerCase().replace(/\s+/g, "") === norm)
+      );
+    });
+  };
+
   return (
     <div>
       <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-2">
@@ -83,6 +101,12 @@ const VisitPanelDropdown: React.FC<{ rating: Rating }> = ({ rating }) => {
           );
           const isOpen = openGroups.includes(g.label);
 
+          // Grab warnings for the parent category (if any sub-category matches)
+          const parentWarnings = getWarnings(
+            g.subs.map((s) => s.key),
+            g.subs.map((s) => s.label)
+          );
+
           return (
             <li key={g.label}>
               <button
@@ -90,8 +114,15 @@ const VisitPanelDropdown: React.FC<{ rating: Rating }> = ({ rating }) => {
                 className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-blue-500/10 transition-colors text-left group"
               >
                 <span className="text-base w-5 text-center flex-shrink-0">{g.emoji}</span>
-                <span className="flex-1 text-base font-medium text-slate-400 group-hover:text-blue-400 transition-colors truncate">
-                  {g.label}
+                <span className="flex-1 flex items-center gap-1.5 min-w-0">
+                  <span className="text-base font-medium text-slate-400 group-hover:text-blue-400 transition-colors truncate">
+                    {g.label}
+                  </span>
+                  {parentWarnings.length > 0 && (
+                    <div onClick={(e) => e.stopPropagation()} className="relative z-50 flex items-center flex-shrink-0 mt-px">
+                      <RatingWarning warning={parentWarnings} coasters={coasters} />
+                    </div>
+                  )}
                 </span>
                 <span className={`w-10 text-right text-base font-bold tabular-nums flex-shrink-0 ${getRatingColor(score)}`}>
                   {score.toFixed(2)}
@@ -116,6 +147,9 @@ const VisitPanelDropdown: React.FC<{ rating: Rating }> = ({ rating }) => {
                   >
                     {g.subs.map((sub) => {
                       const subScore = (rating as any)[sub.key] ?? 0;
+                      // Grab warnings specifically for this sub-category
+                      const childWarnings = getWarnings([sub.key], [sub.label]);
+
                       return (
                         <motion.li
                           key={sub.key}
@@ -127,8 +161,15 @@ const VisitPanelDropdown: React.FC<{ rating: Rating }> = ({ rating }) => {
                             onClick={() => scrollTo(sub.key)}
                             className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-blue-500/10 transition-colors text-left group"
                           >
-                            <span className="flex-1 min-w-0 text-[15px] font-medium text-slate-400 truncate group-hover:text-blue-400 transition-colors">
-                              {sub.label}
+                            <span className="flex-1 flex items-center gap-1.5 min-w-0">
+                              <span className="text-[15px] font-medium text-slate-400 truncate group-hover:text-blue-400 transition-colors">
+                                {sub.label}
+                              </span>
+                              {childWarnings.length > 0 && (
+                                <div onClick={(e) => e.stopPropagation()} className="relative z-50 flex items-center flex-shrink-0 mt-px">
+                                  <RatingWarning warning={childWarnings} coasters={coasters} />
+                                </div>
+                              )}
                             </span>
                             <span className={`w-12 text-right text-sm font-bold tabular-nums flex-shrink-0 ${getRatingColor(subScore)}`}>
                               {subScore.toFixed(1)}

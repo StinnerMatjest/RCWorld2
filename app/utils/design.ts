@@ -32,9 +32,6 @@ export const getRatingColor = (rating: number | string) => {
     return "text-slate-500";
   }
 
-  // NOTE: classes must stay literal strings so Tailwind generates them.
-  // Keep in sync with RATING_TIERS above.
-
   // ⭐ 11 — GOATED (gold + glow)
   if (rating >= 11) {
     return "text-[#FCD34D] drop-shadow-[0_0_4px_rgba(252,211,77,0.4)]";

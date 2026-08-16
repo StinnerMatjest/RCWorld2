@@ -15,12 +15,12 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
   const [countriesStr, setCountriesStr] = useState("");
   const [parksStr, setParksStr] = useState("");
   const [rcdbStr, setRcdbStr] = useState("");
-  
-  // Date and Undecided State
-  const [isUndecided, setIsUndecided] = useState(false);
+
+  // Date Mode State
+  const [dateMode, setDateMode] = useState<"exact" | "month" | "tbd">("exact");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  
+
   const [status, setStatus] = useState<Trip["status"]>("planned");
   const [notes, setNotes] = useState("");
   const [mapLink, setMapLink] = useState("");
@@ -39,21 +39,27 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
       setTripLog(trip.tripLog || []);
 
       const datesAreTBD = trip.startDate === "undecided" || trip.endDate === "undecided";
-      setIsUndecided(datesAreTBD);
+      const isMonth = !datesAreTBD && trip.startDate.length === 7;
+
+      if (datesAreTBD) setDateMode("tbd");
+      else if (isMonth) setDateMode("month");
+      else setDateMode("exact");
+
       setStartDate(datesAreTBD ? "" : trip.startDate);
       setEndDate(datesAreTBD ? "" : trip.endDate);
     }
   }, [trip]);
 
   // Validation check & Limit Calculations
-  const hasValidDatesForLogs = 
-    isUndecided || 
-    (startDate !== "" && endDate !== "" && new Date(endDate) >= new Date(startDate));
+  const hasValidDatesForLogs =
+    dateMode === "tbd" ||
+    (dateMode === "month" && startDate !== "") ||
+    (dateMode === "exact" && startDate !== "" && endDate !== "" && new Date(endDate) >= new Date(startDate));
 
   let maxLogs = Infinity;
   let tripDays = 0;
 
-  if (!isUndecided && hasValidDatesForLogs) {
+  if (dateMode === "exact" && hasValidDatesForLogs) {
     const startObj = new Date(startDate);
     const endObj = new Date(endDate);
     const diffTime = endObj.getTime() - startObj.getTime();
@@ -62,7 +68,7 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
   }
 
   const canAddMoreLogs = hasValidDatesForLogs && tripLog.length < maxLogs;
-  const isOverLogLimit = !isUndecided && hasValidDatesForLogs && tripLog.length > maxLogs;
+  const isOverLogLimit = dateMode === "exact" && hasValidDatesForLogs && tripLog.length > maxLogs;
 
   const addLogEntry = () => {
     if (canAddMoreLogs) {
@@ -82,8 +88,8 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
 
   // Converts "Day X" into "Day X (DD.MM.YYYY)"
   const convertDayToDate = (inputVal: string) => {
-    if (isUndecided || !startDate) return inputVal;
-    
+    if (dateMode !== "exact" || !startDate) return inputVal;
+
     // Check if they typed something like "Day 1" or "day 3"
     const dayMatch = inputVal.trim().match(/^day\s*(\d+)$/i);
     if (dayMatch) {
@@ -92,11 +98,11 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
         const d = new Date(startDate);
         // Add days (Day 1 means adding 0 days to start date, Day 2 means adding 1, etc.)
         d.setDate(d.getDate() + (dayNum - 1));
-        
+
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, "0");
         const day = String(d.getDate()).padStart(2, "0");
-        
+
         return `Day ${dayNum} (${day}.${month}.${year})`;
       }
     }
@@ -150,8 +156,8 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
       country: countriesStr.split(",").map((s) => s.trim()).filter(Boolean),
       parks: parksStr.split(",").map((s) => s.trim()).filter(Boolean),
       rcdb: rcdbStr.split(",").map((s) => s.trim()).filter(Boolean),
-      startDate: isUndecided ? "undecided" : startDate,
-      endDate: isUndecided ? "undecided" : endDate,
+      startDate: dateMode === "tbd" ? "undecided" : startDate,
+      endDate: dateMode === "tbd" ? "undecided" : (dateMode === "month" ? startDate : endDate),
       status,
       notes: notes.trim() || null,
       mapLink: mapLink.trim() || null,
@@ -177,7 +183,7 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
       <div className=" bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-6">
         <div className="flex justify-between items-center border-b border-gray-700 pb-4">
           <h2 className="text-2xl font-bold dark:text-white">
@@ -205,51 +211,41 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
             <input type="text" value={rcdbStr} onChange={(e) => setRcdbStr(e.target.value)} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="https://rcdb.com/..., ..." />
           </div>
 
-          {/* Undecided Checkbox */}
-          <div className="flex items-center gap-2 pt-2">
-            <input
-              type="checkbox"
-              id="undecided-checkbox"
-              checked={isUndecided}
-              onChange={(e) => {
-                setIsUndecided(e.target.checked);
-                if (e.target.checked) {
-                  setStartDate("");
-                  setEndDate("");
-                }
-              }}
-              className="w-4 h-4 text-blue-600 rounded border-gray-600 dark:bg-gray-700 cursor-pointer"
-            />
-            <label htmlFor="undecided-checkbox" className="text-sm font-medium text-gray-300 cursor-pointer">
-              Dates are currently undecided (TBD / Backlog)
+          {/* Date Mode Selection */}
+          <div className="flex items-center gap-5 pt-3 pb-1 border-t border-gray-700 mt-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="dateMode" checked={dateMode === "exact"} onChange={() => { setDateMode("exact"); setStartDate(""); setEndDate(""); }} className="text-blue-600 w-4 h-4 cursor-pointer" />
+              <span className="text-sm font-medium text-gray-300">Exact Dates</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="dateMode" checked={dateMode === "month"} onChange={() => { setDateMode("month"); setStartDate(""); setEndDate(""); }} className="text-blue-600 w-4 h-4 cursor-pointer" />
+              <span className="text-sm font-medium text-gray-300">Month Only</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="dateMode" checked={dateMode === "tbd"} onChange={() => { setDateMode("tbd"); setStartDate(""); setEndDate(""); }} className="text-blue-600 w-4 h-4 cursor-pointer" />
+              <span className="text-sm font-medium text-gray-300">TBD / Undecided</span>
             </label>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1 dark:text-gray-300">Start Date</label>
-              <input 
-                required={!isUndecided} 
-                disabled={isUndecided}
-                type="date" 
-                value={startDate} 
-                onChange={(e) => setStartDate(e.target.value)} 
-                className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" 
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 dark:text-gray-300">End Date</label>
-              <input 
-                required={!isUndecided} 
-                disabled={isUndecided}
-                type="date" 
-                value={endDate} 
-                onChange={(e) => setEndDate(e.target.value)} 
-                className={`w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed ${
-                  startDate && endDate && new Date(endDate) < new Date(startDate) ? "border-red-500 focus:ring-red-500" : ""
-                }`} 
-              />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            {dateMode === "exact" && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-1 dark:text-gray-300">Start Date</label>
+                  <input required type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 dark:text-gray-300">End Date</label>
+                  <input required type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={`w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white ${startDate && endDate && new Date(endDate) < new Date(startDate) ? "border-red-500 focus:ring-red-500" : ""}`} />
+                </div>
+              </>
+            )}
+            {dateMode === "month" && (
+              <div className="col-span-2">
+                <label className="block text-sm font-medium mb-1 dark:text-gray-300">Month</label>
+                <input required type="month" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium mb-1 dark:text-gray-300">Status</label>
               <select value={status} onChange={(e) => setStatus(e.target.value as Trip["status"])} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -275,11 +271,11 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
           <div className="border border-gray-700 rounded-lg p-4 space-y-3 bg-gray-800/50">
             <div className="flex justify-between items-center">
               <h3 className="font-semibold dark:text-white">
-                Trip Log {tripDays > 0 && !isUndecided && <span className={`text-sm font-normal ${isOverLogLimit ? "text-red-500 font-bold" : "text-gray-500"}`}>({tripLog.length}/{maxLogs})</span>}
+                Trip Log {tripDays > 0 && dateMode === "exact" && <span className={`text-sm font-normal ${isOverLogLimit ? "text-red-500 font-bold" : "text-gray-500"}`}>({tripLog.length}/{maxLogs})</span>}
               </h3>
-              <button 
-                type="button" 
-                onClick={addLogEntry} 
+              <button
+                type="button"
+                onClick={addLogEntry}
                 disabled={!canAddMoreLogs}
                 className="text-sm px-3 py-1 rounded hover:bg-blue-200 bg-blue-900 text-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
               >
@@ -289,10 +285,10 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
 
             {!hasValidDatesForLogs && (
               <p className="text-sm text-red-400">
-                ⚠️ Please select a valid Start and End date to add trip logs.
+                ⚠️ Please select valid dates to add trip logs.
               </p>
             )}
-            {hasValidDatesForLogs && !isUndecided && tripLog.length === maxLogs && (
+            {hasValidDatesForLogs && dateMode === "exact" && tripLog.length === maxLogs && (
               <p className="text-sm text-amber-400">
                 ⚠️ Maximum of {maxLogs} logs reached for a {tripDays}-day trip.
               </p>
@@ -305,26 +301,26 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
 
             {tripLog.map((log, i) => (
               <div key={i} className="flex gap-2 items-start">
-                <input 
-                  type="text" 
-                  value={log.date} 
-                  onChange={(e) => updateLogEntry(i, "date", e.target.value)} 
+                <input
+                  type="text"
+                  value={log.date}
+                  onChange={(e) => updateLogEntry(i, "date", e.target.value)}
                   onBlur={() => handleLogDateBlur(i)}
                   disabled={!hasValidDatesForLogs}
-                  className="w-1/3 p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed" 
-                  placeholder="Day 1" 
+                  className="w-1/3 p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder={dateMode === "exact" ? "Day 1" : "Date"}
                 />
-                <input 
-                  type="text" 
-                  value={log.activity} 
-                  onChange={(e) => updateLogEntry(i, "activity", e.target.value)} 
+                <input
+                  type="text"
+                  value={log.activity}
+                  onChange={(e) => updateLogEntry(i, "activity", e.target.value)}
                   disabled={!hasValidDatesForLogs}
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed" 
-                  placeholder="Activity" 
+                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="Activity"
                 />
-                <button 
-                  type="button" 
-                  onClick={() => removeLogEntry(i)} 
+                <button
+                  type="button"
+                  onClick={() => removeLogEntry(i)}
                   disabled={!hasValidDatesForLogs}
                   className="text-red-500 hover:text-red-700 p-2 font-bold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
@@ -332,8 +328,8 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
                 </button>
               </div>
             ))}
-            
-            {hasValidDatesForLogs && !isUndecided && (
+
+            {hasValidDatesForLogs && dateMode === "exact" && (
               <p className="text-xs text-gray-400 pt-1">
                 💡 Tip: Type "Day 1", "Day 2", etc. and click away to automatically calculate the date.
               </p>
@@ -357,13 +353,13 @@ export default function TripCreatorModal({ trip, onClose, onSaved }: TripCreator
 
             {/* Cancel and Save Buttons */}
             <div className="flex gap-3">
-              <button type="button" onClick={onClose} className="px-4 py-2 border rounded text-gray-300 hover:bg-gray-700 cursor-pointer cursor-pointer">
+              <button type="button" onClick={onClose} className="px-4 py-2 border rounded text-gray-300 hover:bg-gray-700 cursor-pointer">
                 Cancel
               </button>
-              <button 
-                type="submit" 
-                disabled={loading || isDeleting || !hasValidDatesForLogs || isOverLogLimit} 
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              <button
+                type="submit"
+                disabled={loading || isDeleting || !hasValidDatesForLogs || isOverLogLimit}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 {loading ? "Saving..." : "Save Trip"}
               </button>

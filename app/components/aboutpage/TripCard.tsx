@@ -31,6 +31,12 @@ const getCardStyle = (status: Trip["status"]) => {
 const getDateRangeLabel = (start: string, end: string) => {
   if (start === "undecided" || end === "undecided") return "Dates TBD";
 
+  // Check if it's a YYYY-MM month-only trip
+  if (start.length === 7) {
+    const d = new Date(start + "-01");
+    return d.toLocaleDateString("da-DK", { month: "long", year: "numeric" });
+  }
+
   const locale = "da-DK";
   const from = new Date(start).toLocaleDateString(locale, {
     year: "numeric",
@@ -46,7 +52,8 @@ const getDateRangeLabel = (start: string, end: string) => {
 };
 
 const getDurationSummary = (start: string, end: string, parkCount: number) => {
-  if (start === "undecided" || end === "undecided") {
+  // Hide the day-duration calc for month-only trips
+  if (start === "undecided" || end === "undecided" || start.length === 7) {
     return `📍 ${parkCount} ${parkCount === 1 ? "park" : "parks"} · TBD`;
   }
   const dayMs = 1000 * 60 * 60 * 24;
@@ -102,15 +109,14 @@ export default function TripCard({
 
       {/* Status Badge */}
       <span
-        className={`absolute -top-3 -left-3 px-3 py-1 text-xs font-bold rounded-full shadow-md ${
-          trip.status === "past"
+        className={`absolute -top-3 -left-3 px-3 py-1 text-xs font-bold rounded-full shadow-md ${trip.status === "past"
             ? " bg-gray-700 text-gray-100"
             : trip.status === "booked"
-            ? " bg-green-600 text-white"
-            : trip.status === "planned"
-            ? " bg-yellow-500 text-black"
-            : " bg-blue-600 text-white"
-        }`}
+              ? " bg-green-600 text-white"
+              : trip.status === "planned"
+                ? " bg-yellow-500 text-black"
+                : " bg-blue-600 text-white"
+          }`}
       >
         {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
       </span>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { FocusedImage } from "./FocusedImage";
+import RatingWarning from "./warnings/RatingWarning";
 import { AlertTriangle } from "lucide-react";
 import { getParkFlag, getRatingColor } from "@/app/utils/design";
 import { RatingWarningType, Park, Rating } from "@/app/types";
@@ -303,7 +304,9 @@ const RatingCard: React.FC<RatingCardProps> = ({
                         <span className="text-[1.05rem] font-semibold truncate flex items-center gap-1 text-slate-200">
                           {group.emoji} {group.label}
                           {hasWarnings && (
-                            <AlertTriangle className={`ml-1 w-4 h-4 ${warningColorClass}`} />
+                            <div className="ml-0.5 relative z-50">
+                              <RatingWarning warning={warningsForGroup} coasters={[]} tooltipDirection="up" align="left" />
+                            </div>
                           )}
                         </span>
                         <span className={`text-[1.1rem] font-bold tabular-nums ${getRatingColor(group.average)}`}>
@@ -317,7 +320,9 @@ const RatingCard: React.FC<RatingCardProps> = ({
                           <span className="text-lg font-semibold flex items-center gap-1">
                             {group.label}
                             {hasWarnings && (
-                              <AlertTriangle className={`ml-2 w-4 h-4 ${warningColorClass}`} />
+                              <div className="ml-1 relative z-50">
+                                <RatingWarning warning={warningsForGroup} coasters={[]} tooltipDirection="up" align="left" />
+                              </div>
                             )}
                           </span>
                           <span className={`text-2xl font-bold ${getRatingColor(group.average)}`}>

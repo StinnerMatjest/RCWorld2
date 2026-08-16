@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { FocusedImage } from "../FocusedImage";
-import { getRatingColor, getRatingHex, getParkFlag, RATING_TIERS } from "@/app/utils/design";
+import { getRatingColor, getRatingHex, getParkFlag } from "@/app/utils/design";
 import { getDaysUntil } from "@/app/utils/trips";
 import type { Trip } from "./TripCard";
 
@@ -23,13 +23,15 @@ type Visit = {
   totalVisits: number;
 };
 
-const tierLabel = (r: number) => RATING_TIERS.find(t => r >= t.min)?.label ?? "";
-
 function visitDateLabel(date: string) {
   return new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
 function tripRangeLabel(start: string, end: string) {
+  if (start.length === 7) {
+    return new Date(start + "-01").toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  }
+
   const s = new Date(start);
   const e = new Date(end);
   const sameMonth = s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear();
@@ -61,7 +63,10 @@ function UpcomingCard({ trip, isAdminMode, onEdit }: {
 }) {
   const booked = trip.status === "booked";
   const undecided = trip.startDate === "undecided" || trip.endDate === "undecided";
-  const days = undecided ? null : getDaysUntil(trip.startDate);
+  const isMonthOnly = !undecided && trip.startDate.length === 7;
+
+  // Hide the exact day countdown if we don't have exact dates
+  const days = undecided || isMonthOnly ? null : getDaysUntil(trip.startDate);
   const countries = Array.isArray(trip.country) ? trip.country : [trip.country];
 
   return (
@@ -71,8 +76,8 @@ function UpcomingCard({ trip, isAdminMode, onEdit }: {
         style={{ borderColor: booked ? "#34d399" : "#fbbf24" }}
       />
       <div className={`rounded-2xl border-2 border-dashed px-4 py-3.5 sm:px-5 transition-colors ${booked
-          ? "border-emerald-500/40 bg-emerald-500/[0.04] hover:border-emerald-500/70"
-          : "border-amber-500/30 bg-amber-500/[0.03] hover:border-amber-500/60"
+        ? "border-emerald-500/40 bg-emerald-500/[0.04] hover:border-emerald-500/70"
+        : "border-amber-500/30 bg-amber-500/[0.03] hover:border-amber-500/60"
         }`}>
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`text-[10px] font-black uppercase tracking-widest ${booked ? "text-emerald-400" : "text-amber-400"}`}>
@@ -145,12 +150,10 @@ function VisitTile({ visit }: { visit: Visit }) {
         {/* Info */}
         <div className="flex items-center gap-4 p-4 sm:p-5">
           <div className="flex-1 min-w-0">
-            {/* Desktop shows the date on the rail instead — avoid repeating it here */}
-            <p className={`text-[11px] font-black uppercase tracking-widest text-orange-500 ${visit.totalVisits > 1 ? "" : "sm:hidden"}`}>
+            {/* Desktop shows the date on the rail instead, but we always want to show the visit number */}
+            <p className="text-[11px] font-black uppercase tracking-widest text-orange-500">
               <span className="sm:hidden">{visitDateLabel(visit.date)}</span>
-              {visit.totalVisits > 1 && (
-                <span className="text-slate-500"><span className="sm:hidden"> · </span>Visit #{visit.visitNumber}</span>
-              )}
+              <span className="text-slate-500"><span className="sm:hidden"> · </span>Visit #{visit.visitNumber}</span>
             </p>
             <p className="font-black text-white text-xl sm:text-2xl leading-tight truncate mt-1 group-hover:text-orange-400 transition-colors">
               {visit.name}
@@ -164,16 +167,11 @@ function VisitTile({ visit }: { visit: Visit }) {
             </p>
           </div>
 
-          {/* Score + tier */}
-          <div className="flex-shrink-0 text-right">
+          {/* Score */}
+          <div className="flex-shrink-0 flex items-center h-full pr-1">
             <p className={`text-3xl sm:text-4xl font-black tabular-nums leading-none ${getRatingColor(overall)}`}>
               {hasScore ? overall.toFixed(2).replace(/\.?0+$/, "") : "—"}
             </p>
-            {hasScore && (
-              <p className={`text-[10px] font-black uppercase tracking-widest mt-1.5 ${getRatingColor(overall)} opacity-80`}>
-                {tierLabel(overall)}
-              </p>
-            )}
           </div>
         </div>
       </Link>
@@ -208,11 +206,19 @@ export default function VisitTimeline({ trips, isAdminMode, onEditTrip, initialV
   today.setHours(0, 0, 0, 0);
 
   const upcoming = trips
-    .filter(t =>
-      (t.status === "booked" || t.status === "planned") &&
-      t.startDate !== "undecided" && t.endDate !== "undecided" &&
-      new Date(t.endDate) >= today
-    )
+    .filter(t => {
+      if (t.status !== "booked" && t.status !== "planned") return false;
+      if (t.startDate === "undecided" || t.endDate === "undecided") return false;
+
+      let endObj = new Date(t.endDate);
+      // If it's a month-only trip, evaluate against the final day of that month
+      if (t.endDate.length === 7) {
+        const [year, month] = t.endDate.split("-");
+        // 0th day of the next month = last day of the current month
+        endObj = new Date(parseInt(year), parseInt(month), 0);
+      }
+      return endObj >= today;
+    })
     // Future flows downward toward "now": farthest trip at the top
     .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
 

@@ -86,9 +86,6 @@ const VisitPanel: React.FC<VisitPanelProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
-          {(active.warnings?.length ?? 0) > 0 && (
-            <RatingWarning warning={active.warnings!} coasters={coasters} />
-          )}
           <div className="flex items-baseline gap-0.5">
             <span className={`text-2xl md:text-3xl font-black tabular-nums leading-none ${getRatingColor(active.overall)}`}>
               {active.overall}
@@ -144,20 +141,19 @@ const VisitPanel: React.FC<VisitPanelProps> = ({
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-0.5 md:gap-1 flex-shrink-0">
-                        <span className={`text-sm md:text-base font-bold tabular-nums ${getRatingColor(r.overall)}`}>
-                          {r.overall}
-                        </span>
-                        <span className="text-[11px] md:text-xs text-slate-500">/10</span>
-                        {(r.warnings?.length ?? 0) > 0 && (
-                          <RatingWarning warning={r.warnings!} coasters={coasters} />
+                      <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+                        <div className="flex items-baseline gap-0.5">
+                          <span className={`text-sm md:text-base font-bold tabular-nums ${getRatingColor(r.overall)}`}>
+                            {r.overall}
+                          </span>
+                          <span className="text-[11px] md:text-xs text-slate-500">/10</span>
+                        </div>
+                        {isCurrent && (
+                          <svg className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0 text-blue-500 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.364 7.364a1 1 0 01-1.414 0L3.293 9.435a1 1 0 111.414-1.414l3.222 3.222 6.657-6.657a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
                         )}
                       </div>
-                      {isCurrent && (
-                        <svg className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.364 7.364a1 1 0 01-1.414 0L3.293 9.435a1 1 0 111.414-1.414l3.222 3.222 6.657-6.657a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
                     </button>
                   </li>
                 );

@@ -1,19 +1,11 @@
 "use client";
 
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  Suspense,
-  useRef,
-  UIEvent,
-  useLayoutEffect,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useState, Suspense, useRef, UIEvent, useLayoutEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { RatingWarningType, Rating, Park } from "@/app/types";
 import RatingCard from "./components/RatingCard";
+import RatingWarning from "./components/warnings/RatingWarning";
 import RatingModal from "./components/RatingModal";
 import { useRouter } from "next/navigation";
 import { useSearch } from "./context/SearchContext";
@@ -115,11 +107,11 @@ TeaserParkCard.displayName = "TeaserParkCard";
 const avg = (a: number, b: number) => ((a + b) / 2).toFixed(2);
 
 const FULL_BLEED_GROUPS = [
-  { emoji: "🎢", label: "Coasters", getValue: (r: Rating) => avg(r.bestCoaster, r.coasterDepth) },
-  { emoji: "🎡", label: "Rides", getValue: (r: Rating) => avg(r.waterRides, r.flatridesAndDarkrides) },
-  { emoji: "🏞️", label: "Park", getValue: (r: Rating) => avg(r.parkAppearance, r.parkPracticality) },
-  { emoji: "🍔", label: "Food", getValue: (r: Rating) => avg(r.food, r.snacksAndDrinks) },
-  { emoji: "📋", label: "Mgmt", getValue: (r: Rating) => avg(r.rideOperations, r.parkManagement) },
+  { emoji: "🎢", label: "Coasters", getValue: (r: Rating) => avg(r.bestCoaster, r.coasterDepth), keys: ["bestCoaster", "coasterDepth", "Best Coaster", "Coaster Depth"] },
+  { emoji: "🎡", label: "Rides", getValue: (r: Rating) => avg(r.waterRides, r.flatridesAndDarkrides), keys: ["waterRides", "flatridesAndDarkrides", "Water Rides", "Flatrides And Darkrides"] },
+  { emoji: "🏞️", label: "Park", getValue: (r: Rating) => avg(r.parkAppearance, r.parkPracticality), keys: ["parkAppearance", "parkPracticality", "Park Appearance", "Park Practicality"] },
+  { emoji: "🍔", label: "Food", getValue: (r: Rating) => avg(r.food, r.snacksAndDrinks), keys: ["food", "snacksAndDrinks", "Food", "Snacks And Drinks"] },
+  { emoji: "📋", label: "Mgmt", getValue: (r: Rating) => avg(r.rideOperations, r.parkManagement), keys: ["rideOperations", "parkManagement", "Ride Operations", "Park Management"] },
 ];
 
 const CARD_CATS = ["coasters", "rides", "park", "food", "mgmt"] as const;
@@ -461,8 +453,15 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
               {rating.overall.toFixed(2)}
             </span>
             <div className="w-full grid grid-cols-5 gap-1 mt-1">
-              {FULL_BLEED_GROUPS.map((g) => {
+              {FULL_BLEED_GROUPS.map((g, index) => {
                 const highlighted = activeLabel === g.label;
+
+                // Find any warnings mapped to this specific group
+                const warningsForGroup = rating.warnings?.filter((w: RatingWarningType) => {
+                  const normalizedWarningCat = w.category.toLowerCase().replace(/\s+/g, '');
+                  return g.keys.some(k => k.toLowerCase().replace(/\s+/g, '') === normalizedWarningCat);
+                }) ?? [];
+
                 return (
                   <div key={g.label} className="flex flex-col items-center gap-0.5 cursor-pointer"
                     onPointerEnter={(e) => { if (e.pointerType === "mouse") handleCatEnter(g.label); }}
@@ -470,7 +469,25 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
                     onClick={(e) => handleCatTap(e, g.label)}
                   >
                     <span className={`transition-transform duration-300 leading-none ${highlighted ? "scale-125" : "text-base"}`}>{g.emoji}</span>
-                    <span className={`text-xs font-bold tabular-nums ${getRatingColor(parseFloat(g.getValue(rating)))}`}>{g.getValue(rating)}</span>
+
+                    {/* Relative wrapper with absolute positioning for the warning */}
+                    <div className="relative flex items-center justify-center">
+                      {warningsForGroup.length > 0 && (
+                        <div className="absolute right-full mr-0.5 z-50 flex items-center">
+                          <RatingWarning
+                            warning={warningsForGroup}
+                            coasters={[]}
+                            tooltipDirection="up"
+                            iconSizeClass="w-3 h-3"
+                            align={index < 2 ? "left" : index === 2 ? "center" : "right"}
+                          />
+                        </div>
+                      )}
+                      <span className={`text-xs font-bold tabular-nums ${getRatingColor(parseFloat(g.getValue(rating)))}`}>
+                        {g.getValue(rating)}
+                      </span>
+                    </div>
+
                     <span className={`text-[9px] uppercase tracking-wide transition-all duration-300 ${highlighted ? "text-white/90 border-b border-white/60 pb-px" : "text-white/40"}`}>
                       {g.label}
                     </span>

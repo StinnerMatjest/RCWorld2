@@ -823,48 +823,62 @@ export default function RankleClient() {
       const needed = Math.max(0, Math.ceil((22 - s.length) / 1.7));
       return `||${s + " ".repeat(needed)}||`;
     };
-    const colorEmoji = (c: string) =>
-      ({ yellow: "🟨", green: "🟩", blue: "🟦", purple: "🟪", orange: "🟧", red: "🟥", brown: "🟫" } as Record<string, string>)[c] ?? "⬜";
+
     const sections: string[] = [`🎮 ParkRating Daily — ${localYMD()}`];
+
+    // Coastle
     try {
-      const raw = localStorage.getItem(`connections-${getTodayString()}`);
+      const raw = localStorage.getItem("coastle-daily-state") || localStorage.getItem("coastle-standard-daily-state");
       if (raw) {
         const state = JSON.parse(raw);
-        // Safely parse regardless of the exact variable names used in the connections state
+        if (state.date === getTodayString() && state.status && state.status !== "playing") {
+          const won = state.status === "won";
+          const guesses: { matches?: Record<string, string>; coaster?: { name?: string } }[] = state.guesses ?? [];
+          const rows = guesses.map((g) => {
+            const m = g.matches ?? {};
+            const emoji = [m.manufacturer, m.country, m.length, m.height, m.speed, m.inversions]
+              .map((s) => (s === "correct" ? "🟩" : s === "close" ? "🟨" : "🟥"))
+              .join(" ");
+            return `${emoji}  ${spoiler(g.coaster?.name ?? "")}`;
+          });
+          sections.push(`🎢 Coastle — ${won ? `${guesses.length}/5` : "X/5"}\n${rows.join("\n")}`);
+        }
+      }
+    } catch { }
+
+    // Connections
+    try {
+      const todayStr = getTodayString();
+      const raw = localStorage.getItem(`connections-${todayStr}`) || localStorage.getItem(`connections-${todayStr}-admin`);
+      if (raw) {
+        const state = JSON.parse(raw);
         const solvedN = state.solved?.length ?? state.playerSolvedCount ?? 0;
         const mistakes = state.mistakes ?? 0;
-        const historyList = state.guessHistory ?? state.guesses ?? state.history ?? [];
+        const isDone = solvedN >= 4 || mistakes >= 4;
 
-        const grid = historyList
-          .map((row: any) => {
-            const colors = Array.isArray(row) ? row : (row.colors ?? row.guess ?? []);
-            return colors.map((c: any) => {
-              const colorStr = typeof c === "string" ? c : (c.color || c.difficulty || "unknown");
-              if (colorStr.includes("yellow") || colorStr.includes("amber")) return "🟨";
-              if (colorStr.includes("green") || colorStr.includes("emerald")) return "🟩";
-              if (colorStr.includes("blue") || colorStr.includes("sky")) return "🟦";
-              if (colorStr.includes("purple") || colorStr.includes("violet")) return "🟪";
-              return "⬛";
-            }).join(" ");
-          })
-          .filter((r: string) => r.trim().length > 0)
-          .join("\n");
+        if (isDone) {
+          const historyList = state.guessHistory ?? state.guesses ?? state.history ?? [];
+          const grid = historyList
+            .map((row: any) => {
+              const colors = Array.isArray(row) ? row : (row.colors ?? row.guess ?? []);
+              return colors.map((c: any) => {
+                const colorStr = typeof c === "string" ? c : (c.color || c.difficulty || "unknown");
+                if (colorStr.includes("yellow") || colorStr.includes("amber")) return "🟨";
+                if (colorStr.includes("green") || colorStr.includes("emerald")) return "🟩";
+                if (colorStr.includes("blue") || colorStr.includes("sky")) return "🟦";
+                if (colorStr.includes("purple") || colorStr.includes("violet")) return "🟪";
+                return "⬛";
+              }).join(" ");
+            })
+            .filter((r: string) => r.trim().length > 0)
+            .join("\n");
 
-        sections.push(`🔗 Connections — ${solvedN}/4 · ${mistakes} mistake${mistakes !== 1 ? "s" : ""}${grid ? `\n${grid}` : ""}`);
+          sections.push(`🔗 Connections — ${solvedN}/4 · ${mistakes} mistake${mistakes !== 1 ? "s" : ""}${grid ? `\n${grid}` : ""}`);
+        }
       }
     } catch { }
-    try {
-      const raw = localStorage.getItem(`connections-${getTodayString()}`);
-      if (raw) {
-        const state = JSON.parse(raw);
-        const solvedN = state.playerSolvedCount ?? 0;
-        const mistakes = state.mistakes ?? 0;
-        const grid = (state.guessHistory ?? [])
-          .map((row: { colors?: string[] }) => (row.colors ?? []).map(colorEmoji).join(" "))
-          .join("\n");
-        sections.push(`🔗 Connections — ${solvedN}/4 · ${mistakes} mistake${mistakes !== 1 ? "s" : ""}\n${grid}`);
-      }
-    } catch { }
+
+    // Zoomle
     try {
       const raw = localStorage.getItem(`zoomle-${localYMD()}`);
       if (raw) {
@@ -880,6 +894,8 @@ export default function RankleClient() {
         }
       }
     } catch { }
+
+    // Rankle
     const log = roundLogRef.current;
     const rankleRows = log.length
       ? log
@@ -890,6 +906,7 @@ export default function RankleClient() {
         .join("\n")
       : historyRef.current.map((h) => (h ? "🟩" : "🟥")).join("");
     sections.push(`🎰 Rankle — Bank ${Math.max(0, bankRef.current)}\n${rankleRows}${allInShareRow()}`);
+
     sections.push("Play at <https://parkrating.com/games>");
     return sections.join("\n\n");
   }, [allInShareRow]);
@@ -1084,13 +1101,7 @@ export default function RankleClient() {
         @keyframes rankle-fadein { from { opacity:0; } to { opacity:1; } }
         @keyframes rankle-out { to { opacity:0; transform: scale(0.95) translateY(10px); } }
         @keyframes rankle-nudge { 0%,100% { transform: translateY(0); } 50% { transform: translateY(7px); } }
-        
-        /* Question slam animation */
-        @keyframes rankle-question-slam {
-          0% { opacity: 0; transform: translateY(min(25vh, 180px)) scale(1.3); filter: drop-shadow(0 15px 15px rgba(0,0,0,0.8)); }
-          20% { opacity: 1; transform: translateY(min(25vh, 180px)) scale(1.3); filter: drop-shadow(0 15px 15px rgba(0,0,0,0.8)); }
-          60% { opacity: 1; transform: translateY(min(25vh, 180px)) scale(1.3); filter: drop-shadow(0 15px 15px rgba(0,0,0,0.8)); }
-          100% { opacity: 1; transform: translateY(0) scale(1); filter: none; }
+        @keyframes rankle-question-pop {0% { opacity: 0; transform: scale(0.85); } 60% { opacity: 1; transform: scale(1.03); } 100% { opacity: 1; transform: scale(1); }
         }
 
         /* mobile-only entrance for elements that take the stage sequentially */
@@ -1244,8 +1255,8 @@ export default function RankleClient() {
                 <span
                   key={i}
                   className={`w-2 h-2 rounded-full ${i < history.length
-                      ? history[i] ? "bg-green-400" : "bg-red-400"
-                      : i === history.length ? "bg-brand" : "bg-slate-700"
+                    ? history[i] ? "bg-green-400" : "bg-red-400"
+                    : i === history.length ? "bg-brand" : "bg-slate-700"
                     }`}
                 />
               ))}
@@ -1319,7 +1330,7 @@ export default function RankleClient() {
                       mult={round?.tier.mult ?? 1}
                     />
                   ) : (
-                    <div key={`q-${roundNo}`} style={{ animation: "rankle-question-slam 1.2s cubic-bezier(0.16, 1, 0.3, 1) both" }} className="relative pointer-events-none">
+                    <div key={`q-${roundNo}`} style={{ animation: "rankle-question-pop 0.35s ease-out both" }} className="relative pointer-events-none">
                       <QText html={questionHtml} />
                     </div>
                   )}
@@ -1491,14 +1502,14 @@ export default function RankleClient() {
                   {phase === "pick" ? (
                     <button
                       onClick={unlockBet}
-                      className="flex-[2] md:flex-none text-[13px] font-black tracking-wide px-4 py-2.5 rounded-xl md:rounded-full bg-slate-700 text-slate-300 shadow-sm active:scale-95 cursor-pointer hover:bg-slate-600 hover:text-white transition-colors"
+                      className="flex-[2.5] md:flex-none md:w-[120px] text-[12px] sm:text-[13px] font-black tracking-wide px-1 py-2.5 rounded-xl md:rounded-full bg-slate-700 text-slate-300 shadow-sm active:scale-95 cursor-pointer hover:bg-slate-600 hover:text-white transition-colors"
                     >
                       UNLOCK 🔓
                     </button>
                   ) : (
                     <button
                       onClick={lockBet}
-                      className="flex-[2] md:flex-none text-[13px] font-black tracking-wide px-6 py-2.5 rounded-xl md:rounded-full bg-gradient-to-br from-[#e9820e] to-[#d46f00] text-slate-950 shadow-[0_4px_18px_rgba(233,130,14,0.4)] active:scale-95 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="flex-[2.5] md:flex-none md:w-[120px] text-[12px] sm:text-[13px] font-black tracking-wide px-1 py-2.5 rounded-xl md:rounded-full bg-gradient-to-br from-[#e9820e] to-[#d46f00] text-slate-950 shadow-[0_4px_18px_rgba(233,130,14,0.4)] active:scale-95 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                       disabled={phase !== "bet"}
                     >
                       LOCK 🔒

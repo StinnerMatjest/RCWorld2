@@ -32,7 +32,7 @@ export default function CreatorModal({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    // NEW: Track if we are editing an existing Ride Type from the "Type" tab dropdown
+    // Track if we are editing an existing Ride Type from the "Type" tab dropdown
     const [editTypeId, setEditTypeId] = useState<string>("");
 
     const defaultFormData = {
@@ -63,7 +63,7 @@ export default function CreatorModal({
                     in_business: editItem.in_business ?? editItem.inBusiness ?? true,
                 });
             } else {
-                setCreateTab(lockToCoasterType ? "model" : "manufacturer");
+                setCreateTab("model");
                 setFormData({
                     ...defaultFormData,
                     manufacturer_id: defaultManufacturerId ? String(defaultManufacturerId) : "",
