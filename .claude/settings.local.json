@@ -28,7 +28,13 @@
       "Bash(echo \"===EXIT: $?===\")",
       "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const p=JSON.parse\\(d\\);console.log\\('maintainers:',JSON.stringify\\(p.maintainers\\)\\);console.log\\('author:',JSON.stringify\\(p.author\\)\\);console.log\\('homepage:',p.homepage\\);console.log\\('repository:',JSON.stringify\\(p.repository\\)\\);console.log\\('license:',p.license\\);console.log\\('scripts:',JSON.stringify\\(p.scripts\\)\\);console.log\\('bin:',JSON.stringify\\(p.bin\\)\\);console.log\\('dependencies:',JSON.stringify\\(Object.keys\\(p.dependencies||{}\\)\\)\\);console.log\\('firstPublish:',p.time&&p.time['4.104.0']\\);console.log\\('dist.tarball:',p.dist&&p.dist.tarball\\);console.log\\('dist.integrity:',p.dist&&p.dist.integrity\\);}\\)\")",
       "Bash(git checkout *)",
-      "Bash(grep -v \"^$\")"
+      "Bash(grep -v \"^$\")",
+      "Bash(git -C \"c:/Users/JannikIbsen/Documents/RCWorld2\" log --oneline -15)",
+      "Bash(grep -rn \"pic-coaster\\\\|replace\\(\\\\\"pic-coaster\\\\|coasters\\\\\", {\" app/checklists app/components/checklists app/Checklist)",
+      "PowerShell(npx tsc --noEmit 2>&1)",
+      "PowerShell(Get-Command node, npm -ErrorAction SilentlyContinue)",
+      "Bash(grep -rn \"manufacturerId\\\\|/coasters\\\\`\" app/Checklist/page.tsx)",
+      "Bash(grep -rn \"coasters\\\\`\" --include=\"*.tsx\" --include=\"*.ts\" --include=\"*.mjs\" app apply_corrections.mjs)"
     ],
     "additionalDirectories": [
       "c:\\ParkRating\\RCWorld2\\app"

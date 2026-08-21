@@ -94,7 +94,6 @@ export async function POST(
         if (
             !name ||
             !year ||
-            !manufacturerId ||
             !model ||
             !scale ||
             haveridden === undefined ||
@@ -103,6 +102,20 @@ export async function POST(
         ) {
             return NextResponse.json(
                 { error: "Missing required fields" },
+                { status: 400 }
+            );
+        }
+
+        // Draft coasters (the checklist wizard's new-park flow) have no manufacturer yet,
+        // so an absent one is stored as NULL. Anything else must be a real manufacturers.id:
+        // a non-numeric value would fail the integer column and take the whole insert down.
+        const hasManufacturer =
+            manufacturerId !== undefined && manufacturerId !== null && manufacturerId !== "";
+        const manufacturerIdValue = hasManufacturer ? Number(manufacturerId) : null;
+
+        if (hasManufacturer && !Number.isInteger(manufacturerIdValue)) {
+            return NextResponse.json(
+                { error: `Invalid manufacturer ID: ${manufacturerId}` },
                 { status: 400 }
             );
         }
@@ -142,7 +155,7 @@ export async function POST(
             parkId,
             name,
             year,
-            manufacturerId,
+            manufacturerIdValue,
             rideModelId || null, // NEW
             model,
             scale,
@@ -161,7 +174,7 @@ export async function POST(
             label: created.name,
             action: "create",
             summary: `Added coaster ${created.name}`,
-            details: { name, year, manufacturerId, rideModelId, model, scale, haveridden, rating: ratingInitial, rideCount: rideCountInitial },
+            details: { name, year, manufacturerId: manufacturerIdValue, rideModelId, model, scale, haveridden, rating: ratingInitial, rideCount: rideCountInitial },
         });
 
         return NextResponse.json(created, { status: 201 });
