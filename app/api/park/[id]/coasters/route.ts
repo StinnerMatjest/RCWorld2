@@ -78,58 +78,35 @@ export async function POST(
     try {
         const { id: parkId } = await context.params;
         const body = await req.json();
-        const {
-            name,
-            year,
-            manufacturerId,
-            rideModelId, // NEW
-            model,
-            scale,
-            haveridden,
-            isbestcoaster,
-            rating,
-            rideCount,
-        } = body;
 
-        if (
-            !name ||
-            !year ||
-            !manufacturerId ||
-            !model ||
-            !scale ||
-            haveridden === undefined ||
-            isbestcoaster === undefined ||
-            (haveridden && rideCount === undefined)
-        ) {
-            return NextResponse.json(
-                { error: "Missing required fields" },
-                { status: 400 }
-            );
+        // Safety check: ensure parkId is a valid number, not "undefined"
+        if (!parkId || parkId === "undefined" || isNaN(Number(parkId))) {
+            return NextResponse.json({ error: `Invalid park ID: ${parkId}` }, { status: 400 });
         }
 
-        // Default to 0 if not ridden
-        const ratingInitial = haveridden
-            ? Number.isNaN(Number(rating))
-                ? 0
-                : Number(rating)
-            : 0;
+        const {
+            name, year, manufacturerId, rideModelId, model, scale,
+            haveridden, isbestcoaster, rating, rideCount, slug
+        } = body;
 
-        // Default to 0 if not ridden
-        const rideCountInitial = haveridden
-            ? Number.isNaN(Number(rideCount))
-                ? 0
-                : Number(rideCount)
-            : 0;
+        // Reverted to your strict validation
+        if (
+            !name || !year || !manufacturerId || !model || !scale ||
+            haveridden === undefined || isbestcoaster === undefined ||
+            (haveridden && rideCount === undefined)
+        ) {
+            return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        }
 
-        // --- Slug generation and committed duplicate handling ---
-        let generatedSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+        const ratingInitial = haveridden ? (Number.isNaN(Number(rating)) ? 0 : Number(rating)) : 0;
+        const rideCountInitial = haveridden ? (Number.isNaN(Number(rideCount)) ? 0 : Number(rideCount)) : 0;
+
+        let generatedSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
         const slugCheck = await pool.query("SELECT id FROM rollercoasters WHERE slug = $1", [generatedSlug]);
         if (slugCheck.rowCount && slugCheck.rowCount > 0) {
-            // Append Park ID for explicit duplicate worldwide
-            generatedSlug = `${generatedSlug}-${parkId}`;
+            generatedSlug = `${generatedSlug}-${parkId}-${Math.floor(Math.random() * 1000)}`;
         }
-        // --------------------------------------------------------
 
         const query = `
       INSERT INTO rollercoasters
@@ -138,14 +115,18 @@ export async function POST(
       RETURNING *;
     `;
 
+        // Sanitize integer columns from frontend string defaults
+        const safeManufacturerId = manufacturerId === "Unknown" || manufacturerId === "" ? null : manufacturerId;
+        const safeRideModelId = rideModelId === "Unknown" || rideModelId === "" ? null : rideModelId;
+
         const result = await pool.query(query, [
             parkId,
             name,
             year,
-            manufacturerId,
-            rideModelId || null, // NEW
-            model,
-            scale,
+            safeManufacturerId,
+            safeRideModelId,
+            model || "Unknown",
+            scale || "Unknown",
             haveridden,
             isbestcoaster,
             ratingInitial,
@@ -153,22 +134,12 @@ export async function POST(
             generatedSlug,
         ]);
 
-        const created = result.rows[0];
-        logChange({
-            parkId: Number(parkId),
-            entityType: "coaster",
-            entityId: created.id,
-            label: created.name,
-            action: "create",
-            summary: `Added coaster ${created.name}`,
-            details: { name, year, manufacturerId, rideModelId, model, scale, haveridden, rating: ratingInitial, rideCount: rideCountInitial },
-        });
-
-        return NextResponse.json(created, { status: 201 });
-    } catch (error) {
+        return NextResponse.json(result.rows[0], { status: 201 });
+    } catch (error: any) {
         console.error("Database insert error:", error);
+        // Expose the raw Postgres error (error.message) so it hits your frontend alert
         return NextResponse.json(
-            { error: "Failed to create roller coaster" },
+            { error: "Failed to create roller coaster", detail: error.message },
             { status: 500 }
         );
     }

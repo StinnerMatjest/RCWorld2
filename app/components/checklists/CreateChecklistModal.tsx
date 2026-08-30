@@ -1,13 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Park, ChecklistItem } from "@/app/types";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
-import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
-    useScrollLock();
     const [isOpen, setIsOpen] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const router = useRouter();
@@ -15,6 +13,18 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
     const [selectedParkId, setSelectedParkId] = useState<string>("");
     const [newParkName, setNewParkName] = useState("");
     const [newCoasters, setNewCoasters] = useState<string[]>([""]);
+
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [isOpen]);
 
     const resetModal = () => {
         setMode("select");
@@ -150,23 +160,33 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
 
             if (validCoasters.length > 0) {
                 // Execute all coaster POST requests concurrently
-                const coasterPromises = validCoasters.map(coasterName => {
-                    return fetch(`/api/park/${newParkId}/coasters`, {
+                const coasterPromises = validCoasters.map(async (coasterName) => {
+                    const res = await fetch(`/api/park/${newParkId}/coasters`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             name: coasterName,
+                            slug: `${coasterName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
                             year: new Date().getFullYear(),
                             manufacturerId: "Unknown",
                             model: "Unknown",
                             scale: "Unknown",
+                            rcdbpath: "Unknown",
                             haveridden: false,
                             isbestcoaster: false,
-                            rcdbpath: "Unknown",
                             rating: 0,
                             rideCount: 0
                         })
-                    }).then(res => res.json());
+                    });
+
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                        console.error(`Failed to create coaster "${coasterName}":`, data);
+                        // HARD TRAP: Show us exactly what Postgres is rejecting
+                        alert(`Coaster Error for ${coasterName}: ${data.detail || data.error}`);
+                    }
+                    return data;
                 });
 
                 const results = await Promise.all(coasterPromises);
@@ -177,10 +197,14 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
             const newItems: ChecklistItem[] = [];
             newItems.push({ id: "pic-entrance", label: "Take Picture of park entrance", checked: false, isPhotoTask: true });
 
-            createdCoasters.forEach((coaster: any) => {
+            createdCoasters.forEach((coaster: any, index: number) => {
+                // Fallback to the known name and generate a unique ID if the API response is nested/missing
+                const coasterName = coaster.name || validCoasters[index];
+                const coasterId = coaster.id || coaster.coasterId || `draft-${Date.now()}-${index}`;
+
                 newItems.push({
-                    id: `pic-coaster-${coaster.id}`,
-                    label: `Take picture of ${coaster.name}`,
+                    id: `pic-coaster-${coasterId}`,
+                    label: `Take picture of ${coasterName}`,
                     checked: false,
                     isPhotoTask: true,
                     isCoaster: true,

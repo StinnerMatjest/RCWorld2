@@ -31,28 +31,51 @@ export default function ChecklistCard({ checklist }: { checklist: Checklist }) {
         displayDuration = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
     }
 
-    // Format the visiting date
-    const visitDate = checklist.visit_start
-        ? new Date(checklist.visit_start).toLocaleDateString('en-GB', {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-        })
+    // Extract all timestamps from start, end, and sessions
+    const timestamps: number[] = [];
+    if (checklist.visit_start) timestamps.push(new Date(checklist.visit_start).getTime());
+    if (checklist.visit_end) timestamps.push(new Date(checklist.visit_end).getTime());
+    if (checklist.sessions) {
+        checklist.sessions.forEach(s => {
+            if (s.start) timestamps.push(new Date(s.start).getTime());
+            if (s.end) timestamps.push(new Date(s.end).getTime());
+        });
+    }
+
+    // Get unique calendar dates
+    const uniqueDates = Array.from(
+        new Map(timestamps.map(ts => {
+            const d = new Date(ts);
+            return [d.toDateString(), d];
+        })).values()
+    ).sort((a, b) => a.getTime() - b.getTime());
+
+    const isMultiDay = uniqueDates.length > 1;
+
+    // Format multi-day strings (e.g. "28 Aug & 29 Aug 2026" or "28 Aug - 30 Aug 2026")
+    let dateDisplay = "";
+    if (uniqueDates.length > 0) {
+        const year = uniqueDates[uniqueDates.length - 1].getFullYear();
+        if (!isMultiDay) {
+            dateDisplay = uniqueDates[0].toLocaleDateString('en-GB', { month: "short", day: "numeric", year: "numeric" });
+        } else if (uniqueDates.length === 2) {
+            const d1 = uniqueDates[0].toLocaleDateString('en-GB', { month: "short", day: "numeric" });
+            const d2 = uniqueDates[1].toLocaleDateString('en-GB', { month: "short", day: "numeric" });
+            dateDisplay = `${d1} & ${d2} ${year}`;
+        } else {
+            const first = uniqueDates[0].toLocaleDateString('en-GB', { month: "short", day: "numeric" });
+            const last = uniqueDates[uniqueDates.length - 1].toLocaleDateString('en-GB', { month: "short", day: "numeric" });
+            dateDisplay = `${first} - ${last} ${year}`;
+        }
+    }
+
+    // Specific times are ONLY displayed for single-day visits
+    const startTime = !isMultiDay && checklist.visit_start
+        ? new Date(checklist.visit_start).toLocaleTimeString('en-GB', { hour: "2-digit", minute: "2-digit" })
         : null;
 
-    // Format the start and end times
-    const startTime = checklist.visit_start
-        ? new Date(checklist.visit_start).toLocaleTimeString('en-GB', {
-            hour: "2-digit",
-            minute: "2-digit",
-        })
-        : null;
-
-    const endTime = checklist.visit_end
-        ? new Date(checklist.visit_end).toLocaleTimeString('en-GB', {
-            hour: "2-digit",
-            minute: "2-digit",
-        })
+    const endTime = !isMultiDay && checklist.visit_end
+        ? new Date(checklist.visit_end).toLocaleTimeString('en-GB', { hour: "2-digit", minute: "2-digit" })
         : null;
 
     async function handleDelete() {
@@ -126,9 +149,9 @@ export default function ChecklistCard({ checklist }: { checklist: Checklist }) {
                             {(isInProgress || isCompleted) && (
                                 <>
                                     <span className="text-slate-700">•</span>
-                                    {visitDate && <span>{visitDate}</span>}
+                                    {dateDisplay && <span>{dateDisplay}</span>}
 
-                                    {/* Time range rendering */}
+                                    {/* Time range rendering (Only outputs on single-day visits) */}
                                     {startTime && (
                                         <>
                                             <span className="text-slate-700">•</span>
@@ -138,6 +161,7 @@ export default function ChecklistCard({ checklist }: { checklist: Checklist }) {
                                         </>
                                     )}
 
+                                    {/* Duration (Will always output if duration exists) */}
                                     {displayDuration > 0 && (
                                         <>
                                             <span className="text-slate-700">•</span>

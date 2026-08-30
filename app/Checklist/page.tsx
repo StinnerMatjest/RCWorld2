@@ -98,6 +98,9 @@ export default function ChecklistPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Ensure body scroll is unlocked in case a previous modal left it hidden
+    document.body.style.overflow = "unset";
+
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -132,6 +135,13 @@ export default function ChecklistPage() {
       }
     } catch (err) {
       console.error("Failed to load checklist", err);
+    }
+  }, []);
+
+  // Ensure any scroll locks from previous modals are completely wiped
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      document.body.style.removeProperty("overflow");
     }
   }, []);
 
@@ -270,14 +280,14 @@ export default function ChecklistPage() {
     }
   }
 
-  const showBeginOverlay = !visitStart && !visitFinished;
+const showBeginOverlay = !visitStart && !visitFinished;
 
   return (
-    <main
-      className="min-h-screen bg-slate-950 text-slate-50"
+    <div
+      className="w-full flex flex-col min-h-[101vh] bg-slate-950 text-slate-50"
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
-      <div className="mx-auto flex min-h-screen max-w-xl flex-col px-4 pb-24 pt-6">
+      <div className="mx-auto flex w-full max-w-xl flex-col px-4 pt-6">
         {/* Header */}
         <header className="mb-4 text-center">
           <h1 className="text-2xl font-bold sm:text-3xl">
@@ -297,9 +307,7 @@ export default function ChecklistPage() {
             <p className="text-[11px] text-slate-400 sm:text-xs">
               {remainingItems.length === 0
                 ? "All done – time to celebrate!"
-                : `${remainingItems.length} task${
-                    remainingItems.length === 1 ? "" : "s"
-                  } left`}
+                : `${remainingItems.length} task${remainingItems.length === 1 ? "" : "s"} left`}
             </p>
             {visitStart && (
               <p className="text-[11px] text-slate-400 sm:text-xs">
@@ -343,14 +351,9 @@ export default function ChecklistPage() {
           <h2 className="mb-2 text-sm font-semibold text-slate-200 sm:text-base">
             Remaining tasks
           </h2>
-
           {remainingItems.length === 0 ? (
             <p className="text-xs text-slate-400 sm:text-sm">
-              No remaining tasks – hit{" "}
-              <span className="font-semibold text-emerald-400">
-                Park complete
-              </span>{" "}
-              when you&apos;re ready.
+              No remaining tasks – hit <span className="font-semibold text-emerald-400">Park complete</span> when you&apos;re ready.
             </p>
           ) : (
             <AnimatePresence>
@@ -382,10 +385,7 @@ export default function ChecklistPage() {
                         className="h-4 w-4 cursor-pointer accent-emerald-500"
                       />
                     </button>
-                    <label
-                      htmlFor={item.id}
-                      className="cursor-pointer text-[13px] leading-snug text-slate-100 sm:text-sm"
-                    >
+                    <label htmlFor={item.id} className="cursor-pointer text-[13px] leading-snug text-slate-100 sm:text-sm">
                       {item.label}
                     </label>
                   </motion.li>
@@ -398,225 +398,115 @@ export default function ChecklistPage() {
         {/* Completed tasks */}
         {completedItems.length > 0 && (
           <section className="mb-4 rounded-2xl border border-slate-900/80 bg-slate-950/60 p-3 sm:p-4">
-            <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Completed today
-            </h2>
+            <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Completed today</h2>
             <ul className="space-y-1.5">
               {completedItems.map((item) => (
-                <motion.li
-                  key={item.id}
-                  layout
-                  className="flex items-center gap-2 text-[12px] text-slate-400 sm:text-xs"
-                >
+                <motion.li key={item.id} layout className="flex items-center gap-2 text-[12px] text-slate-400 sm:text-xs">
                   <span className="text-emerald-400">✓</span>
                   <span className="line-through">{item.label}</span>
                 </motion.li>
               ))}
             </ul>
             {visitFinished && elapsedSeconds > 0 && (
-              <p className="mt-1 text-[11px] text-slate-500">
-                Time in park: {formatDuration(elapsedSeconds)}
-              </p>
+              <p className="mt-1 text-[11px] text-slate-500">Time in park: {formatDuration(elapsedSeconds)}</p>
             )}
           </section>
         )}
 
-        <div className="flex-1" />
+        {/* 2. THE FIX: This massive invisible spacer block forces the content to clear the bottom actions bar entirely */}
+        <div className="h-48 w-full flex-shrink-0" aria-hidden="true" />
+      </div>
 
-        {/* Bottom actions bar */}
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center pb-3">
-          <div className="pointer-events-auto w-full max-w-xl px-4">
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/90 px-3 py-3 shadow-lg shadow-black/40 backdrop-blur">
-              <div className="mb-2 flex items-center justify-between text-[11px] text-slate-400 sm:text-xs">
-                <span>
-                  {remainingItems.length === 0
-                    ? "All mandatory tasks completed"
-                    : `${remainingItems.length} task${
-                        remainingItems.length === 1 ? "" : "s"
-                      } left`}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-300 hover:bg-slate-800 active:scale-95 focus:outline-none focus-visible:outline-none"
-                >
-                  Reset
-                </button>
-              </div>
-
+      {/* Bottom actions bar */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center pb-3">
+        <div className="pointer-events-auto w-full max-w-xl px-4">
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/90 px-3 py-3 shadow-lg shadow-black/40 backdrop-blur">
+            <div className="mb-2 flex items-center justify-between text-[11px] text-slate-400 sm:text-xs">
+              <span>
+                {remainingItems.length === 0
+                  ? "All mandatory tasks completed"
+                  : `${remainingItems.length} task${remainingItems.length === 1 ? "" : "s"} left`}
+              </span>
               <button
-                onClick={handleComplete}
-                disabled={!allCompleted}
-                className={`flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-transform active:scale-[0.98] focus:outline-none focus-visible:outline-none
-                ${
-                  allCompleted
-                    ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/40 hover:bg-emerald-400"
-                    : "bg-slate-800 text-slate-500"
-                }`}
+                type="button"
+                onClick={handleReset}
+                className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-300 hover:bg-slate-800 active:scale-95 focus:outline-none focus-visible:outline-none"
               >
-                {allCompleted ? "Park complete 🎉" : "Complete all tasks to finish"}
+                Reset
               </button>
             </div>
+            <button
+              onClick={handleComplete}
+              disabled={!allCompleted}
+              className={`flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-transform active:scale-[0.98] focus:outline-none focus-visible:outline-none ${allCompleted ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/40 hover:bg-emerald-400" : "bg-slate-800 text-slate-500"}`}
+            >
+              {allCompleted ? "Park complete 🎉" : "Complete all tasks to finish"}
+            </button>
           </div>
         </div>
+      </div>
 
-        {/* Begin visit overlay */}
-        <AnimatePresence>
-          {showBeginOverlay && (
-            <motion.div
-              className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/90 backdrop-blur-md"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <motion.div
-                initial={{ scale: 0.7, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 140, damping: 14 }}
-                className="relative mx-4 max-w-md rounded-3xl bg-gradient-to-br from-emerald-400 via-sky-500 to-indigo-500 p-[2px]"
-              >
-                <div className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-8 text-center">
-                  <div className="mb-2 text-5xl">⏱️</div>
-                  <h2 className="mb-1 text-2xl font-bold sm:text-3xl">
-                    Ready to start your park day?
-                  </h2>
-                  <p className="mx-auto mb-4 max-w-xs text-sm text-slate-200">
-                    We&apos;ll keep track of how long you spend in the park so
-                    future-you doesn&apos;t have to guess.
-                  </p>
-                  <motion.button
-                    type="button"
-                    onClick={handleBeginVisit}
-                    className="mt-2 inline-flex w-full items-center justify-center rounded-2xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/40 hover:bg-emerald-400 active:scale-[0.98] focus:outline-none focus-visible:outline-none"
-                    whileTap={{ scale: 0.97 }}
-                  >
-                    Begin visit
-                  </motion.button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Celebration overlay */}
-        <AnimatePresence>
-          {showCelebration && (
-            <motion.div
-              className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/90 backdrop-blur-md"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <motion.div
-                initial={{ scale: 0.7, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 140, damping: 14 }}
-                className="relative mx-4 max-w-md rounded-3xl bg-gradient-to-br from-emerald-400 via-sky-500 to-indigo-500 p-[2px]"
-              >
-                <div className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-8 text-center">
-                  {/* Floating emojis */}
-                  <div className="pointer-events-none absolute inset-0">
-                    {Array.from({ length: 12 }).map((_, i) => (
-                      <motion.span
-                        key={i}
-                        className="absolute text-2xl"
-                        initial={{
-                          x: Math.random() * 320 - 160,
-                          y: 80,
-                          opacity: 0,
-                          scale: 0.4,
-                        }}
-                        animate={{
-                          y: -120,
-                          opacity: [0, 1, 0],
-                          scale: [0.6, 1, 0.7],
-                        }}
-                        transition={{
-                          duration: 2.2,
-                          delay: i * 0.08,
-                          repeat: Infinity,
-                          repeatType: "loop",
-                        }}
-                      >
-                        {i % 3 === 0 ? "🎢" : i % 3 === 1 ? "🎉" : "🍿"}
-                      </motion.span>
-                    ))}
-                  </div>
-
-                  <motion.div
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.1 }}
-                    className="relative"
-                  >
-                    <div className="mb-2 text-5xl">🎉</div>
-                    <h2 className="mb-1 text-2xl font-bold sm:text-3xl">
-                      Park complete!
-                    </h2>
-                    <p className="mx-auto mb-4 max-w-xs text-sm text-slate-200">
-                      All mandatory tasks done. Future-you writing the review
-                      says thank you. 💚
-                    </p>
-                    {visitStart && (
-                      <p className="text-xs text-slate-400">
-                        Park start:{" "}
-                        {new Date(visitStart).toLocaleString(undefined, {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })}
-                      </p>
-                    )}
-                    {visitEnd && (
-                      <p className="mb-1 text-xs text-slate-400">
-                        Park end:{" "}
-                        {new Date(visitEnd).toLocaleString(undefined, {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })}
-                      </p>
-                    )}
-                    {elapsedSeconds > 0 && (
-                      <p className="mb-4 text-xs text-emerald-300">
-                        Time in park: {formatDuration(elapsedSeconds)}
-                      </p>
-                    )}
-                  </motion.div>
-
-                  <motion.button
-                    type="button"
-                    onClick={() => setShowCelebration(false)}
-                    className="relative mt-2 inline-flex w-full items-center justify-center rounded-2xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/40 hover:bg-emerald-400 active:scale-[0.98] focus:outline-none focus-visible:outline-none"
-                    whileTap={{ scale: 0.97 }}
-                  >
-                    Back to checklist
-                  </motion.button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Vekoma Disappointment Generator toast */}
-        <AnimatePresence>
-          {showVekomaRoast && (
-            <motion.div
-              className="pointer-events-none fixed inset-x-0 bottom-24 z-30 flex justify-center"
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.97 }}
-            >
-              <div className="pointer-events-auto max-w-xs rounded-2xl border border-rose-500/50 bg-slate-950/95 px-4 py-3 text-xs text-slate-100 shadow-lg shadow-rose-500/30">
-                <div className="mb-1 flex items-center gap-2 font-semibold text-rose-300">
-                  <span>🎢 Vekoma Disappointment Generator</span>
-                </div>
-                <p className="text-[11px] text-slate-200">{vekomaRoast}</p>
+      {/* Begin visit overlay */}
+      <AnimatePresence>
+        {showBeginOverlay && (
+          <motion.div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/90 backdrop-blur-md" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} transition={{ type: "spring", stiffness: 140, damping: 14 }} className="relative mx-4 max-w-md rounded-3xl bg-gradient-to-br from-emerald-400 via-sky-500 to-indigo-500 p-[2px]">
+              <div className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-8 text-center">
+                <div className="mb-2 text-5xl">⏱️</div>
+                <h2 className="mb-1 text-2xl font-bold sm:text-3xl">Ready to start your park day?</h2>
+                <p className="mx-auto mb-4 max-w-xs text-sm text-slate-200">We&apos;ll keep track of how long you spend in the park so future-you doesn&apos;t have to guess.</p>
+                <motion.button type="button" onClick={handleBeginVisit} className="mt-2 inline-flex w-full items-center justify-center rounded-2xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/40 hover:bg-emerald-400 active:scale-[0.98] focus:outline-none focus-visible:outline-none" whileTap={{ scale: 0.97 }}>
+                  Begin visit
+                </motion.button>
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </main>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Celebration overlay */}
+      <AnimatePresence>
+        {showCelebration && (
+          <motion.div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/90 backdrop-blur-md" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} transition={{ type: "spring", stiffness: 140, damping: 14 }} className="relative mx-4 max-w-md rounded-3xl bg-gradient-to-br from-emerald-400 via-sky-500 to-indigo-500 p-[2px]">
+              <div className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-8 text-center">
+                <div className="pointer-events-none absolute inset-0">
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <motion.span key={i} className="absolute text-2xl" initial={{ x: Math.random() * 320 - 160, y: 80, opacity: 0, scale: 0.4 }} animate={{ y: -120, opacity: [0, 1, 0], scale: [0.6, 1, 0.7] }} transition={{ duration: 2.2, delay: i * 0.08, repeat: Infinity, repeatType: "loop" }}>
+                      {i % 3 === 0 ? "🎢" : i % 3 === 1 ? "🎉" : "🍿"}
+                    </motion.span>
+                  ))}
+                </div>
+                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="relative">
+                  <div className="mb-2 text-5xl">🎉</div>
+                  <h2 className="mb-1 text-2xl font-bold sm:text-3xl">Park complete!</h2>
+                  <p className="mx-auto mb-4 max-w-xs text-sm text-slate-200">All mandatory tasks done. Future-you writing the review says thank you. 💚</p>
+                  {visitStart && <p className="text-xs text-slate-400">Park start: {new Date(visitStart).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</p>}
+                  {visitEnd && <p className="mb-1 text-xs text-slate-400">Park end: {new Date(visitEnd).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</p>}
+                  {elapsedSeconds > 0 && <p className="mb-4 text-xs text-emerald-300">Time in park: {formatDuration(elapsedSeconds)}</p>}
+                </motion.div>
+                <motion.button type="button" onClick={() => setShowCelebration(false)} className="relative mt-2 inline-flex w-full items-center justify-center rounded-2xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/40 hover:bg-emerald-400 active:scale-[0.98] focus:outline-none focus-visible:outline-none" whileTap={{ scale: 0.97 }}>
+                  Back to checklist
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Vekoma Disappointment Generator toast */}
+      <AnimatePresence>
+        {showVekomaRoast && (
+          <motion.div className="pointer-events-none fixed inset-x-0 bottom-24 z-30 flex justify-center" initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.97 }}>
+            <div className="pointer-events-auto max-w-xs rounded-2xl border border-rose-500/50 bg-slate-950/95 px-4 py-3 text-xs text-slate-100 shadow-lg shadow-rose-500/30">
+              <div className="mb-1 flex items-center gap-2 font-semibold text-rose-300">
+                <span>🎢 Vekoma Disappointment Generator</span>
+              </div>
+              <p className="text-[11px] text-slate-200">{vekomaRoast}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

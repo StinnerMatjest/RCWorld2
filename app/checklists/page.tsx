@@ -50,7 +50,7 @@ export default async function ChecklistsIndexPage() {
   const completed = checklists.filter(c => c.is_finished);
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 pt-6 pb-24 text-slate-50">
+    <div className="w-full px-4 pt-6 pb-24 text-slate-50">
       <div className="mx-auto max-w-xl">
         <header className="mb-8 text-center">
           <h1 className="text-3xl font-bold sm:text-4xl">Park Checklists 🎢</h1>
@@ -111,6 +111,6 @@ export default async function ChecklistsIndexPage() {
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }

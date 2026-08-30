@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { pool } from "@/app/lib/db";
 import { diffFields, logChange, FieldDiff } from "@/app/lib/changelog";
-import { revalidateTag } from "next/cache";
+import { revalidateTag, revalidatePath } from "next/cache";
 
 // Friendly wording for park field changes in the changelog timeline.
 const PARK_FIELD_LABELS: Record<string, string> = {
@@ -173,9 +173,10 @@ export async function DELETE(
       summary: `Deleted park ${deleted.name}`,
     });
 
-    revalidateTag("parks-leaderboard"); // Clear the Parks Leaderboard cache
-    return NextResponse.json({ message: "Park deleted successfully" }, { status: 200 });
-  } catch (error) {
+    revalidateTag("parks-leaderboard");
+    revalidatePath("/", "layout");
+    return NextResponse.json(result.rows[0], { status: 200 });
+  } catch (error: any) {
     console.error("Database delete error:", error);
     return NextResponse.json({ error: "Failed to delete park" }, { status: 500 });
   }

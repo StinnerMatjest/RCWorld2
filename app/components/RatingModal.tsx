@@ -153,7 +153,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
   const category: Category = CATEGORIES[categoryIndex];
 
   const [pendingGalleryImages, setPendingGalleryImages] = useState<{ title: string; url: string }[]>([]);
-  const [pendingCoasterStats, setPendingCoasterStats] = useState<{ id: number; count: number }[]>([]);
+  const [pendingCoasterStats, setPendingCoasterStats] = useState<{ id: number | null; count: number; name: string }[]>([]);
   // Per-category notes written in the checklist during the visit
   const [checklistNotes, setChecklistNotes] = useState<Record<string, string>>({});
 
@@ -337,12 +337,21 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
           setPendingGalleryImages(imagesToSync);
 
           const coastersToSync = (cl.items || [])
-            .filter((item: any) => item.isCoaster && item.rideCount > 0 && !item.skipped)
+            .filter((item: any) => item.isCoaster && !item.skipped) // Grabs all coasters
             .map((item: any) => {
               const idString = item.id.replace("pic-coaster-", "");
+              const parsedId = parseInt(idString, 10);
+
+              // Extract the coaster name (e.g., "Take picture of Batman" -> "Batman")
+              let coasterName = item.label;
+              if (coasterName.toLowerCase().startsWith("take picture of ")) {
+                coasterName = coasterName.substring(16);
+              }
+
               return {
-                id: parseInt(idString, 10),
-                count: item.rideCount,
+                id: isNaN(parsedId) ? null : parsedId, // null means it needs to be created
+                name: coasterName,
+                count: item.rideCount || 0,
               };
             });
           setPendingCoasterStats(coastersToSync);
@@ -487,7 +496,30 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
         alert("Failed to save rating");
       } else {
         try {
+          // Extract the rating ID (POST returns 'ratingId', PATCH uses 'existingRatingId')
+          const savedRatingData = await ratingResponse.json();
+          const targetRatingId = isRatingUpdate ? existingRatingId : savedRatingData.ratingId;
+
           const syncPromises = [];
+
+          // Push each checklist note individually to match the API
+          if (targetRatingId && Object.keys(checklistNotes).length > 0) {
+            for (const [cat, noteText] of Object.entries(checklistNotes)) {
+              if (!noteText.trim()) continue;
+
+              syncPromises.push(
+                fetch(`/api/park/${finalParkId}/parkTexts`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    ratingId: targetRatingId,
+                    category: cat,
+                    text: noteText
+                  })
+                })
+              );
+            }
+          }
 
           if (pendingGalleryImages.length > 0) {
             for (const img of pendingGalleryImages) {
@@ -518,12 +550,41 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
             }
           }
 
-          if (pendingCoasterStats.length > 0) {
+          // COASTER SYNC LOGIC
+          const coastersToCreate = pendingCoasterStats.filter(c => c.id === null);
+          const coastersToPatch = pendingCoasterStats.filter(c => c.id !== null && c.count > 0);
+
+          // 1. Create missing coasters dynamically from the checklist
+          if (coastersToCreate.length > 0) {
+            for (const coaster of coastersToCreate) {
+              syncPromises.push(
+                fetch(`/api/park/${finalParkId}/coasters`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    name: coaster.name,
+                    slug: `${coaster.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+                    year: new Date().getFullYear(),
+                    manufacturerId: "Unknown",
+                    model: "Unknown",
+                    scale: "Unknown",
+                    haveridden: coaster.count > 0,
+                    isbestcoaster: false,
+                    rating: 0,
+                    rideCount: coaster.count
+                  })
+                })
+              );
+            }
+          }
+
+          // 2. Patch existing coasters
+          if (coastersToPatch.length > 0) {
             syncPromises.push(
               fetch(`/api/park/${finalParkId}/coasters`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ updates: pendingCoasterStats }),
+                body: JSON.stringify({ updates: coastersToPatch }),
               })
             );
           }
@@ -763,9 +824,19 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                       <div className="sticky top-0 left-0 right-0 z-[10001] w-full bg-gray-900/95 backdrop-blur-sm border-b border-gray-700 px-4 sm:px-6 pt-3 pb-3 shadow-sm">
                         <ProgressBar categories={CATEGORIES} />
                         <div className="mt-2 flex items-center justify-between gap-2">
-                          <button onClick={() => setCategoryIndex((i) => (i - 1 + CATEGORIES.length) % CATEGORIES.length)} className="px-3 py-1.5 rounded-md bg-gray-700 text-xs sm:text-sm">← Prev</button>
+                          <button
+                            onClick={() => setCategoryIndex((i) => (i - 1 + CATEGORIES.length) % CATEGORIES.length)}
+                            className="px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors text-xs sm:text-sm cursor-pointer"
+                          >
+                            ← Prev
+                          </button>
                           <div className="text-sm font-semibold truncate">{toTitleCaseFromCamel(category)} · {categoryIndex + 1}/{CATEGORIES.length}</div>
-                          <button onClick={() => categoryIndex === CATEGORIES.length - 1 ? setStep(3) : setCategoryIndex((i) => (i + 1) % CATEGORIES.length)} className="px-3 py-1.5 rounded-md bg-gray-700 text-xs sm:text-sm">{categoryIndex === CATEGORIES.length - 1 ? "Finish →" : "Next →"}</button>
+                          <button
+                            onClick={() => categoryIndex === CATEGORIES.length - 1 ? setStep(3) : setCategoryIndex((i) => (i + 1) % CATEGORIES.length)}
+                            className="px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors text-xs sm:text-sm cursor-pointer"
+                          >
+                            {categoryIndex === CATEGORIES.length - 1 ? "Finish →" : "Next →"}
+                          </button>
                         </div>
                       </div>
                       <div className="px-4 sm:px-8 pt-6">

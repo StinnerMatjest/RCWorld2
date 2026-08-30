@@ -210,7 +210,7 @@ export default function ParksClient({ parks }: { parks: RankedPark[] }) {
         })}
       </div>
 
-      <p className="text-center text-slate-500 text-xs mt-8 pb-2">
+      <p className="hidden lg:block text-center text-slate-500 text-xs mt-8 pb-2">
         Click any column header to sort · Scores from most recent visit
       </p>
     </div>

@@ -25,7 +25,7 @@ const TAG_CATEGORIES = {
         isSingleChoice: true
     },
     "Launch System": {
-        tags: ["Launched", "Boost Launch", "Swing Launch", "LSM", "LIM", "Hydraulic", "Air Launch", "Tire Launch"],
+        tags: ["Launched", "Boost Launch", "Swing Launch", "Backwards Launch", "LSM", "LIM", "Hydraulic", "Air Launch", "Tire Launch"],
         isSingleChoice: false
     },
     "Layout": {
@@ -101,11 +101,24 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
             const isAlreadySelected = prev.includes(tag);
 
             if (isAlreadySelected) {
-                return prev.filter(t => t !== tag);
+                let nextTags = prev.filter(t => t !== tag);
+
+                // RULE: If base "Launched" is removed, remove all dependent launch tags
+                if (tag === "Launched") {
+                    const dependentLaunchTags = category.tags.filter(t => t !== "Launched");
+                    nextTags = nextTags.filter(t => !dependentLaunchTags.includes(t));
+                }
+
+                return nextTags;
             }
 
             // RULE 1 Prevent picking Height Class if Shuttle is active
             if (categoryKey === "Height Class" && prev.includes("Shuttle")) {
+                return prev;
+            }
+
+            // RULE: Prevent picking sub-launch tags if "Launched" is not active
+            if (categoryKey === "Launch System" && tag !== "Launched" && !prev.includes("Launched")) {
                 return prev;
             }
 
@@ -197,7 +210,10 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
                                         <div className="flex flex-wrap gap-1.5 pt-0.5">
                                             {data.tags.map(tag => {
                                                 const isSelected = selectedTags.includes(tag);
-                                                const isDisabled = categoryName === "Height Class" && selectedTags.includes("Shuttle");
+
+                                                const isHeightDisabled = categoryName === "Height Class" && selectedTags.includes("Shuttle");
+                                                const isLaunchSubTagDisabled = categoryName === "Launch System" && tag !== "Launched" && !selectedTags.includes("Launched");
+                                                const isDisabled = isHeightDisabled || isLaunchSubTagDisabled;
 
                                                 return (
                                                     <button

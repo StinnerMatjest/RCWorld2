@@ -244,7 +244,7 @@ const ParkRankLane: React.FC<Props> = ({
     const num = parseFloat(normalized);
     if (!Number.isFinite(num)) return;
 
-    const snapped = snapHalf(clamp(num, 0.5, 10));
+    const snapped = snapHalf(clamp(num, 0, 10));
     setManualText(snapped.toFixed(1));
     setCurrentRating(snapped);
     ratingCache.set(category, snapped);
