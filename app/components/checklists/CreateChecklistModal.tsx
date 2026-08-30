@@ -155,11 +155,13 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
             const newParkId = parkData.parkId;
 
             // Create Barebones Coasters
-            const validCoasters = newCoasters.filter(name => name.trim() !== "");
-            const createdCoasters = [];
+            const validCoasters = newCoasters.map(name => name.trim()).filter(name => name !== "");
+            const createdCoasters: { id: number | string; name: string }[] = [];
+            const failedCoasters: string[] = [];
 
             if (validCoasters.length > 0) {
-                // Execute all coaster POST requests concurrently
+                // Execute all coaster POST requests concurrently. No manufacturer is sent:
+                // a draft park's coasters have none yet, and the API stores NULL for that.
                 const coasterPromises = validCoasters.map(async (coasterName) => {
                     const res = await fetch(`/api/park/${newParkId}/coasters`, {
                         method: "POST",
@@ -168,7 +170,6 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
                             name: coasterName,
                             slug: `${coasterName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
                             year: new Date().getFullYear(),
-                            manufacturerId: "Unknown",
                             model: "Unknown",
                             scale: "Unknown",
                             rcdbpath: "Unknown",
@@ -181,30 +182,39 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
 
                     const data = await res.json();
 
-                    if (!res.ok) {
-                        console.error(`Failed to create coaster "${coasterName}":`, data);
-                        // HARD TRAP: Show us exactly what Postgres is rejecting
-                        alert(`Coaster Error for ${coasterName}: ${data.detail || data.error}`);
+                    // Without this check a failed insert returns { error } and every
+                    // checklist item ends up labelled "Take picture of undefined".
+                    if (!res.ok || data?.id === undefined || data?.id === null || !data?.name) {
+                        console.error(`Failed to create coaster "${coasterName}":`, data?.error ?? data);
+                        return null;
                     }
-                    return data;
+
+                    return { id: data.id as number | string, name: data.name as string };
                 });
 
                 const results = await Promise.all(coasterPromises);
-                createdCoasters.push(...results);
+                results.forEach((result, index) => {
+                    if (result) createdCoasters.push(result);
+                    else failedCoasters.push(validCoasters[index]);
+                });
+            }
+
+            if (failedCoasters.length > 0) {
+                alert(
+                    `Could not create ${failedCoasters.length} of ${validCoasters.length} coasters: ` +
+                    `${failedCoasters.join(", ")}.\n\n` +
+                    `The checklist is created without them — see the console for details.`
+                );
             }
 
             // Build Checklist payload
             const newItems: ChecklistItem[] = [];
             newItems.push({ id: "pic-entrance", label: "Take Picture of park entrance", checked: false, isPhotoTask: true });
 
-            createdCoasters.forEach((coaster: any, index: number) => {
-                // Fallback to the known name and generate a unique ID if the API response is nested/missing
-                const coasterName = coaster.name || validCoasters[index];
-                const coasterId = coaster.id || coaster.coasterId || `draft-${Date.now()}-${index}`;
-
+            createdCoasters.forEach((coaster) => {
                 newItems.push({
-                    id: `pic-coaster-${coasterId}`,
-                    label: `Take picture of ${coasterName}`,
+                    id: `pic-coaster-${coaster.id}`,
+                    label: `Take picture of ${coaster.name}`,
                     checked: false,
                     isPhotoTask: true,
                     isCoaster: true,
@@ -228,7 +238,7 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
             const currentYear = new Date().getFullYear();
             const checklistPayload = {
                 title: `${newParkName} ${currentYear} Visit`,
-                slug: `${uniqueParkSlug}-visit-${Date.now()}`,
+                slug: `${uniqueParkSlug}-visit-${timestamp}`,
                 description: `The ultimate photo and ride checklist for ${newParkName}.`,
                 items: newItems,
                 parkId: newParkId,

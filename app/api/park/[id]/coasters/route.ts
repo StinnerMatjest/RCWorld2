@@ -79,35 +79,55 @@ export async function POST(
         const { id: parkId } = await context.params;
         const body = await req.json();
 
-        // Safety check: ensure parkId is a valid number, not "undefined"
-        if (!parkId || parkId === "undefined" || isNaN(Number(parkId))) {
-            return NextResponse.json({ error: `Invalid park ID: ${parkId}` }, { status: 400 });
-        }
-
+        // 1. Destructure the payload (This was deleted by the merge conflict!)
         const {
-            name, year, manufacturerId, rideModelId, model, scale,
-            haveridden, isbestcoaster, rating, rideCount, slug
+            name,
+            year,
+            manufacturerId,
+            rideModelId,
+            model,
+            scale,
+            haveridden,
+            isbestcoaster,
+            rating,
+            rideCount,
+            slug
         } = body;
 
-        // Reverted to your strict validation
+        // 2. Handle draft manufacturers safely
+        const hasManufacturer = manufacturerId !== undefined && manufacturerId !== null && manufacturerId !== "Unknown" && manufacturerId !== "";
+        const manufacturerIdValue = hasManufacturer ? Number(manufacturerId) : null;
+
+        if (hasManufacturer && !Number.isInteger(manufacturerIdValue)) {
+            return NextResponse.json(
+                { error: `Invalid manufacturer ID: ${manufacturerId}` },
+                { status: 400 }
+            );
+        }
+
+        // 3. Relaxed Validation (allows Draft Coasters to pass)
         if (
-            !name || !year || !manufacturerId || !model || !scale ||
-            haveridden === undefined || isbestcoaster === undefined ||
+            !name ||
+            !year ||
+            haveridden === undefined ||
+            isbestcoaster === undefined ||
             (haveridden && rideCount === undefined)
         ) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
+        // 4. Set Defaults
         const ratingInitial = haveridden ? (Number.isNaN(Number(rating)) ? 0 : Number(rating)) : 0;
         const rideCountInitial = haveridden ? (Number.isNaN(Number(rideCount)) ? 0 : Number(rideCount)) : 0;
 
+        // 5. Generate unique slug
         let generatedSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-
         const slugCheck = await pool.query("SELECT id FROM rollercoasters WHERE slug = $1", [generatedSlug]);
         if (slugCheck.rowCount && slugCheck.rowCount > 0) {
             generatedSlug = `${generatedSlug}-${parkId}-${Math.floor(Math.random() * 1000)}`;
         }
 
+        // 6. Insert into database
         const query = `
       INSERT INTO rollercoasters
         (park_id, name, year, manufacturer_id, ride_model_id, model, scale, haveridden, isbestcoaster, rating, ridecount, slug)
@@ -115,15 +135,13 @@ export async function POST(
       RETURNING *;
     `;
 
-        // Sanitize integer columns from frontend string defaults
-        const safeManufacturerId = manufacturerId === "Unknown" || manufacturerId === "" ? null : manufacturerId;
         const safeRideModelId = rideModelId === "Unknown" || rideModelId === "" ? null : rideModelId;
 
         const result = await pool.query(query, [
             parkId,
             name,
             year,
-            safeManufacturerId,
+            manufacturerIdValue,
             safeRideModelId,
             model || "Unknown",
             scale || "Unknown",
@@ -134,10 +152,20 @@ export async function POST(
             generatedSlug,
         ]);
 
-        return NextResponse.json(result.rows[0], { status: 201 });
+        const created = result.rows[0];
+        logChange({
+            parkId: Number(parkId),
+            entityType: "coaster",
+            entityId: created.id,
+            label: created.name,
+            action: "create",
+            summary: `Added coaster ${created.name}`,
+            details: { name, year, manufacturerId: manufacturerIdValue, rideModelId, model, scale, haveridden, rating: ratingInitial, rideCount: rideCountInitial },
+        });
+
+        return NextResponse.json(created, { status: 201 });
     } catch (error: any) {
         console.error("Database insert error:", error);
-        // Expose the raw Postgres error (error.message) so it hits your frontend alert
         return NextResponse.json(
             { error: "Failed to create roller coaster", detail: error.message },
             { status: 500 }
