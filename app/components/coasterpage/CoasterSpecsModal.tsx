@@ -25,7 +25,7 @@ const TAG_CATEGORIES = {
         isSingleChoice: true
     },
     "Launch System": {
-        tags: ["Launched", "Boost Launch", "Swing Launch", "Backwards Launch", "LSM", "LIM", "Hydraulic", "Air Launch", "Tire Launch"],
+        tags: ["Launched", "Boost Launch", "Swing Launch", "Backwards Launch", "LSM", "LIM", "Hydraulic", "Air Launch", "Tire Launch", "Flywheel Launch", "Electric Winch"],
         isSingleChoice: false
     },
     "Layout": {
