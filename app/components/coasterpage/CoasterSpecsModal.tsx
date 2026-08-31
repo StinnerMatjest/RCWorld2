@@ -40,6 +40,10 @@ const TAG_CATEGORIES = {
         tags: ["Cloned", "Custom"],
         isSingleChoice: true
     },
+    "Station": {
+        tags: ["Moving Station", "Dual Station", "Drop from Station"],
+        isSingleChoice: false
+    },
     "Miscellaneous": {
         tags: ["Fully Enclosed", "Semi Enclosed", "Indoor", "Virtual Reality", "Brakeman", "Onboard Sound", "Station Fly-by", "Special Backcar"],
         isSingleChoice: false
