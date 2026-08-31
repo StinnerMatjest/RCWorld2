@@ -183,11 +183,24 @@ const CoasterSpecsModal: React.FC<CoasterSpecsModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className=" bg-gray-950 rounded-none w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4">
+            <div className="relative bg-gray-950 rounded-none w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+
+                {/* Top Right Close Button */}
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="absolute top-5 right-5 p-2 text-gray-500 hover:text-white transition-colors cursor-pointer z-10"
+                >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
                     <div className="p-8 md:p-10 overflow-y-auto flex-1 min-h-0 custom-scrollbar">
-                        <header className="mb-10">
+                        <header className="mb-10 pr-8"> {/* Added pr-8 to prevent text overlap with the X */}
                             <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
                                 Edit Specs
                             </h2>

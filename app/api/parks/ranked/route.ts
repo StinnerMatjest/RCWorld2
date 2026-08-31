@@ -9,25 +9,25 @@ export async function GET() {
         waterrides, flatridesanddarkrides, food, snacksanddrinks,
         parkpracticality, rideoperations, parkmanagement, date
       FROM ratings
-      WHERE published = TRUE
+      -- REMOVED: WHERE published = TRUE (This allows draft ratings to show up)
       ORDER BY park_id, date DESC
     )
     SELECT
       p.id, p.name, p.country, p.continent, p.slug, p.imagepath,
-      l.overall,
-      l.bestcoaster            AS "bestCoaster",
-      l.parkappearance         AS "parkAppearance",
-      l.coasterdepth           AS "coasterDepth",
-      l.waterrides             AS "waterRides",
-      l.flatridesanddarkrides  AS "flatRidesAndDarkRides",
-      l.food,
-      l.snacksanddrinks        AS "snacksAndDrinks",
-      l.parkpracticality       AS "parkPracticality",
-      l.rideoperations         AS "rideOperations",
-      l.parkmanagement         AS "parkManagement",
-      l.date                   AS "lastVisitDate"
+      COALESCE(l.overall, 0) AS overall,
+      COALESCE(l.bestcoaster, 0) AS "bestCoaster",
+      COALESCE(l.parkappearance, 0) AS "parkAppearance",
+      COALESCE(l.coasterdepth, 0) AS "coasterDepth",
+      COALESCE(l.waterrides, 0) AS "waterRides",
+      COALESCE(l.flatridesanddarkrides, 0) AS "flatRidesAndDarkRides",
+      COALESCE(l.food, 0) AS food,
+      COALESCE(l.snacksanddrinks, 0) AS "snacksAndDrinks",
+      COALESCE(l.parkpracticality, 0) AS "parkPracticality",
+      COALESCE(l.rideoperations, 0) AS "rideOperations",
+      COALESCE(l.parkmanagement, 0) AS "parkManagement",
+      l.date AS "lastVisitDate"
     FROM parks p
-    INNER JOIN latest l ON l.park_id = p.id
+    LEFT JOIN latest l ON l.park_id = p.id
     ORDER BY l.overall DESC NULLS LAST
   `);
   return NextResponse.json({ parks: result.rows });
