@@ -16,6 +16,12 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    // The admin-auth middleware matches /api/*, and Next caps request bodies
+    // that pass through middleware at 10MB by default — which silently
+    // truncated video uploads. Raised so gallery clips get through.
+    middlewareClientMaxBodySize: "250mb",
+  },
   async redirects() {
     return [
       {
