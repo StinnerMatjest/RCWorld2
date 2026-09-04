@@ -3,9 +3,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { splitMedia, parseFocusStr } from "@/app/components/FocusedImage";
-import { SectionImage } from "@/app/components/SectionImage";
-import { SECTION_IMAGE_ASPECT } from "@/app/utils/sectionImageAspect";
+import { SectionBody } from "@/app/components/parkpage/SectionBody";
 import RatingModal from "@/app/components/RatingModal";
 import MainPageButton from "@/app/components/buttons/MainPageButton";
 import CoasterCreatorModal from "@/app/components/coasterpage/CoasterCreatorModal";
@@ -18,7 +16,6 @@ import VisitPanelDropdown from "@/app/components/parkpage/VisitPanelDropdown";
 import type { Park, Rating, RatingWarningType, RollerCoaster } from "@/app/types";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
-import { MarkdownText } from "@/app/components/MarkdownText";
 
 type ParkPageClientProps = {
   initialId: string;
@@ -387,43 +384,17 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
 
             <div className="w-12 h-1 bg-brand rounded-full mt-3 mb-4" />
 
-            <MarkdownText
+            <SectionBody
               text={explanations.description ?? "No description available."}
-              className="text-slate-400 text-base leading-relaxed"
+              media={(sectionImages.description || "").split(",").filter(Boolean)}
+              layout={sectionLayouts.description}
+              defaultLayout="below"
+              isSpoiler={sectionSpoilers.description || false}
+              isAdminMode={isAdminMode}
+              altLabel="Introduction"
+              textClassName="text-slate-400 text-base leading-relaxed"
+              onMediaClick={(url) => setCoverLightbox(url)}
             />
-            {sectionImages.description && sectionImages.description.split(",").map((entry, i) => {
-              const { url, focus } = splitMedia(entry);
-              const pan = parseFocusStr(focus);
-              const isVid = /\.(mp4|webm|ogg)$/i.test(url);
-              return (
-                <div
-                  key={i}
-                  className={`relative mt-6 w-full rounded-2xl overflow-hidden shadow-sm ${isVid ? "" : "group cursor-zoom-in"}`}
-                  onClick={isVid ? undefined : () => setCoverLightbox(url)}
-                >
-                  {isVid ? (
-                    <div className="relative w-full overflow-hidden rounded-2xl" style={{ aspectRatio: SECTION_IMAGE_ASPECT.full.desktop }}>
-                      <video src={url} className="absolute inset-0 w-full h-full object-cover rounded-2xl" muted loop autoPlay playsInline />
-                    </div>
-                  ) : (
-                    <>
-                      <SectionImage
-                        src={url}
-                        alt={`Introduction ${i + 1}`}
-                        cx={pan.cx}
-                        cy={pan.cy}
-                        mobileAspect={SECTION_IMAGE_ASPECT.full.mobile}
-                        desktopAspect={SECTION_IMAGE_ASPECT.full.desktop}
-                        sizes="(min-width: 768px) 60vw, 100vw"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-2xl pointer-events-none">
-                        <svg className="w-8 h-8 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0zM11 8v6M8 11h6" /></svg>
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
 
             {coverLightbox && (
               <div
@@ -437,13 +408,24 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
                 >
                   ✕
                 </button>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={coverLightbox}
-                  alt=""
-                  className="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain"
-                  onClick={(e) => e.stopPropagation()}
-                />
+                {/\.(mp4|webm|ogg)$/i.test(coverLightbox) ? (
+                  <video
+                    src={coverLightbox}
+                    controls
+                    autoPlay
+                    playsInline
+                    className="max-w-full max-h-[90vh] rounded-xl shadow-2xl"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={coverLightbox}
+                    alt=""
+                    className="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                )}
               </div>
             )}
           </div>
@@ -458,7 +440,12 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
             parkId={park.id}
             parkName={park.name}
             onWarningsUpdate={refreshRatings}
-            onSectionImagesUpdate={setSectionImages}
+            onSectionsUpdate={(texts, images, layouts, spoilers) => {
+              setExplanations(texts);
+              setSectionImages(images);
+              setSectionLayouts(layouts);
+              setSectionSpoilers(spoilers);
+            }}
             coasters={coasters}
           />
         </div>

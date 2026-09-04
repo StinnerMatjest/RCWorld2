@@ -63,13 +63,13 @@ export async function generateMetadata({ params }: PageProps) {
       url: `https://parkrating.com/coasters/${coaster.slug}`,
       siteName: "ParkRating",
       type: "article",
-      images: ["/images/Parkrating.png"],
+      images: ["/images/og-default.png"],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: ["/images/Parkrating.png"],
+      images: ["/images/og-default.png"],
     },
   };
 }

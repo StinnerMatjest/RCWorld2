@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Review Editor Update</title>
+<style>img{max-width:100%} [hidden]{display:none!important}</style>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+  :root {
+    --bg: #f6f3ee;
+    --panel: #ffffff;
+    --panel-2: #eee9e1;
+    --line: #dcd5ca;
+    --ink: #1b1f2a;
+    --ink-2: #4d5261;
+    --ink-3: #7a7f8d;
+    --brand: #d9730a;
+    --brand-soft: rgba(233, 130, 14, 0.12);
+    --good: #2f8a5b;
+    --good-soft: rgba(47, 138, 91, 0.12);
+    --fix: #b5473a;
+    --fix-soft: rgba(181, 71, 58, 0.12);
+    --kbd-bg: #ffffff;
+    --kbd-line: #c9c2b6;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f172a;
+      --panel: #151e33;
+      --panel-2: #1c2740;
+      --line: #273350;
+      --ink: #e6e9f0;
+      --ink-2: #aab2c5;
+      --ink-3: #7c869c;
+      --brand: #e9820e;
+      --brand-soft: rgba(233, 130, 14, 0.16);
+      --good: #4ade80;
+      --good-soft: rgba(74, 222, 128, 0.12);
+      --fix: #f87171;
+      --fix-soft: rgba(248, 113, 113, 0.12);
+      --kbd-bg: #1c2740;
+      --kbd-line: #364461;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f172a;
+    --panel: #151e33;
+    --panel-2: #1c2740;
+    --line: #273350;
+    --ink: #e6e9f0;
+    --ink-2: #aab2c5;
+    --ink-3: #7c869c;
+    --brand: #e9820e;
+    --brand-soft: rgba(233, 130, 14, 0.16);
+    --good: #4ade80;
+    --good-soft: rgba(74, 222, 128, 0.12);
+    --fix: #f87171;
+    --fix-soft: rgba(248, 113, 113, 0.12);
+    --kbd-bg: #1c2740;
+    --kbd-line: #364461;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 56px 24px 96px; }
+
+  header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 40px; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--brand);
+    font-weight: 500;
+  }
+  h1 {
+    font-family: "Bricolage Grotesque", "IBM Plex Sans", sans-serif;
+    font-weight: 700;
+    font-size: clamp(30px, 5vw, 42px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .lede { color: var(--ink-2); font-size: 17px; margin: 0; max-width: 60ch; }
+
+  section { margin-top: 40px; }
+  h2 {
+    font-family: "Bricolage Grotesque", "IBM Plex Sans", sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+    margin: 0 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .tag {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+  .tag.new { background: var(--brand-soft); color: var(--brand); }
+  .tag.fixed { background: var(--fix-soft); color: var(--fix); }
+  .tag.small { background: var(--good-soft); color: var(--good); }
+
+  p { margin: 0 0 12px; }
+  ul { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  li { padding-left: 18px; position: relative; color: var(--ink-2); }
+  li::before {
+    content: "";
+    position: absolute; left: 0; top: 0.72em;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--brand);
+  }
+  li strong { color: var(--ink); font-weight: 600; }
+
+  .steps { counter-reset: step; display: flex; flex-direction: column; gap: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
+  .step { display: grid; grid-template-columns: 44px 1fr; gap: 12px; padding: 14px 16px; border-top: 1px solid var(--line); }
+  .step:first-child { border-top: 0; }
+  .step .n {
+    counter-increment: step;
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 700; font-size: 20px; color: var(--brand);
+    font-variant-numeric: tabular-nums;
+  }
+  .step .n::before { content: counter(step); }
+  .step div p { color: var(--ink-2); margin: 0; }
+  .step div p strong { color: var(--ink); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  th, td { text-align: left; padding: 10px 14px; border-top: 1px solid var(--line); vertical-align: top; }
+  th { border-top: 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; background: var(--panel-2); }
+  td:first-child { white-space: nowrap; }
+  kbd {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12.5px;
+    padding: 2px 7px;
+    border: 1px solid var(--kbd-line);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    background: var(--kbd-bg);
+    color: var(--ink);
+  }
+
+  .note {
+    margin-top: 14px;
+    padding: 14px 16px;
+    border-left: 3px solid var(--brand);
+    background: var(--brand-soft);
+    border-radius: 0 8px 8px 0;
+    color: var(--ink-2);
+  }
+  .note strong { color: var(--ink); }
+
+  .layouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 8px; }
+  .lay { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .lay .name { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .lay .shape { font-size: 12px; color: var(--ink-3); font-family: "IBM Plex Mono", monospace; }
+  .lay svg { width: 100%; height: auto; display: block; }
+  .lay .img { fill: var(--brand); opacity: 0.85; }
+  .lay .txt { fill: var(--line); }
+
+  footer { margin-top: 56px; color: var(--ink-3); font-size: 14px; border-top: 1px solid var(--line); padding-top: 18px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">ParkRating · 4 September 2026</div>
+    <h1>The review editor got a rebuild</h1>
+    <p class="lede">Writing a review now happens in a full-screen editor with the finished section rendered live beside your text. Here is what changed and how to use it.</p>
+  </header>
+
+  <section>
+    <h2>Try this first</h2>
+    <div class="steps">
+      <div class="step"><span class="n"></span><div><p><strong>Open any park in admin mode</strong> and click the wrench next to the "Review" heading, same as before.</p></div></div>
+      <div class="step"><span class="n"></span><div><p><strong>Pick a section on the left</strong> and start typing. The right side shows the section exactly as the park page will render it.</p></div></div>
+      <div class="step"><span class="n"></span><div><p><strong>Press <kbd>Ctrl</kbd> <kbd>S</kbd> to save.</strong> Only the sections you touched are saved. The blue button tells you how many are waiting.</p></div></div>
+      <div class="step"><span class="n"></span><div><p><strong>Press <kbd>Esc</kbd> or the X to close.</strong> If something is unsaved it asks first.</p></div></div>
+    </div>
+    <div class="note"><strong>There is no draft backup.</strong> If you close the tab or refresh without saving, the text is gone. Save often with <kbd>Ctrl</kbd> <kbd>S</kbd>.</div>
+  </section>
+
+  <section>
+    <h2>Full-screen editor with live preview <span class="tag new">New</span></h2>
+    <ul>
+      <li><strong>Three columns on desktop.</strong> Sections on the left, your text and images in the middle, the rendered result on the right.</li>
+      <li><strong>The preview is the real thing.</strong> It runs through the same code as the park page, so spacing, image crops, bold, bullets and spoilers look identical.</li>
+      <li><strong>"As admin" and "As visitor" toggle</strong> above the preview. Visitor view shows spoiler blur the way readers see it.</li>
+      <li><strong>Click an image in the preview</strong> to open its position dialog.</li>
+      <li><strong>On mobile</strong> the editor switches between Write and Preview with a toggle at the top.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Saving <span class="tag new">New</span></h2>
+    <ul>
+      <li><strong>Only changed sections are saved.</strong> Sections you edited show an amber "edited" tag in the left list until saved.</li>
+      <li><strong>The save button counts.</strong> "Save 2" means two sections are waiting. "Saved" means everything is on the server.</li>
+      <li><strong>Closing with unsaved work asks for confirmation</strong> and names the sections involved.</li>
+      <li><strong>Unpublish</strong> only appears when the review is actually published.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Image positioning now matches the page <span class="tag fixed">Fixed</span></h2>
+    <p>When you picked two images for a section, the position dialog showed the wide one-image frame, but the page rendered the two images side by side in a squarer frame. So the focus point you set looked different after saving.</p>
+    <p>The dialog now uses the exact frame the page will use for that layout and image count. Switch layout and the frame follows. In two-image mode the first image is already cropped against the two-image frame, even before you pick the second.</p>
+    <div class="layouts">
+      <div class="lay"><div class="name">Left / Right</div>
+        <svg viewBox="0 0 120 50"><rect class="img" x="0" y="0" width="56" height="37.3" rx="3"/><rect class="txt" x="64" y="4" width="56" height="4" rx="2"/><rect class="txt" x="64" y="13" width="50" height="4" rx="2"/><rect class="txt" x="64" y="22" width="54" height="4" rx="2"/><rect class="txt" x="64" y="31" width="40" height="4" rx="2"/></svg>
+        <div class="shape">3 : 2</div></div>
+      <div class="lay"><div class="name">Above / Below, one image</div>
+        <svg viewBox="0 0 120 50"><rect class="img" x="0" y="0" width="120" height="30" rx="3"/><rect class="txt" x="0" y="36" width="120" height="4" rx="2"/><rect class="txt" x="0" y="44" width="90" height="4" rx="2"/></svg>
+        <div class="shape">16 : 7 on desktop</div></div>
+      <div class="lay"><div class="name">Above / Below, two images</div>
+        <svg viewBox="0 0 120 50"><rect class="img" x="0" y="0" width="58" height="38.6" rx="3"/><rect class="img" x="62" y="0" width="58" height="38.6" rx="3"/><rect class="txt" x="0" y="44" width="120" height="4" rx="2"/></svg>
+        <div class="shape">3 : 2 each</div></div>
+      <div class="lay"><div class="name">Double</div>
+        <svg viewBox="0 0 120 50"><rect class="img" x="0" y="0" width="120" height="17" rx="3"/><rect class="txt" x="0" y="21" width="120" height="4" rx="2"/><rect class="txt" x="0" y="28" width="80" height="4" rx="2"/><rect class="img" x="0" y="35" width="120" height="15" rx="3"/></svg>
+        <div class="shape">16 : 7 each</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The description gets images like every other section <span class="tag new">New</span></h2>
+    <ul>
+      <li><strong>One or two images, any layout.</strong> Left, Right, Above, Below and Double now all work for the introduction text too.</li>
+      <li><strong>Existing descriptions look the same.</strong> Their default is "Below", which is how they rendered before. Nothing moves until you pick a layout.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Writing feels less odd <span class="tag small">Improved</span></h2>
+    <ul>
+      <li><strong>The text box grows with your text.</strong> No more scrolling inside a small box while the panel also scrolls.</li>
+      <li><strong>Same text size as the page</strong>, so what you write looks like what readers get.</li>
+      <li><strong>Undo works after toolbar buttons.</strong> Bold, italic and spoiler no longer break <kbd>Ctrl</kbd> <kbd>Z</kbd>.</li>
+      <li><strong>Bullets continue on Enter.</strong> Start a line with "- ", press Enter, and the next line is a bullet. Press Enter on an empty bullet to stop.</li>
+      <li><strong>Bold and italic toggle.</strong> Select bold text and press the button again to remove it.</li>
+      <li><strong>No more pop-up alerts.</strong> Picking one image in two-image mode shows a small notice instead of blocking you.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Images <span class="tag small">Improved</span></h2>
+    <ul>
+      <li><strong>"Used" badge</strong> on gallery photos already placed in another section. Hover to see which one.</li>
+      <li><strong>Swap order</strong> button when two images are picked.</li>
+      <li><strong>Picked images sit in a strip</strong> above the gallery, each with Position and Remove.</li>
+      <li><strong>"1 image / 2 images" switch</strong> replaces the old toggle button. Same idea, clearer state.</li>
+      <li><strong>Videos are marked as videos.</strong> Gallery clips carry a "Video" badge, and a picked clip says so in the strip. Pick one like a photo. It plays muted and looping in the section, and readers click it to open with sound. Videos fill the frame automatically, so there is no Position dialog for them.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Coaster texts too <span class="tag small">Improved</span></h2>
+    <p>The coaster text editor uses the same text tools and gets a live preview beside it, plus <kbd>Ctrl</kbd> <kbd>S</kbd> to save.</p>
+  </section>
+
+  <section>
+    <h2>Keyboard shortcuts</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Keys</th><th>Does</th></tr></thead>
+        <tbody>
+          <tr><td><kbd>Ctrl</kbd> <kbd>S</kbd></td><td>Save changed sections</td></tr>
+          <tr><td><kbd>Ctrl</kbd> <kbd>B</kbd></td><td>Bold on or off</td></tr>
+          <tr><td><kbd>Ctrl</kbd> <kbd>I</kbd></td><td>Italic on or off</td></tr>
+          <tr><td><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>S</kbd></td><td>Inline spoiler on or off</td></tr>
+          <tr><td><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>L</kbd></td><td>Bullet the current line or selection</td></tr>
+          <tr><td><kbd>Enter</kbd> in a bullet</td><td>Next bullet. On an empty bullet, ends the list</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Close the position dialog, or close the editor</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:10px;color:var(--ink-3);font-size:14px;">On a Mac, use <kbd>Cmd</kbd> instead of <kbd>Ctrl</kbd>.</p>
+  </section>
+
+  <section>
+    <h2>Good to know</h2>
+    <ul>
+      <li><strong>Old sections without a chosen layout</strong> still alternate left and right down the page. The editor highlights the side they land on. Click any layout button to pin one.</li>
+      <li><strong>Clicking a picked video</strong> in the gallery removes it again, since there is nothing to position.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Also fixed today <span class="tag fixed">Fixed</span></h2>
+    <ul>
+      <li><strong>Rankle round 2 "Could not load the coaster pool".</strong> About half the coasters have no photo the game can find, and the game gave up after twelve random pairs. It now skips coasters it already knows have no photo and tries much longer. Today's puzzle plays all five rounds again.</li>
+      <li><strong>Coaster photos with long names.</strong> Gallery titles are often shorter than the coaster name, like "Colossos: Kampf der Giganten" against "Colossos - Kampf der Giganten". The lookup now also tries the part before the dash, so Colossos, Eurosat and Storm find their photos.</li>
+      <li><strong>Discord link previews showed the old logo.</strong> The share image was still the old green mountains logo. Links now preview with the current orange logo on the dark ground. Discord caches previews, so old links may keep the old image for a while.</li>
+    </ul>
+  </section>
+
+  <footer>Deployed to parkrating.com on 4 September 2026. Open any park in admin mode and click the wrench to try it.</footer>
+</div>
+
+</body>
+</html>

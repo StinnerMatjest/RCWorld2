@@ -494,6 +494,9 @@ export default function RankleClient() {
         const a = pool[Math.floor(rng() * pool.length)];
         const b = pool[Math.floor(rng() * pool.length)];
         if (a.id === b.id || a.parkName === b.parkName) continue;
+        // a coaster we already know has no usable card image can never make a
+        // round; skip it instead of burning one of prepareRound's attempts
+        if (imgCacheRef.current[a.id] === null || imgCacheRef.current[b.id] === null) continue;
         const va = m.get(a), vb = m.get(b);
         if (va == null || vb == null || va === vb) continue;
 
@@ -606,7 +609,10 @@ export default function RankleClient() {
   /** Build a round (pair + both images) without committing it. */
   const prepareRound = useCallback(async (): Promise<Round | null> => {
     const wantTier = tierFor(roundRef.current);
-    for (let attempt = 0; attempt < 12; attempt++) {
+    // Roughly half the pool has no header image in the gallery, so a pair
+    // often fails on images alone. Known misses are skipped by pickPair, so
+    // each failed attempt shrinks the search; give it room to converge.
+    for (let attempt = 0; attempt < 60; attempt++) {
       const cand =
         pickPair(wantTier, false) ||
         pickPair(TIERS[Math.max(0, TIERS.indexOf(wantTier) - 1)], false) ||

@@ -143,7 +143,7 @@ export async function generateMetadata({ params }: PageProps) {
   const description = scoreStr
     ? `${data.name} in ${data.country} ${scoreStr} on ParkRating across ${visitsStr}. Detailed theme park review covering coasters, food, ride operations and more.`
     : `${data.name} in ${data.country}. Read our theme park review, ratings and coaster rankings from our visit.`;
-  const image = data.imagepath || "/images/Parkrating.png";
+  const image = data.imagepath || "/images/og-default.png";
 
   return {
     title,

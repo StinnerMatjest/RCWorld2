@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { splitMedia, parseFocusStr } from "../FocusedImage";
-import { SectionImage } from "../SectionImage";
-import { SECTION_IMAGE_ASPECT } from "@/app/utils/sectionImageAspect";
+import { SectionBody } from "./SectionBody";
+import { usesLegacyRow } from "@/app/utils/sectionImageAspect";
 import type { Rating, RatingWarningType } from "@/app/types";
 import ParkRatingsModal from "./ParkTextModal";
 import { getRatingColor } from "@/app/utils/design";
@@ -11,8 +10,6 @@ import { ratingCategories } from "@/app/utils/ratings";
 import RatingWarning from "../warnings/RatingWarning";
 import WarningCreatorModal from "../warnings/WarningCreatorModal";
 import { useAdminMode } from "../../context/AdminModeContext";
-import { MarkdownText } from "../MarkdownText";
-import SpoilerText from "../SpoilerText";
 import type { GalleryImage } from "./ParkGallery";
 
 interface ParkTextProps {
@@ -25,7 +22,12 @@ interface ParkTextProps {
   parkId: number;
   parkName: string;
   onWarningsUpdate: () => void;
-  onSectionImagesUpdate: (images: Record<string, string>) => void;
+  onSectionsUpdate: (
+    texts: Record<string, string>,
+    images: Record<string, string>,
+    layouts: Record<string, string>,
+    spoilers: Record<string, boolean>,
+  ) => void;
   coasters: import("@/app/types").RollerCoaster[];
 }
 
@@ -47,7 +49,7 @@ const ParkText: React.FC<ParkTextProps> = ({
   parkId,
   parkName,
   onWarningsUpdate,
-  onSectionImagesUpdate,
+  onSectionsUpdate,
   coasters,
 }) => {
   const { isAdminMode } = useAdminMode();
@@ -64,6 +66,7 @@ const ParkText: React.FC<ParkTextProps> = ({
 
   useEffect(() => { setLocalExplanations(explanations); }, [explanations]);
   useEffect(() => { setLocalImages(sectionImages); }, [sectionImages]);
+  useEffect(() => { setLocalLayouts(sectionLayouts); }, [sectionLayouts]);
   useEffect(() => { setLocalSpoilers(sectionSpoilers); }, [sectionSpoilers]);
 
   useEffect(() => {
@@ -155,114 +158,22 @@ const ParkText: React.FC<ParkTextProps> = ({
             const categoryWarnings = categoryWarningsMap[key.toLowerCase()] ?? [];
             const isSpoilerSection = localSpoilers[key] || false;
 
-            // Unpack images
             const mediaUrls = (localImages[key] || "").split(",").filter(Boolean);
-            const hasMedia = mediaUrls.length > 0;
             const layoutPref = localLayouts[key];
-
-            let isRow = false;
-            let isRight = false;
-            let isAbove = true;
-            let isDouble = false;
-
-            if (mediaUrls.length === 2 && layoutPref === "double") {
-              isDouble = true;
-            } else if (layoutPref === "left") {
-              isRow = true;
-              isRight = false;
-            } else if (layoutPref === "right") {
-              isRow = true;
-              isRight = true;
-            } else if (layoutPref === "above" || layoutPref === "center") {
-              isRow = false;
-              isAbove = true;
-            } else if (layoutPref === "below") {
-              isRow = false;
-              isAbove = false;
-            } else if (hasMedia) {
-              isRow = true;
-              isRight = imageIndex++ % 2 !== 0;
-            }
-
-            // Helper to render an individual media block.
-            const renderMedia = (entry: string, isHalf = false) => {
-              const { url, focus } = splitMedia(entry);
-              const pan = parseFocusStr(focus);
-              const a = (isRow || isHalf) ? SECTION_IMAGE_ASPECT.row : SECTION_IMAGE_ASPECT.full;
-              return (
-                <div
-                  key={entry}
-                  className={`${isHalf ? "flex-1 min-w-0" : "w-full flex-shrink-0"} rounded-2xl overflow-hidden cursor-zoom-in group relative shadow-sm ${isDouble ? "mt-4 mb-4" : ""}`}
-                  onClick={() => setLightbox(url)}
-                >
-                  {isVideo(url) ? (
-                    <div className="relative w-full overflow-hidden rounded-2xl" style={{ aspectRatio: a.desktop }}>
-                      <video src={url} className="absolute inset-0 w-full h-full object-cover rounded-2xl" muted loop autoPlay playsInline />
-                    </div>
-                  ) : (
-                    <SectionImage
-                      src={url}
-                      alt={humanizeLabel(key)}
-                      cx={pan.cx}
-                      cy={pan.cy}
-                      mobileAspect={a.mobile}
-                      desktopAspect={a.desktop}
-                      sizes={isRow ? "(min-width: 768px) 30vw, 100vw" : "(min-width: 768px) 60vw, 100vw"}
-                    />
-                  )}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-2xl pointer-events-none">
-                    <svg className="w-8 h-8 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0zM11 8v6M8 11h6" /></svg>
-                  </div>
-                </div>
-              );
-            };
-
-            // NEW Helper: Only blurs the text component
-            const renderTextContent = () => {
-              const md = (
-                <MarkdownText
-                  text={text}
-                  className={`text-slate-400 leading-relaxed md:text-lg ${isSpoilerSection ? "" : "flex-1"}`}
-                  forceReveal={isAdminMode}
-                  isAdminMode={isAdminMode}
-                />
-              );
-
-              return isSpoilerSection ? (
-                <SpoilerText forceReveal={isAdminMode} block={true} isAdminMode={isAdminMode} className="flex-1">
-                  {md}
-                </SpoilerText>
-              ) : (
-                md
-              );
-            };
+            // Sections without a saved layout alternate sides, in page order.
+            const fallbackRight = usesLegacyRow(layoutPref, mediaUrls.length) ? imageIndex++ % 2 !== 0 : false;
 
             const content = (
-              <div>
-                {!hasMedia ? (
-                  renderTextContent()
-                ) : isDouble ? (
-                  <div className="flex flex-col">
-                    {renderMedia(mediaUrls[0])}
-                    {renderTextContent()}
-                    {renderMedia(mediaUrls[1])}
-                  </div>
-                ) : isRow ? (
-                  <div className={`flex flex-col gap-6 items-start ${isRight ? "md:flex-row-reverse" : "md:flex-row"}`}>
-                    <div className="w-full md:w-1/2 flex-shrink-0 flex flex-col gap-4 mt-1.5">
-                      {mediaUrls.map(url => renderMedia(url))}
-                    </div>
-                    {renderTextContent()}
-                  </div>
-                ) : (
-                  <div className={`flex gap-4 ${isAbove ? "flex-col" : "flex-col-reverse"}`}>
-                    <div className={`flex mt-1.5 ${mediaUrls.length === 2 ? "flex-row gap-2 md:gap-3" : "flex-col gap-4"}`}>
-                      {mediaUrls.map(url => renderMedia(url, mediaUrls.length === 2))}
-                    </div>
-                    {renderTextContent()}
-                  </div>
-                )}
-              </div>
+              <SectionBody
+                text={text}
+                media={mediaUrls}
+                layout={layoutPref}
+                fallbackRight={fallbackRight}
+                isSpoiler={isSpoilerSection}
+                isAdminMode={isAdminMode}
+                altLabel={humanizeLabel(key)}
+                onMediaClick={(url) => setLightbox(url)}
+              />
             );
 
             return (
@@ -326,6 +237,7 @@ const ParkText: React.FC<ParkTextProps> = ({
           sectionSpoilers={localSpoilers}
           galleryImages={galleryImages}
           parkId={Number(parkId)}
+          parkName={parkName}
           ratingId={rating.id}
           onClose={() => setShowModal(false)}
           onSave={(updatedText, updatedImages, updatedLayouts, updatedSpoilers) => {
@@ -333,7 +245,7 @@ const ParkText: React.FC<ParkTextProps> = ({
             setLocalImages(updatedImages);
             setLocalLayouts(updatedLayouts ?? {});
             setLocalSpoilers(updatedSpoilers ?? {});
-            onSectionImagesUpdate(updatedImages);
+            onSectionsUpdate(updatedText, updatedImages, updatedLayouts ?? {}, updatedSpoilers ?? {});
           }}
         />
       )}

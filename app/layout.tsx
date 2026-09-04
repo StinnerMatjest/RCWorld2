@@ -24,14 +24,14 @@ export const metadata = {
     title: "ParkRating – ThemePark Reviews",
     description:
       "Explore theme park reviews and coaster rankings from dedicated enthusiasts 🎢 Discover top rides and plan your next visit with ParkRating.",
-    images: ["/images/Parkrating.png"],
+    images: ["/images/og-default.png"],
   },
   twitter: {
     card: "summary_large_image",
     title: "ParkRating – ThemePark Reviews",
     description:
       "Explore theme park reviews and coaster rankings from dedicated enthusiasts 🎢 Discover top rides and plan your next visit with ParkRating.",
-    images: ["/images/Parkrating.png"],
+    images: ["/images/og-default.png"],
   },
 };
 
@@ -50,7 +50,7 @@ const siteJsonLd = {
       "@id": "https://parkrating.com/#organization",
       "name": "ParkRating",
       "url": "https://parkrating.com",
-      "logo": "https://parkrating.com/images/Parkrating.png",
+      "logo": "https://parkrating.com/images/logo.png",
       "sameAs": [
         "https://www.instagram.com/parkratings/",
         "https://www.facebook.com/parkrating/",

@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
+import { MarkdownEditor, countTextStats } from "../editor/MarkdownEditor";
+import { MarkdownText } from "../MarkdownText";
+import SpoilerText from "../SpoilerText";
 
 export interface CoasterTextEntry {
   id: number;
@@ -19,6 +22,10 @@ interface Props {
   textEntry?: CoasterTextEntry;
 }
 
+/**
+ * Coaster text editor. Same markdown editor as the park review sections, with a
+ * live preview of the entry beside it on desktop. Ctrl+S saves.
+ */
 export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEntry }: Props) {
   useScrollLock();
   const [headline, setHeadline] = useState(textEntry?.headline || "");
@@ -26,8 +33,8 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
   const [isSpoiler, setIsSpoiler] = useState(textEntry?.isSpoiler || false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [previewAsVisitor, setPreviewAsVisitor] = useState(false);
+  const [mobileView, setMobileView] = useState<"write" | "preview">("write");
 
   useEffect(() => {
     if (textEntry) {
@@ -37,50 +44,17 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
     }
   }, [textEntry]);
 
-  const wrapSelection = (before: string, after = before) => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    const s = ta.selectionStart, e = ta.selectionEnd;
-    const scroll = ta.scrollTop;
+  const dirty =
+    headline !== (textEntry?.headline || "") ||
+    text !== (textEntry?.text || "") ||
+    isSpoiler !== (textEntry?.isSpoiler || false);
 
-    const next = text.slice(0, s) + before + text.slice(s, e) + after + text.slice(e);
-    setText(next);
-
-    setTimeout(() => {
-      ta.focus();
-      ta.setSelectionRange(s + before.length, e + before.length);
-      ta.scrollTop = scroll;
-    }, 0);
-  };
-
-  const insertBullet = () => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    const s = ta.selectionStart;
-    const scroll = ta.scrollTop;
-
-    const lineStart = text.lastIndexOf("\n", s - 1) + 1;
-    const next = text.slice(0, lineStart) + "- " + text.slice(lineStart);
-    setText(next);
-
-    setTimeout(() => {
-      ta.focus();
-      ta.setSelectionRange(s + 2, s + 2);
-      ta.scrollTop = scroll;
-    }, 0);
-  };
-
-  const clearFormatting = () => {
-    setText((prev) => prev.replace(/\*\*|\*|\|\|/g, ""));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const save = async () => {
+    if (loading) return;
     setLoading(true);
     setError(null);
-
     try {
-      const body: any = { headline, text, isSpoiler };
+      const body: Record<string, unknown> = { headline, text, isSpoiler };
       if (textEntry?.id) body.id = textEntry.id;
 
       const res = await fetch(`/api/coasters/${coasterId}/text`, {
@@ -88,160 +62,194 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-
       if (!res.ok) {
         const errText = await res.text();
         throw new Error(errText || "Failed to save coaster text");
       }
-
-      if (onSuccess) onSuccess();
+      onSuccess?.();
       onClose();
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
-      else setError("Something went wrong");
+      setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    save();
+  };
+
+  const requestClose = () => {
+    if (dirty && !confirm("Discard unsaved changes?")) return;
+    onClose();
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        save();
+      } else if (e.key === "Escape") {
+        requestClose();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [headline, text, isSpoiler, loading, dirty]);
+
   const handleDelete = async () => {
     if (!textEntry) return;
-
     if (!confirm("Are you sure you want to delete this text entry?")) return;
-
     setLoading(true);
     setError(null);
-
     try {
       const res = await fetch(`/api/coasters/${coasterId}/text`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ textId: textEntry.id }),
       });
-
       if (!res.ok) {
         const errText = await res.text();
         throw new Error(errText || "Failed to delete coaster text");
       }
-
-      if (onSuccess) onSuccess();
+      onSuccess?.();
       onClose();
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
-      else setError("Something went wrong");
+      setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
+  const stats = countTextStats(text);
+  const isAdminView = !previewAsVisitor;
+
+  const preview = (
+    <div>
+      {headline.trim() && (
+        <div className="flex items-center gap-3 mb-3">
+          <h3 className="text-xl font-bold text-white">{headline}</h3>
+          {isAdminView && isSpoiler && (
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-900/40 text-red-400 border border-red-800/50">
+              Spoiler
+            </span>
+          )}
+        </div>
+      )}
+      {text.trim() ? (
+        isSpoiler ? (
+          <SpoilerText forceReveal={isAdminView} block={true} isAdminMode={isAdminView}>
+            <MarkdownText text={text} className="whitespace-pre-wrap leading-relaxed text-base text-slate-300" forceReveal={isAdminView} isAdminMode={isAdminView} />
+          </SpoilerText>
+        ) : (
+          <MarkdownText text={text} className="whitespace-pre-wrap leading-relaxed text-base text-slate-300" forceReveal={isAdminView} isAdminMode={isAdminView} />
+        )
+      ) : (
+        <p className="text-slate-600 italic">Nothing to preview yet.</p>
+      )}
+    </div>
+  );
+
   return (
-    <div className="fixed inset-0 z-[1000] bg-black/80 flex items-center justify-center">
-      <div className="bg-gray-800 dark:text-gray-100 rounded-lg shadow-lg w-full max-w-md p-6">
-        <h2 className="text-xl font-semibold mb-4 text-white">
-          {textEntry ? "Edit Coaster Text" : "Add Coaster Text"}
-        </h2>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-300">
-              Headline
-            </label>
-            <input
-              type="text"
-              value={headline}
-              onChange={(e) => setHeadline(e.target.value)}
-              placeholder="Optional headline"
-              className="block w-full p-2 rounded-md border bg-gray-900 text-gray-100 border-white/10"
-            />
+    <div className="fixed inset-0 z-[1000] bg-black/80 flex items-center justify-center p-2 sm:p-4" onClick={requestClose}>
+      <div
+        className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col overflow-hidden text-slate-200"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Top bar */}
+        <div className="flex items-center gap-2 px-4 h-14 border-b border-slate-800 flex-shrink-0">
+          <h2 className="font-bold text-white text-base flex-1 truncate">
+            {textEntry ? "Edit coaster text" : "Add coaster text"}
+          </h2>
+          <div className="md:hidden flex items-center bg-slate-800 rounded-lg p-0.5 text-xs font-bold">
+            {(["write", "preview"] as const).map(v => (
+              <button key={v} type="button" onClick={() => setMobileView(v)}
+                className={`px-3 py-1 rounded-md capitalize cursor-pointer transition-colors ${mobileView === v ? "bg-slate-700 text-white" : "text-slate-400"}`}>
+                {v}
+              </button>
+            ))}
           </div>
+          {error && <span className="hidden md:inline text-sm text-red-400 font-medium truncate max-w-xs">{error}</span>}
+          {textEntry && (
+            <button type="button" onClick={handleDelete} disabled={loading}
+              className="px-3 py-1.5 rounded-lg border border-red-900/50 text-red-400 text-sm font-medium hover:bg-red-900/20 transition-colors cursor-pointer disabled:opacity-50">
+              Delete
+            </button>
+          )}
+          <button type="button" onClick={save} disabled={loading || !dirty} title="Ctrl+S"
+            className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-default text-white text-sm font-bold transition-colors cursor-pointer">
+            {loading ? "Saving…" : "Save"}
+          </button>
+          <button type="button" onClick={requestClose} aria-label="Close"
+            className="p-1.5 rounded-full hover:bg-slate-800 text-slate-500 hover:text-white transition-colors cursor-pointer">
+            <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+            </svg>
+          </button>
+        </div>
+        {error && <div className="md:hidden px-4 py-1.5 text-xs text-red-400 border-b border-slate-800">{error}</div>}
 
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-300">
-              Text
-            </label>
+        {/* Body */}
+        <div className="flex-1 min-h-0 flex overflow-hidden">
+          <form onSubmit={handleSubmit}
+            className={`${mobileView === "preview" ? "hidden md:flex" : "flex"} flex-1 min-w-0 min-h-0 flex-col overflow-y-auto`}>
+            <div className="p-4 sm:p-6 space-y-5">
+              <div>
+                <label className="block text-sm font-medium mb-1.5 text-slate-300">Headline</label>
+                <input
+                  type="text"
+                  value={headline}
+                  onChange={(e) => setHeadline(e.target.value)}
+                  placeholder="Optional headline"
+                  className="block w-full p-3 rounded-xl border border-slate-700 bg-slate-800/50 text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 text-base font-semibold"
+                />
+              </div>
 
-            {/* Toolbar */}
-            <div className="flex items-center gap-1 mb-2">
-              <button type="button" onClick={() => wrapSelection("**")} title="Bold"
-                className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-700 hover:bg-gray-700 font-bold text-sm text-gray-300 cursor-pointer transition-colors">
-                B
-              </button>
-              <button type="button" onClick={() => wrapSelection("*")} title="Italic"
-                className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-700 hover:bg-gray-700 italic text-sm text-gray-300 cursor-pointer transition-colors">
-                I
-              </button>
-              <button type="button" onClick={insertBullet} title="Bullet list"
-                className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-700 hover:bg-gray-700 text-sm text-gray-300 cursor-pointer transition-colors">
-                •—
-              </button>
-              <button type="button" onClick={() => wrapSelection("||")} title="Spoiler Inline"
-                className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-700 hover:bg-gray-700 font-bold text-sm text-gray-300 cursor-pointer transition-colors font-mono">
-                S
-              </button>
-              <div className="w-px h-5 bg-gray-700 mx-1"></div>
-              <button type="button" onClick={clearFormatting} title="Clear Formatting"
-                className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-700 hover:bg-gray-700 font-bold text-sm text-gray-300 cursor-pointer transition-colors">
-                🧹
-              </button>
+              <div>
+                <label className="block text-sm font-medium mb-1.5 text-slate-300">Text</label>
+                <MarkdownEditor
+                  value={text}
+                  onChange={setText}
+                  placeholder="Describe the experience…"
+                  minRows={8}
+                  autoFocus={!textEntry}
+                  toolbarEnd={
+                    <span className="text-xs text-slate-500 font-medium tracking-wide">
+                      {stats.words} words · {stats.paragraphs} paragraphs
+                    </span>
+                  }
+                />
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer w-fit">
+                <input
+                  type="checkbox"
+                  checked={isSpoiler}
+                  onChange={(e) => setIsSpoiler(e.target.checked)}
+                  className="rounded border-slate-600 bg-slate-700 text-blue-500 focus:ring-blue-500/50"
+                />
+                <span className="text-sm font-medium text-slate-300">Mark whole section as spoiler</span>
+              </label>
             </div>
+          </form>
 
-            <textarea
-              ref={textareaRef}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Enter coaster description"
-              rows={5}
-              className="block w-full p-3 rounded-md border bg-gray-900 text-gray-100 border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 pt-1">
-            <input
-              type="checkbox"
-              id="spoiler-check"
-              checked={isSpoiler}
-              onChange={(e) => setIsSpoiler(e.target.checked)}
-              className="rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500/50"
-            />
-            <label htmlFor="spoiler-check" className="text-sm font-medium text-gray-300 cursor-pointer">
-              Mark as spoiler section
-            </label>
-          </div>
-
-          {error && <p className="text-sm text-red-400">{error}</p>}
-
-          <div className="flex justify-between gap-3 pt-2">
-            {textEntry && (
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={loading}
-                className={`px-4 py-2 rounded-md text-white bg-red-500 hover:bg-red-600 cursor-pointer ${loading ? "cursor-not-allowed opacity-50" : ""
-                  }`}
-              >
-                Delete
-              </button>
-            )}
-
-            <div className="ml-auto flex gap-3">
-              <button
-                type="submit"
-                disabled={loading}
-                className={`px-4 py-2 rounded-md text-white bg-blue-500 hover:bg-blue-400 cursor-pointer ${loading ? "cursor-not-allowed opacity-50" : ""
-                  }`}
-              >
-                {loading ? "Saving..." : "Save"}
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 rounded-md border border-white/10 text-gray-100 hover:bg-gray-700 cursor-pointer"
-              >
-                Cancel
-              </button>
+          <div className={`${mobileView === "write" ? "hidden md:flex" : "flex"} flex-col flex-1 md:w-[45%] md:flex-none min-w-0 min-h-0 border-l border-slate-800 bg-[#0f172a]`}>
+            <div className="flex items-center justify-between px-4 h-10 border-b border-slate-800/80 flex-shrink-0 text-xs">
+              <span className="font-bold uppercase tracking-wider text-slate-500">Preview</span>
+              <div className="flex items-center bg-slate-800 rounded-lg p-0.5 font-bold">
+                {([false, true] as const).map(v => (
+                  <button key={String(v)} type="button" onClick={() => setPreviewAsVisitor(v)}
+                    className={`px-2.5 py-0.5 rounded-md cursor-pointer transition-colors ${previewAsVisitor === v ? "bg-slate-700 text-white" : "text-slate-500 hover:text-slate-300"}`}>
+                    {v ? "As visitor" : "As admin"}
+                  </button>
+                ))}
+              </div>
             </div>
+            <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6">{preview}</div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
