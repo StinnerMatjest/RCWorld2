@@ -957,7 +957,9 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
             {CATEGORIES.map(cat => sectionButton(cat, true))}
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          {/* Opaque background on purpose: Chrome only gives a scroller its own compositor layer
+              when it is opaque. Without it the whole editor repaints on every scroll step. */}
+          <div className="flex-1 min-h-0 overflow-y-auto bg-slate-950">
             <div className="max-w-3xl mx-auto px-4 sm:px-6 py-5 space-y-6">
 
               <div className="flex items-center justify-between gap-3">
@@ -1177,7 +1179,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
               ))}
             </div>
           </div>
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto bg-[#0f172a]">
             <div className="max-w-[900px] px-5 sm:px-8 py-8 space-y-10">
               {CATEGORIES.map(cat => {
                 const active = cat === selectedCat;
