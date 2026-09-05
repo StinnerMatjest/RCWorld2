@@ -13,7 +13,7 @@ export const isVideoUrl = (src: string) => /\.(mp4|webm|ogg)$/i.test(src);
  * A section clip: muted autoplay loop, but paused while it is off screen so a
  * page or editor preview with several clips is not decoding all of them at once.
  */
-function SectionVideo({ src }: { src: string }) {
+function SectionVideo({ src, cx, cy }: { src: string; cx: number; cy: number }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const video = ref.current;
@@ -25,7 +25,15 @@ function SectionVideo({ src }: { src: string }) {
     io.observe(video);
     return () => io.disconnect();
   }, []);
-  return <video ref={ref} src={src} className="absolute inset-0 w-full h-full object-cover rounded-2xl" muted loop autoPlay playsInline preload="metadata" />;
+  return (
+    <video
+      ref={ref}
+      src={src}
+      className="absolute inset-0 w-full h-full object-cover rounded-2xl"
+      style={{ objectPosition: `${cx * 100}% ${cy * 100}%` }}
+      muted loop autoPlay playsInline preload="metadata"
+    />
+  );
 }
 
 /** Gallery descriptions keyed by media URL, for the captions under section media. */
@@ -95,7 +103,7 @@ export function SectionBody({
       >
         {isVideoUrl(url) ? (
           <div className="relative w-full overflow-hidden rounded-2xl" style={{ aspectRatio: a.desktop }}>
-            <SectionVideo src={url} />
+            <SectionVideo src={url} cx={pan.cx} cy={pan.cy} />
             <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/55 text-white text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm pointer-events-none">
               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
               Video

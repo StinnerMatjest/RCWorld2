@@ -30,6 +30,8 @@ function whenVisible(): Promise<void> {
   });
 }
 
+export function getVideoSnapshot(src: string): Promise<HTMLCanvasElement> { return snapshot(src); }
+
 function snapshot(src: string): Promise<HTMLCanvasElement> {
   const cached = snapshots.get(src);
   if (cached) return cached;

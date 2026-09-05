@@ -12,7 +12,7 @@ import {
   type SectionLayout,
 } from "@/app/utils/sectionImageAspect";
 import { SectionBody, isVideoUrl, mediaCaptions } from "./SectionBody";
-import { VideoThumb } from "../VideoThumb";
+import { VideoThumb, getVideoSnapshot } from "../VideoThumb";
 import { MarkdownEditor, countTextStats } from "../editor/MarkdownEditor";
 import { getRatingColor } from "@/app/utils/design";
 import type { Rating } from "@/app/types";
@@ -288,15 +288,18 @@ const ImagePickerGrid = React.memo(function ImagePickerGrid({
 // ── Cropper ───────────────────────────────────────────────────────────────────
 
 function SectionImageCropper({
-  src, mobileAspect, desktopAspect, value, onChange,
+  src, mobileAspect, desktopAspect, value, onChange, isVideo = false,
 }: {
   src: string;
   mobileAspect: string;
   desktopAspect: string;
   value: string;
   onChange: (v: string) => void;
+  /** Position a clip using its cached still frame (see VideoThumb). */
+  isVideo?: boolean;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLCanvasElement>(null);
   const init = parseFocusStr(value);
   const [pos, setPos] = useState({ cx: init.cx, cy: init.cy });
   const posRef = useRef(pos);
@@ -305,10 +308,20 @@ function SectionImageCropper({
   const drag = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
 
   useEffect(() => {
+    if (isVideo) {
+      let alive = true;
+      getVideoSnapshot(src).then((snap) => {
+        if (!alive) return;
+        const c = frameRef.current;
+        if (c) { c.width = snap.width; c.height = snap.height; c.getContext("2d")?.drawImage(snap, 0, 0); }
+        setDims({ w: snap.width, h: snap.height });
+      }).catch(() => {});
+      return () => { alive = false; };
+    }
     const img = new window.Image();
     img.onload = () => setDims({ w: img.naturalWidth, h: img.naturalHeight });
     img.src = src;
-  }, [src]);
+  }, [src, isVideo]);
 
   useEffect(() => {
     const p = parseFocusStr(value);
@@ -380,14 +393,23 @@ function SectionImageCropper({
         className="relative w-full overflow-hidden rounded-xl bg-slate-950 cursor-grab active:cursor-grabbing select-none touch-none"
         style={{ aspectRatio: desktopAspect, maxHeight: "58vh" }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={src}
-          alt=""
-          draggable={false}
-          className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
-          style={{ objectPosition: `${pos.cx * 100}% ${pos.cy * 100}%` }}
-        />
+        {isVideo ? (
+          <canvas
+            ref={frameRef}
+            aria-hidden
+            className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
+            style={{ objectPosition: `${pos.cx * 100}% ${pos.cy * 100}%` }}
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={src}
+            alt=""
+            draggable={false}
+            className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
+            style={{ objectPosition: `${pos.cx * 100}% ${pos.cy * 100}%` }}
+          />
+        )}
         {showSafe && safe && (
           <div
             className="absolute border-2 border-white/90 rounded-sm pointer-events-none"
@@ -678,29 +700,28 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
         });
       }
       setActiveSlot(null);
-      setCropIndex(isVideoUrl(path) ? null : target);
+      setCropIndex(target);
       return;
     }
 
     if (existing !== -1) {
-      if (isVideoUrl(path)) removeImageAt(existing);
-      else setCropIndex(existing);
+      setCropIndex(existing);
       return;
     }
     if (c.imageCount > 1) {
       if (c.images.length >= c.imageCount) return;
       patch(d => ({ ...d, images: [...d.images, path], focuses: [...d.focuses, FOCUS_DEFAULT] }));
-      if (!isVideoUrl(path)) setCropIndex(c.images.length);
+      setCropIndex(c.images.length);
     } else {
       patch(d => ({ ...d, images: [path], focuses: [FOCUS_DEFAULT] }));
-      if (!isVideoUrl(path)) setCropIndex(0);
+      setCropIndex(0);
     }
-  }, [selectedCat, patch, removeImageAt, activeSlot]);
+  }, [selectedCat, patch, activeSlot]);
 
   const openCropFor = useCallback((cat: Category, index: number) => {
     const c = draftsRef.current[cat];
     setSelectedCat(cat);
-    setCropIndex(c.images[index] && !isVideoUrl(c.images[index]) ? index : null);
+    setCropIndex(c.images[index] ? index : null);
   }, []);
 
   // The preview shows every section; keep the one being edited in view.
@@ -719,6 +740,19 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   savedRef.current = saved;
   const persistedRef = useRef(persisted);
   persistedRef.current = persisted;
+
+  useEffect(() => {
+    const fresh = buildDrafts(explanations, sectionImages, sectionLayouts, sectionSpoilers);
+    setDrafts(d => {
+      const next = { ...d };
+      for (const c of CATEGORIES) {
+        if (fingerprint(d[c]) === fingerprint(savedRef.current[c])) next[c] = fresh[c];
+      }
+      return next;
+    });
+    setSaved(fresh);
+    setPersisted(new Set(CATEGORIES.filter(c => explanations[c] !== undefined)));
+  }, [explanations, sectionImages, sectionLayouts, sectionSpoilers]);
 
   const handleSave = useCallback(async () => {
     if (isSaving) return;
@@ -962,6 +996,9 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
               {/* ── Images ──────────────────────────────────────────────────── */}
               <div className="space-y-3 pt-2 border-t border-slate-800">
+                {/* Image controls stay pinned while the gallery below scrolls, so the picked
+                    images, the 1/2/3 toggle and the layout are always in view. */}
+                <div className="md:sticky md:top-0 z-10 bg-slate-950 space-y-3 -mt-2 pt-3 pb-3 border-b border-slate-800/80 shadow-[0_12px_16px_-12px_rgba(0,0,0,0.6)]">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-3">
                     <p className="text-sm font-medium text-slate-300">Images <span className="text-slate-500 font-normal">(optional)</span></p>
@@ -1049,9 +1086,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                           <>
                             <div className="fixed inset-0 z-[1005]" onClick={() => setSlotMenu(null)} />
                             <div className="absolute z-[1006] top-full left-0 mt-1.5 w-40 rounded-xl bg-slate-800 border border-slate-700 shadow-xl p-1 text-sm">
-                              {!video && (
-                                <button onClick={() => { setSlotMenu(null); setCropIndex(i); }} className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-200 cursor-pointer">Position</button>
-                              )}
+                              <button onClick={() => { setSlotMenu(null); setCropIndex(i); }} className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-200 cursor-pointer">Position</button>
                               <button onClick={() => openCaptionEditor(url)} className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-200 cursor-pointer">
                                 {captions[url] ? "Edit caption…" : "Add caption…"}
                               </button>
@@ -1110,6 +1145,8 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                     </div>
                   </div>
                 )}
+
+                </div>
 
                 <ImagePickerGrid
                   galleryImages={galleryImages}
@@ -1181,7 +1218,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
       </div>
 
       {/* ── Crop dialog ─────────────────────────────────────────────────────── */}
-      {cropIndex !== null && cur.images[cropIndex] && !isVideoUrl(cur.images[cropIndex]) && (
+      {cropIndex !== null && cur.images[cropIndex] && (
         <div
           className="fixed inset-0 z-[1010] flex items-center justify-center bg-black/80 p-3 sm:p-4"
           onClick={() => setCropIndex(null)}
@@ -1192,7 +1229,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
           >
             <div className="flex items-center justify-between">
               <p className="text-sm font-bold text-slate-200">
-                Position image{cur.images.length > 1 ? ` ${cropIndex + 1}` : ""}
+                Position {isVideoUrl(cur.images[cropIndex]) ? "video" : "image"}{cur.images.length > 1 ? ` ${cropIndex + 1}` : ""}
                 <span className="text-slate-500 font-normal"> · drag to choose what shows</span>
               </p>
               <button
@@ -1208,6 +1245,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
             <SectionImageCropper
               key={`popup-crop-${selectedCat}-${cropIndex}-${cur.images[cropIndex]}-${cropFrame.desktop}`}
               src={cur.images[cropIndex]}
+              isVideo={isVideoUrl(cur.images[cropIndex])}
               mobileAspect={cropFrame.mobile}
               desktopAspect={cropFrame.desktop}
               value={cur.focuses[cropIndex] ?? FOCUS_DEFAULT}
