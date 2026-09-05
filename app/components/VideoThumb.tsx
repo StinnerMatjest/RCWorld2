@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from "react";
  * ever read back out of the canvas.
  */
 
-const SNAPSHOT_WIDTH = 480;
+const SNAPSHOT_WIDTH = 960;
 const snapshots = new Map<string, Promise<HTMLCanvasElement>>();
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -107,7 +107,7 @@ function snapshot(src: string): Promise<HTMLCanvasElement> {
   return p;
 }
 
-export function VideoThumb({ src, className = "" }: { src: string; className?: string }) {
+export function VideoThumb({ src, className = "", fit = "cover" }: { src: string; className?: string; fit?: "cover" | "contain" }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
 
@@ -133,7 +133,7 @@ export function VideoThumb({ src, className = "" }: { src: string; className?: s
       <canvas
         ref={canvasRef}
         aria-hidden
-        className={`absolute inset-0 w-full h-full object-cover transition-opacity ${state === "ready" ? "opacity-100" : "opacity-0"}`}
+        className={`absolute inset-0 w-full h-full ${fit === "contain" ? "object-contain" : "object-cover"} transition-opacity ${state === "ready" ? "opacity-100" : "opacity-0"}`}
       />
       {state !== "ready" && (
         <div className="absolute inset-0 flex items-center justify-center text-slate-600">

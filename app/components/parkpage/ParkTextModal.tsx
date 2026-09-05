@@ -137,11 +137,11 @@ function HoverPreview({ path, rect, caption }: { path: string; rect: DOMRect; ca
       className="fixed z-[1020] pointer-events-none rounded-xl overflow-hidden bg-slate-950 border border-slate-700 shadow-2xl"
       style={{ left, top, width: W, height: H }}
     >
+      {/* Optimised sizes, not the multi-megabyte originals: decoding those on every hover lagged. */}
       {isVideoUrl(path) ? (
-        <video src={path} className="w-full h-full object-contain" muted autoPlay loop playsInline />
+        <VideoThumb src={path} fit="contain" className="w-full h-full" />
       ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={path} alt="" className="w-full h-full object-contain" />
+        <Image src={path} alt="" fill sizes="460px" quality={70} className="object-contain" />
       )}
       {caption && (
         <p className="absolute inset-x-0 bottom-0 px-3 py-2 bg-black/70 text-slate-100 text-xs leading-snug">{caption}</p>
