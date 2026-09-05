@@ -17,6 +17,27 @@ const SNAPSHOT_WIDTH = 480;
 const snapshots = new Map<string, Promise<HTMLCanvasElement>>();
 let queue: Promise<unknown> = Promise.resolve();
 
+// Decoding a clip competes with scrolling for the GPU, so snapshots only start
+// once the page has been still for a moment.
+const QUIET_MS = 700;
+let lastScroll = 0;
+let trackingScroll = false;
+function trackScroll() {
+  if (trackingScroll || typeof window === "undefined") return;
+  trackingScroll = true;
+  window.addEventListener("scroll", () => { lastScroll = Date.now(); }, { capture: true, passive: true });
+}
+function whenQuiet(): Promise<void> {
+  return new Promise((resolve) => {
+    const check = () => {
+      const wait = QUIET_MS - (Date.now() - lastScroll);
+      if (wait <= 0) resolve();
+      else setTimeout(check, wait);
+    };
+    setTimeout(check, 400);
+  });
+}
+
 /** Browsers defer media loading in hidden tabs; don't start (or time out) a snapshot until the tab is visible. */
 function whenVisible(): Promise<void> {
   if (typeof document === "undefined" || document.visibilityState === "visible") return Promise.resolve();
@@ -35,10 +56,11 @@ export function getVideoSnapshot(src: string): Promise<HTMLCanvasElement> { retu
 function snapshot(src: string): Promise<HTMLCanvasElement> {
   const cached = snapshots.get(src);
   if (cached) return cached;
+  trackScroll();
 
   const p = new Promise<HTMLCanvasElement>((resolve, reject) => {
     // Serialise decodes so a grid of clips does not open a decoder per clip.
-    queue = queue.then(whenVisible).then(() => new Promise<void>((done) => {
+    queue = queue.then(whenVisible).then(whenQuiet).then(() => new Promise<void>((done) => {
       const video = document.createElement("video");
       video.muted = true;
       video.playsInline = true;

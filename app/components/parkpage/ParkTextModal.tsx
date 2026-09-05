@@ -172,7 +172,7 @@ const PickerTile = React.memo(function PickerTile({ img, selIndex, disabled, num
       onMouseLeave={onLeave}
       aria-disabled={disabled}
       title={elsewhere ? `Already used in: ${elsewhere.join(", ")}` : img.title || undefined}
-      className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all ${sel ? "border-blue-500 ring-2 ring-blue-500/30 cursor-pointer" : disabled ? "border-slate-800/60 opacity-30 cursor-not-allowed" : "border-slate-700 hover:border-slate-500 cursor-pointer"}`}
+      className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-colors ${sel ? "border-blue-500 ring-2 ring-blue-500/30 cursor-pointer" : disabled ? "border-slate-800/60 opacity-30 cursor-not-allowed" : "border-slate-700 hover:border-slate-500 cursor-pointer"}`}
     >
       {isVideoUrl(img.path) ? (
         <>
@@ -183,7 +183,8 @@ const PickerTile = React.memo(function PickerTile({ img, selIndex, disabled, num
           </span>
         </>
       ) : (
-        <Image src={img.path} alt="" fill sizes="(max-width: 640px) 25vw, 160px" quality={55} className={`object-cover ${dim}`} />
+        {/* Eager: load the whole grid up front so nothing arrives (and repaints) mid-scroll. */}
+        <Image src={img.path} alt="" fill loading="eager" sizes="(max-width: 640px) 25vw, 160px" quality={55} className={`object-cover ${dim}`} />
       )}
       {elsewhere && !sel && (
         <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-slate-950/80 text-[10px] font-bold uppercase tracking-wider text-amber-300 border border-amber-500/30">
