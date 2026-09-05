@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import { R2Image } from "../R2Image";
 import ImageUploaderModal from "@/app/components/ImageUploaderModal";
 import { useAdminMode } from "../../context/AdminModeContext";
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
@@ -295,7 +296,7 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
                   className="rounded-lg object-cover h-40 w-full bg-black transition-transform duration-300 group-hover:scale-105 transform-gpu will-change-transform"
                 />
               ) : (
-                <Image src={img.path} alt={img.title || "Gallery"} width={400} height={300} className="rounded-lg object-cover h-40 w-full" />
+                <R2Image src={img.path} alt={img.title || "Gallery"} width={400} height={300} className="rounded-lg object-cover h-40 w-full" />
               )}
             </div>
           ))}

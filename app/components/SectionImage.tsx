@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { R2Image } from "./R2Image";
 import type { CSSProperties } from "react";
 import styles from "./SectionImage.module.css";
 
@@ -23,7 +23,7 @@ export function SectionImage({
       className={`${styles.frame} relative w-full overflow-hidden rounded-2xl`}
       style={{ "--aspect-m": mobileAspect, "--aspect-d": desktopAspect } as CSSProperties}
     >
-      <Image
+      <R2Image
         src={src}
         alt={alt}
         fill

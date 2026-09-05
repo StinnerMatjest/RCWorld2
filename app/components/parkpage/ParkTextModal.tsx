@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import Image from "next/image";
 import { parseFocusStr, splitMedia } from "../FocusedImage";
 import {
   sectionImageFrame,
@@ -13,6 +12,8 @@ import {
 } from "@/app/utils/sectionImageAspect";
 import { SectionBody, isVideoUrl, mediaCaptions } from "./SectionBody";
 import { VideoThumb, getVideoSnapshot } from "../VideoThumb";
+import { R2Image } from "../R2Image";
+import { variantUrl } from "@/app/lib/imageVariants";
 import { MarkdownEditor, countTextStats } from "../editor/MarkdownEditor";
 import { getRatingColor } from "@/app/utils/design";
 import type { Rating } from "@/app/types";
@@ -142,11 +143,11 @@ function HoverPreview({ path, rect, caption }: { path: string; rect: DOMRect; ca
       ) : (
         <>
           {/* Same request as the grid tile, so it is already cached and shows instantly… */}
-          <Image src={path} alt="" fill sizes="(max-width: 640px) 25vw, 160px" quality={55} className="object-contain" />
-          {/* …then the sharp original fades in on top once it has loaded (its download starts on mouseenter). */}
+          <R2Image src={path} alt="" fill sizes="(max-width: 640px) 25vw, 160px" quality={55} className="object-contain" />
+          {/* …then the sharp 1200px variant fades in on top once loaded (its download starts on mouseenter). */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={path}
+            src={variantUrl(path, 1200)}
             alt=""
             decoding="async"
             className="absolute inset-0 w-full h-full object-contain opacity-0 transition-opacity duration-150"
@@ -195,7 +196,7 @@ const PickerTile = React.memo(function PickerTile({ img, selIndex, disabled, num
           </span>
         </>
       ) : (
-        <Image src={img.path} alt="" fill loading="eager" sizes="(max-width: 640px) 25vw, 160px" quality={55} className={`object-cover ${dim}`} />
+        <R2Image src={img.path} alt="" fill loading="eager" sizes="(max-width: 640px) 25vw, 160px" quality={55} className={`object-cover ${dim}`} />
       )}
       {elsewhere && !sel && (
         <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-slate-950/80 text-[10px] font-bold uppercase tracking-wider text-amber-300 border border-amber-500/30">
@@ -256,7 +257,7 @@ const ImagePickerGrid = React.memo(function ImagePickerGrid({
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
     if (Date.now() < scrollingUntil.current) return;
     // Start fetching the original now, so it is mostly here by the time the preview opens.
-    if (!isVideoUrl(path)) { const pre = new window.Image(); pre.decoding = "async"; pre.src = path; }
+    if (!isVideoUrl(path)) { const pre = new window.Image(); pre.decoding = "async"; pre.src = variantUrl(path, 1200); }
     hoverTimer.current = setTimeout(() => setHover({ path, rect }), HOVER_REST_MS);
   }, []);
   const onLeave = useCallback(() => {
@@ -1085,7 +1086,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                           {video ? (
                             <VideoThumb src={url} className="w-full h-full pointer-events-none" />
                           ) : (
-                            <Image src={url} alt="" fill sizes="160px" quality={50} draggable={false} className="object-cover pointer-events-none" style={{ objectPosition: `${focus.cx * 100}% ${focus.cy * 100}%` }} />
+                            <R2Image src={url} alt="" fill sizes="160px" quality={50} draggable={false} className="object-cover pointer-events-none" style={{ objectPosition: `${focus.cx * 100}% ${focus.cy * 100}%` }} />
                           )}
                           <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/65 text-white text-[10px] font-bold">{i + 1}</span>
                           {video && (

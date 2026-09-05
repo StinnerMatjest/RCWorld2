@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
+import sharp from "sharp";
+import { VARIANT_WIDTHS, VARIANT_QUALITY, variantKey } from "@/app/lib/imageVariants";
 
 const s3Client = new S3Client({
   region: "auto",
@@ -50,9 +52,29 @@ export async function POST(request: Request) {
 
     await parallelUploads.done();
 
+    // Pre-generated sizes next to the original, so pages never resize on the fly
+    // (see app/lib/imageVariants.ts). Best effort: a failure here must not fail the upload.
+    if (file.type.startsWith("image/")) {
+      try {
+        const img = sharp(buffer, { failOn: "none" }).rotate();
+        for (const w of VARIANT_WIDTHS) {
+          const out = await img.clone().resize({ width: w, withoutEnlargement: true }).webp({ quality: VARIANT_QUALITY[w] }).toBuffer();
+          await s3Client.send(new PutObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME || "themeparks",
+            Key: variantKey(fileName, w),
+            Body: out,
+            ContentType: "image/webp",
+            CacheControl: "public, max-age=31536000, immutable",
+          }));
+        }
+      } catch (err) {
+        console.error("Image variant generation failed for", fileName, err);
+      }
+    }
+
     const publicUrl = `https://pub-${process.env.R2_PUBLIC_BUCKET_ID}.r2.dev/${fileName}`;
     return NextResponse.json({ imagePath: publicUrl }, { status: 200 });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 }
@@ -64,15 +86,13 @@ export async function DELETE(request: Request) {
 
     const fileName = url.split("/").pop();
 
-    await s3Client.send(
-      new DeleteObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME || "themeparks",
-        Key: fileName,
-      })
-    );
+    const Bucket = process.env.R2_BUCKET_NAME || "themeparks";
+    await s3Client.send(new DeleteObjectCommand({ Bucket, Key: fileName }));
+    // Variants go with the original (ignore misses: videos and older files have none).
+    await Promise.allSettled(VARIANT_WIDTHS.map(w => s3Client.send(new DeleteObjectCommand({ Bucket, Key: variantKey(fileName, w) }))));
 
     return NextResponse.json({ message: "Deleted" }, { status: 200 });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Delete failed" }, { status: 500 });
   }
 }
