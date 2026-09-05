@@ -11,7 +11,7 @@ import {
   MAX_SECTION_IMAGES,
   type SectionLayout,
 } from "@/app/utils/sectionImageAspect";
-import { SectionBody, isVideoUrl } from "./SectionBody";
+import { SectionBody, isVideoUrl, mediaCaptions } from "./SectionBody";
 import { MarkdownEditor, countTextStats } from "../editor/MarkdownEditor";
 import { getRatingColor } from "@/app/utils/design";
 import type { Rating } from "@/app/types";
@@ -34,6 +34,8 @@ interface ParkTextsModalProps {
   parkId: number;
   parkName?: string;
   ratingId: number;
+  /** Called after an image caption was saved, so the page can re-fetch gallery data. */
+  onGalleryUpdate?: () => void;
   onClose: () => void;
   onSave?: (updatedText: Record<string, string>, updatedImages: Record<string, string>, updatedLayouts: Record<string, string>, updatedSpoilers: Record<string, boolean>) => void;
 }
@@ -123,7 +125,7 @@ function legacySides(drafts: Record<Category, Draft>): Record<Category, boolean>
 // ── Image picker grid ─────────────────────────────────────────────────────────
 
 /** Large floating preview of the gallery tile under the pointer. */
-function HoverPreview({ path, rect }: { path: string; rect: DOMRect }) {
+function HoverPreview({ path, rect, caption }: { path: string; rect: DOMRect; caption?: string }) {
   const W = 460, H = 320, gap = 14;
   if (typeof window === "undefined") return null;
   const fitsRight = rect.right + gap + W <= window.innerWidth - 8;
@@ -140,12 +142,15 @@ function HoverPreview({ path, rect }: { path: string; rect: DOMRect }) {
         // eslint-disable-next-line @next/next/no-img-element
         <img src={path} alt="" className="w-full h-full object-contain" />
       )}
+      {caption && (
+        <p className="absolute inset-x-0 bottom-0 px-3 py-2 bg-black/70 text-slate-100 text-xs leading-snug">{caption}</p>
+      )}
     </div>
   );
 }
 
 const ImagePickerGrid = React.memo(function ImagePickerGrid({
-  galleryImages, selected, onSelect, maxSelection, usedIn, replacing = false,
+  galleryImages, selected, onSelect, maxSelection, usedIn, replacing = false, captions = {},
 }: {
   galleryImages: GalleryImage[];
   selected: string[];
@@ -154,6 +159,7 @@ const ImagePickerGrid = React.memo(function ImagePickerGrid({
   usedIn: Record<string, string[]>;
   /** True while a specific slot is being (re)filled, so a full section still accepts a pick. */
   replacing?: boolean;
+  captions?: Record<string, string>;
 }) {
   const [hover, setHover] = useState<{ path: string; rect: DOMRect } | null>(null);
   if (galleryImages.length === 0) {
@@ -161,7 +167,7 @@ const ImagePickerGrid = React.memo(function ImagePickerGrid({
   }
   return (
     <div className="grid grid-cols-4 sm:grid-cols-5 xl:grid-cols-6 gap-1.5" onMouseLeave={() => setHover(null)}>
-      {hover && <HoverPreview path={hover.path} rect={hover.rect} />}
+      {hover && <HoverPreview path={hover.path} rect={hover.rect} caption={captions[hover.path]} />}
       <button onClick={() => onSelect(null)}
         className={`aspect-square rounded-lg border-2 flex items-center justify-center text-xs font-medium transition-all cursor-pointer ${selected.length === 0
           ? "border-blue-500 bg-blue-500/20 text-blue-400"
@@ -347,7 +353,7 @@ function SectionImageCropper({
 // ── Preview ───────────────────────────────────────────────────────────────────
 
 function SectionPreview({
-  cat, draft, rating, asVisitor, legacyRight, active, onMediaClick,
+  cat, draft, rating, asVisitor, legacyRight, active, onMediaClick, captions,
 }: {
   cat: Category;
   draft: Draft;
@@ -357,6 +363,7 @@ function SectionPreview({
   /** True for the section currently open in the editor. */
   active: boolean;
   onMediaClick: (url: string, index: number) => void;
+  captions: Record<string, string>;
 }) {
   const media = mediaEntries(draft);
   const empty = !draft.text.trim() && media.length === 0;
@@ -383,6 +390,7 @@ function SectionPreview({
             altLabel="Introduction"
             textClassName="text-slate-400 text-base leading-relaxed"
             onMediaClick={onMediaClick}
+            captions={captions}
           />
         )}
       </div>
@@ -411,6 +419,7 @@ function SectionPreview({
           isAdminMode={isAdminMode}
           altLabel={humanizeLabel(cat)}
           onMediaClick={onMediaClick}
+          captions={captions}
         />
       )}
     </div>
@@ -421,7 +430,7 @@ function SectionPreview({
 
 const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   rating,
-  explanations, sectionImages, sectionLayouts = {}, sectionSpoilers = {}, galleryImages, parkId, parkName, ratingId, onClose, onSave,
+  explanations, sectionImages, sectionLayouts = {}, sectionSpoilers = {}, galleryImages, parkId, parkName, ratingId, onGalleryUpdate, onClose, onSave,
 }) => {
   useScrollLock();
 
@@ -438,6 +447,39 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const [slotMenu, setSlotMenu] = useState<number | null>(null);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
+  // Captions saved from this editor, layered over the gallery data until the page re-fetches.
+  const [captionEdits, setCaptionEdits] = useState<Record<string, string>>({});
+  const [captionEditor, setCaptionEditor] = useState<{ path: string; text: string; saving: boolean; error?: string } | null>(null);
+  const captions = useMemo(() => ({ ...mediaCaptions(galleryImages), ...captionEdits }), [galleryImages, captionEdits]);
+
+  const openCaptionEditor = useCallback((path: string) => {
+    setSlotMenu(null);
+    setCaptionEditor({ path, text: captions[path] ?? "", saving: false });
+  }, [captions]);
+
+  const saveCaption = useCallback(async () => {
+    if (!captionEditor || captionEditor.saving) return;
+    const img = galleryImages.find(g => g.path === captionEditor.path);
+    if (!img) { setCaptionEditor(e => e && { ...e, error: "This file is not in the gallery." }); return; }
+    const description = captionEditor.text.trim();
+    // Same title convention as the gallery lightbox editor.
+    const title = `${parkName ?? ""} - ${description || "untitled"}`.replace(/^ - /, "");
+    setCaptionEditor(e => e && { ...e, saving: true, error: undefined });
+    try {
+      const res = await fetch(`/api/gallery/${img.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description, title }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      setCaptionEdits(c => ({ ...c, [img.path]: description }));
+      setCaptionEditor(null);
+      onGalleryUpdate?.();
+    } catch (err) {
+      const status = err instanceof Error ? err.message : "";
+      setCaptionEditor(e => e && { ...e, saving: false, error: status === "401" ? "Not saved: session expired. Log in to admin mode again." : "Failed to save caption." });
+    }
+  }, [captionEditor, galleryImages, parkName, onGalleryUpdate]);
   const [mobileView, setMobileView] = useState<"write" | "preview">("write");
   const [previewAsVisitor, setPreviewAsVisitor] = useState(false);
 
@@ -723,7 +765,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
     const dot = dirty ? "bg-amber-400" : filled ? "bg-green-500" : "bg-slate-600";
     if (compact) {
       return (
-        <button key={cat} onClick={() => { setSelectedCat(cat); setCropIndex(null); setActiveSlot(null); setSlotMenu(null); }}
+        <button key={cat} onClick={() => { setSelectedCat(cat); setCropIndex(null); setActiveSlot(null); setSlotMenu(null); setCaptionEditor(null); }}
           className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${active
             ? "bg-blue-600 border-blue-600 text-white"
             : "border-slate-700 text-slate-400"
@@ -734,7 +776,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
       );
     }
     return (
-      <button key={cat} onClick={() => { setSelectedCat(cat); setCropIndex(null); setActiveSlot(null); setSlotMenu(null); }}
+      <button key={cat} onClick={() => { setSelectedCat(cat); setCropIndex(null); setActiveSlot(null); setSlotMenu(null); setCaptionEditor(null); }}
         title={dirty ? "Unsaved changes" : undefined}
         className={`flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-left w-full transition-colors cursor-pointer rounded-lg ${active
           ? "bg-slate-800 text-white"
@@ -936,6 +978,9 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                               {!video && (
                                 <button onClick={() => { setSlotMenu(null); setCropIndex(i); }} className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-200 cursor-pointer">Position</button>
                               )}
+                              <button onClick={() => openCaptionEditor(url)} className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-200 cursor-pointer">
+                                {captions[url] ? "Edit caption…" : "Add caption…"}
+                              </button>
                               <button onClick={() => { setSlotMenu(null); setActiveSlot(i); }} className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-200 cursor-pointer">Replace…</button>
                               {i > 0 && (
                                 <button onClick={() => { setSlotMenu(null); moveImage(i, -1); }} className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-200 cursor-pointer">Move left</button>
@@ -963,6 +1008,35 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                   </div>
                 )}
 
+                {captionEditor && (
+                  <div className="rounded-xl border border-slate-700 bg-slate-800/60 p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-slate-200">
+                        Caption for image {Math.max(0, cur.images.indexOf(captionEditor.path)) + 1}
+                        <span className="text-slate-500 font-normal"> · shown under it on the page, saved to the gallery</span>
+                      </p>
+                    </div>
+                    <textarea
+                      autoFocus
+                      value={captionEditor.text}
+                      onChange={(e) => setCaptionEditor(c => c && { ...c, text: e.target.value })}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveCaption(); } if (e.key === "Escape") { e.stopPropagation(); setCaptionEditor(null); } }}
+                      rows={2}
+                      placeholder="What is in this picture?"
+                      className="w-full rounded-lg bg-slate-900 border border-slate-700 focus:border-blue-500 focus:outline-none px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 resize-none"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button onClick={saveCaption} disabled={captionEditor.saving}
+                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-bold cursor-pointer">
+                        {captionEditor.saving ? "Saving…" : "Save caption"}
+                      </button>
+                      <button onClick={() => setCaptionEditor(null)} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-slate-400 hover:text-white cursor-pointer">Cancel</button>
+                      <span className="text-xs text-slate-500">Enter saves · Shift+Enter for a new line</span>
+                      {captionEditor.error && <span className="text-xs text-red-400 ml-auto">{captionEditor.error}</span>}
+                    </div>
+                  </div>
+                )}
+
                 <ImagePickerGrid
                   galleryImages={galleryImages}
                   selected={cur.images}
@@ -970,6 +1044,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                   maxSelection={cur.imageCount}
                   usedIn={usedIn}
                   replacing={activeSlot !== null}
+                  captions={captions}
                 />
                 <p className="text-xs text-slate-500">Hover a gallery image for a large preview. Click a slot above for position, replace, or remove; drag slots to reorder. Videos play muted on the page and open with sound when clicked.</p>
               </div>
@@ -1020,6 +1095,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                         legacyRight={legacy[cat]}
                         active={active}
                         onMediaClick={(_url, i) => openCropFor(cat, i)}
+                        captions={captions}
                       />
                     </div>
                   </React.Fragment>

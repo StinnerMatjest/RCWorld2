@@ -9,6 +9,16 @@ import SpoilerText from "../SpoilerText";
 
 export const isVideoUrl = (src: string) => /\.(mp4|webm|ogg)$/i.test(src);
 
+/** Gallery descriptions keyed by media URL, for the captions under section media. */
+export function mediaCaptions(images: { path: string; description?: string | null }[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const img of images) {
+    const text = (img.description ?? "").trim();
+    if (text) out[img.path] = text;
+  }
+  return out;
+}
+
 export interface SectionBodyProps {
   text: string;
   /** Media entries in the stored "url|cx cy zoom" form. */
@@ -23,6 +33,8 @@ export interface SectionBodyProps {
   altLabel: string;
   textClassName?: string;
   onMediaClick?: (url: string, index: number) => void;
+  /** Caption text per media URL (see mediaCaptions); shown under the media when present. */
+  captions?: Record<string, string>;
 }
 
 /**
@@ -41,6 +53,7 @@ export function SectionBody({
   altLabel,
   textClassName = "text-slate-400 leading-relaxed md:text-lg",
   onMediaClick,
+  captions,
 }: SectionBodyProps) {
   const resolved = resolveSectionLayout(layout, media.length, { defaultLayout, fallbackRight });
   const isRow = resolved.mode === "row";
@@ -51,10 +64,14 @@ export function SectionBody({
     const pan = parseFocusStr(focus);
     const a = (isRow || isHalf) ? SECTION_IMAGE_ASPECT.row : SECTION_IMAGE_ASPECT.full;
     const clickable = !!onMediaClick;
+    const caption = captions?.[url];
     return (
-      <div
+      <figure
         key={`${index}-${entry}`}
-        className={`${isHalf ? "flex-1 min-w-0" : "w-full flex-shrink-0"} rounded-2xl overflow-hidden group relative shadow-sm ${clickable ? "cursor-zoom-in" : ""} ${isDouble ? "mt-4 mb-4" : ""}`}
+        className={`${isHalf ? "flex-1 min-w-0" : "w-full flex-shrink-0"} ${isDouble ? "mt-4 mb-4" : ""}`}
+      >
+      <div
+        className={`w-full rounded-2xl overflow-hidden group relative shadow-sm ${clickable ? "cursor-zoom-in" : ""}`}
         onClick={clickable ? () => onMediaClick(url, index) : undefined}
       >
         {isVideoUrl(url) ? (
@@ -90,6 +107,10 @@ export function SectionBody({
           </div>
         )}
       </div>
+      {caption && (
+        <figcaption className="mt-1.5 px-0.5 text-xs sm:text-sm text-slate-500 leading-snug">{caption}</figcaption>
+      )}
+      </figure>
     );
   };
 

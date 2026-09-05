@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { SectionBody } from "./SectionBody";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { SectionBody, mediaCaptions } from "./SectionBody";
 import { usesLegacyRow } from "@/app/utils/sectionImageAspect";
 import type { Rating, RatingWarningType } from "@/app/types";
 import ParkRatingsModal from "./ParkTextModal";
@@ -22,6 +22,8 @@ interface ParkTextProps {
   parkId: number;
   parkName: string;
   onWarningsUpdate: () => void;
+  /** Re-fetch gallery images after a caption was edited from the review editor. */
+  onGalleryUpdate?: () => void;
   onSectionsUpdate: (
     texts: Record<string, string>,
     images: Record<string, string>,
@@ -49,10 +51,12 @@ const ParkText: React.FC<ParkTextProps> = ({
   parkId,
   parkName,
   onWarningsUpdate,
+  onGalleryUpdate,
   onSectionsUpdate,
   coasters,
 }) => {
   const { isAdminMode } = useAdminMode();
+  const captions = useMemo(() => mediaCaptions(galleryImages), [galleryImages]);
   const [showModal, setShowModal] = useState(false);
   const [showWarningManager, setShowWarningManager] = useState(false);
   const [localExplanations, setLocalExplanations] = useState(explanations);
@@ -173,6 +177,7 @@ const ParkText: React.FC<ParkTextProps> = ({
                 isAdminMode={isAdminMode}
                 altLabel={humanizeLabel(key)}
                 onMediaClick={(url) => setLightbox(url)}
+                captions={captions}
               />
             );
 
@@ -239,6 +244,7 @@ const ParkText: React.FC<ParkTextProps> = ({
           parkId={Number(parkId)}
           parkName={parkName}
           ratingId={rating.id}
+          onGalleryUpdate={onGalleryUpdate}
           onClose={() => setShowModal(false)}
           onSave={(updatedText, updatedImages, updatedLayouts, updatedSpoilers) => {
             setLocalExplanations(updatedText);

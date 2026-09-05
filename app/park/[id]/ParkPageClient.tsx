@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { SectionBody } from "@/app/components/parkpage/SectionBody";
+import { SectionBody, mediaCaptions } from "@/app/components/parkpage/SectionBody";
 import RatingModal from "@/app/components/RatingModal";
 import MainPageButton from "@/app/components/buttons/MainPageButton";
 import CoasterCreatorModal from "@/app/components/coasterpage/CoasterCreatorModal";
@@ -50,6 +50,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
   const [coasters, setCoasters] = useState<RollerCoaster[]>(initialCoasters ?? []);
   const [ratings, setRatings] = useState<Rating[]>(initialRatings);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const galleryCaptions = useMemo(() => mediaCaptions(galleryImages), [galleryImages]);
   // Seeded from the server, so the list renders immediately instead of a skeleton.
   // undefined seed = server fetch failed → show the skeleton until our fetch lands;
   // [] seed = park genuinely has no coasters → render the real empty state.
@@ -394,6 +395,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
               altLabel="Introduction"
               textClassName="text-slate-400 text-base leading-relaxed"
               onMediaClick={(url) => setCoverLightbox(url)}
+              captions={galleryCaptions}
             />
 
             {coverLightbox && (
@@ -440,6 +442,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
             parkId={park.id}
             parkName={park.name}
             onWarningsUpdate={refreshRatings}
+            onGalleryUpdate={refreshGallery}
             onSectionsUpdate={(texts, images, layouts, spoilers) => {
               setExplanations(texts);
               setSectionImages(images);
