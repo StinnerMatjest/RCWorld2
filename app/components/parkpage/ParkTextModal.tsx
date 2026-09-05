@@ -161,7 +161,8 @@ type PickerTileProps = {
   onLeave: () => void;
 };
 
-/** One gallery tile. Memoised so hovering (which changes state in the grid) does not re-render every tile. */
+/** One gallery tile. Memoised so hovering (which changes state in the grid) does not re-render every tile.
+ *  Images load eagerly so the whole grid is in place before scrolling (late arrivals repaint mid-scroll). */
 const PickerTile = React.memo(function PickerTile({ img, selIndex, disabled, numbered, elsewhere, onSelect, onHover, onLeave }: PickerTileProps) {
   const sel = selIndex !== -1;
   const dim = elsewhere && !sel ? "opacity-60" : "";
@@ -183,7 +184,6 @@ const PickerTile = React.memo(function PickerTile({ img, selIndex, disabled, num
           </span>
         </>
       ) : (
-        {/* Eager: load the whole grid up front so nothing arrives (and repaints) mid-scroll. */}
         <Image src={img.path} alt="" fill loading="eager" sizes="(max-width: 640px) 25vw, 160px" quality={55} className={`object-cover ${dim}`} />
       )}
       {elsewhere && !sel && (
