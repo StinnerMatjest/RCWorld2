@@ -63,20 +63,39 @@ export async function POST(req: NextRequest) {
 
   try {
     let result;
+    // One row per (rating, category): a POST for a section that already exists updates it.
+    const existing = await pool.query(
+      `SELECT id FROM parktexts WHERE rating_id = $1 AND category = $2 ORDER BY id LIMIT 1`,
+      [ratingId, category]
+    );
+    const existingId: number | undefined = existing.rows[0]?.id;
     try {
-      result = await pool.query(
-        `INSERT INTO parktexts (rating_id, category, text, image_url, image_layout, is_spoiler)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING category, text, image_url AS "imageUrl", image_layout AS "imageLayout", is_spoiler AS "isSpoiler", rating_id AS "ratingId"`,
-        [ratingId, category, text ?? "", imageUrl ?? null, imageLayout ?? null, isSpoiler ?? false]
-      );
+      result = existingId !== undefined
+        ? await pool.query(
+          `UPDATE parktexts SET text = $1, image_url = $2, image_layout = $3, is_spoiler = $4
+           WHERE id = $5
+           RETURNING category, text, image_url AS "imageUrl", image_layout AS "imageLayout", is_spoiler AS "isSpoiler", rating_id AS "ratingId"`,
+          [text ?? "", imageUrl ?? null, imageLayout ?? null, isSpoiler ?? false, existingId]
+        )
+        : await pool.query(
+          `INSERT INTO parktexts (rating_id, category, text, image_url, image_layout, is_spoiler)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING category, text, image_url AS "imageUrl", image_layout AS "imageLayout", is_spoiler AS "isSpoiler", rating_id AS "ratingId"`,
+          [ratingId, category, text ?? "", imageUrl ?? null, imageLayout ?? null, isSpoiler ?? false]
+        );
     } catch {
-      result = await pool.query(
-        `INSERT INTO parktexts (rating_id, category, text, image_url)
-         VALUES ($1, $2, $3, $4)
-         RETURNING category, text, image_url AS "imageUrl", rating_id AS "ratingId"`,
-        [ratingId, category, text ?? "", imageUrl ?? null]
-      );
+      result = existingId !== undefined
+        ? await pool.query(
+          `UPDATE parktexts SET text = $1, image_url = $2 WHERE id = $3
+           RETURNING category, text, image_url AS "imageUrl", rating_id AS "ratingId"`,
+          [text ?? "", imageUrl ?? null, existingId]
+        )
+        : await pool.query(
+          `INSERT INTO parktexts (rating_id, category, text, image_url)
+           VALUES ($1, $2, $3, $4)
+           RETURNING category, text, image_url AS "imageUrl", rating_id AS "ratingId"`,
+          [ratingId, category, text ?? "", imageUrl ?? null]
+        );
     }
 
     const ctx = await ratingContext(ratingId);

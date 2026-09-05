@@ -1,6 +1,7 @@
 import { pool } from "@/app/lib/db";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { getParkName, logChange } from "@/app/lib/changelog";
+import { seedParkTextsFromChecklist } from "@/app/lib/checklistNotes";
 import { NextResponse } from "next/server";
 import { Rating, RatingWarningType } from "@/app/types";
 
@@ -172,6 +173,9 @@ export async function POST(request: Request) {
     const result = await pool.query(query, values);
 
     const newRatingId = result.rows[0].id;
+
+    // A new park page starts with the visit checklist's notes as its section text.
+    await seedParkTextsFromChecklist({ ratingId: newRatingId, parkId, checklistSlug: body.checklistSlug ?? null });
 
     logChange({
       parkId,

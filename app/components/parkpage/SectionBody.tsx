@@ -108,7 +108,7 @@ export function SectionBody({
         )}
       </div>
       {caption && (
-        <figcaption className="mt-1.5 px-0.5 text-xs sm:text-sm text-slate-500 leading-snug">{caption}</figcaption>
+        <figcaption className="mt-1.5 px-1 text-center text-xs sm:text-sm text-slate-500 leading-snug">{caption}</figcaption>
       )}
       </figure>
     );

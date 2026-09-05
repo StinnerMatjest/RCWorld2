@@ -156,6 +156,8 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
   const [pendingCoasterStats, setPendingCoasterStats] = useState<{ id: number | null; count: number; name: string }[]>([]);
   // Per-category notes written in the checklist during the visit
   const [checklistNotes, setChecklistNotes] = useState<Record<string, string>>({});
+  // Slug of the checklist the notes came from; the server copies its notes into the review sections.
+  const [checklistSlug, setChecklistSlug] = useState<string | null>(null);
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -328,6 +330,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
         // Sync checklist images and coasters
         if (cl) {
           if (cl.notes && typeof cl.notes === "object") setChecklistNotes(cl.notes);
+          setChecklistSlug(typeof cl.slug === "string" ? cl.slug : null);
           const imagesToSync = (cl.items || [])
             .filter((item: any) => item.imageUrl && !item.skipped)
             .map((item: any) => ({
@@ -479,6 +482,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
         visitEnd: visitDetails.end || null,
         duration: visitDetails.durationMinutes > 0 ? (visitDetails.durationMinutes / 60).toFixed(2) : 0,
         parkId: finalParkId,
+        checklistSlug,
       };
 
       // Determine if we are creating a new rating or updating an existing one
@@ -496,30 +500,10 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
         alert("Failed to save rating");
       } else {
         try {
-          // Extract the rating ID (POST returns 'ratingId', PATCH uses 'existingRatingId')
-          const savedRatingData = await ratingResponse.json();
-          const targetRatingId = isRatingUpdate ? existingRatingId : savedRatingData.ratingId;
-
           const syncPromises = [];
 
-          // Push each checklist note individually to match the API
-          if (targetRatingId && Object.keys(checklistNotes).length > 0) {
-            for (const [cat, noteText] of Object.entries(checklistNotes)) {
-              if (!noteText.trim()) continue;
-
-              syncPromises.push(
-                fetch(`/api/park/${finalParkId}/parkTexts`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    ratingId: targetRatingId,
-                    category: cat,
-                    text: noteText
-                  })
-                })
-              );
-            }
-          }
+          // Checklist notes are copied into the review sections by the ratings API
+          // (see app/lib/checklistNotes.ts), which only fills sections that are still empty.
 
           if (pendingGalleryImages.length > 0) {
             for (const img of pendingGalleryImages) {

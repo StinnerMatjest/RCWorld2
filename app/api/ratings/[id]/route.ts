@@ -1,6 +1,7 @@
 import { pool } from "@/app/lib/db";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { diffFields, describeDiff, logChange } from "@/app/lib/changelog";
+import { seedParkTextsFromChecklist } from "@/app/lib/checklistNotes";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 
@@ -71,6 +72,9 @@ export async function PATCH(
           });
         }
       }
+
+      // Sections that are still empty get the checklist notes; written text is left alone.
+      if (oldRow) await seedParkTextsFromChecklist({ ratingId, parkId: oldRow.park_id, checklistSlug: body.checklistSlug ?? null });
 
       revalidateTag("parks-leaderboard"); // Clears the Parks Leaderboard cache
       return NextResponse.json({ message: "Rating updated successfully" }, { status: 200 });
