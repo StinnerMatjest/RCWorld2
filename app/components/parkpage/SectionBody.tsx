@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { splitMedia, parseFocusStr } from "../FocusedImage";
 import { SectionImage } from "../SectionImage";
 import { SECTION_IMAGE_ASPECT, resolveSectionLayout } from "@/app/utils/sectionImageAspect";
@@ -8,6 +8,25 @@ import { MarkdownText } from "../MarkdownText";
 import SpoilerText from "../SpoilerText";
 
 export const isVideoUrl = (src: string) => /\.(mp4|webm|ogg)$/i.test(src);
+
+/**
+ * A section clip: muted autoplay loop, but paused while it is off screen so a
+ * page or editor preview with several clips is not decoding all of them at once.
+ */
+function SectionVideo({ src }: { src: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const video = ref.current;
+    if (!video || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) video.play().catch(() => {});
+      else video.pause();
+    }, { rootMargin: "200px" });
+    io.observe(video);
+    return () => io.disconnect();
+  }, []);
+  return <video ref={ref} src={src} className="absolute inset-0 w-full h-full object-cover rounded-2xl" muted loop autoPlay playsInline preload="metadata" />;
+}
 
 /** Gallery descriptions keyed by media URL, for the captions under section media. */
 export function mediaCaptions(images: { path: string; description?: string | null }[]): Record<string, string> {
@@ -76,7 +95,7 @@ export function SectionBody({
       >
         {isVideoUrl(url) ? (
           <div className="relative w-full overflow-hidden rounded-2xl" style={{ aspectRatio: a.desktop }}>
-            <video src={url} className="absolute inset-0 w-full h-full object-cover rounded-2xl" muted loop autoPlay playsInline preload="metadata" />
+            <SectionVideo src={url} />
             <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/55 text-white text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm pointer-events-none">
               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
               Video

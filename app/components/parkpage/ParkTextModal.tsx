@@ -12,6 +12,7 @@ import {
   type SectionLayout,
 } from "@/app/utils/sectionImageAspect";
 import { SectionBody, isVideoUrl, mediaCaptions } from "./SectionBody";
+import { VideoThumb } from "../VideoThumb";
 import { MarkdownEditor, countTextStats } from "../editor/MarkdownEditor";
 import { getRatingColor } from "@/app/utils/design";
 import type { Rating } from "@/app/types";
@@ -149,6 +150,66 @@ function HoverPreview({ path, rect, caption }: { path: string; rect: DOMRect; ca
   );
 }
 
+type PickerTileProps = {
+  img: GalleryImage;
+  selIndex: number;
+  disabled: boolean;
+  numbered: boolean;
+  elsewhere?: string[];
+  onSelect: (path: string) => void;
+  onHover: (path: string, rect: DOMRect) => void;
+  onLeave: () => void;
+};
+
+/** One gallery tile. Memoised so hovering (which changes state in the grid) does not re-render every tile. */
+const PickerTile = React.memo(function PickerTile({ img, selIndex, disabled, numbered, elsewhere, onSelect, onHover, onLeave }: PickerTileProps) {
+  const sel = selIndex !== -1;
+  const dim = elsewhere && !sel ? "opacity-60" : "";
+  return (
+    <button
+      onClick={() => !disabled && onSelect(img.path)}
+      onMouseEnter={(e) => onHover(img.path, e.currentTarget.getBoundingClientRect())}
+      onMouseLeave={onLeave}
+      aria-disabled={disabled}
+      title={elsewhere ? `Already used in: ${elsewhere.join(", ")}` : img.title || undefined}
+      className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all ${sel ? "border-blue-500 ring-2 ring-blue-500/30 cursor-pointer" : disabled ? "border-slate-800/60 opacity-30 cursor-not-allowed" : "border-slate-700 hover:border-slate-500 cursor-pointer"}`}
+    >
+      {isVideoUrl(img.path) ? (
+        <>
+          <VideoThumb src={img.path} className={`w-full h-full ${dim}`} />
+          <span className="absolute top-1 right-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-black/65 text-white text-[10px] font-bold uppercase tracking-wider pointer-events-none">
+            <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+            Video
+          </span>
+        </>
+      ) : (
+        <Image src={img.path} alt="" fill sizes="(max-width: 640px) 25vw, 160px" quality={55} className={`object-cover ${dim}`} />
+      )}
+      {elsewhere && !sel && (
+        <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-slate-950/80 text-[10px] font-bold uppercase tracking-wider text-amber-300 border border-amber-500/30">
+          Used
+        </span>
+      )}
+      {sel && (
+        <div className="absolute inset-0 bg-blue-500/25 flex items-center justify-center">
+          {numbered ? (
+            <span className="bg-blue-600 text-white font-bold rounded-full w-7 h-7 flex items-center justify-center text-sm shadow-lg border-2 border-white/20">
+              {selIndex + 1}
+            </span>
+          ) : (
+            <svg className="w-5 h-5 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+        </div>
+      )}
+    </button>
+  );
+});
+
+const HOVER_REST_MS = 180;      // pointer must rest this long before the big preview appears
+const SCROLL_QUIET_MS = 300;    // and no preview while the list is being scrolled
+
 const ImagePickerGrid = React.memo(function ImagePickerGrid({
   galleryImages, selected, onSelect, maxSelection, usedIn, replacing = false, captions = {},
 }: {
@@ -162,11 +223,40 @@ const ImagePickerGrid = React.memo(function ImagePickerGrid({
   captions?: Record<string, string>;
 }) {
   const [hover, setHover] = useState<{ path: string; rect: DOMRect } | null>(null);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollingUntil = useRef(0);
+
+  // Scrolling drags tiles under a still pointer; that must not open previews.
+  useEffect(() => {
+    const onScroll = () => {
+      scrollingUntil.current = Date.now() + SCROLL_QUIET_MS;
+      if (hoverTimer.current) { clearTimeout(hoverTimer.current); hoverTimer.current = null; }
+      setHover(h => (h ? null : h));
+    };
+    window.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll, { capture: true });
+      if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    };
+  }, []);
+
+  const onHover = useCallback((path: string, rect: DOMRect) => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    if (Date.now() < scrollingUntil.current) return;
+    hoverTimer.current = setTimeout(() => setHover({ path, rect }), HOVER_REST_MS);
+  }, []);
+  const onLeave = useCallback(() => {
+    if (hoverTimer.current) { clearTimeout(hoverTimer.current); hoverTimer.current = null; }
+    setHover(null);
+  }, []);
+  const pick = useCallback((path: string) => onSelect(path), [onSelect]);
+
   if (galleryImages.length === 0) {
     return <p className="text-sm text-slate-500">No gallery images available. Upload some in the gallery first.</p>;
   }
+  const full = !replacing && maxSelection > 1 && selected.length >= maxSelection;
   return (
-    <div className="grid grid-cols-4 sm:grid-cols-5 xl:grid-cols-6 gap-1.5" onMouseLeave={() => setHover(null)}>
+    <div className="grid grid-cols-4 sm:grid-cols-5 xl:grid-cols-6 gap-1.5" onMouseLeave={onLeave}>
       {hover && <HoverPreview path={hover.path} rect={hover.rect} caption={captions[hover.path]} />}
       <button onClick={() => onSelect(null)}
         className={`aspect-square rounded-lg border-2 flex items-center justify-center text-xs font-medium transition-all cursor-pointer ${selected.length === 0
@@ -177,48 +267,18 @@ const ImagePickerGrid = React.memo(function ImagePickerGrid({
       </button>
       {galleryImages.map(img => {
         const selIndex = selected.indexOf(img.path);
-        const sel = selIndex !== -1;
-        const disabled = !sel && !replacing && maxSelection > 1 && selected.length >= maxSelection;
-        const elsewhere = usedIn[img.path];
-
         return (
-          <button key={img.id} onClick={() => !disabled && onSelect(img.path)}
-            onMouseEnter={(e) => setHover({ path: img.path, rect: e.currentTarget.getBoundingClientRect() })}
-            onMouseLeave={() => setHover(null)}
-            aria-disabled={disabled}
-            title={elsewhere ? `Already used in: ${elsewhere.join(", ")}` : img.title || undefined}
-            className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all ${sel ? "border-blue-500 ring-2 ring-blue-500/30 cursor-pointer" : disabled ? "border-slate-800/60 opacity-30 cursor-not-allowed" : "border-slate-700 hover:border-slate-500 cursor-pointer"
-              }`}>
-            {isVideoUrl(img.path) ? (
-              <>
-                <video src={img.path} className={`w-full h-full object-cover ${elsewhere && !sel ? "opacity-60" : ""}`} muted playsInline preload="metadata" />
-                <span className="absolute top-1 right-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-black/65 text-white text-[10px] font-bold uppercase tracking-wider pointer-events-none">
-                  <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-                  Video
-                </span>
-              </>
-            ) : (
-              <Image src={img.path} alt="" fill sizes="(max-width: 640px) 25vw, 160px" quality={55} className={`object-cover ${elsewhere && !sel ? "opacity-60" : ""}`} />
-            )}
-            {elsewhere && !sel && (
-              <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-slate-950/80 text-[10px] font-bold uppercase tracking-wider text-amber-300 border border-amber-500/30">
-                Used
-              </span>
-            )}
-            {sel && (
-              <div className="absolute inset-0 bg-blue-500/25 flex items-center justify-center">
-                {maxSelection > 1 ? (
-                  <span className="bg-blue-600 text-white font-bold rounded-full w-7 h-7 flex items-center justify-center text-sm shadow-lg border-2 border-white/20">
-                    {selIndex + 1}
-                  </span>
-                ) : (
-                  <svg className="w-5 h-5 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </div>
-            )}
-          </button>
+          <PickerTile
+            key={img.id}
+            img={img}
+            selIndex={selIndex}
+            disabled={selIndex === -1 && full}
+            numbered={maxSelection > 1}
+            elsewhere={usedIn[img.path]}
+            onSelect={pick}
+            onHover={onHover}
+            onLeave={onLeave}
+          />
         );
       })}
     </div>
@@ -447,6 +507,20 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const [slotMenu, setSlotMenu] = useState<number | null>(null);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // The editor covers the page, yet the gallery clips and section videos behind it
+  // keep decoding and make the editor stutter. Pause them while open, resume on close.
+  useEffect(() => {
+    const root = rootRef.current;
+    const paused: HTMLVideoElement[] = [];
+    document.querySelectorAll("video").forEach(v => {
+      if (root?.contains(v) || v.paused) return;
+      v.pause();
+      paused.push(v);
+    });
+    return () => { paused.forEach(v => { v.play().catch(() => {}); }); };
+  }, []);
   // Captions saved from this editor, layered over the gallery data until the page re-fetches.
   const [captionEdits, setCaptionEdits] = useState<Record<string, string>>({});
   const [captionEditor, setCaptionEditor] = useState<{ path: string; text: string; saving: boolean; error?: string } | null>(null);
@@ -790,7 +864,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] bg-slate-950 flex flex-col text-slate-200">
+    <div ref={rootRef} className="fixed inset-0 z-[1000] bg-slate-950 flex flex-col text-slate-200">
 
       {/* ── Top bar ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 h-14 border-b border-slate-800 flex-shrink-0 bg-slate-900/60">
@@ -956,7 +1030,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                           className={`${boxCls} group bg-slate-950 border-2 cursor-pointer transition-all ${picking ? "border-blue-500 ring-2 ring-blue-500/30" : menuOpen ? "border-blue-500" : dragFrom === i ? "border-slate-500 opacity-50" : "border-slate-700 hover:border-slate-500"}`}
                         >
                           {video ? (
-                            <video src={url} className="w-full h-full object-cover pointer-events-none" muted playsInline preload="metadata" />
+                            <VideoThumb src={url} className="w-full h-full pointer-events-none" />
                           ) : (
                             <Image src={url} alt="" fill sizes="160px" quality={50} draggable={false} className="object-cover pointer-events-none" style={{ objectPosition: `${focus.cx * 100}% ${focus.cy * 100}%` }} />
                           )}
