@@ -137,9 +137,9 @@ function HoverPreview({ path, rect, caption }: { path: string; rect: DOMRect; ca
       className="fixed z-[1020] pointer-events-none rounded-xl overflow-hidden bg-slate-950 border border-slate-700 shadow-2xl"
       style={{ left, top, width: W, height: H }}
     >
-      {/* Optimised sizes, not the multi-megabyte originals: decoding those on every hover lagged. */}
+      {/* Images use optimised sizes, not the multi-megabyte originals: decoding those on every hover lagged. */}
       {isVideoUrl(path) ? (
-        <VideoThumb src={path} fit="contain" className="w-full h-full" />
+        <video src={path} className="w-full h-full object-contain" muted autoPlay loop playsInline />
       ) : (
         <Image src={path} alt="" fill sizes="460px" quality={70} className="object-contain" />
       )}
