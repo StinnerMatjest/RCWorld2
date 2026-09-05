@@ -137,11 +137,22 @@ function HoverPreview({ path, rect, caption }: { path: string; rect: DOMRect; ca
       className="fixed z-[1020] pointer-events-none rounded-xl overflow-hidden bg-slate-950 border border-slate-700 shadow-2xl"
       style={{ left, top, width: W, height: H }}
     >
-      {/* Images use optimised sizes, not the multi-megabyte originals: decoding those on every hover lagged. */}
       {isVideoUrl(path) ? (
         <video src={path} className="w-full h-full object-contain" muted autoPlay loop playsInline />
       ) : (
-        <Image src={path} alt="" fill sizes="460px" quality={70} className="object-contain" />
+        <>
+          {/* Same request as the grid tile, so it is already cached and shows instantly… */}
+          <Image src={path} alt="" fill sizes="(max-width: 640px) 25vw, 160px" quality={55} className="object-contain" />
+          {/* …then the sharp original fades in on top once it has loaded (its download starts on mouseenter). */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={path}
+            alt=""
+            decoding="async"
+            className="absolute inset-0 w-full h-full object-contain opacity-0 transition-opacity duration-150"
+            onLoad={(e) => { e.currentTarget.style.opacity = "1"; }}
+          />
+        </>
       )}
       {caption && (
         <p className="absolute inset-x-0 bottom-0 px-3 py-2 bg-black/70 text-slate-100 text-xs leading-snug">{caption}</p>
@@ -244,6 +255,8 @@ const ImagePickerGrid = React.memo(function ImagePickerGrid({
   const onHover = useCallback((path: string, rect: DOMRect) => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
     if (Date.now() < scrollingUntil.current) return;
+    // Start fetching the original now, so it is mostly here by the time the preview opens.
+    if (!isVideoUrl(path)) { const pre = new window.Image(); pre.decoding = "async"; pre.src = path; }
     hoverTimer.current = setTimeout(() => setHover({ path, rect }), HOVER_REST_MS);
   }, []);
   const onLeave = useCallback(() => {
