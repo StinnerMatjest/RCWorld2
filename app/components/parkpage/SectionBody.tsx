@@ -26,7 +26,7 @@ export interface SectionBodyProps {
 }
 
 /**
- * Renders one review section body (text plus zero, one or two images) in the
+ * Renders one review section body (text plus zero to three media items) in the
  * arrangement its layout asks for. The park page, the description and the
  * editor preview all render through this, so they cannot drift apart.
  */
@@ -73,7 +73,11 @@ export function SectionBody({
             cy={pan.cy}
             mobileAspect={a.mobile}
             desktopAspect={a.desktop}
-            sizes={isRow ? "(min-width: 768px) 30vw, 100vw" : "(min-width: 768px) 60vw, 100vw"}
+            sizes={isRow
+              ? "(min-width: 768px) 30vw, 100vw"
+              : isHalf
+                ? `(min-width: 768px) ${Math.round(60 / media.length)}vw, ${Math.round(100 / media.length)}vw`
+                : "(min-width: 768px) 60vw, 100vw"}
           />
         )}
         {clickable && (
@@ -130,11 +134,13 @@ export function SectionBody({
     );
   }
 
+  // Above / Below: one image spans the full width; two or three share one row.
+  const sideBySide = media.length >= 2;
   return (
     <div>
       <div className={`flex gap-4 ${resolved.isAbove ? "flex-col" : "flex-col-reverse"}`}>
-        <div className={`flex mt-1.5 ${media.length === 2 ? "flex-row gap-2 md:gap-3" : "flex-col gap-4"}`}>
-          {media.map((entry, i) => renderMedia(entry, i, media.length === 2))}
+        <div className={`flex mt-1.5 ${sideBySide ? "flex-row gap-2 md:gap-3" : "flex-col gap-4"}`}>
+          {media.map((entry, i) => renderMedia(entry, i, sideBySide))}
         </div>
         {textContent}
       </div>

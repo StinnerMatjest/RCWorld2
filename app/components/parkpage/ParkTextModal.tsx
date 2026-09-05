@@ -8,6 +8,7 @@ import {
   normalizeSectionLayout,
   usesLegacyRow,
   SECTION_LAYOUT_LABELS,
+  MAX_SECTION_IMAGES,
   type SectionLayout,
 } from "@/app/utils/sectionImageAspect";
 import { SectionBody, isVideoUrl } from "./SectionBody";
@@ -19,8 +20,9 @@ import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 /**
  * Full-screen review editor. Left: sections. Middle: text + images for the
- * selected section. Right (desktop): the section rendered exactly as the park
- * page will show it, updating as you type. Ctrl+S saves the sections you changed.
+ * selected section. Right (desktop): the whole review rendered as the park page
+ * will show it, scrolled to the section being edited and updating as you type.
+ * Ctrl+S saves the sections you changed.
  */
 interface ParkTextsModalProps {
   rating: Rating;
@@ -79,7 +81,8 @@ type Draft = {
   images: string[];
   focuses: string[];
   layout: string | null;
-  useTwoImages: boolean;
+  /** How many media slots the editor offers for this section (1..MAX_SECTION_IMAGES). */
+  imageCount: number;
   isSpoiler: boolean;
 };
 
@@ -99,7 +102,7 @@ function buildDrafts(
       images: parsed.map(p => p.url),
       focuses: parsed.map(p => p.focus),
       layout: sectionLayouts[cat] ?? null,
-      useTwoImages: parsed.length === 2,
+      imageCount: Math.max(1, Math.min(MAX_SECTION_IMAGES, parsed.length)),
       isSpoiler: sectionSpoilers[cat] || false,
     }];
   })) as Record<Category, Draft>;
@@ -119,20 +122,46 @@ function legacySides(drafts: Record<Category, Draft>): Record<Category, boolean>
 
 // ── Image picker grid ─────────────────────────────────────────────────────────
 
+/** Large floating preview of the gallery tile under the pointer. */
+function HoverPreview({ path, rect }: { path: string; rect: DOMRect }) {
+  const W = 460, H = 320, gap = 14;
+  if (typeof window === "undefined") return null;
+  const fitsRight = rect.right + gap + W <= window.innerWidth - 8;
+  const left = fitsRight ? rect.right + gap : Math.max(8, rect.left - gap - W);
+  const top = Math.min(Math.max(8, rect.top + rect.height / 2 - H / 2), window.innerHeight - H - 8);
+  return (
+    <div
+      className="fixed z-[1020] pointer-events-none rounded-xl overflow-hidden bg-slate-950 border border-slate-700 shadow-2xl"
+      style={{ left, top, width: W, height: H }}
+    >
+      {isVideoUrl(path) ? (
+        <video src={path} className="w-full h-full object-contain" muted autoPlay loop playsInline />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={path} alt="" className="w-full h-full object-contain" />
+      )}
+    </div>
+  );
+}
+
 const ImagePickerGrid = React.memo(function ImagePickerGrid({
-  galleryImages, selected, onSelect, maxSelection, usedIn,
+  galleryImages, selected, onSelect, maxSelection, usedIn, replacing = false,
 }: {
   galleryImages: GalleryImage[];
   selected: string[];
   onSelect: (path: string | null) => void;
   maxSelection: number;
   usedIn: Record<string, string[]>;
+  /** True while a specific slot is being (re)filled, so a full section still accepts a pick. */
+  replacing?: boolean;
 }) {
+  const [hover, setHover] = useState<{ path: string; rect: DOMRect } | null>(null);
   if (galleryImages.length === 0) {
     return <p className="text-sm text-slate-500">No gallery images available. Upload some in the gallery first.</p>;
   }
   return (
-    <div className="grid grid-cols-4 sm:grid-cols-5 xl:grid-cols-6 gap-1.5">
+    <div className="grid grid-cols-4 sm:grid-cols-5 xl:grid-cols-6 gap-1.5" onMouseLeave={() => setHover(null)}>
+      {hover && <HoverPreview path={hover.path} rect={hover.rect} />}
       <button onClick={() => onSelect(null)}
         className={`aspect-square rounded-lg border-2 flex items-center justify-center text-xs font-medium transition-all cursor-pointer ${selected.length === 0
           ? "border-blue-500 bg-blue-500/20 text-blue-400"
@@ -143,12 +172,14 @@ const ImagePickerGrid = React.memo(function ImagePickerGrid({
       {galleryImages.map(img => {
         const selIndex = selected.indexOf(img.path);
         const sel = selIndex !== -1;
-        const disabled = !sel && maxSelection > 1 && selected.length >= maxSelection;
+        const disabled = !sel && !replacing && maxSelection > 1 && selected.length >= maxSelection;
         const elsewhere = usedIn[img.path];
 
         return (
           <button key={img.id} onClick={() => !disabled && onSelect(img.path)}
-            disabled={disabled}
+            onMouseEnter={(e) => setHover({ path: img.path, rect: e.currentTarget.getBoundingClientRect() })}
+            onMouseLeave={() => setHover(null)}
+            aria-disabled={disabled}
             title={elsewhere ? `Already used in: ${elsewhere.join(", ")}` : img.title || undefined}
             className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all ${sel ? "border-blue-500 ring-2 ring-blue-500/30 cursor-pointer" : disabled ? "border-slate-800/60 opacity-30 cursor-not-allowed" : "border-slate-700 hover:border-slate-500 cursor-pointer"
               }`}>
@@ -170,7 +201,7 @@ const ImagePickerGrid = React.memo(function ImagePickerGrid({
             )}
             {sel && (
               <div className="absolute inset-0 bg-blue-500/25 flex items-center justify-center">
-                {maxSelection === 2 ? (
+                {maxSelection > 1 ? (
                   <span className="bg-blue-600 text-white font-bold rounded-full w-7 h-7 flex items-center justify-center text-sm shadow-lg border-2 border-white/20">
                     {selIndex + 1}
                   </span>
@@ -316,27 +347,32 @@ function SectionImageCropper({
 // ── Preview ───────────────────────────────────────────────────────────────────
 
 function SectionPreview({
-  cat, draft, rating, asVisitor, legacyRight, onMediaClick,
+  cat, draft, rating, asVisitor, legacyRight, active, onMediaClick,
 }: {
   cat: Category;
   draft: Draft;
   rating: Rating;
   asVisitor: boolean;
   legacyRight: boolean;
+  /** True for the section currently open in the editor. */
+  active: boolean;
   onMediaClick: (url: string, index: number) => void;
 }) {
   const media = mediaEntries(draft);
   const empty = !draft.text.trim() && media.length === 0;
   const isAdminMode = !asVisitor;
+  const emptyMsg = (
+    <p className="text-slate-600 italic">
+      {active ? "Nothing to preview yet. Start writing on the left." : "Nothing written yet."}
+    </p>
+  );
 
   if (cat === "description") {
     return (
       <div>
         <h2 className="text-4xl font-bold text-white tracking-tight">Introduction</h2>
         <div className="w-12 h-1 bg-brand rounded-full mt-3 mb-4" />
-        {empty ? (
-          <p className="text-slate-600 italic">Nothing to preview yet. Start writing on the left.</p>
-        ) : (
+        {empty ? emptyMsg : (
           <SectionBody
             text={draft.text}
             media={media}
@@ -365,9 +401,7 @@ function SectionPreview({
           </span>
         )}
       </div>
-      {empty ? (
-        <p className="text-slate-600 italic">Nothing to preview yet. Start writing on the left.</p>
-      ) : (
+      {empty ? emptyMsg : (
         <SectionBody
           text={draft.text}
           media={media}
@@ -400,6 +434,10 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [cropIndex, setCropIndex] = useState<number | null>(null);
+  // Slot the next gallery pick goes into (null = default behaviour: fill the next free slot).
+  const [activeSlot, setActiveSlot] = useState<number | null>(null);
+  const [slotMenu, setSlotMenu] = useState<number | null>(null);
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [mobileView, setMobileView] = useState<"write" | "preview">("write");
   const [previewAsVisitor, setPreviewAsVisitor] = useState(false);
 
@@ -417,9 +455,9 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   const defaultLayout: SectionLayout = isDescription
     ? DESCRIPTION_DEFAULT_LAYOUT
     : legacy[selectedCat] ? "right" : "left";
-  // In two-image mode, crop against the two-image frame even while only the first
-  // image is picked, so image 1 is not positioned against a shape it will not get.
-  const frameCount = cur.useTwoImages ? 2 : Math.max(1, cur.images.length);
+  // In multi-image mode, crop against the multi-image frame even while fewer are
+  // picked, so image 1 is not positioned against a shape it will not get.
+  const frameCount = Math.max(1, cur.imageCount);
   const activeLayout = normalizeSectionLayout(cur.layout, frameCount, defaultLayout);
   const cropFrame = sectionImageFrame(cur.layout, frameCount, {
     defaultLayout: isDescription ? DESCRIPTION_DEFAULT_LAYOUT : null,
@@ -448,13 +486,17 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
     return { ...c, focuses };
   }), [patch]);
 
-  const setImageMode = useCallback((two: boolean) => patch(c => ({
-    ...c,
-    useTwoImages: two,
-    images: two ? c.images : c.images.slice(0, 1),
-    focuses: two ? c.focuses : c.focuses.slice(0, 1),
-    layout: !two && c.layout === "double" ? "above" : c.layout,
-  })), [patch]);
+  const setImageMode = useCallback((n: number) => {
+    patch(c => ({
+      ...c,
+      imageCount: n,
+      images: c.images.slice(0, n),
+      focuses: c.focuses.slice(0, n),
+      layout: n !== 2 && c.layout === "double" ? "above" : c.layout,
+    }));
+    setActiveSlot(null);
+    setSlotMenu(null);
+  }, [patch]);
 
   const removeImageAt = useCallback((index: number) => {
     patch(c => ({
@@ -463,39 +505,96 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
       focuses: c.focuses.filter((_, i) => i !== index),
     }));
     setCropIndex(null);
+    setSlotMenu(null);
   }, [patch]);
 
-  const swapImages = useCallback(() => patch(c => c.images.length === 2
-    ? { ...c, images: [c.images[1], c.images[0]], focuses: [c.focuses[1] ?? FOCUS_DEFAULT, c.focuses[0] ?? FOCUS_DEFAULT] }
-    : c), [patch]);
+  /** Drop image `from` into position `to`, shifting the others along (crops travel with images). */
+  const reorderImage = useCallback((from: number, to: number) => patch(c => {
+    if (from === to || from < 0 || to < 0 || from >= c.images.length || to >= c.images.length) return c;
+    const images = [...c.images];
+    const focuses = c.images.map((_, i) => c.focuses[i] ?? FOCUS_DEFAULT);
+    const [img] = images.splice(from, 1);
+    const [foc] = focuses.splice(from, 1);
+    images.splice(to, 0, img);
+    focuses.splice(to, 0, foc);
+    return { ...c, images, focuses };
+  }), [patch]);
+
+  /** Move image `index` one step earlier (-1) or later (+1), keeping its crop with it. */
+  const moveImage = useCallback((index: number, dir: -1 | 1) => patch(c => {
+    const j = index + dir;
+    if (j < 0 || j >= c.images.length) return c;
+    const images = [...c.images];
+    const focuses = c.images.map((_, i) => c.focuses[i] ?? FOCUS_DEFAULT);
+    [images[index], images[j]] = [images[j], images[index]];
+    [focuses[index], focuses[j]] = [focuses[j], focuses[index]];
+    return { ...c, images, focuses };
+  }), [patch]);
 
   const draftsRef = useRef(drafts);
   draftsRef.current = drafts;
 
   const handlePick = useCallback((path: string | null) => {
-    if (path === null) { patch(c => ({ ...c, images: [], focuses: [] })); return; }
+    if (path === null) { patch(c => ({ ...c, images: [], focuses: [] })); setActiveSlot(null); return; }
     const c = draftsRef.current[selectedCat];
     const existing = c.images.indexOf(path);
+
+    // A slot was chosen explicitly: put the pick there (replace, or append when the slot is empty).
+    if (activeSlot !== null) {
+      const target = Math.min(activeSlot, c.images.length);
+      if (existing !== -1) {
+        if (existing !== target && target < c.images.length) {
+          patch(d => {
+            const images = [...d.images];
+            const focuses = d.images.map((_, i) => d.focuses[i] ?? FOCUS_DEFAULT);
+            [images[existing], images[target]] = [images[target], images[existing]];
+            [focuses[existing], focuses[target]] = [focuses[target], focuses[existing]];
+            return { ...d, images, focuses };
+          });
+        }
+      } else {
+        patch(d => {
+          const images = [...d.images];
+          const focuses = d.images.map((_, i) => d.focuses[i] ?? FOCUS_DEFAULT);
+          images[target] = path;
+          focuses[target] = FOCUS_DEFAULT;
+          return { ...d, images, focuses };
+        });
+      }
+      setActiveSlot(null);
+      setCropIndex(isVideoUrl(path) ? null : target);
+      return;
+    }
 
     if (existing !== -1) {
       if (isVideoUrl(path)) removeImageAt(existing);
       else setCropIndex(existing);
       return;
     }
-    if (c.useTwoImages) {
-      if (c.images.length >= 2) return;
+    if (c.imageCount > 1) {
+      if (c.images.length >= c.imageCount) return;
       patch(d => ({ ...d, images: [...d.images, path], focuses: [...d.focuses, FOCUS_DEFAULT] }));
       if (!isVideoUrl(path)) setCropIndex(c.images.length);
     } else {
       patch(d => ({ ...d, images: [path], focuses: [FOCUS_DEFAULT] }));
       if (!isVideoUrl(path)) setCropIndex(0);
     }
-  }, [selectedCat, patch, removeImageAt]);
+  }, [selectedCat, patch, removeImageAt, activeSlot]);
 
-  const openCropFor = useCallback((_url: string, index: number) => {
-    const c = draftsRef.current[selectedCat];
-    if (c.images[index] && !isVideoUrl(c.images[index])) setCropIndex(index);
-  }, [selectedCat]);
+  const openCropFor = useCallback((cat: Category, index: number) => {
+    const c = draftsRef.current[cat];
+    setSelectedCat(cat);
+    setCropIndex(c.images[index] && !isVideoUrl(c.images[index]) ? index : null);
+  }, []);
+
+  // The preview shows every section; keep the one being edited in view.
+  const sectionRefs = useRef<Partial<Record<Category, HTMLDivElement | null>>>({});
+  useEffect(() => {
+    const el = sectionRefs.current[selectedCat];
+    if (!el) return;
+    const id = requestAnimationFrame(() => el.scrollIntoView({ behavior: "smooth", block: "start" }));
+    return () => cancelAnimationFrame(id);
+  }, [selectedCat, mobileView]);
 
   // ── Save ────────────────────────────────────────────────────────────────────
   const dirtyRef = useRef(dirtyCats);
@@ -514,7 +613,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
     const results = await Promise.all(cats.map(async cat => {
       const d = draftsRef.current[cat];
-      const layout = d.layout === "double" && d.images.length < 2 ? "above" : d.layout;
+      const layout = d.layout === "double" && d.images.length !== 2 ? "above" : d.layout;
       const imgString = d.images.length > 0 ? mediaEntries(d).join(",") : null;
       const method = persistedRef.current.has(cat) ? "PUT" : "POST";
       try {
@@ -611,9 +710,10 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
     else setSaveMsg({ kind: "err", text: "Failed to unpublish." });
   };
 
-  const layoutOptions: SectionLayout[] = cur.useTwoImages
+  const layoutOptions: SectionLayout[] = cur.imageCount === 2
     ? ["left", "right", "above", "below", "double"]
     : ["left", "right", "above", "below"];
+  const imageModes = Array.from({ length: MAX_SECTION_IMAGES }, (_, i) => i + 1);
 
   const sectionButton = (cat: Category, compact: boolean) => {
     const d = drafts[cat];
@@ -623,7 +723,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
     const dot = dirty ? "bg-amber-400" : filled ? "bg-green-500" : "bg-slate-600";
     if (compact) {
       return (
-        <button key={cat} onClick={() => { setSelectedCat(cat); setCropIndex(null); }}
+        <button key={cat} onClick={() => { setSelectedCat(cat); setCropIndex(null); setActiveSlot(null); setSlotMenu(null); }}
           className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${active
             ? "bg-blue-600 border-blue-600 text-white"
             : "border-slate-700 text-slate-400"
@@ -634,7 +734,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
       );
     }
     return (
-      <button key={cat} onClick={() => { setSelectedCat(cat); setCropIndex(null); }}
+      <button key={cat} onClick={() => { setSelectedCat(cat); setCropIndex(null); setActiveSlot(null); setSlotMenu(null); }}
         title={dirty ? "Unsaved changes" : undefined}
         className={`flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-left w-full transition-colors cursor-pointer rounded-lg ${active
           ? "bg-slate-800 text-white"
@@ -750,10 +850,10 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                   <div className="flex items-center gap-3">
                     <p className="text-sm font-medium text-slate-300">Images <span className="text-slate-500 font-normal">(optional)</span></p>
                     <div className="flex items-center bg-slate-800 rounded-lg p-0.5 text-xs font-bold">
-                      {([false, true] as const).map(two => (
-                        <button key={String(two)} onClick={() => setImageMode(two)}
-                          className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${cur.useTwoImages === two ? "bg-slate-700 text-blue-400" : "text-slate-500 hover:text-slate-300"}`}>
-                          {two ? "2 images" : "1 image"}
+                      {imageModes.map(n => (
+                        <button key={n} onClick={() => setImageMode(n)}
+                          className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${cur.imageCount === n ? "bg-slate-700 text-blue-400" : "text-slate-500 hover:text-slate-300"}`}>
+                          {n === 1 ? "1 image" : `${n} images`}
                         </button>
                       ))}
                     </div>
@@ -772,45 +872,94 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                   )}
                 </div>
 
-                {cur.useTwoImages && cur.images.length === 1 && (
-                  <p className="text-xs text-amber-400/90 bg-amber-900/15 border border-amber-800/40 rounded-lg px-3 py-2">
-                    Two-image mode with one image picked. Pick a second one, or switch to 1 image. Saving as-is keeps just the one.
-                  </p>
-                )}
 
-                {cur.images.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    {cur.images.map((url, i) => (
-                      <div key={`${i}-${url}`} className="flex items-center gap-1.5 bg-slate-800/70 border border-slate-700 rounded-lg p-1 pr-2">
-                        <div className="relative w-12 h-9 rounded overflow-hidden bg-slate-950 flex-shrink-0">
-                          {isVideoUrl(url) ? (
-                            <video src={url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+                {/* Slots: one box per image the section can hold. Drag filled boxes to reorder. */}
+                <div className="flex gap-3">
+                  {Array.from({ length: cur.imageCount }, (_, i) => {
+                    const url = cur.images[i];
+                    const nextFree = i === cur.images.length;
+                    const picking = activeSlot !== null && Math.min(activeSlot, cur.images.length) === i;
+                    const slotWrap = "flex-1 min-w-0 max-w-48";
+                    const boxCls = "relative w-full aspect-[3/2] rounded-xl overflow-hidden";
+                    if (!url) {
+                      return nextFree ? (
+                        <button key={`empty-${i}`} type="button"
+                          onClick={() => { setActiveSlot(picking ? null : i); setSlotMenu(null); }}
+                          className={`${slotWrap} ${boxCls} border-2 border-dashed flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-colors cursor-pointer ${picking ? "border-blue-500 bg-blue-500/10 text-blue-300" : "border-slate-600 text-slate-400 hover:border-slate-400 hover:text-slate-200"}`}>
+                          <span className="text-2xl leading-none">+</span>
+                          {picking ? "Pick below" : cur.imageCount > 1 ? `Add image ${i + 1}` : "Add image"}
+                        </button>
+                      ) : (
+                        <div key={`empty-${i}`} className={`${slotWrap} ${boxCls} border-2 border-dashed border-slate-800 text-slate-700 flex items-center justify-center text-xs`}>
+                          {i + 1}
+                        </div>
+                      );
+                    }
+                    const focus = parseFocusStr(cur.focuses[i]);
+                    const video = isVideoUrl(url);
+                    const menuOpen = slotMenu === i;
+                    return (
+                      <div key={`slot-${i}`} className={`relative ${slotWrap}`}>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          draggable
+                          onDragStart={(e) => { setDragFrom(i); setSlotMenu(null); e.dataTransfer.effectAllowed = "move"; }}
+                          onDragEnd={() => setDragFrom(null)}
+                          onDragOver={(e) => { if (dragFrom !== null) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } }}
+                          onDrop={(e) => { e.preventDefault(); if (dragFrom !== null) reorderImage(dragFrom, i); setDragFrom(null); }}
+                          onClick={() => { setSlotMenu(menuOpen ? null : i); setActiveSlot(null); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSlotMenu(menuOpen ? null : i); } }}
+                          title="Click for options · drag to reorder"
+                          className={`${boxCls} group bg-slate-950 border-2 cursor-pointer transition-all ${picking ? "border-blue-500 ring-2 ring-blue-500/30" : menuOpen ? "border-blue-500" : dragFrom === i ? "border-slate-500 opacity-50" : "border-slate-700 hover:border-slate-500"}`}
+                        >
+                          {video ? (
+                            <video src={url} className="w-full h-full object-cover pointer-events-none" muted playsInline preload="metadata" />
                           ) : (
-                            <Image src={url} alt="" fill sizes="48px" quality={40} className="object-cover" style={{ objectPosition: `${parseFocusStr(cur.focuses[i]).cx * 100}% ${parseFocusStr(cur.focuses[i]).cy * 100}%` }} />
+                            <Image src={url} alt="" fill sizes="160px" quality={50} draggable={false} className="object-cover pointer-events-none" style={{ objectPosition: `${focus.cx * 100}% ${focus.cy * 100}%` }} />
+                          )}
+                          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/65 text-white text-[10px] font-bold">{i + 1}</span>
+                          {video && (
+                            <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-black/65 text-white text-[10px] font-bold uppercase tracking-wider">
+                              <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                              Video
+                            </span>
+                          )}
+                          {picking && (
+                            <span className="absolute inset-x-0 bottom-0 bg-blue-600/90 text-white text-[10px] font-bold text-center py-0.5">Replacing · pick below</span>
                           )}
                         </div>
-                        <span className="text-xs text-slate-400 font-medium inline-flex items-center gap-1">
-                          {cur.images.length > 1 ? `#${i + 1}` : isVideoUrl(url) ? "Video" : "Image"}
-                          {cur.images.length > 1 && isVideoUrl(url) && (
-                            <svg className="w-3 h-3 text-slate-500" viewBox="0 0 24 24" fill="currentColor" aria-label="Video"><path d="M8 5v14l11-7z" /></svg>
-                          )}
-                        </span>
-                        {isVideoUrl(url) ? (
-                          <span className="text-[11px] text-slate-500 px-1" title="Videos fill the frame automatically and cannot be repositioned">Plays muted, loops</span>
-                        ) : (
-                          <button onClick={() => setCropIndex(i)} className="text-xs font-semibold text-blue-400 hover:text-blue-300 cursor-pointer px-1">Position</button>
+                        {menuOpen && (
+                          <>
+                            <div className="fixed inset-0 z-[1005]" onClick={() => setSlotMenu(null)} />
+                            <div className="absolute z-[1006] top-full left-0 mt-1.5 w-40 rounded-xl bg-slate-800 border border-slate-700 shadow-xl p-1 text-sm">
+                              {!video && (
+                                <button onClick={() => { setSlotMenu(null); setCropIndex(i); }} className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-200 cursor-pointer">Position</button>
+                              )}
+                              <button onClick={() => { setSlotMenu(null); setActiveSlot(i); }} className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-200 cursor-pointer">Replace…</button>
+                              {i > 0 && (
+                                <button onClick={() => { setSlotMenu(null); moveImage(i, -1); }} className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-200 cursor-pointer">Move left</button>
+                              )}
+                              {i < cur.images.length - 1 && (
+                                <button onClick={() => { setSlotMenu(null); moveImage(i, 1); }} className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-200 cursor-pointer">Move right</button>
+                              )}
+                              <button onClick={() => removeImageAt(i)} className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-red-900/40 text-red-400 cursor-pointer">Remove</button>
+                            </div>
+                          </>
                         )}
-                        <button onClick={() => removeImageAt(i)} aria-label="Remove image" className="text-slate-500 hover:text-red-400 cursor-pointer px-1">
-                          <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
-                        </button>
                       </div>
-                    ))}
-                    {cur.images.length === 2 && (
-                      <button onClick={swapImages} className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 cursor-pointer inline-flex items-center gap-1.5">
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg>
-                        Swap order
-                      </button>
-                    )}
+                    );
+                  })}
+                </div>
+
+                {activeSlot !== null && (
+                  <div className="flex items-center justify-between gap-3 text-xs bg-blue-900/20 border border-blue-800/40 text-blue-200 rounded-lg px-3 py-2">
+                    <span>
+                      {activeSlot < cur.images.length
+                        ? `Click a gallery image to replace image ${activeSlot + 1}.`
+                        : `Click a gallery image to add it${cur.imageCount > 1 ? ` as image ${Math.min(activeSlot, cur.images.length) + 1}` : ""}.`}
+                    </span>
+                    <button onClick={() => setActiveSlot(null)} className="font-semibold text-blue-300 hover:text-white cursor-pointer">Cancel</button>
                   </div>
                 )}
 
@@ -818,10 +967,11 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                   galleryImages={galleryImages}
                   selected={cur.images}
                   onSelect={handlePick}
-                  maxSelection={cur.useTwoImages ? 2 : 1}
+                  maxSelection={cur.imageCount}
                   usedIn={usedIn}
+                  replacing={activeSlot !== null}
                 />
-                <p className="text-xs text-slate-500">Click a picked image, here or in the preview, to reposition it. Videos play muted on the page and open with sound when clicked.</p>
+                <p className="text-xs text-slate-500">Hover a gallery image for a large preview. Click a slot above for position, replace, or remove; drag slots to reorder. Videos play muted on the page and open with sound when clicked.</p>
               </div>
             </div>
           </div>
@@ -841,15 +991,40 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
             </div>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto">
-            <div className="max-w-[900px] px-5 sm:px-8 py-8">
-              <SectionPreview
-                cat={selectedCat}
-                draft={cur}
-                rating={rating}
-                asVisitor={previewAsVisitor}
-                legacyRight={legacy[selectedCat]}
-                onMediaClick={openCropFor}
-              />
+            <div className="max-w-[900px] px-5 sm:px-8 py-8 space-y-10">
+              {CATEGORIES.map(cat => {
+                const active = cat === selectedCat;
+                return (
+                  <React.Fragment key={cat}>
+                    {cat === CATEGORIES[1] && (
+                      <h2 className="text-3xl font-semibold text-white pt-2">{parkName ? `${parkName} Review` : "Review"}</h2>
+                    )}
+                    <div
+                      ref={el => { sectionRefs.current[cat] = el; }}
+                      onClick={active ? undefined : () => setSelectedCat(cat)}
+                      title={active ? undefined : `Click to edit ${LABELS[cat]}`}
+                      className={`relative rounded-2xl scroll-mt-6 -mx-3 px-3 py-3 transition-[box-shadow,background-color] ${active
+                        ? "ring-1 ring-blue-500/50 bg-blue-500/[0.05]"
+                        : "cursor-pointer hover:ring-1 hover:ring-slate-600/70"}`}
+                    >
+                      {active && (
+                        <span className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-md bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider shadow">
+                          Editing
+                        </span>
+                      )}
+                      <SectionPreview
+                        cat={cat}
+                        draft={drafts[cat]}
+                        rating={rating}
+                        asVisitor={previewAsVisitor}
+                        legacyRight={legacy[cat]}
+                        active={active}
+                        onMediaClick={(_url, i) => openCropFor(cat, i)}
+                      />
+                    </div>
+                  </React.Fragment>
+                );
+              })}
             </div>
           </div>
         </div>
