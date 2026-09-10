@@ -13,6 +13,8 @@ type Visit = {
   ratingId: number;
   date: string;
   overall: number | string;
+  /** false = visited and scored, but the written review isn't out yet */
+  published: boolean;
   parkId: number;
   name: string;
   country: string;
@@ -118,20 +120,17 @@ function UpcomingCard({ trip, isAdminMode, onEdit }: {
 function VisitTile({ visit }: { visit: Visit }) {
   const overall = Number(visit.overall);
   const hasScore = Number.isFinite(overall);
+  const published = visit.published !== false;
 
-  return (
-    <motion.div {...reveal} className="relative">
-      {/* Dot on the spine, coloured by score */}
-      <span
-        className="absolute -left-[22px] sm:-left-[38px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full ring-4 ring-[#0f172a] z-10"
-        style={{ background: getRatingHex(overall) }}
-      />
-      {/* Desktop: date on the rail, left of the dot */}
-      <span className="hidden sm:block absolute right-full mr-[44px] top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 whitespace-nowrap">
-        {visitDateLabel(visit.date)}
-      </span>
-      <Link href={`/park/${visit.slug}?visit=${visit.ratingId}`}
-        className="group grid sm:grid-cols-[280px_1fr] rounded-2xl overflow-hidden border border-slate-800 bg-slate-800/30 hover:bg-slate-800/50 hover:border-slate-600 transition-colors shadow-lg shadow-black/20">
+  // Unpublished visits are shown (the visit happened, the score is real) but
+  // can't be opened: the park page only renders published reviews.
+  const cardClass = "group grid grid-cols-[minmax(0,1fr)] sm:grid-cols-[280px_minmax(0,1fr)] rounded-2xl overflow-hidden border shadow-lg shadow-black/20 transition-colors " +
+    (published
+      ? "border-slate-800 bg-slate-800/30 hover:bg-slate-800/50 hover:border-slate-600"
+      : "border-dashed border-slate-700 bg-slate-800/20");
+
+  const card = (
+    <>
         {/* Header image */}
         <div className="relative aspect-[16/9] sm:aspect-auto sm:h-full sm:min-h-[140px] overflow-hidden">
           {visit.imagepath ? (
@@ -148,23 +147,29 @@ function VisitTile({ visit }: { visit: Visit }) {
         </div>
 
         {/* Info */}
-        <div className="flex items-center gap-4 p-4 sm:p-5">
+        <div className="flex items-center gap-4 p-4 sm:p-5 min-w-0">
           <div className="flex-1 min-w-0">
             {/* Desktop shows the date on the rail instead, but we always want to show the visit number */}
             <p className="text-[11px] font-black uppercase tracking-widest text-orange-500">
               <span className="sm:hidden">{visitDateLabel(visit.date)}</span>
               <span className="text-slate-500"><span className="sm:hidden"> · </span>Visit #{visit.visitNumber}</span>
             </p>
-            <p className="font-black text-white text-xl sm:text-2xl leading-tight truncate mt-1 group-hover:text-orange-400 transition-colors">
+            <p className="font-black text-white text-xl sm:text-2xl leading-tight line-clamp-2 break-words mt-1 group-hover:text-orange-400 transition-colors">
               {visit.name}
             </p>
             <div className="flex items-center gap-1.5 mt-1.5">
               <Image src={getParkFlag(visit.country)} alt={visit.country} width={18} height={13} className="rounded-[2px]" unoptimized />
               <p className="text-xs text-slate-400">{visit.country}</p>
             </div>
-            <p className="hidden sm:block text-[11px] font-bold text-slate-600 group-hover:text-orange-400 transition-colors mt-2.5">
-              Read the review →
-            </p>
+            {published ? (
+              <p className="hidden sm:block text-[11px] font-bold text-slate-600 group-hover:text-orange-400 transition-colors mt-2.5">
+                Read the review →
+              </p>
+            ) : (
+              <p className="inline-flex items-center gap-1.5 mt-2.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-amber-400">
+                ✍️ Review coming soon
+              </p>
+            )}
           </div>
 
           {/* Score */}
@@ -174,7 +179,29 @@ function VisitTile({ visit }: { visit: Visit }) {
             </p>
           </div>
         </div>
-      </Link>
+    </>
+  );
+
+  return (
+    <motion.div {...reveal} className="relative">
+      {/* Dot on the spine, coloured by score */}
+      <span
+        className="absolute -left-[22px] sm:-left-[38px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full ring-4 ring-[#0f172a] z-10"
+        style={{ background: getRatingHex(overall) }}
+      />
+      {/* Desktop: date on the rail, left of the dot */}
+      <span className="hidden sm:block absolute right-full mr-[44px] top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 whitespace-nowrap">
+        {visitDateLabel(visit.date)}
+      </span>
+      {published ? (
+        <Link href={`/park/${visit.slug}?visit=${visit.ratingId}`} className={cardClass}>
+          {card}
+        </Link>
+      ) : (
+        <div className={cardClass} title="We've visited and scored this park — the written review is on its way">
+          {card}
+        </div>
+      )}
     </motion.div>
   );
 }

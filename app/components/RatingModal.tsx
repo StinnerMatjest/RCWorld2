@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Loading from "./Loading";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import ParkRankLane from "./ParkRankLane";
+import ParkRankLane, { clearRankLaneCaches } from "./ParkRankLane";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSyncExternalStore } from "react";
 import { ratingsStore, type Ratings } from "@/app/utils/ratingStoreManager";
@@ -164,6 +164,9 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
   useEffect(() => {
     if (!isOpen) {
       setIsFetchingData(true);
+      // The rank lanes cache order/ratings per category for the life of the page;
+      // drop them so the next park doesn't start from this one's placements.
+      clearRankLaneCaches();
       return;
     }
 
@@ -834,7 +837,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                             </p>
                           </div>
                         )}
-                        <ParkRankLane key={category} category={category} newParkName={parkInfo.name || "New Park"} initialRating={ratingsStore.get(category)} newParkImageUrl={imagePreview ?? undefined} onSetRating={(v) => ratingsStore.set(category, v)} />
+                        <ParkRankLane key={category} category={category} newParkName={parkInfo.name || "New Park"} initialRating={ratingsStore.get(category)} newParkImageUrl={imagePreview ?? undefined} excludeParkId={editingParkId ? Number(editingParkId) : null} onSetRating={(v) => ratingsStore.set(category, v)} />
                       </div>
                     </motion.div>
                   )}

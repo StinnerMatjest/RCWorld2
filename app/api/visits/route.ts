@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
 
-// Every published rating is a dated park visit — powers the /about timeline.
+// Every dated rating is a park visit — powers the /about timeline. Unpublished
+// ratings are included (the visit happened, the score exists) and the timeline
+// shows them as "review coming soon" instead of linking to the review.
 export async function GET() {
   try {
     const result = await pool.query(`
@@ -9,6 +11,7 @@ export async function GET() {
         r.id                       AS "ratingId",
         r.date,
         r.overall,
+        COALESCE(r.published, FALSE) AS published,
         p.id                       AS "parkId",
         p.name,
         p.country,
@@ -19,7 +22,7 @@ export async function GET() {
         COUNT(*)    OVER (PARTITION BY p.id)::int                      AS "totalVisits"
       FROM ratings r
       JOIN parks p ON p.id = r.park_id
-      WHERE r.published = TRUE AND r.date IS NOT NULL
+      WHERE r.date IS NOT NULL
       ORDER BY r.date DESC, r.id DESC
     `);
     return NextResponse.json(

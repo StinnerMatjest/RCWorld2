@@ -5,6 +5,34 @@ import { useRouter } from "next/navigation";
 import { Park, ChecklistItem } from "@/app/types";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 
+type DraftCoaster = { name: string; year?: number };
+
+/**
+ * Parses a coaster table copied from RCDB ("Name\tType\tDesign\tScale\tOpened",
+ * one coaster per line). Returns null when the text doesn't look like a table
+ * so a normal single-value paste behaves as usual.
+ */
+function parseRcdbPaste(text: string): DraftCoaster[] | null {
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) return null;
+    if (lines.length === 1 && !text.includes("\t")) return null;
+
+    const coasters: DraftCoaster[] = [];
+    for (const line of lines) {
+        if (/roller coasters:\s*\d+/i.test(line)) continue; // "Operating Roller Coasters: 4"
+        const cells = line.split("\t").map((c) => c.trim());
+        if (cells[0].toLowerCase() === "name") continue; // header row
+        const name = cells[0];
+        if (!name) continue;
+
+        // "Opened" is the last column, e.g. "7/23/2016" or just "2016"
+        const yearMatch = cells.length > 1 ? cells[cells.length - 1].match(/(\d{4})\s*$/) : null;
+        const year = yearMatch ? Number(yearMatch[1]) : undefined;
+        coasters.push(year ? { name, year } : { name });
+    }
+    return coasters.length ? coasters : null;
+}
+
 export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
     const [isOpen, setIsOpen] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -12,7 +40,7 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
     const [mode, setMode] = useState<"select" | "park-name" | "coasters">("select");
     const [selectedParkId, setSelectedParkId] = useState<string>("");
     const [newParkName, setNewParkName] = useState("");
-    const [newCoasters, setNewCoasters] = useState<string[]>([""]);
+    const [newCoasters, setNewCoasters] = useState<DraftCoaster[]>([{ name: "" }]);
 
     useEffect(() => {
         if (isOpen) {
@@ -30,7 +58,7 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
         setMode("select");
         setSelectedParkId("");
         setNewParkName("");
-        setNewCoasters([""]);
+        setNewCoasters([{ name: "" }]);
     };
 
     const handleClose = () => {
@@ -155,21 +183,23 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
             const newParkId = parkData.parkId;
 
             // Create Barebones Coasters
-            const validCoasters = newCoasters.map(name => name.trim()).filter(name => name !== "");
+            const validCoasters = newCoasters
+                .map((c) => ({ ...c, name: c.name.trim() }))
+                .filter((c) => c.name !== "");
             const createdCoasters: { id: number | string; name: string }[] = [];
             const failedCoasters: string[] = [];
 
             if (validCoasters.length > 0) {
                 // Execute all coaster POST requests concurrently. No manufacturer is sent:
                 // a draft park's coasters have none yet, and the API stores NULL for that.
-                const coasterPromises = validCoasters.map(async (coasterName) => {
+                const coasterPromises = validCoasters.map(async ({ name: coasterName, year }) => {
                     const res = await fetch(`/api/park/${newParkId}/coasters`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             name: coasterName,
                             slug: `${coasterName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
-                            year: new Date().getFullYear(),
+                            year: year ?? new Date().getFullYear(),
                             model: "Unknown",
                             scale: "Unknown",
                             rcdbpath: "Unknown",
@@ -195,7 +225,7 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
                 const results = await Promise.all(coasterPromises);
                 results.forEach((result, index) => {
                     if (result) createdCoasters.push(result);
-                    else failedCoasters.push(validCoasters[index]);
+                    else failedCoasters.push(validCoasters[index].name);
                 });
             }
 
@@ -269,17 +299,30 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
 
     const updateCoaster = (index: number, val: string) => {
         const arr = [...newCoasters];
-        arr[index] = val;
+        // Typing over a pasted name means the RCDB year no longer applies.
+        arr[index] = { name: val };
         setNewCoasters(arr);
     };
 
     const addCoasterField = () => {
-        setNewCoasters([...newCoasters, ""]);
+        setNewCoasters([...newCoasters, { name: "" }]);
     };
 
     const removeCoasterField = (index: number) => {
         const arr = newCoasters.filter((_, i) => i !== index);
-        setNewCoasters(arr.length ? arr : [""]);
+        setNewCoasters(arr.length ? arr : [{ name: "" }]);
+    };
+
+    // Pasting an RCDB coaster table into any field fills one field per coaster,
+    // starting at the field pasted into. Plain single-line pastes are left alone.
+    const handleCoasterPaste = (index: number, e: React.ClipboardEvent<HTMLInputElement>) => {
+        const parsed = parseRcdbPaste(e.clipboardData.getData("text"));
+        if (!parsed) return;
+        e.preventDefault();
+
+        const before = newCoasters.slice(0, index);
+        const after = newCoasters.slice(index + 1).filter((c) => c.name.trim() !== "");
+        setNewCoasters([...before, ...parsed, ...after]);
     };
 
     return (
@@ -419,21 +462,30 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
                             {mode === "coasters" && (
                                 <>
                                     <h2 className="mb-2 text-xl font-bold text-slate-50">{newParkName} Coasters</h2>
-                                    <p className="mb-6 text-sm text-slate-400">Add the names of the roller coasters to include them in your checklist. Leave blank if the park has none.</p>
+                                    <p className="mb-2 text-sm text-slate-400">Add the names of the roller coasters to include them in your checklist. Leave blank if the park has none.</p>
+                                    <p className="mb-6 text-xs text-emerald-400/80">Tip: copy the coaster table from RCDB and paste it into any field to fill them all in at once.</p>
 
                                     <div className="mb-6 max-h-[40vh] overflow-y-auto pr-2 space-y-3">
                                         {newCoasters.map((coaster, index) => (
                                             <div key={index} className="flex gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={coaster}
-                                                    onChange={(e) => updateCoaster(index, e.target.value)}
-                                                    placeholder={`Coaster ${index + 1}`}
-                                                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') addCoasterField();
-                                                    }}
-                                                />
+                                                <div className="relative w-full">
+                                                    <input
+                                                        type="text"
+                                                        value={coaster.name}
+                                                        onChange={(e) => updateCoaster(index, e.target.value)}
+                                                        onPaste={(e) => handleCoasterPaste(index, e)}
+                                                        placeholder={`Coaster ${index + 1}`}
+                                                        className={`w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 ${coaster.year ? "pr-16" : ""}`}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') addCoasterField();
+                                                        }}
+                                                    />
+                                                    {coaster.year && (
+                                                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-md bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-400">
+                                                            {coaster.year}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <button
                                                     type="button"
                                                     onClick={() => removeCoasterField(index)}

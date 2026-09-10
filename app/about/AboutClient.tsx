@@ -111,8 +111,8 @@ export default function AboutPage({ initialTrips, initialVisits }: { initialTrip
               Our Journey
             </h2>
             <p className="mt-3 text-slate-400 max-w-xl mx-auto">
-              Every park we&apos;ve visited and reviewed — and where we&apos;re headed next.
-              Click a visit to read the full review.
+              Every park we&apos;ve visited — and where we&apos;re headed next.
+              Click a visit to read the full review; recent visits get theirs soon.
             </p>
             {isAdminMode && (
               <button
