@@ -50,6 +50,26 @@ function toTitleCaseFromCamel(key: string) {
     .join(" ");
 }
 
+/** Calendar date as YYYY-MM-DD in the user's own timezone (toISOString would shift
+ *  a locally picked midnight back a day anywhere east of UTC). */
+function toLocalDateString(d: Date): string {
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/** A DATE column comes back as an ISO instant; use its calendar fields as a local date. */
+function dateColumnToLocal(value: string): Date {
+  const [y, m, d] = String(value).slice(0, 10).split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** A naive timestamp column comes back as an ISO instant; keep its wall-clock fields
+ *  for the datetime-local inputs instead of re-interpreting them in the browser's zone. */
+function timestampColumnToInput(value: string): string {
+  return String(value).slice(0, 16); // "2025-10-14T10:06:00.000Z" -> "2025-10-14T10:06"
+}
+
 function formatDuration(totalSeconds: number): string {
   if (!totalSeconds || totalSeconds <= 0) return "0m";
   const hours = Math.floor(totalSeconds / 3600);
@@ -176,6 +196,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
       setIsFetchingData(true);
       try {
         let cl: any = null;
+        let existingVisit: { date: string | null; start: string | null; end: string | null; duration: number } | null = null;
         let slugToFetch = importSlug;
         let fetchedParkData: any = null;
 
@@ -276,6 +297,14 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
 
               // ONLY lock in the ID if we are explicitly editing. 
               setExistingRatingId(editRatingId ? baseRating.id : null);
+              if (editRatingId) {
+                existingVisit = {
+                  date: baseRating.date ?? null,
+                  start: baseRating.visit_start ?? null,
+                  end: baseRating.visit_end ?? null,
+                  duration: Number(baseRating.duration) || 0, // stored in hours
+                };
+              }
 
               // always pre-fill the sliders with the baseline rating so we don't start from scratch
               CATEGORIES.forEach((cat) => {
@@ -319,7 +348,17 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
           }
         }
 
-        if (vStart) {
+        if (existingVisit) {
+          // Editing an existing rating: keep its own visit date and times. Falling
+          // through to the checklist / local timer / "today" below is what silently
+          // moved saved visits to the day they were edited.
+          setSelectedDate(existingVisit.date ? dateColumnToLocal(existingVisit.date) : new Date());
+          setVisitDetails({
+            start: existingVisit.start ? timestampColumnToInput(existingVisit.start) : "",
+            end: existingVisit.end ? timestampColumnToInput(existingVisit.end) : "",
+            durationMinutes: Math.round(existingVisit.duration * 60),
+          });
+        } else if (vStart) {
           setSelectedDate(new Date(vStart));
           setVisitDetails({
             start: vStart,
@@ -480,7 +519,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
 
       const ratingPayload = {
         ...guaranteedRatings,
-        date: selectedDate ? selectedDate.toISOString().split("T")[0] : "",
+        date: selectedDate ? toLocalDateString(selectedDate) : "",
         visitStart: visitDetails.start || null,
         visitEnd: visitDetails.end || null,
         duration: visitDetails.durationMinutes > 0 ? (visitDetails.durationMinutes / 60).toFixed(2) : 0,
@@ -856,7 +895,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                       </div>
                       <div className=" text-gray-300 text-sm space-y-1">
                         <div><strong>Park:</strong> {parkInfo.name}</div>
-                        <div><strong>Date:</strong> {selectedDate?.toISOString().split("T")[0]}</div>
+                        <div><strong>Date:</strong> {selectedDate ? toLocalDateString(selectedDate) : ""}</div>
                         {visitDetails.durationMinutes > 0 && <div><strong>Time:</strong> {formatDuration(visitDetails.durationMinutes * 60)}</div>}
                       </div>
                       <SummaryList categories={CATEGORIES} onEditCategory={(cat) => jumpToCategory(cat)} />
