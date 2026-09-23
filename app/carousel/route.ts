@@ -3,8 +3,8 @@ import { isAdminRequest } from "@/app/lib/adminAuth";
 import { CAROUSEL_SLUG_RE, carouselHash, loadCarousel } from "@/app/lib/carouselStore";
 
 // Instagram carousel review tool for admins.
-//   /admin/carousel            dashboard: carousels, templates, new-from-template
-//   /admin/carousel?slug=x     editor for one carousel (photos, text, slides, export)
+//   /carousel            dashboard: carousels, templates, new-from-template
+//   /carousel?slug=x     editor for one carousel (photos, text, slides, export)
 // The stored carousel HTML is served with the editor injected. Edits save to
 // /api/carousel and every open editor reloads when someone else saves, so two
 // people can review the same post. Export renders JPEGs in the browser.
@@ -102,7 +102,7 @@ const dashboard = shell(
     const fmt=d=>{const t=new Date(d);return t.toLocaleDateString()+' '+t.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});};
     const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     let data={carousels:[],templates:[]};
-    function row(x,isTpl){return '<tr><td class="name"><a href="/admin/carousel?slug='+x.slug+'">'+esc(x.name||x.slug)+'</a><div class="meta">'+x.slug+'</div></td><td>'+x.slides+'</td><td class="meta">'+fmt(x.updated_at)+'</td><td class="ops">'
+    function row(x,isTpl){return '<tr><td class="name"><a href="/carousel?slug='+x.slug+'">'+esc(x.name||x.slug)+'</a><div class="meta">'+x.slug+'</div></td><td>'+x.slides+'</td><td class="meta">'+fmt(x.updated_at)+'</td><td class="ops">'
       +'<button class="sm sec" onclick="rename(\\''+x.slug+'\\')">Rename</button>'
       +'<button class="sm sec" onclick="dup(\\''+x.slug+'\\')">Duplicate</button>'
       +(isTpl?'<button class="sm sec" onclick="flag(\\''+x.slug+'\\',0)">Unmark template</button>':'<button class="sm sec" onclick="flag(\\''+x.slug+'\\',1)">Make template</button>')
@@ -119,7 +119,7 @@ const dashboard = shell(
       const name=document.getElementById('new-name').value.trim();const tpl=document.getElementById('new-tpl').value;
       if(!name)return err.textContent='Give it a name';if(!tpl)return err.textContent='Pick a template';
       const slug=slugify(name)||('carousel-'+Date.now());
-      try{await post('/api/carousel?slug='+slug+'&from='+tpl+'&name='+encodeURIComponent(name));location.href='/admin/carousel?slug='+slug;}catch(e){err.textContent=e.message;}}
+      try{await post('/api/carousel?slug='+slug+'&from='+tpl+'&name='+encodeURIComponent(name));location.href='/carousel?slug='+slug;}catch(e){err.textContent=e.message;}}
     async function dup(slug){const x=[...data.carousels,...data.templates].find(c=>c.slug===slug);const name=prompt('Name for the copy',(x.name||slug)+' copy');if(!name)return;
       const ns=slugify(name);try{await post('/api/carousel?slug='+ns+'&from='+slug+'&name='+encodeURIComponent(name));load();}catch(e){document.getElementById('err').textContent=e.message;}}
     async function rename(slug){const x=[...data.carousels,...data.templates].find(c=>c.slug===slug);const name=prompt('New name',x.name||slug);if(!name)return;
@@ -138,7 +138,7 @@ const dashboard = shell(
 );
 
 export async function GET(req: NextRequest) {
-  const headers = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" };
+  const headers = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow" };
   if (!(await isAdminRequest(req))) return new NextResponse(loginPage, { headers });
 
   const slug = req.nextUrl.searchParams.get("slug");
@@ -148,7 +148,7 @@ export async function GET(req: NextRequest) {
   const row = await loadCarousel(slug);
   if (!row) {
     return new NextResponse(
-      shell("Not found", `<div class="card"><h1>Not found</h1><p>No carousel called <span style="color:#e9820e">${slug}</span>.</p><a href="/admin/carousel" style="color:#fff">Back to the list</a></div>`),
+      shell("Not found", `<div class="card"><h1>Not found</h1><p>No carousel called <span style="color:#e9820e">${slug}</span>.</p><a href="/carousel" style="color:#fff">Back to the list</a></div>`),
       { status: 404, headers }
     );
   }
@@ -167,8 +167,10 @@ export async function GET(req: NextRequest) {
       clientExport: true,
       imgProxy: "/api/carousel/img?u=",
       galleryApi: true,
-      backUrl: "/admin/carousel",
+      backUrl: "/carousel",
     },
   });
-  return new NextResponse(html, { headers });
+  // the stored carousel document has no robots meta of its own
+  const noindex = html.replace("<head>", '<head><meta name="robots" content="noindex,nofollow">');
+  return new NextResponse(noindex, { headers });
 }

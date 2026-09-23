@@ -25,6 +25,11 @@ const nextConfig = {
   async redirects() {
     return [
       {
+        source: '/admin/carousel',
+        destination: '/carousel',
+        permanent: false,
+      },
+      {
         source: '/ConnectionsData',
         destination: '/games/connections/ConnectionsData',
         permanent: false,

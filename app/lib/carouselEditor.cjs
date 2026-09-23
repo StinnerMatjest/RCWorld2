@@ -1,6 +1,6 @@
 // Carousel editor for the Instagram review tool: injects the photo picker, drag/zoom crop, text editing,
 // winner toggle, slide management, live sync and in-browser export into a carousel HTML document.
-// Served by app/admin/carousel/route.ts. Generated from make_editor.cjs + editor_ext.js (Claude Code tooling).
+// Served by app/carousel/route.ts. Generated from make_editor.cjs + editor_ext.js (Claude Code tooling).
 const fs=require("fs");
 const path=require("path");
 const gallery="[]"; // on the site the editor loads galleries from /api/park/<id>/gallery

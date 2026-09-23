@@ -4,7 +4,7 @@ import { isAdminRequest } from "@/app/lib/adminAuth";
 import { CAROUSEL_SLUG_RE, carouselHash, countSlides, ensureCarouselTable, isCleanCarousel, loadCarousel } from "@/app/lib/carouselStore";
 
 // Shared drafts and templates for the Instagram carousel review tool
-// (editor: app/admin/carousel/route.ts). One row per carousel slug holding the
+// (editor: app/carousel/route.ts). One row per carousel slug holding the
 // clean, self-contained carousel HTML. Templates are rows with is_template = true.
 //
 // GET    ?list=1                    -> { carousels: [...], templates: [...] }
