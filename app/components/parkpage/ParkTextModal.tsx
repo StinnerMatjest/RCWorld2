@@ -16,8 +16,8 @@ import { R2Image } from "../R2Image";
 import { variantUrl } from "@/app/lib/imageVariants";
 import { MarkdownEditor, countTextStats } from "../editor/MarkdownEditor";
 import { getRatingColor } from "@/app/utils/design";
-import type { Rating } from "@/app/types";
-import type { GalleryImage } from "./VisitGallery";
+import type { Visit } from "@/app/types";
+import type { VisitGalleryImage } from "./VisitGallery";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 /**
@@ -27,12 +27,12 @@ import { useScrollLock } from "@/app/hooks/useScrollLock";
  * Ctrl+S saves the sections you changed.
  */
 interface ParkTextsModalProps {
-  rating: Rating;
+  rating: Visit;
   explanations: Record<string, string>;
   sectionImages: Record<string, string>;
   sectionLayouts?: Record<string, string>;
   sectionSpoilers?: Record<string, boolean>;
-  galleryImages: GalleryImage[];
+  galleryImages: VisitGalleryImage[];
   parkId: number;
   parkName?: string;
   ratingId: number;
@@ -163,7 +163,7 @@ function HoverPreview({ path, rect, caption }: { path: string; rect: DOMRect; ca
 }
 
 type PickerTileProps = {
-  img: GalleryImage;
+  img: VisitGalleryImage;
   selIndex: number;
   disabled: boolean;
   numbered: boolean;
@@ -226,7 +226,7 @@ const SCROLL_QUIET_MS = 300;    // and no preview while the list is being scroll
 const ImagePickerGrid = React.memo(function ImagePickerGrid({
   galleryImages, selected, onSelect, maxSelection, usedIn, replacing = false, captions = {},
 }: {
-  galleryImages: GalleryImage[];
+  galleryImages: VisitGalleryImage[];
   selected: string[];
   onSelect: (path: string | null) => void;
   maxSelection: number;
@@ -454,10 +454,9 @@ function SectionPreview({
 }: {
   cat: Category;
   draft: Draft;
-  rating: Rating;
+  rating: Visit;
   asVisitor: boolean;
   legacyRight: boolean;
-  /** True for the section currently open in the editor. */
   active: boolean;
   onMediaClick: (url: string, index: number) => void;
   captions: Record<string, string>;

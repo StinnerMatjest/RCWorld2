@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { FocusedImage } from "./FocusedImage";
-import RatingWarning from "./warnings/RatingWarning";
 import { AlertTriangle } from "lucide-react";
 import { getParkFlag, getRatingColor } from "@/app/utils/design";
 import { RatingWarningType, Park, Visit } from "@/app/types";
