@@ -5,29 +5,28 @@ import { seedParkTextsFromChecklist } from "@/app/lib/checklistNotes";
 import { NextResponse } from "next/server";
 import { Visit, RatingWarningType } from "@/app/types";
 
-
 export async function GET() {
   try {
     const query = `
       SELECT 
-        ratings.id AS rating_id,
-        ratings.date,
-        ratings.visit_start,
-        ratings.visit_end,
-        ratings.duration,
-        ratings.parkAppearance AS "parkappearance",
-        ratings.bestCoaster AS "bestcoaster",
-        ratings.coasterDepth AS "coasterdepth",
-        ratings.waterRides AS "waterrides",
-        ratings.flatridesAndDarkrides AS "flatridesanddarkrides",
-        ratings.food,
-        ratings.snacksAndDrinks AS "snacksanddrinks",
-        ratings.parkPracticality AS "parkpracticality",
-        ratings.rideOperations AS "rideoperations",
-        ratings.parkManagement AS "parkmanagement",
-        ratings.overall,
-        ratings.published,
-        ratings.park_id,
+        visits.id AS rating_id,
+        visits.date,
+        visits.visit_start,
+        visits.visit_end,
+        visits.duration,
+        visits.parkAppearance AS "parkappearance",
+        visits.bestCoaster AS "bestcoaster",
+        visits.coasterDepth AS "coasterdepth",
+        visits.waterRides AS "waterrides",
+        visits.flatridesAndDarkrides AS "flatridesanddarkrides",
+        visits.food,
+        visits.snacksAndDrinks AS "snacksanddrinks",
+        visits.parkPracticality AS "parkpracticality",
+        visits.rideOperations AS "rideoperations",
+        visits.parkManagement AS "parkmanagement",
+        visits.overall,
+        visits.published,
+        visits.park_id,
         parks.id AS park_id,
         parks.name AS park_name,
         parks.imagepath AS park_image,
@@ -35,7 +34,7 @@ export async function GET() {
           json_agg(
             json_build_object(
             'id', ratingwarning.id,
-            'ratingId', ratingwarning.ratingid,
+            'ratingId', ratingwarning.visit_id,
             'ride', ratingwarning.ride,
             'note', ratingwarning.note,
             'category', ratingwarning.category,
@@ -44,11 +43,11 @@ export async function GET() {
           ) FILTER (WHERE ratingwarning.id IS NOT NULL),
           '[]'
         ) AS warnings
-      FROM ratings
-      JOIN parks ON ratings.park_id = parks.id
-      LEFT JOIN ratingwarning ON ratingwarning.ratingid = ratings.id
-      GROUP BY ratings.id, parks.id
-      ORDER BY ratings.date DESC;
+      FROM visits
+      JOIN parks ON visits.park_id = parks.id
+      LEFT JOIN ratingwarning ON ratingwarning.visit_id = visits.id
+      GROUP BY visits.id, parks.id
+      ORDER BY visits.date DESC;
     `;
 
     const result = await pool.query(query);
@@ -130,7 +129,7 @@ export async function POST(request: Request) {
     }
 
     const query = `
-      INSERT INTO ratings (
+      INSERT INTO visits (
         date,
         parkappearance,
         parkpracticality,
@@ -174,7 +173,6 @@ export async function POST(request: Request) {
 
     const newRatingId = result.rows[0].id;
 
-    // A new park page starts with the visit checklist's notes as its section text.
     await seedParkTextsFromChecklist({ ratingId: newRatingId, parkId, checklistSlug: body.checklistSlug ?? null });
 
     logChange({
