@@ -5,10 +5,10 @@ import { FocusedImage } from "./FocusedImage";
 import RatingWarning from "./warnings/RatingWarning";
 import { AlertTriangle } from "lucide-react";
 import { getParkFlag, getRatingColor } from "@/app/utils/design";
-import { RatingWarningType, Park, Rating } from "@/app/types";
+import { RatingWarningType, Park, Visit } from "@/app/types";
 
 interface RatingCardProps {
-  rating: Rating;
+  rating: Visit;
   park: Park;
   ratingWarnings?: RatingWarningType[];
   delayIndex?: number;
