@@ -4,17 +4,17 @@ import React, { useState } from "react";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 type ImageUploaderModalProps = {
-  parkId: number;
+  visitId: number;
   parkName: string;
-  onClose: () => void;
-  onUploadSuccess?: () => void;
+  onCloseAction: () => void;
+  onUploadSuccessAction?: () => void;
 };
 
 export default function ImageUploaderModal({
-  parkId,
+  visitId,
   parkName,
-  onClose,
-  onUploadSuccess,
+  onCloseAction,
+  onUploadSuccessAction,
 }: ImageUploaderModalProps) {
   useScrollLock();
   const [files, setFiles] = useState<File[]>([]);
@@ -63,11 +63,10 @@ export default function ImageUploaderModal({
             title: backendTitle,
             description: finalDescription,
             path: imagePath,
-            parkId,
           };
 
-          // Save to gallery
-          const galleryResponse = await fetch(`/api/park/${parkId}/gallery`, {
+          // Save to visit gallery
+          const galleryResponse = await fetch(`/api/visits/${visitId}/gallery`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(galleryPayload),
@@ -80,8 +79,8 @@ export default function ImageUploaderModal({
         })
       );
 
-      if (onUploadSuccess) onUploadSuccess();
-      onClose();
+      if (onUploadSuccessAction) onUploadSuccessAction();
+      onCloseAction();
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message || "Something went wrong.");
       else setError("An unexpected error occurred");
@@ -173,7 +172,7 @@ export default function ImageUploaderModal({
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={onCloseAction}
               className="px-4 py-2 rounded-md border border-gray-300 text-gray-800 hover:bg-gray-100 cursor-pointer
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
                          dark:border-white/10 dark:text-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 dark:focus-visible:ring-offset-gray-800"

@@ -17,7 +17,7 @@ import { variantUrl } from "@/app/lib/imageVariants";
 import { MarkdownEditor, countTextStats } from "../editor/MarkdownEditor";
 import { getRatingColor } from "@/app/utils/design";
 import type { Rating } from "@/app/types";
-import type { GalleryImage } from "./ParkGallery";
+import type { GalleryImage } from "./VisitGallery";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
 
 /**

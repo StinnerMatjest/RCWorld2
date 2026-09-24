@@ -12,9 +12,9 @@ export async function GET() {
       ),
       pool.query(
         `SELECT DISTINCT parks.name
-         FROM ratings
-         JOIN parks ON ratings.park_id = parks.id
-         WHERE ratings.published = false
+         FROM visits
+         JOIN parks ON visits.park_id = parks.id
+         WHERE visits.published = false
          ORDER BY parks.name`
       ),
     ]);

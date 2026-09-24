@@ -5,7 +5,7 @@ import { pool, loadPrompt } from "../db";
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 function boldScore(s: string): string {
-  const map: Record<string,string> = {'0':'𝟎','1':'𝟏','2':'𝟐','3':'𝟑','4':'𝟒','5':'𝟓','6':'𝟔','7':'𝟕','8':'𝟖','9':'𝟗'};
+  const map: Record<string, string> = { '0': '𝟎', '1': '𝟏', '2': '𝟐', '3': '𝟑', '4': '𝟒', '5': '𝟓', '6': '𝟔', '7': '𝟕', '8': '𝟖', '9': '𝟗' };
   return s.replace(/\d/g, (d: string) => map[d] ?? d);
 }
 
@@ -20,14 +20,15 @@ export async function POST(req: Request) {
   try {
     const result = await pool.query(`
       WITH fallback_images AS (
-        SELECT DISTINCT ON (park_id) park_id, path AS image_url
-        FROM parkgallery
-        WHERE path NOT ILIKE '%.mp4'
-          AND path NOT ILIKE '%.webm'
-          AND path NOT ILIKE '%.mov'
-          AND title NOT ILIKE '%header%'
-          AND path IS NOT NULL
-        ORDER BY park_id, id
+        SELECT DISTINCT ON (v.park_id) v.park_id, vg.path AS image_url
+        FROM visitgallery vg
+        JOIN visits v ON vg.visit_id = v.id
+        WHERE vg.path NOT ILIKE '%.mp4'
+          AND vg.path NOT ILIKE '%.webm'
+          AND vg.path NOT ILIKE '%.mov'
+          AND vg.title NOT ILIKE '%header%'
+          AND vg.path IS NOT NULL
+        ORDER BY v.park_id, vg.id
       )
       SELECT
         pt.category,
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
         r.flatridesanddarkrides, r.food, r.snacksanddrinks,
         r.parkpracticality, r.rideoperations, r.parkmanagement, r.overall
       FROM parktexts pt
-      JOIN ratings r  ON r.id  = pt.rating_id
+      JOIN visits r  ON r.id  = pt.rating_id
       JOIN parks   p  ON p.id  = r.park_id
       LEFT JOIN fallback_images fi ON fi.park_id = p.id
       WHERE pt.text IS NOT NULL
@@ -65,17 +66,17 @@ export async function POST(req: Request) {
     const picked = all.slice(0, 3);
 
     const SCORE_MAP: Record<string, string> = {
-      "parkAppearance": "parkappearance",   "Park Appearance": "parkappearance",
-      "bestCoaster": "bestcoaster",         "Best Coaster": "bestcoaster",
-      "coasterDepth": "coasterdepth",       "Coaster Depth": "coasterdepth",
-      "waterRides": "waterrides",           "Water Rides": "waterrides",
+      "parkAppearance": "parkappearance", "Park Appearance": "parkappearance",
+      "bestCoaster": "bestcoaster", "Best Coaster": "bestcoaster",
+      "coasterDepth": "coasterdepth", "Coaster Depth": "coasterdepth",
+      "waterRides": "waterrides", "Water Rides": "waterrides",
       "flatridesAndDarkrides": "flatridesanddarkrides", "Flat Rides and Dark Rides": "flatridesanddarkrides", "Flat Rides & Dark Rides": "flatridesanddarkrides",
-      "food": "food",                       "Food": "food",
+      "food": "food", "Food": "food",
       "snacksAndDrinks": "snacksanddrinks", "Snacks and Drinks": "snacksanddrinks", "Snacks & Drinks": "snacksanddrinks",
-      "parkPracticality": "parkpracticality","Park Practicality": "parkpracticality",
-      "rideOperations": "rideoperations",   "Ride Operations": "rideoperations",
-      "parkManagement": "parkmanagement",   "Park Management": "parkmanagement",
-      "overall": "overall",                 "Overall": "overall",
+      "parkPracticality": "parkpracticality", "Park Practicality": "parkpracticality",
+      "rideOperations": "rideoperations", "Ride Operations": "rideoperations",
+      "parkManagement": "parkmanagement", "Park Management": "parkmanagement",
+      "overall": "overall", "Overall": "overall",
     };
 
     function displayCategory(cat: string): string {

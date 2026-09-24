@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import type { Rating, RollerCoaster } from "@/app/types";
+import type { Visit, RollerCoaster } from "@/app/types";
 import { getRatingColor } from "@/app/utils/design";
 import RatingWarning from "../warnings/RatingWarning";
 
@@ -50,7 +50,7 @@ const groups = [
 ] as const;
 
 interface VisitPanelDropdownProps {
-  rating: Rating;
+  rating: Visit;
   coasters: RollerCoaster[];
 }
 

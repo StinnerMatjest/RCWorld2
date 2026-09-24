@@ -7,18 +7,18 @@ import ImageUploaderModal from "@/app/components/ImageUploaderModal";
 import { useAdminMode } from "../../context/AdminModeContext";
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
 
-export type GalleryImage = {
+export type VisitGalleryImage = {
   id: number;
-  parkId: number;
+  visitId: number;
   title: string;
   path: string;
   description: string;
 };
 
 interface GalleryProps {
-  parkId: number;
+  visitId: number;
   parkName: string;
-  initialImages: GalleryImage[];
+  initialImages: VisitGalleryImage[];
   refreshImages: () => void;
   loading?: boolean;
 }
@@ -78,16 +78,59 @@ function useSwipe(
   return { onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onPointerLeave, didDrag };
 }
 
-const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, refreshImages, loading = false }) => {
+const DescriptionEditor = ({
+  initialText,
+  onSave,
+  onCancel,
+  saving
+}: {
+  initialText: string;
+  onSave: (text: string) => void;
+  onCancel: () => void;
+  saving: boolean;
+}) => {
+  const [text, setText] = useState(initialText);
+
+  return (
+    <div className="flex flex-col gap-2 animate-fadeIn" id="desc-editor-container">
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => e.stopPropagation()}
+        className="w-full p-2.5 rounded-lg bg-black/60 text-white border border-white/20 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm md:text-base resize-none backdrop-blur-md"
+        rows={2}
+        placeholder="Enter image description..."
+        autoFocus
+      />
+      <div className="flex justify-end gap-3">
+        <button
+          onClick={onCancel}
+          className="px-4 py-1.5 text-sm font-bold text-white/70 hover:text-white transition cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => onSave(text)}
+          disabled={saving}
+          className="px-4 py-1.5 text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-md transition disabled:opacity-50 cursor-pointer"
+        >
+          {saving ? "Saving..." : "Save Description"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages, refreshImages, loading = false }) => {
   const { isAdminMode } = useAdminMode();
 
-  const [images, setImages] = useState<GalleryImage[]>(initialImages);
+  const [images, setImages] = useState<VisitGalleryImage[]>(initialImages);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [direction, setDirection] = useState<"left" | "right" | null>(null);
   const [isEditingDesc, setIsEditingDesc] = useState(false);
-  const [editDescText, setEditDescText] = useState("");
   const [savingDesc, setSavingDesc] = useState(false);
+  const mouseDownTarget = useRef<EventTarget | null>(null);
 
   const selected = selectedIndex !== null ? images[selectedIndex] : null;
 
@@ -102,32 +145,29 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
   // Reset edit mode if they swipe to a new image
   useEffect(() => {
     setIsEditingDesc(false);
-    setEditDescText(selected?.description || "");
   }, [selectedIndex, selected]);
 
-  const handleSaveDescription = async () => {
+  const handleSaveDescription = async (newText: string) => {
     if (!selected) return;
     setSavingDesc(true);
 
-    // Automatically rebuild the title using the exact same format as your upload modal
-    const newTitle = `${parkName} - ${editDescText || "untitled"}`;
+    const newTitle = `${parkName} - ${newText || "untitled"}`;
 
     try {
-      const res = await fetch(`/api/gallery/${selected.id}`, {
+      const res = await fetch(`/api/visit-gallery/${selected.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          description: editDescText,
+          description: newText,
           title: newTitle
         }),
       });
 
       if (res.ok) {
-        // Update local state for BOTH description and title so it shows instantly
         setImages((prev) =>
           prev.map((img) =>
             img.id === selected.id
-              ? { ...img, description: editDescText, title: newTitle }
+              ? { ...img, description: newText, title: newTitle }
               : img
           )
         );
@@ -186,6 +226,13 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA"
+      ) {
+        return;
+      }
+
       if (e.key === "Escape") {
         if (document.fullscreenElement) document.exitFullscreen();
         else setSelectedIndex(null);
@@ -197,10 +244,6 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedIndex, images.length]);
-
-  useEffect(() => {
-    setIsZoomed(false);
-  }, [selectedIndex]);
 
   const goNext = () => {
     setDirection("right");
@@ -308,8 +351,17 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
         <div
           ref={modalContainerRef}
           className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex items-center justify-center"
+          onMouseDown={(e) => { mouseDownTarget.current = e.target; }}
           onClick={() => {
+            if ((mouseDownTarget.current as Element)?.closest('#desc-editor-container')) {
+              return;
+            }
+
             if (!swipe.didDrag()) {
+              if (isEditingDesc) {
+                setIsEditingDesc(false);
+                return;
+              }
               if (document.fullscreenElement) document.exitFullscreen();
               setSelectedIndex(null);
             }
@@ -423,31 +475,12 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
             <div className="p-4 bg-gradient-to-t from-black/80 to-transparent z-50">
               <div className="w-full max-w-2xl mx-auto mb-4" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
                 {isEditingDesc ? (
-                  <div className="flex flex-col gap-2 animate-fadeIn">
-                    <textarea
-                      value={editDescText}
-                      onChange={(e) => setEditDescText(e.target.value)}
-                      className="w-full p-2.5 rounded-lg bg-black/60 text-white border border-white/20 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm md:text-base resize-none backdrop-blur-md"
-                      rows={2}
-                      placeholder="Enter image description..."
-                      autoFocus
-                    />
-                    <div className="flex justify-end gap-3">
-                      <button
-                        onClick={() => setIsEditingDesc(false)}
-                        className="px-4 py-1.5 text-sm font-bold text-white/70 hover:text-white transition cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleSaveDescription}
-                        disabled={savingDesc}
-                        className="px-4 py-1.5 text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-md transition disabled:opacity-50 cursor-pointer"
-                      >
-                        {savingDesc ? "Saving..." : "Save Description"}
-                      </button>
-                    </div>
-                  </div>
+                  <DescriptionEditor
+                    initialText={selected.description || ""}
+                    onSave={handleSaveDescription}
+                    onCancel={() => setIsEditingDesc(false)}
+                    saving={savingDesc}
+                  />
                 ) : (
                   <div className="group flex items-center justify-center gap-2.5 min-h-[32px] px-4">
                     <p className="text-white text-center text-sm md:text-base font-medium drop-shadow-md">
@@ -487,10 +520,15 @@ const ParkGallery: React.FC<GalleryProps> = ({ parkId, parkName, initialImages, 
       )}
 
       {isAdminMode && showModal && (
-        <ImageUploaderModal parkId={parkId} parkName={parkName} onClose={() => setShowModal(false)} onUploadSuccess={refreshImages} />
+        <ImageUploaderModal
+          visitId={visitId}
+          parkName={parkName}
+          onCloseAction={() => setShowModal(false)}
+          onUploadSuccessAction={refreshImages}
+        />
       )}
     </div>
   );
 };
 
-export default ParkGallery;
+export default VisitGallery;

@@ -3,22 +3,22 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { SectionBody, mediaCaptions } from "./SectionBody";
 import { usesLegacyRow } from "@/app/utils/sectionImageAspect";
-import type { Rating, RatingWarningType } from "@/app/types";
+import type { Visit, RatingWarningType } from "@/app/types";
 import ParkRatingsModal from "./ParkTextModal";
 import { getRatingColor } from "@/app/utils/design";
 import { ratingCategories } from "@/app/utils/ratings";
 import RatingWarning from "../warnings/RatingWarning";
 import WarningCreatorModal from "../warnings/WarningCreatorModal";
 import { useAdminMode } from "../../context/AdminModeContext";
-import type { GalleryImage } from "./ParkGallery";
+import type { VisitGalleryImage } from "./VisitGallery";
 
 interface ParkTextProps {
-  rating: Rating;
+  rating: Visit;
   explanations: Record<string, string>;
   sectionImages: Record<string, string>;
   sectionLayouts?: Record<string, string>;
   sectionSpoilers: Record<string, boolean>;
-  galleryImages: GalleryImage[];
+  galleryImages: VisitGalleryImage[];
   parkId: number;
   parkName: string;
   onWarningsUpdate: () => void;

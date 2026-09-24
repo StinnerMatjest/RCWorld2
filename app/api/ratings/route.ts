@@ -3,7 +3,7 @@ import { revalidateContent } from "@/app/lib/revalidate";
 import { getParkName, logChange } from "@/app/lib/changelog";
 import { seedParkTextsFromChecklist } from "@/app/lib/checklistNotes";
 import { NextResponse } from "next/server";
-import { Rating, RatingWarningType } from "@/app/types";
+import { Visit, RatingWarningType } from "@/app/types";
 
 
 export async function GET() {
@@ -53,7 +53,7 @@ export async function GET() {
 
     const result = await pool.query(query);
 
-    const ratings: Rating[] = result.rows.map((row) => ({
+    const ratings: Visit[] = result.rows.map((row) => ({
       id: row.rating_id,
       date: row.date,
       visit_start: row.visit_start,

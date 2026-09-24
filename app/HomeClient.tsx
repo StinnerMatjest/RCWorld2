@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState, Suspense, useRef, UIEvent, useLayoutEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { RatingWarningType, Rating, Park } from "@/app/types";
+import { RatingWarningType, Visit, Park } from "@/app/types";
 import RatingCard from "./components/RatingCard";
 import RatingWarning from "./components/warnings/RatingWarning";
 import RatingModal from "./components/RatingModal";
@@ -39,7 +39,7 @@ const PendingParkCard = ({ park }: { park: Park }) => (
 );
 
 
-const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager = false, onImgReady }: { rating: Rating; park: Park; eager?: boolean; onImgReady?: () => void }) {
+const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager = false, onImgReady }: { rating: Visit; park: Park; eager?: boolean; onImgReady?: () => void }) {
   const [imgReady, setImgReady] = useState(false);
   return (
     <div className="mx-auto w-full max-w-[400px] py-3 md:py-4">
@@ -107,17 +107,17 @@ TeaserParkCard.displayName = "TeaserParkCard";
 const avg = (a: number, b: number) => ((a + b) / 2).toFixed(2);
 
 const FULL_BLEED_GROUPS = [
-  { emoji: "🎢", label: "Coasters", getValue: (r: Rating) => avg(r.bestCoaster, r.coasterDepth), keys: ["bestCoaster", "coasterDepth", "Best Coaster", "Coaster Depth"] },
-  { emoji: "🎡", label: "Rides", getValue: (r: Rating) => avg(r.waterRides, r.flatridesAndDarkrides), keys: ["waterRides", "flatridesAndDarkrides", "Water Rides", "Flatrides And Darkrides"] },
-  { emoji: "🏞️", label: "Park", getValue: (r: Rating) => avg(r.parkAppearance, r.parkPracticality), keys: ["parkAppearance", "parkPracticality", "Park Appearance", "Park Practicality"] },
-  { emoji: "🍔", label: "Food", getValue: (r: Rating) => avg(r.food, r.snacksAndDrinks), keys: ["food", "snacksAndDrinks", "Food", "Snacks And Drinks"] },
-  { emoji: "📋", label: "Mgmt", getValue: (r: Rating) => avg(r.rideOperations, r.parkManagement), keys: ["rideOperations", "parkManagement", "Ride Operations", "Park Management"] },
+  { emoji: "🎢", label: "Coasters", getValue: (r: Visit) => avg(r.bestCoaster, r.coasterDepth), keys: ["bestCoaster", "coasterDepth", "Best Coaster", "Coaster Depth"] },
+  { emoji: "🎡", label: "Rides", getValue: (r: Visit) => avg(r.waterRides, r.flatridesAndDarkrides), keys: ["waterRides", "flatridesAndDarkrides", "Water Rides", "Flatrides And Darkrides"] },
+  { emoji: "🏞️", label: "Park", getValue: (r: Visit) => avg(r.parkAppearance, r.parkPracticality), keys: ["parkAppearance", "parkPracticality", "Park Appearance", "Park Practicality"] },
+  { emoji: "🍔", label: "Food", getValue: (r: Visit) => avg(r.food, r.snacksAndDrinks), keys: ["food", "snacksAndDrinks", "Food", "Snacks And Drinks"] },
+  { emoji: "📋", label: "Mgmt", getValue: (r: Visit) => avg(r.rideOperations, r.parkManagement), keys: ["rideOperations", "parkManagement", "Ride Operations", "Park Management"] },
 ];
 
 const CARD_CATS = ["coasters", "rides", "park", "food", "mgmt"] as const;
 type CardCat = typeof CARD_CATS[number];
 
-const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0, onImgReady }: { rating: Rating; park: Park; isActive?: boolean; delayIndex?: number; onImgReady?: () => void }) {
+const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0, onImgReady }: { rating: Visit; park: Park; isActive?: boolean; delayIndex?: number; onImgReady?: () => void }) {
   const headerSrc = park.imagepath || "/images/error.PNG";
   const cardSrc = park.cardImagepath || headerSrc;
   const cardFocusStr = park.imageFocus || "0.5 0.5 1";
@@ -499,7 +499,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
 });
 
 type HomeProps = {
-  initialRatings?: Rating[];
+  initialRatings?: Visit[];
   initialParks?: Park[];
   initialAdminMode?: boolean;
 };
@@ -514,7 +514,7 @@ const Home = ({ initialRatings, initialParks, initialAdminMode }: HomeProps) => 
   // so the grid never reshuffles after hydration.
   const adminView = hydrated ? isAdminMode : (initialAdminMode ?? false);
 
-  const [ratings, setRatings] = useState<Rating[]>(initialRatings ?? []);
+  const [ratings, setRatings] = useState<Visit[]>(initialRatings ?? []);
   const [parks, setParks] = useState<Park[]>(initialParks ?? []);
   const [isLoading, setIsLoading] = useState(!initialRatings || !initialParks);
   const [error, setError] = useState<string | null>(null);
@@ -535,7 +535,7 @@ const Home = ({ initialRatings, initialParks, initialAdminMode }: HomeProps) => 
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
 
-    const latestRatingsMap = new Map<number, Rating>();
+    const latestRatingsMap = new Map<number, Visit>();
     sortedByDate.forEach((rating) => {
       if (!latestRatingsMap.has(rating.parkId)) latestRatingsMap.set(rating.parkId, rating);
     });
@@ -552,7 +552,7 @@ const Home = ({ initialRatings, initialParks, initialAdminMode }: HomeProps) => 
   const teaserItems = React.useMemo(() => {
     if (adminView) return [];
     const publishedParkIds = new Set(ratings.filter((r) => r.published).map((r) => r.parkId));
-    const latestDraftByPark = new Map<number, Rating>();
+    const latestDraftByPark = new Map<number, Visit>();
     [...ratings]
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .forEach((r) => {

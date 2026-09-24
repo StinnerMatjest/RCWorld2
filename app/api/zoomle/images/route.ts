@@ -8,13 +8,10 @@ import { pool } from "@/app/lib/db";
 const BASE_JOIN = `
   FROM rollercoasters rc
   JOIN parks p ON p.id = rc.park_id
-  JOIN parkgallery pg
-    ON  pg.park_id = rc.park_id
-    AND pg.title ILIKE '%' || rc.name || '%'
-    AND pg.title NOT ILIKE '%HEADER ONLY%'
+  JOIN coastergallery cg ON cg.coaster_id = rc.id
   LEFT JOIN zoomle_images zi
-    ON  zi.coaster_id = rc.id
-    AND zi.image_path = pg.path
+    ON zi.coaster_id = rc.id
+    AND zi.image_path = cg.path
 `;
 
 export async function GET(req: NextRequest) {
@@ -23,31 +20,28 @@ export async function GET(req: NextRequest) {
     const [imagesRes, missingRes] = await Promise.all([
       pool.query(`
         SELECT
-          zi.id                                AS zoomle_id,
-          pg.id                                AS gallery_id,
-          pg.path                              AS image_path,
-          COALESCE(zi.focus, '50% 50%')               AS focus,
-          COALESCE(zi.focuses, '[]'::jsonb)           AS focuses,
-          COALESCE(zi.enabled, TRUE)                  AS enabled,
-          rc.id                                AS coaster_id,
-          rc.name                              AS coaster_name,
-          COALESCE(rc.zoomle_enabled, TRUE)    AS coaster_enabled,
-          p.name                               AS park_name,
-          p.country                            AS park_country,
-          p.id                                 AS park_id
+          zi.id                                  AS zoomle_id,
+          cg.id                                  AS gallery_id,
+          cg.path                                AS image_path,
+          COALESCE(zi.focus, '50% 50%')          AS focus,
+          COALESCE(zi.focuses, '[]'::jsonb)      AS focuses,
+          COALESCE(zi.enabled, TRUE)             AS enabled,
+          rc.id                                  AS coaster_id,
+          rc.name                                AS coaster_name,
+          COALESCE(rc.zoomle_enabled, TRUE)      AS coaster_enabled,
+          p.name                                 AS park_name,
+          p.country                              AS park_country,
+          p.id                                   AS park_id
         ${BASE_JOIN}
         ${all ? "" : "WHERE COALESCE(zi.enabled, TRUE) = TRUE AND COALESCE(rc.zoomle_enabled, TRUE) = TRUE"}
-        ORDER BY p.name, rc.name, (pg.title ILIKE '%HEADER%') DESC, pg.id ASC
+        ORDER BY p.name, rc.name, cg.is_header DESC, cg.id ASC
       `),
       all ? pool.query(`
         SELECT rc.id, rc.name, rc.slug, p.name AS park_name
         FROM rollercoasters rc
         JOIN parks p ON p.id = rc.park_id
-        LEFT JOIN parkgallery pg
-          ON  pg.park_id = rc.park_id
-          AND pg.title ILIKE '%' || rc.name || '%'
-          AND pg.title NOT ILIKE '%HEADER ONLY%'
-        WHERE pg.id IS NULL
+        LEFT JOIN coastergallery cg ON cg.coaster_id = rc.id
+        WHERE cg.id IS NULL
         ORDER BY p.name, rc.name
       `) : Promise.resolve({ rows: [] }),
     ]);

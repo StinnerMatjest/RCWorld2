@@ -2,7 +2,7 @@ import { pool } from "@/app/lib/db";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { getParkName, logChange } from "@/app/lib/changelog";
 import { NextResponse } from "next/server";
-import { Rating, RatingWarningType } from "@/app/types";
+import { Visit, RatingWarningType } from "@/app/types";
 import { revalidateTag } from "next/cache";
 
 export async function GET(
@@ -18,24 +18,24 @@ export async function GET(
 
     const query = `
       SELECT 
-        ratings.id AS rating_id,
-        ratings.date,
-        ratings.visit_start,
-        ratings.visit_end,
-        ratings.duration,
-        ratings.parkAppearance AS "parkappearance",
-        ratings.bestCoaster AS "bestcoaster",
-        ratings.coasterDepth AS "coasterdepth",
-        ratings.waterRides AS "waterrides",
-        ratings.flatridesAndDarkrides AS "flatridesanddarkrides",
-        ratings.food,
-        ratings.snacksAndDrinks AS "snacksanddrinks",
-        ratings.parkPracticality AS "parkpracticality",
-        ratings.rideOperations AS "rideoperations",
-        ratings.parkManagement AS "parkmanagement",
-        ratings.overall,
-        ratings.published,
-        ratings.park_id,
+        visits.id AS rating_id,
+        visits.date,
+        visits.visit_start,
+        visits.visit_end,
+        visits.duration,
+        visits.parkAppearance AS "parkappearance",
+        visits.bestCoaster AS "bestcoaster",
+        visits.coasterDepth AS "coasterdepth",
+        visits.waterRides AS "waterrides",
+        visits.flatridesAndDarkrides AS "flatridesanddarkrides",
+        visits.food,
+        visits.snacksAndDrinks AS "snacksanddrinks",
+        visits.parkPracticality AS "parkpracticality",
+        visits.rideOperations AS "rideoperations",
+        visits.parkManagement AS "parkmanagement",
+        visits.overall,
+        visits.published,
+        visits.park_id,
         parks.id AS park_id,
         parks.name AS park_name,
         parks.imagepath AS park_image,
@@ -43,7 +43,7 @@ export async function GET(
           json_agg(
             json_build_object(
             'id', ratingwarning.id,
-            'ratingId', ratingwarning.ratingid,
+            'ratingId', ratingwarning.visit_id,
             'ride', ratingwarning.ride,
             'note', ratingwarning.note,
             'category', ratingwarning.category,
@@ -52,17 +52,17 @@ export async function GET(
           ) FILTER (WHERE ratingwarning.id IS NOT NULL),
           '[]'
         ) AS warnings
-      FROM ratings
-      JOIN parks ON ratings.park_id = parks.id
-      LEFT JOIN ratingwarning ON ratingwarning.ratingid = ratings.id
-      WHERE ratings.park_id = $1
-      GROUP BY ratings.id, parks.id
-      ORDER BY ratings.date DESC;
+      FROM visits
+      JOIN parks ON visits.park_id = parks.id
+      LEFT JOIN ratingwarning ON ratingwarning.visit_id = visits.id
+      WHERE visits.park_id = $1
+      GROUP BY visits.id, parks.id
+      ORDER BY visits.date DESC;
     `;
 
     const result = await pool.query(query, [parkId]);
 
-    const ratings: Rating[] = result.rows.map((row) => ({
+    const ratings: import("@/app/types").Visit[] = result.rows.map((row) => ({
       id: row.rating_id,
       date: row.date,
       visit_start: row.visit_start,
@@ -83,7 +83,7 @@ export async function GET(
       published: row.published,
       imagePath: row.park_image,
       parkId: row.park_id,
-      warnings: row.warnings as RatingWarningType[],
+      warnings: row.warnings as import("@/app/types").RatingWarningType[],
     }));
 
     return NextResponse.json({ ratings }, { status: 200 });
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
     }
 
     const query = `
-      INSERT INTO ratings (
+      INSERT INTO visits (
         date,
         parkappearance,
         parkpracticality,
@@ -189,7 +189,7 @@ export async function POST(request: Request) {
       entityId: newRatingId,
       label: await getParkName(parkId),
       action: "create",
-      summary: `New rating${published ? " (published)" : ""}`,
+      summary: `New visit${published ? " (published)" : ""}`,
       details: {
         date, parkAppearance, parkPracticality, bestCoaster, coasterDepth,
         waterRides, flatridesAndDarkrides, food, snacksAndDrinks,
@@ -197,16 +197,16 @@ export async function POST(request: Request) {
       },
     });
 
-    revalidateTag("parks-leaderboard"); // Clear the Parks Leaderboard cache
+    revalidateTag("parks-leaderboard");
     return NextResponse.json(
-      { message: "Park rated successfully", ratingId: newRatingId },
+      { message: "Visit created successfully", ratingId: newRatingId },
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error inserting rating:", error);
+    console.error("Error inserting visit:", error);
 
     return NextResponse.json(
-      { error: "Failed to create rating" },
+      { error: "Failed to create visit" },
       { status: 500 }
     );
   }

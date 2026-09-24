@@ -83,30 +83,27 @@ export async function GET(req: NextRequest) {
     new Date().toISOString().slice(0, 10);
 
   try {
-    // Fetch all enabled pool images
+// Fetch all enabled pool images
     const [imagesRes, flagsRes, coastersRes] = await Promise.all([
       pool.query(`
         SELECT DISTINCT
-          pg.id   AS gallery_id,
-          pg.path AS image_path,
+          cg.id   AS gallery_id,
+          cg.path AS image_path,
           COALESCE(zi.focuses, '[]'::jsonb) AS focuses,
           rc.id   AS coaster_id,
           rc.name AS coaster_name,
           p.name  AS park_name,
           p.country AS park_country,
-          (pg.title ILIKE '%HEADER%') AS is_header
+          cg.is_header AS is_header
         FROM rollercoasters rc
         JOIN parks p ON p.id = rc.park_id
-        JOIN parkgallery pg
-          ON  pg.park_id = rc.park_id
-          AND pg.title ILIKE '%' || rc.name || '%'
-          AND pg.title NOT ILIKE '%HEADER ONLY%'
+        JOIN coastergallery cg ON cg.coaster_id = rc.id
         LEFT JOIN zoomle_images zi
           ON  zi.coaster_id = rc.id
-          AND zi.image_path = pg.path
+          AND zi.image_path = cg.path
         WHERE COALESCE(zi.enabled, TRUE) = TRUE
           AND COALESCE(rc.zoomle_enabled, TRUE) = TRUE
-        ORDER BY rc.id, is_header DESC, pg.id ASC
+        ORDER BY rc.id, is_header DESC, cg.id ASC
       `),
       // Only apply flags created before today — same-day flags take effect tomorrow
       pool.query("SELECT image_path, focal_index FROM zoomle_flags WHERE created_at::date < $1::date", [date]),
@@ -114,10 +111,7 @@ export async function GET(req: NextRequest) {
         SELECT DISTINCT rc.id, rc.name, p.name AS park_name, p.country AS park_country
         FROM rollercoasters rc
         JOIN parks p ON p.id = rc.park_id
-        JOIN parkgallery pg
-          ON  pg.park_id = rc.park_id
-          AND pg.title ILIKE '%' || rc.name || '%'
-          AND pg.title NOT ILIKE '%HEADER ONLY%'
+        JOIN coastergallery cg ON cg.coaster_id = rc.id
         WHERE COALESCE(rc.zoomle_enabled, TRUE) = TRUE
         ORDER BY rc.id
       `),

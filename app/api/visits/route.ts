@@ -8,22 +8,22 @@ export async function GET() {
   try {
     const result = await pool.query(`
       SELECT
-        r.id                       AS "ratingId",
-        r.date,
-        r.overall,
-        COALESCE(r.published, FALSE) AS published,
+        v.id                       AS "ratingId",
+        v.date,
+        v.overall,
+        COALESCE(v.published, FALSE) AS published,
         p.id                       AS "parkId",
         p.name,
         p.country,
         p.slug,
         p.imagepath,
         p.header_focus             AS "headerFocus",
-        ROW_NUMBER() OVER (PARTITION BY p.id ORDER BY r.date ASC)::int AS "visitNumber",
+        ROW_NUMBER() OVER (PARTITION BY p.id ORDER BY v.date ASC)::int AS "visitNumber",
         COUNT(*)    OVER (PARTITION BY p.id)::int                      AS "totalVisits"
-      FROM ratings r
-      JOIN parks p ON p.id = r.park_id
-      WHERE r.date IS NOT NULL
-      ORDER BY r.date DESC, r.id DESC
+      FROM visits v
+      JOIN parks p ON p.id = v.park_id
+      WHERE v.date IS NOT NULL
+      ORDER BY v.date DESC, v.id DESC
     `);
     return NextResponse.json(
       { visits: result.rows },

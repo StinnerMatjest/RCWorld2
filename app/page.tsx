@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import HomeClient from "./HomeClient";
 import { isAdminRequest } from "@/app/lib/adminAuth";
-import type { Rating, Park } from "@/app/types";
+import type { Visit, Park } from "@/app/types";
 
 export const metadata: Metadata = {
   title: "ParkRating – ThemePark Reviews",
@@ -26,7 +26,7 @@ export const dynamic = "force-dynamic";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-async function getInitialData(): Promise<{ ratings?: Rating[]; parks?: Park[] }> {
+async function getInitialData(): Promise<{ ratings?: Visit[]; parks?: Park[] }> {
   try {
     const [ratingsRes, parksRes] = await Promise.all([
       fetch(`${BASE}api/ratings`, { cache: "force-cache", next: { tags: ["content"] } }),

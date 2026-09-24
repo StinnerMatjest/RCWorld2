@@ -41,25 +41,16 @@ export async function GET() {
       JOIN parks p ON rc.park_id = p.id
       LEFT JOIN manufacturers m ON rc.manufacturer_id = m.id
       LEFT JOIN rollercoasterspecs rs ON rs.coaster_id = rc.id
-      -- Best gallery photo for the coaster, matched by title the way the coaster
-      -- page picks its header: explicit HEADER shots first, then full-name matches,
-      -- then the short name before " - ", ":" or "(" (gallery titles often use it).
+      -- Best gallery photo for the coaster: explicit headers first, then oldest image fallback.
       LEFT JOIN LATERAL (
-        SELECT pg.path
-        FROM parkgallery pg
-        WHERE pg.park_id = rc.park_id
-          AND pg.path <> ''
-          AND (
-            pg.title ILIKE '%' || rc.name || '%'
-            OR (
-              length(trim(split_part(split_part(split_part(rc.name, ' - ', 1), ':', 1), '(', 1))) >= 4
-              AND pg.title ILIKE '%' || trim(split_part(split_part(split_part(rc.name, ' - ', 1), ':', 1), '(', 1)) || '%'
-            )
-          )
-        ORDER BY (pg.title ILIKE '%HEADER%') DESC, (pg.title ILIKE '%' || rc.name || '%') DESC, pg.id ASC
+        SELECT cg.path
+        FROM coastergallery cg
+        WHERE cg.coaster_id = rc.id
+          AND cg.path <> ''
+        ORDER BY cg.is_header DESC, cg.id ASC
         LIMIT 1
       ) img ON TRUE
-      LEFT JOIN ratings r ON r.park_id = p.id
+      LEFT JOIN visits r ON r.park_id = p.id
       GROUP BY 
         rc.id, rc.name, rc.year, rc.manufacturer_id, m.name, rc.ride_model_id, rc.model, rc.scale, rc.haveridden, 
         rc.isbestcoaster, rc.ridecount, rc.rating, rc.park_id, rc.slug,

@@ -14,13 +14,17 @@ export async function PATCH(
     const { title } = await req.json();
 
     const oldResult = await pool.query(
-      `SELECT g.*, p.name AS park_name FROM parkgallery g LEFT JOIN parks p ON p.id = g.park_id WHERE g.id = $1`,
+      `SELECT vg.*, p.name AS park_name, p.id AS park_id 
+       FROM visitgallery vg 
+       LEFT JOIN visits v ON v.id = vg.visit_id 
+       LEFT JOIN parks p ON p.id = v.park_id 
+       WHERE vg.id = $1`,
       [id]
     );
     const oldRow = oldResult.rows[0];
 
     const result = await pool.query(
-      "UPDATE parkgallery SET title = $1 WHERE id = $2 RETURNING *",
+      "UPDATE visitgallery SET title = $1 WHERE id = $2 RETURNING *",
       [title, id]
     );
 
@@ -59,12 +63,16 @@ export async function DELETE(
     const { id } = await params;
 
     const oldResult = await pool.query(
-      `SELECT g.*, p.name AS park_name FROM parkgallery g LEFT JOIN parks p ON p.id = g.park_id WHERE g.id = $1`,
+      `SELECT vg.*, p.name AS park_name, p.id AS park_id 
+       FROM visitgallery vg 
+       LEFT JOIN visits v ON v.id = vg.visit_id 
+       LEFT JOIN parks p ON p.id = v.park_id 
+       WHERE vg.id = $1`,
       [id]
     );
     const oldRow = oldResult.rows[0];
 
-    await pool.query("DELETE FROM parkgallery WHERE id = $1", [id]);
+    await pool.query("DELETE FROM visitgallery WHERE id = $1", [id]);
 
     if (oldRow) {
       logChange({

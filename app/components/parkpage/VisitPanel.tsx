@@ -1,6 +1,6 @@
 "use client";
 
-import { Rating, RollerCoaster } from "@/app/types";
+import { Visit, RollerCoaster } from "@/app/types";
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -9,7 +9,7 @@ import RatingWarning from "../warnings/RatingWarning";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 
 interface VisitPanelProps {
-  ratings: Rating[];
+  ratings: Visit[];
   parkSlug: string;
   currentRatingId?: number;
   coasters: RollerCoaster[];

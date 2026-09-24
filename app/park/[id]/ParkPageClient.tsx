@@ -10,17 +10,17 @@ import CoasterCreatorModal from "@/app/components/coasterpage/CoasterCreatorModa
 import ParkText from "@/app/components/parkpage/ParkText";
 import Coasterlist from "@/app/components/parkpage/Coasterlist";
 import ParkHeader from "@/app/components/ParkHeader";
-import ParkGallery, { type GalleryImage } from "@/app/components/parkpage/ParkGallery";
+import VisitGallery, { type VisitGalleryImage } from "@/app/components/parkpage/VisitGallery";
 import VisitPanel from "@/app/components/parkpage/VisitPanel";
 import VisitPanelDropdown from "@/app/components/parkpage/VisitPanelDropdown";
-import type { Park, Rating, RatingWarningType, RollerCoaster } from "@/app/types";
+import type { Park, Visit, RatingWarningType, RollerCoaster } from "@/app/types";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 
 type ParkPageClientProps = {
   initialId: string;
   initialPark?: Park | null;
-  initialRatings?: Rating[];
+  initialRatings?: Visit[];
   initialCoasters?: RollerCoaster[];
   initialExplanations?: Record<string, string>;
   initialSectionImages?: Record<string, string>;
@@ -48,8 +48,8 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
 
   const [park, setPark] = useState<Park | null>(initialPark);
   const [coasters, setCoasters] = useState<RollerCoaster[]>(initialCoasters ?? []);
-  const [ratings, setRatings] = useState<Rating[]>(initialRatings);
-  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const [ratings, setRatings] = useState<Visit[]>(initialRatings);
+  const [galleryImages, setGalleryImages] = useState<VisitGalleryImage[]>([]);
   const galleryCaptions = useMemo(() => mediaCaptions(galleryImages), [galleryImages]);
   // Seeded from the server, so the list renders immediately instead of a skeleton.
   // undefined seed = server fetch failed → show the skeleton until our fetch lands;
@@ -80,7 +80,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteContext, setDeleteContext] = useState<"select" | { type: "park" } | { type: "visit", rating: Rating }>("select");
+  const [deleteContext, setDeleteContext] = useState<"select" | { type: "park" } | { type: "visit", rating: Visit }>("select");
   const [confirmText, setConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -166,7 +166,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
         }
 
         const numericParkId = parkData.id;
-        const [coastersRes, ratingsRes, galleryRes] = await Promise.all([
+        const [coastersRes, ratingsRes] = await Promise.all([
           fetch(`/api/park/${numericParkId}/coasters`, {
             cache: "no-store",
             headers: { Pragma: "no-cache", "Cache-Control": "no-cache" },
@@ -175,23 +175,17 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
             cache: "no-store",
             headers: { Pragma: "no-cache", "Cache-Control": "no-cache" },
           }),
-          fetch(`/api/park/${numericParkId}/gallery`, {
-            cache: "no-store",
-            headers: { Pragma: "no-cache", "Cache-Control": "no-cache" },
-          }),
         ]);
 
         const coastersData = await coastersRes.json();
         const ratingsData = await ratingsRes.json();
-        const galleryData = await galleryRes.json();
 
         setCoasters(Array.isArray(coastersData) ? coastersData : []);
-        setGalleryImages(galleryData.gallery || []);
 
         setRatings(
           (Array.isArray(ratingsData?.ratings) ? ratingsData.ratings : [])
-            .filter((r: Rating) => r.parkId === numericParkId)
-            .map((r: Rating) => ({
+            .filter((r: import("@/app/types").Visit) => r.parkId === numericParkId)
+            .map((r: import("@/app/types").Visit) => ({
               ...r,
               warnings: (r.warnings ?? []).map((w: any) => ({
                 id: w.id,
@@ -200,21 +194,19 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
                 ride: w.ride,
                 note: w.note,
                 severity: w.severity || "Moderate",
-              })) as RatingWarningType[],
+              })) as import("@/app/types").RatingWarningType[],
             }))
             .sort(
-              (a: Rating, b: Rating) =>
+              (a: import("@/app/types").Visit, b: import("@/app/types").Visit) =>
                 new Date(b.date).getTime() - new Date(a.date).getTime()
             )
         );
 
         setPark(parkData);
         setLoadingCoasters(false);
-        setLoadingGallery(false);
       } catch (error) {
         console.error("Failed to fetch park data:", error);
         setLoadingCoasters(false);
-        setLoadingGallery(false);
       }
     })();
   }, [parkSlug]);
@@ -224,12 +216,26 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
   const activeRatingId = selectedRating?.id ?? visibleRatings[0]?.id;
 
   useEffect(() => {
-    if (!park?.id || !activeRatingId) return;
+    if (!park?.id || !activeRatingId) {
+      setGalleryImages([]);
+      setLoadingGallery(false);
+      return;
+    }
 
-    const fetchExplanations = async () => {
+    const fetchVisitData = async () => {
+      setLoadingGallery(true);
       try {
-        const res = await fetch(`/api/park/${park.id}/parkTexts?ratingId=${activeRatingId}`);
-        const explanationsData = await res.json();
+        const [explanationsRes, galleryRes] = await Promise.all([
+          fetch(`/api/park/${park.id}/parkTexts?visitId=${activeRatingId}`),
+          fetch(`/api/visits/${activeRatingId}/gallery`) // Clean route
+        ]);
+
+        if (!explanationsRes.ok) throw new Error(`Explanations API failed: ${explanationsRes.statusText}`);
+        if (!galleryRes.ok) throw new Error(`Gallery API failed: ${galleryRes.statusText}`);
+
+        const explanationsData = await explanationsRes.json();
+        const galleryData = await galleryRes.json();
+
         if (!Array.isArray(explanationsData)) throw new Error("Unexpected response from parkTexts API");
 
         const explanationMap: Record<string, string> = {};
@@ -238,30 +244,39 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
         const spoilerMap: Record<string, boolean> = {};
 
         for (const item of explanationsData) {
-          if (!item.ratingId || item.ratingId === activeRatingId) {
+          if (!item.visitId || item.visitId === activeRatingId) {
             explanationMap[item.category] = item.text;
             if (item.imageUrl) imageMap[item.category] = item.imageUrl;
             if (item.imageLayout) layoutMap[item.category] = item.imageLayout;
             spoilerMap[item.category] = item.isSpoiler || false;
           }
         }
+
         setExplanations(explanationMap);
         setSectionImages(imageMap);
         setSectionLayouts(layoutMap);
         setSectionSpoilers(spoilerMap);
+        setGalleryImages(galleryData.gallery || []);
       } catch (error) {
-        console.error("Failed to fetch explanations:", error);
+        console.error("Failed to fetch visit data:", error);
+      } finally {
+        setLoadingGallery(false);
       }
     };
 
-    fetchExplanations();
+    fetchVisitData();
   }, [park, activeRatingId]);
 
   const refreshGallery = async () => {
-    if (!park?.id) return;
-    const res = await fetch(`/api/park/${park.id}/gallery`);
-    const data = await res.json();
-    setGalleryImages(data.gallery || []);
+    if (!activeRatingId) return;
+    try {
+      const res = await fetch(`/api/visits/${activeRatingId}/gallery`);
+      if (!res.ok) throw new Error("Gallery fetch failed");
+      const data = await res.json();
+      setGalleryImages(data.gallery || []);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const refreshCoasters = async () => {
@@ -290,8 +305,8 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
     const ratingsData = await res.json();
     setRatings(
       (Array.isArray(ratingsData?.ratings) ? ratingsData.ratings : [])
-        .filter((r: Rating) => r.parkId === park.id)
-        .map((r: Rating) => ({
+        .filter((r: Visit) => r.parkId === park.id)
+        .map((r: Visit) => ({
           ...r,
           warnings: (r.warnings ?? []).map((w: any) => ({
             id: w.id,
@@ -303,7 +318,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
           })) as RatingWarningType[],
         }))
         .sort(
-          (a: Rating, b: Rating) =>
+          (a: Visit, b: Visit) =>
             new Date(b.date).getTime() - new Date(a.date).getTime()
         )
     );
@@ -478,8 +493,8 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
               onCoasterAdded={refreshCoasters}
             />
           )}
-          <ParkGallery
-            parkId={park.id}
+          <VisitGallery
+            visitId={park.id}
             parkName={park.name}
             initialImages={galleryImages}
             refreshImages={refreshGallery}

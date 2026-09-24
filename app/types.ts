@@ -18,7 +18,7 @@ export interface Park {
   };
 }
 
-export interface Rating {
+export interface Visit {
   id: number;
   date: string;
   parkAppearance: number;
