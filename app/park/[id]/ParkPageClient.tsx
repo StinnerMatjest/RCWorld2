@@ -494,7 +494,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
             />
           )}
           <VisitGallery
-            visitId={park.id}
+            visitId={activeRatingId}
             parkName={park.name}
             initialImages={galleryImages}
             refreshImages={refreshGallery}

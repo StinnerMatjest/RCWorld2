@@ -94,10 +94,16 @@ export default function ParksClient({ parks }: { parks: RankedPark[] }) {
     }
   }
 
+  // Update your sorting logic:
   const sorted = [...parks].sort((a, b) => {
     const av = Number(a[sortKey] ?? 0);
     const bv = Number(b[sortKey] ?? 0);
-    return sortDir === "desc" ? bv - av : av - bv;
+
+    if (av !== bv) {
+      return sortDir === "desc" ? bv - av : av - bv;
+    }
+    // Secondary sort: Alphabetical tie-breaker
+    return a.name.localeCompare(b.name);
   });
 
   const overallRank = Object.fromEntries(

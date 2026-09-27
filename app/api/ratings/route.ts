@@ -189,6 +189,27 @@ export async function POST(request: Request) {
       },
     });
 
+    // --- Flag relevant ranking lists ---
+    try {
+      const parkRes = await pool.query(`SELECT name, country FROM parks WHERE id = $1`, [parkId]);
+      if (parkRes.rows.length > 0) {
+        const parkCountry = parkRes.rows[0].country;
+        const parkName = parkRes.rows[0].name;
+
+        await pool.query(`
+          UPDATE rankinglists 
+          SET 
+            needs_review = TRUE, 
+            review_reason = $1 
+          WHERE 
+            $2 = ANY(linked_countries) OR 
+            $3 = ANY(linked_park_ids)
+        `, [`Recent visit to ${parkName} (${parkCountry})`, parkCountry, parkId]);
+      }
+    } catch (flagError) {
+      console.error("Failed to flag ranking lists:", flagError);
+    }
+
     return NextResponse.json(
       { message: "Park rated successfully", ratingId: newRatingId },
       { status: 201 }

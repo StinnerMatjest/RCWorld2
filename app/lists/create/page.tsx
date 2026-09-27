@@ -19,9 +19,12 @@ function ListEditorForm() {
     const [title, setTitle] = useState("");
     const [slug, setSlug] = useState("");
     const [introText, setIntroText] = useState("");
+    const [imageUrl, setImageUrl] = useState("");
+    const [published, setPublished] = useState(false);
     const [items, setItems] = useState<any[]>([]);
-    
-    const [activeImageTarget, setActiveImageTarget] = useState<{ index: number; field: "image1" | "image2" } | null>(null);
+
+    // Updated to support a 'header' field without needing an array index
+    const [activeImageTarget, setActiveImageTarget] = useState<{ index: number | null; field: "image1" | "image2" | "header" } | null>(null);
 
     // Redirect if not admin
     useEffect(() => {
@@ -40,6 +43,8 @@ function ListEditorForm() {
                     setTitle(data.rankingList.title);
                     setSlug(data.rankingList.slug);
                     setIntroText(data.rankingList.introText);
+                    setImageUrl(data.rankingList.imageUrl || "");
+                    setPublished(!!data.rankingList.published);
                     setItems(data.rankingList.items.sort((a: any, b: any) => a.rank - b.rank));
                 } catch (error) {
                     console.error(error);
@@ -119,7 +124,7 @@ function ListEditorForm() {
             const res = await fetch(url, {
                 method,
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ title, slug, introText, items }),
+                body: JSON.stringify({ title, slug, introText, items, imageUrl, published }),
             });
 
             const contentType = res.headers.get("content-type");
@@ -153,7 +158,11 @@ function ListEditorForm() {
                 <ImageSelectorModal
                     onClose={() => setActiveImageTarget(null)}
                     onSelect={(url) => {
-                        updateItem(activeImageTarget.index, activeImageTarget.field, url);
+                        if (activeImageTarget.field === "header") {
+                            setImageUrl(url);
+                        } else if (activeImageTarget.index !== null) {
+                            updateItem(activeImageTarget.index, activeImageTarget.field, url);
+                        }
                         setActiveImageTarget(null);
                     }}
                 />
@@ -167,7 +176,21 @@ function ListEditorForm() {
                 <form onSubmit={handleSubmit} className="space-y-12">
                     {/* Main List Info */}
                     <div className=" bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-700 space-y-4">
-                        <h2 className="text-xl font-bold dark:text-white mb-4 border-b pb-2">List Details</h2>
+                        <h2 className="text-xl font-bold dark:text-white mb-4 border-b border-gray-700 pb-2 flex justify-between items-center">
+                            <span>List Details</span>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    id="published"
+                                    checked={published}
+                                    onChange={(e) => setPublished(e.target.checked)}
+                                    className="w-5 h-5 accent-blue-600 cursor-pointer"
+                                />
+                                <label htmlFor="published" className="text-sm font-semibold dark:text-gray-300 cursor-pointer select-none">
+                                    Published
+                                </label>
+                            </div>
+                        </h2>
 
                         <div>
                             <label className="block text-sm font-semibold mb-1 dark:text-gray-300">Title</label>
@@ -182,6 +205,25 @@ function ListEditorForm() {
                         <div>
                             <label className="block text-sm font-semibold mb-1 dark:text-gray-300">Introductory Text</label>
                             <textarea required value={introText} onChange={(e) => setIntroText(e.target.value)} rows={4} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-semibold mb-1 dark:text-gray-300">Header Image</label>
+                            <div className="min-h-[160px] border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center p-4 bg-gray-700 relative overflow-hidden group">
+                                {imageUrl ? (
+                                    <>
+                                        <img src={imageUrl} alt="Header Preview" className="absolute inset-0 w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                            <button type="button" onClick={() => setActiveImageTarget({ index: null, field: "header" })} className="px-3 py-1 bg-white text-black text-sm font-bold rounded shadow cursor-pointer">Change</button>
+                                            <button type="button" onClick={() => setImageUrl("")} className="px-3 py-1 bg-red-600 text-white text-sm font-bold rounded shadow cursor-pointer">Clear</button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <button type="button" onClick={() => setActiveImageTarget({ index: null, field: "header" })} className="text-blue-500 hover:text-blue-600 font-semibold flex items-center gap-2 cursor-pointer">
+                                        Select Header Image
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -270,7 +312,7 @@ function ListEditorForm() {
                     </div>
 
                     {/* Bottom Action Bar */}
-                    <div className="sticky bottom-0 bg-gray-900/80 backdrop-blur-md py-4 border-t border-gray-800 flex justify-between gap-4">
+                    <div className="sticky bottom-0 bg-gray-900/80 backdrop-blur-md py-4 border-t border-gray-800 flex justify-between gap-4 z-10">
                         {isEditing && (
                             <button
                                 type="button"
@@ -286,7 +328,7 @@ function ListEditorForm() {
                                 Cancel
                             </button>
                             <button type="submit" disabled={isSubmitting} className="w-full md:w-auto px-10 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-lg rounded-xl shadow-lg transition-all disabled:opacity-50 cursor-pointer">
-                                {isSubmitting ? "Saving..." : isEditing ? "Save Changes" : "Publish List"}
+                                {isSubmitting ? "Saving..." : isEditing ? "Save Changes" : "Save List"}
                             </button>
                         </div>
                     </div>

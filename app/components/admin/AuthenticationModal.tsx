@@ -21,8 +21,8 @@ const AuthenticationModal: React.FC<AuthenticationModalProps> = ({
   const [lockUntil, setLockUntil] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [justUnlocked, setJustUnlocked] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
-  // Load persisted lockUntil on mount
   useEffect(() => {
     const stored = localStorage.getItem(LOCK_KEY);
     if (stored) {
@@ -64,6 +64,8 @@ const AuthenticationModal: React.FC<AuthenticationModalProps> = ({
       return;
     }
 
+    setIsAuthenticating(true);
+
     try {
       const res = await fetch("/api/authenticate", {
         method: "POST",
@@ -95,14 +97,22 @@ const AuthenticationModal: React.FC<AuthenticationModalProps> = ({
       }
     } catch {
       setError("Server error. Please try again.");
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !isLocked && !isAuthenticating) {
+      handleSubmit();
     }
   };
 
   const isLocked = !!(lockUntil && Date.now() < lockUntil);
 
   return (
-    <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center">
-      <div className=" bg-gray-800 dark:text-gray-100 border border-white/10 p-6 rounded-lg shadow-lg w-80 text-center space-y-4">
+    <div className="fixed inset-0 z-[1000] bg-black/80 flex items-center justify-center">
+      <div className=" bg-gray-800 dark:text-gray-100 border border-white/10 p-6 rounded-lg shadow-xl w-80 text-center space-y-4">
         <h2 className="text-xl font-bold text-white">
           Enter Access Password
         </h2>
@@ -115,11 +125,13 @@ const AuthenticationModal: React.FC<AuthenticationModalProps> = ({
             setError("");
             setJustUnlocked(false);
           }}
+          onKeyDown={handleKeyDown}
           className="w-full p-2 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400
                      focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
                      dark:bg-gray-900 dark:text-gray-100 dark:border-white/10 dark:placeholder-gray-500 dark:focus-visible:ring-offset-gray-800 disabled:opacity-60"
           placeholder="Password"
-          disabled={isLocked}
+          disabled={isLocked || isAuthenticating}
+          autoFocus
         />
 
         {error && (
@@ -145,16 +157,17 @@ const AuthenticationModal: React.FC<AuthenticationModalProps> = ({
                        bg-blue-600 hover:bg-blue-700
                        focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
                        dark:bg-blue-500 dark:hover:bg-blue-400 dark:focus-visible:ring-offset-gray-800 disabled:opacity-50"
-            disabled={isLocked}
+            disabled={isLocked || isAuthenticating}
           >
-            Submit
+            {isAuthenticating ? "Verifying..." : "Submit"}
           </button>
           <button
             onClick={onClose}
             className="w-full px-4 py-2 rounded-md cursor-pointer transition
                        border border-gray-300 text-gray-800 hover:bg-gray-100
                        focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white
-                       dark:border-white/10 dark:text-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 dark:focus-visible:ring-offset-gray-800"
+                       dark:border-white/10 dark:text-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 dark:focus-visible:ring-offset-gray-800 disabled:opacity-50"
+            disabled={isAuthenticating}
           >
             Cancel
           </button>

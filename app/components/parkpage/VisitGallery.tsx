@@ -130,8 +130,8 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
   const [direction, setDirection] = useState<"left" | "right" | null>(null);
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [savingDesc, setSavingDesc] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const mouseDownTarget = useRef<EventTarget | null>(null);
-
   const selected = selectedIndex !== null ? images[selectedIndex] : null;
 
   useEffect(() => {
@@ -180,6 +180,37 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
       alert("An error occurred while saving.");
     } finally {
       setSavingDesc(false);
+    }
+  };
+
+  const handleDeleteImage = async () => {
+    if (!selected) return;
+
+    if (!window.confirm("Are you sure you want to permanently delete this image?")) return;
+
+    setIsDeleting(true);
+    try {
+      const r2Res = await fetch("/api/upload", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: selected.path }),
+      });
+
+      if (!r2Res.ok) console.error("Failed to delete from R2, proceeding to DB deletion anyway.");
+
+      const dbRes = await fetch(`/api/image/${selected.id}`, {
+        method: "DELETE",
+      });
+
+      if (!dbRes.ok) throw new Error("Failed to delete image from database.");
+
+      setSelectedIndex(null);
+      refreshImages();
+    } catch (error) {
+      console.error(error);
+      alert("An error occurred while deleting the image.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -238,8 +269,14 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
         else setSelectedIndex(null);
       }
 
-      if (e.key === "ArrowLeft" && selectedIndex !== null && selectedIndex > 0) goPrev();
-      if (e.key === "ArrowRight" && selectedIndex !== null && selectedIndex < images.length - 1) goNext();
+      if (e.key === "ArrowLeft" && selectedIndex !== null && selectedIndex > 0) {
+        e.preventDefault();
+        goPrev();
+      }
+      if (e.key === "ArrowRight" && selectedIndex !== null && selectedIndex < images.length - 1) {
+        e.preventDefault();
+        goNext();
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -388,6 +425,19 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
                 )}
               </div>
               <div className="pointer-events-auto flex items-center gap-3">
+                {/* --- DELETE BUTTON --- */}
+                {isAdminMode && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteImage(); }}
+                    disabled={isDeleting}
+                    className="text-red-500/70 hover:text-red-500 transition cursor-pointer disabled:opacity-50"
+                    title="Delete Image"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
                 <a
                   href={`/api/download?url=${encodeURIComponent(selected.path)}`}
                   download

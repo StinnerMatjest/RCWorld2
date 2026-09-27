@@ -49,8 +49,7 @@ const Navbar: React.FC = () => {
     `transition-colors ${isActive(href) ? "text-brand font-semibold" : "hover:text-brand"}`;
   const mobileItemCls = "flex items-center px-4 py-2.5 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors";
   const mobileLinkCls = (href: string) =>
-    `flex items-center px-4 py-2.5 text-sm font-medium transition-colors ${
-      isActive(href) ? "text-brand bg-slate-800/60" : "text-slate-300 hover:text-white hover:bg-slate-800"
+    `flex items-center px-4 py-2.5 text-sm font-medium transition-colors ${isActive(href) ? "text-brand bg-slate-800/60" : "text-slate-300 hover:text-white hover:bg-slate-800"
     }`;
 
   return (
@@ -64,6 +63,7 @@ const Navbar: React.FC = () => {
           <Link href="/about" className={linkCls("/about")}>About</Link>
           <Link href="/info" className={linkCls("/info")}>Ratings</Link>
           <Link href="/parks" className={linkCls("/parks")}>Parks</Link>
+          <Link href="/lists" className={linkCls("/lists")}>Lists</Link>
           <Link href="/coasterLibrary" className={linkCls("/coasterLibrary")}>Coasters</Link>
           <Link href="/manufacturers" className={linkCls("/manufacturers")}>Manufacturers</Link>
           <Link href="/games" className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-fuchsia-600">Games</Link>
@@ -115,6 +115,7 @@ const Navbar: React.FC = () => {
               { href: "/about", label: "About" },
               { href: "/info", label: "Ratings" },
               { href: "/parks", label: "Parks" },
+              { href: "/lists", label: "Lists" },
               { href: "/coasterLibrary", label: "Coasters" },
               { href: "/manufacturers", label: "Manufacturers" },
             ].map(({ href, label }) => (
