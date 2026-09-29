@@ -106,6 +106,19 @@ async function getCoasters(numericId: number): Promise<any[] | null> {
   }
 }
 
+// Photos of the active visit; seeded so the gallery is in the first paint and
+// the client doesn't refetch it.
+async function getVisitGallery(ratingId: number): Promise<any[] | undefined> {
+  try {
+    const res = await fetch(`${BASE}api/visits/${ratingId}/gallery`, { cache: "force-cache", next: { tags: ["content"] } });
+    if (!res.ok) return undefined;
+    const data = await res.json();
+    return Array.isArray(data.gallery) ? data.gallery : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function getParkTexts(numericId: number, ratingId: number) {
   const empty = { explanations: {}, sectionImages: {}, sectionLayouts: {}, sectionSpoilers: {} };
   try {
@@ -192,9 +205,9 @@ export default async function Page({ params, searchParams }: PageProps) {
   const requestedId = visit ? Number(visit) : NaN;
   const activeRatingId =
     ratings.find((r: any) => r.id === requestedId)?.id ?? ratings[0]?.id ?? null;
-  const texts = activeRatingId
-    ? await getParkTexts(data.id, activeRatingId)
-    : { explanations: {}, sectionImages: {}, sectionLayouts: {}, sectionSpoilers: {} };
+  const [texts, galleryImages] = activeRatingId
+    ? await Promise.all([getParkTexts(data.id, activeRatingId), getVisitGallery(activeRatingId)])
+    : [{ explanations: {}, sectionImages: {}, sectionLayouts: {}, sectionSpoilers: {} }, [] as any[]];
 
   const jsonLd = scores ? {
     "@context": "https://schema.org",
@@ -263,8 +276,11 @@ export default async function Page({ params, searchParams }: PageProps) {
         />
       )}
       <ParkPageClient
+        key={data.id}
         initialId={id}
         initialPark={data}
+        initialVisitId={activeRatingId}
+        initialGalleryImages={galleryImages}
         initialRatings={ratings}
         initialCoasters={coasters ?? undefined}
         initialExplanations={texts.explanations}

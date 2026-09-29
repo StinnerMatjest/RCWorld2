@@ -26,6 +26,10 @@ type ParkPageClientProps = {
   initialSectionImages?: Record<string, string>;
   initialSectionLayouts?: Record<string, string>;
   initialSectionSpoilers?: Record<string, boolean>;
+  /** The visit the server rendered texts and gallery for. */
+  initialVisitId?: number | null;
+  /** undefined = server fetch failed, fetch client-side; [] = no photos. */
+  initialGalleryImages?: VisitGalleryImage[];
 };
 
 const ParkPage: React.FC<ParkPageClientProps> = ({
@@ -37,6 +41,8 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
   initialSectionImages = {},
   initialSectionLayouts = {},
   initialSectionSpoilers = {},
+  initialVisitId = null,
+  initialGalleryImages,
 }) => {
   const params = useParams();
   const parkSlug = String(params?.id ?? initialId);
@@ -49,15 +55,20 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
   const [park, setPark] = useState<Park | null>(initialPark);
   const [coasters, setCoasters] = useState<RollerCoaster[]>(initialCoasters ?? []);
   const [ratings, setRatings] = useState<Visit[]>(initialRatings);
-  const [galleryImages, setGalleryImages] = useState<VisitGalleryImage[]>([]);
+  const [galleryImages, setGalleryImages] = useState<VisitGalleryImage[]>(initialGalleryImages ?? []);
   const galleryCaptions = useMemo(() => mediaCaptions(galleryImages), [galleryImages]);
   // Seeded from the server, so the list renders immediately instead of a skeleton.
   // undefined seed = server fetch failed → show the skeleton until our fetch lands;
   // [] seed = park genuinely has no coasters → render the real empty state.
   const [loadingCoasters, setLoadingCoasters] = useState(initialCoasters === undefined);
-  // Gallery isn't seeded server-side, so it fetches client-side; this drives the
-  // "Loading images…" placeholder instead of a misleading "no images" message.
-  const [loadingGallery, setLoadingGallery] = useState(true);
+  // Gallery is seeded server-side when the fetch succeeded; otherwise it loads
+  // client-side and this drives the "Loading images…" placeholder.
+  const [loadingGallery, setLoadingGallery] = useState(initialGalleryImages === undefined);
+  // First run of the visit-data effect is skipped for the visit the server
+  // already rendered; switching visits (or a failed seed) still fetches.
+  const seededVisitRef = useRef<number | null>(
+    initialGalleryImages !== undefined && initialVisitId != null ? initialVisitId : null
+  );
   const [showModal, setShowModal] = useState(false);
   const [editingCoaster, setEditingCoaster] = useState<RollerCoaster>();
   const [explanations, setExplanations] = useState<Record<string, string>>(initialExplanations);
@@ -151,6 +162,9 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
 
   useEffect(() => {
     if (!parkSlug || parkSlug === "undefined" || parkSlug === "null") return;
+    // Server already sent park, ratings and coasters (the page is keyed by park
+    // id, so a different park means a fresh mount). Only fetch when a seed is missing.
+    if (initialPark && initialCoasters !== undefined) return;
 
     (async () => {
       try {
@@ -209,7 +223,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
         setLoadingCoasters(false);
       }
     })();
-  }, [parkSlug]);
+  }, [parkSlug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const visibleRatings = ratings.filter((r) => isAdminMode || r.published);
   const selectedRating = visibleRatings.find((r) => r.id.toString() === visitId);
@@ -221,6 +235,14 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
       setLoadingGallery(false);
       return;
     }
+
+    if (seededVisitRef.current !== null && seededVisitRef.current === activeRatingId) {
+      // Texts and gallery for this visit came with the page.
+      seededVisitRef.current = null;
+      setLoadingGallery(false);
+      return;
+    }
+    seededVisitRef.current = null;
 
     const fetchVisitData = async () => {
       setLoadingGallery(true);
