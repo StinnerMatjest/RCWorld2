@@ -35,7 +35,7 @@ export const CARD_CUT = {
    * file. The browser picks via srcset from its own device pixel ratio, so a
    * dense phone still gets the full cut and nothing is ever enlarged.
    */
-  copyWidths: [640, 1000],
+  copyWidths: [640, 800, 1000],
   copyQuality: 90,
 } as const;
 
