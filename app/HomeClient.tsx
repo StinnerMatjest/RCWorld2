@@ -10,7 +10,7 @@ import RatingModal from "./components/RatingModal";
 import { useRouter } from "next/navigation";
 import { useSearch } from "./context/SearchContext";
 import { useAdminMode } from "@/app/context/AdminModeContext";
-import { isR2Image, variantKey, coverVariantUrl, sharperSource, exactCoverSrc, COVER_UPSCALE_TOLERANCE } from "@/app/lib/imageVariants";
+import { isR2Image, variantKey, coverVariantUrl, sharperSource, exactCoverSrc, COVER_UPSCALE_TOLERANCE, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
 import type { ImageSize, CardCut } from "@/app/types";
 import { cutSrcSet, cutSizes, CARD_FRAME_HEIGHT } from "@/app/lib/cardCutGeometry";
 
@@ -42,17 +42,51 @@ function resolveEntry(src: string, focus: string, size: ImageSize | undefined, c
   if (cut) return { src: cut.url, focus: cut.focus, size: { w: cut.w, h: cut.h }, direct: true, cut };
   return { src, focus, size };
 }
-// Point an <img> at an entry: cuts carry srcset/sizes so the browser picks the
-// copy that matches its density; anything else is a single src.
+// Widest card frame per breakpoint (measured: phones 250-307 CSS px, tablets
+// up to 384 = max-w-sm, desktop grid up to 400). Upper bounds on purpose: a
+// hint that is a little too wide costs a few KB, one that is too narrow costs
+// sharpness.
+const FRAME_W_MOBILE = "min(78vw, 384px)";
+const FRAME_W_DESKTOP = "400px";
+
+// srcset/sizes for a card entry: a cut offers its copies; any other R2 photo
+// of known size offers the stored widths plus the original. The size hint is
+// the photo's drawn width in the 500px-tall frame: max(frame width,
+// 500px x aspect), times the crop zoom. The browser then picks the smallest
+// file whose pixels cover that on its own screen; nothing is enlarged.
+function entrySources(entry: CardEntry): { srcSet: string; sizes: string } | undefined {
+  if (entry.cut) return { srcSet: cutSrcSet(entry.cut), sizes: cutSizes(entry.cut) };
+  if (!entry.size || !isR2Image(entry.src)) return undefined;
+  const { w, h } = entry.size;
+  const zoom = parseFocusStr(entry.focus).zoom;
+  const parts = VARIANT_WIDTHS.filter((v) => v < w).map((v) => `${variantKey(entry.src, v)} ${v}w`);
+  parts.push(`${entry.src} ${w}w`);
+  const byHeight = (CARD_FRAME_HEIGHT * w / h * zoom).toFixed(1) + "px";
+  const z = zoom.toFixed(4);
+  return {
+    srcSet: parts.join(", "),
+    sizes: `(min-width: 768px) max(calc(${FRAME_W_DESKTOP} * ${z}), ${byHeight}), max(calc(${FRAME_W_MOBILE} * ${z}), ${byHeight})`,
+  };
+}
+// Fallback src for browsers without srcset support: a mid size, never the original.
+function fallbackSrc(entry: CardEntry): string {
+  if (entry.cut) return entry.cut.url;
+  return isR2Image(entry.src) ? variantKey(entry.src, 1200) : entry.src;
+}
+
+// Point an <img> at an entry: srcset/sizes when the photo's size is known
+// (the browser picks by density), otherwise a single src.
 function applyEntryToImg(img: HTMLImageElement, entry: CardEntry, src: string) {
-  if (entry.cut) {
-    img.sizes = cutSizes(entry.cut);
-    img.srcset = cutSrcSet(entry.cut);
+  const s = entrySources(entry);
+  if (s) {
+    img.sizes = s.sizes;
+    img.srcset = s.srcSet;
+    img.src = fallbackSrc(entry);
   } else {
     img.removeAttribute("srcset");
     img.removeAttribute("sizes");
+    img.src = src;
   }
-  img.src = src;
 }
 
 // What the server assumes about the screen when it has to choose the first
@@ -123,6 +157,13 @@ const PendingParkCard = ({ park }: { park: Park }) => (
 
 const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager = false, assumedScreen = "desktop", onImgReady }: { rating: Visit; park: Park; eager?: boolean; assumedScreen?: keyof typeof ASSUMED_SCREEN; onImgReady?: () => void }) {
   const [imgReady, setImgReady] = useState(false);
+  const teaser = resolveEntry(
+    park.cardImagepath || park.imagepath || "/images/error.PNG",
+    park.imageFocus || "0.5 0.5 1",
+    park.cardImagepath ? park.cardImageSize : park.imageSize,
+    park.cardCut,
+  );
+  const teaserSources = entrySources(teaser);
   return (
     <div className="mx-auto w-full max-w-[400px] py-3 md:py-4">
       <div className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
@@ -132,13 +173,13 @@ const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager 
           </div>
         )}
         <FocusedImage
-          src={park.cardCut ? park.cardCut.url : (park.cardImagepath || park.imagepath || "/images/error.PNG")}
-          srcSet={park.cardCut ? cutSrcSet(park.cardCut) : undefined}
-          sizes={park.cardCut ? cutSizes(park.cardCut) : undefined}
-          placement={park.cardCut ? ssrPlacement({ w: park.cardCut.w, h: park.cardCut.h }, park.cardCut.focus) : (park.cardImagepath ? park.cardImageSize : park.imageSize) ? ssrPlacement((park.cardImagepath ? park.cardImageSize : park.imageSize)!, park.imageFocus || "0.5 0.5 1") : undefined}
+          src={teaserSources ? fallbackSrc(teaser) : teaser.src}
+          srcSet={teaserSources?.srcSet}
+          sizes={teaserSources?.sizes}
+          placement={teaser.size ? ssrPlacement(teaser.size, teaser.focus) : undefined}
           alt={park.name}
-          focusStr={park.cardCut ? park.cardCut.focus : park.imageFocus}
-          size={park.cardCut ? undefined : (park.cardImagepath ? park.cardImageSize : park.imageSize)}
+          focusStr={teaser.focus}
+          size={teaserSources ? undefined : teaser.size}
           assumedScreen={ASSUMED_SCREEN[assumedScreen]}
           className="absolute inset-0"
           imgClassName="opacity-85"
@@ -299,7 +340,10 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     slotBRawSrcRef.current = cardSrc;
     // A photo of known size was positioned and shown by the server render; keep it on screen.
     const placed = a.dataset.placed === "1";
-    a.style.opacity = placed ? "0.95" : "0"; a.style.transition = "none";
+    const sources = entrySources(header);
+    // Eager, server-placed photo: already on screen. Deferred ones start hidden
+    // and fade in once they load.
+    a.style.opacity = placed && eager ? "0.95" : "0"; a.style.transition = "none";
     b.style.opacity = "0"; b.style.transition = "none";
     // The SSR src was chosen for a generous assumed screen and may already be
     // downloading (eager, or lazy but near the viewport). Keep it unless this
@@ -308,7 +352,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     const initialSrc = cardSize && a.src && atLeastAsLarge(a.src, exact) ? a.src : exact;
     // A cut already has srcset/sizes from the server render; leave the
     // browser's choice alone (re-setting src would not change it anyway).
-    if (!header.cut) a.src = initialSrc;
+    if (!sources && eager) a.src = initialSrc;
     // Slot B only gets a src when a cross-fade needs it; giving it the header
     // image here made every card (lazy or not) download immediately.
     // Server-placed cut: already visible, just refine the position with the
@@ -319,7 +363,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
       const scale = applyFocusToImg(a, cardFocusStr);
       if (upgradeIfSoft(a, cardSrc, scale, !!cardSize || cardDirect)) { a.onload = () => reveal(fade); return; }
       onImgReadyRef.current?.();
-      if (placed) {
+      if (placed && eager) {
         a.style.opacity = "0.95";
         setImgReady(true);
       } else if (fade) {
@@ -334,8 +378,26 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
         setImgReady(true);
       }
     };
-    if (a.complete && a.naturalWidth > 0) reveal(false);
-    else a.onload = () => reveal(true);
+    if (eager) {
+      if (a.complete && a.naturalWidth > 0) reveal(false);
+      else a.onload = () => reveal(true);
+      return;
+    }
+    // Deferred card: no image address in the HTML at all. Give it one when it
+    // comes within a screen of view, so it never competes with the first
+    // cards for bandwidth (Chrome's own lazy threshold is ~2 screens, which on
+    // the phone strip meant six more photos before the first had finished).
+    const c = imageContainerRef.current;
+    if (!c) return;
+    const io = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      io.disconnect();
+      a.onload = () => reveal(true);
+      applyEntryToImg(a, header, initialSrc);
+      if (a.complete && a.naturalWidth > 0) reveal(false);
+    }, { rootMargin: "100% 100%" });
+    io.observe(c);
+    return () => io.disconnect();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isHoveringRef = useRef(false);
@@ -575,15 +637,16 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             ref={slotARef}
-            src={cardSrcFor(cardSrc, cardSize, null, eager, cardFocusStr, assumedScreen, cardDirect)}
-            srcSet={header.cut ? cutSrcSet(header.cut) : undefined}
-            sizes={header.cut ? cutSizes(header.cut) : undefined}
+            src={eager ? (entrySources(header) ? fallbackSrc(header) : cardSrcFor(cardSrc, cardSize, null, eager, cardFocusStr, assumedScreen, cardDirect)) : undefined}
+            srcSet={eager ? entrySources(header)?.srcSet : undefined}
+            sizes={eager ? entrySources(header)?.sizes : undefined}
             alt=""
             loading={eager ? "eager" : "lazy"}
-            // The first card is the page's largest paint: ask the browser to fetch it ahead of scripts and styles.
-            {...(first ? { fetchpriority: "high" } : {})}
+            // The first card is the page's largest paint: fetch it ahead of everything
+            // else; the other eager cards must not compete with it for the line.
+            {...(first ? { fetchpriority: "high" } : eager ? { fetchpriority: "low" } : {})}
             className="absolute max-w-none select-none"
-            style={header.size ? { ...ssrPlacement(header.size, header.focus), opacity: 0.95 } : { opacity: 0 }}
+            style={header.size ? { ...ssrPlacement(header.size, header.focus), opacity: eager ? 0.95 : 0 } : { opacity: 0 }}
             data-placed={header.size ? "1" : undefined}
             draggable={false}
           />
