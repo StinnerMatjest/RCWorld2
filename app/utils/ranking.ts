@@ -35,6 +35,38 @@ export const sortCoastersByRank = (coasters: (RollerCoaster | ApiCoaster)[]) => 
     });
 };
 
+export type RankStat = { rank: number | null; total: number };
+export type CoasterRankStats = { park: RankStat; manuf: RankStat; overall: RankStat };
+
+// The three rank badges on a coaster page (in its park, by its manufacturer,
+// overall). Order: rating, then ride count, then most recently ridden. Runs on
+// the server for the page's first paint so the browser never has to download
+// the whole catalogue to show one number.
+export const computeCoasterRanks = (all: (RollerCoaster | ApiCoaster)[], coaster: RollerCoaster | ApiCoaster): CoasterRankStats => {
+  const processList = (list: (RollerCoaster | ApiCoaster)[]): RankStat => {
+    const sorted = [...list]
+      .filter((c) => getRating(c) > 0)
+      .sort((a: any, b: any) => {
+        const ratingDiff = getRating(b) - getRating(a);
+        if (ratingDiff !== 0) return ratingDiff;
+        const countA = getRideCount(a);
+        const countB = getRideCount(b);
+        if (countB !== countA) return countB - countA;
+        const dateA = a.lastVisitDate ? new Date(a.lastVisitDate).getTime() : 0;
+        const dateB = b.lastVisitDate ? new Date(b.lastVisitDate).getTime() : 0;
+        return dateB - dateA;
+      });
+    const idx = sorted.findIndex((c) => String(c.id) === String(coaster.id));
+    return { total: sorted.length, rank: idx !== -1 ? idx + 1 : null };
+  };
+  const manuf = (c: any) => c.manufacturerName || "Unknown";
+  return {
+    park: processList(all.filter((c) => String(c.parkId) === String(coaster.parkId))),
+    manuf: processList(all.filter((c) => manuf(c) === manuf(coaster))),
+    overall: processList(all),
+  };
+};
+
 export const getCoasterRankInList = (list: (RollerCoaster | ApiCoaster)[], targetId: string | number) => {
   const sorted = sortCoastersByRank(list);
   const index = sorted.findIndex((c) => String(c.id) === String(targetId));

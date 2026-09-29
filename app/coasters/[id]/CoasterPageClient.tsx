@@ -15,6 +15,7 @@ import CoasterText, { CoasterTextEntry } from "@/app/components/coasterpage/Coas
 import CoasterHeaderModal from "@/app/components/coasterpage/CoasterHeaderModal";
 import Image from "next/image";
 import { useAdminMode } from "@/app/context/AdminModeContext";
+import type { CoasterRankStats } from "@/app/utils/ranking";
 import { ArrowLeft } from "lucide-react";
 
 // --- Skeleton Loader ---
@@ -50,6 +51,8 @@ type CoasterPageClientProps = {
   initialParkName?: string | null;
   initialParkSlug?: string | null;
   initialParkId?: number | null;
+  initialRanks?: CoasterRankStats | null;
+  initialHeaderImage?: string | null;
 };
 
 const CoasterPage: React.FC<CoasterPageClientProps> = ({
@@ -59,6 +62,8 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
   initialParkName = null,
   initialParkSlug = null,
   initialParkId = null,
+  initialRanks = null,
+  initialHeaderImage = null,
 }) => {
   const params = useParams();
   const coasterId = String(params?.id ?? initialId);
@@ -67,7 +72,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
   // Rankings need the full catalog; it's fetched client-side only (too heavy to
   // serialize into every coaster page's HTML).
   const [allCoasters, setAllCoasters] = useState<RollerCoaster[]>([]);
-  const [headerImage, setHeaderImage] = useState<string | null>(null);
+  const [headerImage, setHeaderImage] = useState<string | null>(initialHeaderImage);
   const [parkName, setParkName] = useState<string | null>(initialParkName);
   const [parkSlug, setParkSlug] = useState<string | null>(initialParkSlug);
   const [parkId, setParkId] = useState<number | null>(initialParkId);
@@ -93,6 +98,10 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
 
   useEffect(() => {
     if (!coasterId || coasterId === "undefined" || coasterId === "null") return;
+    // The server already sent the coaster, its text, park, ranks and header
+    // image (the page is keyed by id, so a new coaster means a fresh mount).
+    // Only fetch when that seed is missing.
+    if (initialCoaster) return;
 
     (async () => {
       try {
@@ -148,7 +157,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
         setPageLoading(false);
       }
     })();
-  }, [coasterId]);
+  }, [coasterId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refreshText = async () => {
     if (!coasterId) return;
@@ -171,6 +180,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
 
       if (updatedCoaster) {
         setCoaster(updatedCoaster);
+        setAllCoasters(data.coasters || []); // so the rank badges recompute after an edit
       }
     } catch (err) {
       console.error("Failed to refresh coaster:", err);
@@ -251,6 +261,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
             <CoasterRanking
               coaster={coaster}
               allCoasters={allCoasters}
+              stats={initialRanks}
               parkName={parkName}
             />
 

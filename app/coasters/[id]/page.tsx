@@ -1,6 +1,7 @@
 import { permanentRedirect, notFound } from "next/navigation";
 import CoasterPageClient from "./CoasterPageClient";
 import { LEGACY_COASTER_SLUGS } from "@/app/lib/slug";
+import { computeCoasterRanks } from "@/app/utils/ranking";
 
 type PageProps = {
   params: Promise<{
@@ -25,6 +26,30 @@ async function getCoasterTexts(id: string): Promise<any[]> {
     return texts ?? [];
   } catch {
     return [];
+  }
+}
+
+// Rank badges need the whole catalogue; fetching it here (one cached request)
+// keeps ~100 KB of JSON out of every visitor's browser.
+async function getAllCoasters(): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE}api/coasters`, { cache: "force-cache", next: { tags: ["content"] } });
+    if (!res.ok) return [];
+    const { coasters } = await res.json();
+    return Array.isArray(coasters) ? coasters : [];
+  } catch {
+    return [];
+  }
+}
+
+async function getHeaderImage(id: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${BASE}api/coasters/${id}/gallery`, { cache: "force-cache", next: { tags: ["content"] } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.headerImage ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -99,6 +124,8 @@ export default async function Page({ params }: PageProps) {
   const initParkSlug = coaster.parkSlug || null;
   const initParkId = coaster.parkId || null;
   const initTexts = [...coasterTexts].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+  const [allCoasters, initialHeaderImage] = await Promise.all([getAllCoasters(), getHeaderImage(String(coaster.id))]);
+  const initialRanks = allCoasters.length ? computeCoasterRanks(allCoasters, coaster) : null;
 
   const parkName =
     coaster.parkName ||
@@ -164,9 +191,12 @@ export default async function Page({ params }: PageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
       />
       <CoasterPageClient
+        key={id}
         initialId={id}
         initialCoaster={coaster}
         initialCoasterText={initTexts}
+        initialRanks={initialRanks}
+        initialHeaderImage={initialHeaderImage}
         initialParkName={initParkName}
         initialParkSlug={initParkSlug}
         initialParkId={initParkId}

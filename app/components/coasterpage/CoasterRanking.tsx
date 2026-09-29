@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import type { RollerCoaster } from "@/app/types";
+import { computeCoasterRanks, type CoasterRankStats } from "@/app/utils/ranking";
 
 type RankingCoaster = RollerCoaster & {
   lastVisitDate?: string | null;
@@ -70,10 +71,12 @@ export const SkeletonStatBlock = () => (
 interface CoasterRankingProps {
   coaster: RollerCoaster;
   allCoasters: RollerCoaster[];
+  /** Ranks computed on the server; used until the client has a catalogue of its own. */
+  stats?: CoasterRankStats | null;
   parkName: string | null;
 }
 
-const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, parkName: propParkName }) => {
+const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, stats: propStats, parkName: propParkName }) => {
   const [showContent, setShowContent] = useState(false);
   const resolvedParkName = useMemo(() => {
     if (propParkName && propParkName !== "Unknown Park") return propParkName;
@@ -82,41 +85,11 @@ const CoasterRanking: React.FC<CoasterRankingProps> = ({ coaster, allCoasters, p
   }, [propParkName, allCoasters, coaster.parkId]);
 
   const stats = useMemo(() => {
-    if (!coaster || !allCoasters.length) return null;
-
-    const processList = (list: RollerCoaster[]) => {
-      const sorted = [...list]
-        .filter((c) => (Number(c.rating) || 0) > 0)
-        .sort((a, b) => {
-          // Primary Sort: Rating
-          const ratingDiff = (Number(b.rating) || 0) - (Number(a.rating) || 0);
-          if (ratingDiff !== 0) return ratingDiff;
-
-          // Tiebreaker 1: Ride Count
-          const countA = a.ridecount ?? (a as any).rideCount ?? 0;
-          const countB = b.ridecount ?? (b as any).rideCount ?? 0;
-          if (countB !== countA) return countB - countA;
-
-          // Tiebreaker 2: Last Ridden Date
-          const dateA = (a as any).lastVisitDate ? new Date((a as any).lastVisitDate).getTime() : 0;
-          const dateB = (b as any).lastVisitDate ? new Date((b as any).lastVisitDate).getTime() : 0;
-          return dateB - dateA;
-        });
-
-      const rankIndex = sorted.findIndex((c) => String(c.id) === String(coaster.id));
-
-      return {
-        total: sorted.length,
-        rank: rankIndex !== -1 ? rankIndex + 1 : null,
-      };
-    };
-
-    return {
-      park: processList(allCoasters.filter((c) => String(c.parkId) === String(coaster.parkId))),
-      manuf: processList(allCoasters.filter((c) => c.manufacturerName === (coaster.manufacturerName || "Unknown"))),
-      overall: processList(allCoasters),
-    };
-  }, [coaster, allCoasters]);
+    if (!coaster) return null;
+    // A client-side catalogue (admin refresh) wins over the server's numbers.
+    if (allCoasters.length) return computeCoasterRanks(allCoasters, coaster);
+    return propStats ?? null;
+  }, [coaster, allCoasters, propStats]);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowContent(true), 100);
