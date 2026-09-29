@@ -235,8 +235,22 @@ export default async function Page({ params, searchParams }: PageProps) {
     } : {}),
   } : null;
 
+  const breadcrumbs = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://parkrating.com" },
+      { "@type": "ListItem", position: 2, name: "Parks", item: "https://parkrating.com/parks" },
+      { "@type": "ListItem", position: 3, name: data.name, item: `https://parkrating.com/park/${data.slug}` },
+    ],
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
+      />
       {jsonLd && (
         <script
           type="application/ld+json"

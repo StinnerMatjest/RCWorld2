@@ -1,4 +1,5 @@
 import { revalidateTag } from "next/cache";
+import { pingIndexNow } from "./indexnow";
 
 // All public server fetches are tagged "content" (home, parks, coasters,
 // manufacturers, park/coaster detail pages, sitemap). Any admin mutation
@@ -7,6 +8,7 @@ import { revalidateTag } from "next/cache";
 export function revalidateContent() {
   try {
     revalidateTag("content");
+    pingIndexNow();
   } catch (err) {
     console.error("revalidateContent failed:", err);
   }

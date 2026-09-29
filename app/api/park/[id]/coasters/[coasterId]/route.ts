@@ -1,3 +1,4 @@
+import { slugify } from "@/app/lib/slug";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { pool } from "@/app/lib/db";
@@ -92,7 +93,7 @@ export async function PUT(
       ? Number.isNaN(Number(rideCount)) ? 0 : Number(rideCount)
       : 0;
 
-    let generatedSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    let generatedSlug = slugify(name);
 
     // Check if the slug exists on a another coaster
     const slugCheck = await pool.query("SELECT id FROM rollercoasters WHERE slug = $1 AND id != $2", [generatedSlug, coasterId]);

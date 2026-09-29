@@ -43,7 +43,7 @@ export default async function Page() {
       "position": i + 1,
       "name": c.name,
       "url": `https://parkrating.com/coasters/${c.slug}`,
-      "description": `${c.name} at ${c.parkName} — Rated ${Number(c.rating).toFixed(1)}/10 by ParkRating. Manufacturer: ${c.manufacturer}. Ridden ${c.rideCount ?? 1} time${(c.rideCount ?? 1) !== 1 ? "s" : ""}.`,
+      "description": `${c.name} at ${c.parkName} — Rated ${Number(c.rating).toFixed(1)}/10 by ParkRating. Manufacturer: ${c.manufacturerName ?? "Unknown"}. Ridden ${c.rideCount ?? 1} time${(c.rideCount ?? 1) !== 1 ? "s" : ""}.`,
     })),
   };
 

@@ -1,5 +1,6 @@
 import { permanentRedirect, notFound } from "next/navigation";
 import CoasterPageClient from "./CoasterPageClient";
+import { LEGACY_COASTER_SLUGS } from "@/app/lib/slug";
 
 type PageProps = {
   params: Promise<{
@@ -80,6 +81,11 @@ export default async function Page({ params }: PageProps) {
   const [coaster, coasterTexts] = await Promise.all([getCoaster(id), getCoasterTexts(id)]);
 
   if (!coaster) {
+    // Slugs renamed in the 2026-09 ASCII normalisation: keep old links alive.
+    let decoded = id;
+    try { decoded = decodeURIComponent(id); } catch {}
+    const target = LEGACY_COASTER_SLUGS[id] ?? LEGACY_COASTER_SLUGS[decoded];
+    if (target) permanentRedirect(`/coasters/${target}`);
     notFound();
   }
 
@@ -104,9 +110,11 @@ export default async function Page({ params }: PageProps) {
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Review",
+    url: `https://parkrating.com/coasters/${coaster.slug}`,
     itemReviewed: {
-      "@type": "Attraction",
+      "@type": "TouristAttraction",
       name: coaster.name,
+      url: `https://parkrating.com/coasters/${coaster.slug}`,
       containedInPlace: {
         "@type": "Place",
         name: parkName,
@@ -115,7 +123,7 @@ export default async function Page({ params }: PageProps) {
     reviewRating: !isNaN(ratingNumber)
       ? {
           "@type": "Rating",
-    ratingValue: Math.min(ratingNumber, 10),
+          ratingValue: ratingNumber,
         bestRating: 11,
         worstRating: 0,
         }
@@ -132,6 +140,17 @@ export default async function Page({ params }: PageProps) {
     } : {}),
   };
 
+  const breadcrumbs = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://parkrating.com" },
+      { "@type": "ListItem", position: 2, name: "Coasters", item: "https://parkrating.com/coasterLibrary" },
+      ...(coaster.parkSlug ? [{ "@type": "ListItem", position: 3, name: parkName, item: `https://parkrating.com/park/${coaster.parkSlug}` }] : []),
+      { "@type": "ListItem", position: coaster.parkSlug ? 4 : 3, name: coaster.name, item: `https://parkrating.com/coasters/${coaster.slug}` },
+    ],
+  };
+
   return (
     <>
       <script
@@ -139,6 +158,10 @@ export default async function Page({ params }: PageProps) {
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(structuredData),
         }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
       />
       <CoasterPageClient
         initialId={id}

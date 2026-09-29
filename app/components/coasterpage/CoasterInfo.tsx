@@ -23,7 +23,7 @@ const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) =>
 );
 
 const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster, onUpdate }) => {
-  const [parkName, setParkName] = useState<string | null>(null);
+  const [parkName, setParkName] = useState<string | null>(coaster.parkName ?? null);
   const { isAdminMode } = useAdminMode();
   const [showModal, setShowModal] = useState(false);
 

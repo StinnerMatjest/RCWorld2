@@ -10,6 +10,12 @@ import Script from "next/script";
 
 export const metadata = {
   metadataBase: new URL("https://parkrating.com"),
+  // Set GOOGLE_SITE_VERIFICATION / BING_SITE_VERIFICATION in Railway to claim the
+  // site in Search Console / Bing Webmaster Tools without a code change.
+  verification: {
+    ...(process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : {}),
+    ...(process.env.BING_SITE_VERIFICATION ? { other: { "msvalidate.01": process.env.BING_SITE_VERIFICATION } } : {}),
+  },
   title: "ParkRating – ThemePark Reviews",
   description:
     "Explore theme park reviews and coaster rankings from dedicated enthusiasts 🎢 Discover top rides and plan your next visit with ParkRating.",

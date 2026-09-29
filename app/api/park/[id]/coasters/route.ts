@@ -1,3 +1,4 @@
+import { slugify } from "@/app/lib/slug";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { pool } from "@/app/lib/db";
@@ -121,10 +122,11 @@ export async function POST(
         const rideCountInitial = haveridden ? (Number.isNaN(Number(rideCount)) ? 0 : Number(rideCount)) : 0;
 
         // 5. Generate unique slug
-        let generatedSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+        let generatedSlug = slug ? slugify(slug) : slugify(name);
         const slugCheck = await pool.query("SELECT id FROM rollercoasters WHERE slug = $1", [generatedSlug]);
         if (slugCheck.rowCount && slugCheck.rowCount > 0) {
-            generatedSlug = `${generatedSlug}-${parkId}-${Math.floor(Math.random() * 1000)}`;
+            const parkRes = await pool.query("SELECT slug FROM parks WHERE id = $1", [parkId]);
+            generatedSlug = `${generatedSlug}-${parkRes.rows[0]?.slug || parkId}`;
         }
 
         // 6. Insert into database

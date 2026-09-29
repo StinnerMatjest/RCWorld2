@@ -1,3 +1,4 @@
+import { slugify } from "@/app/lib/slug";
 import { pool } from "@/app/lib/db";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { logChange } from "@/app/lib/changelog";
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
     const { name, continent, country, city, imagepath, slug } = body;
 
     // Autogenerate a URL-friendly slug if one isn't explicitly provided
-    const finalSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const finalSlug = slug ? slugify(slug) : slugify(name);
 
     if (!name || !continent || !country || !city || !imagepath || !finalSlug) {
       return NextResponse.json(
