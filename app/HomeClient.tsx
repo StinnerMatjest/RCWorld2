@@ -365,8 +365,13 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     // show instantly; loaded later (slow network, below-fold) -> fade in.
     const reveal = (fade: boolean) => {
       if (!a.naturalWidth) return;
-      const scale = applyFocusToImg(a, cardFocusStr);
-      if (upgradeIfSoft(a, cardSrc, scale, !!cardSize || cardDirect)) { a.onload = () => reveal(fade); return; }
+      // A server-placed photo keeps its CSS box: re-measuring it here produced
+      // a box a fraction of a pixel larger (the chosen srcset copy's proportions
+      // differ by a hair from the full cut), which the browser reports as a new,
+      // later "largest paint" at hydration time. The CSS placement is exact and
+      // responsive on its own; px values are only needed for cross-fades.
+      const scale = showFromStart ? 0 : applyFocusToImg(a, cardFocusStr);
+      if (!showFromStart && upgradeIfSoft(a, cardSrc, scale, !!cardSize || cardDirect)) { a.onload = () => reveal(fade); return; }
       onImgReadyRef.current?.();
       if (showFromStart) {
         a.style.opacity = "0.95";
@@ -539,7 +544,9 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     const c = imageContainerRef.current;
     if (!c) return;
     const ro = new ResizeObserver(() => {
-      if (slotARef.current) applyFocusToImg(slotARef.current, slotAFocusRef.current);
+      // Slot A keeps the server's CSS placement (which handles resizes by itself)
+      // until a cross-fade gives it px values.
+      if (slotARef.current && !slotARef.current.style.transform.startsWith("translate")) applyFocusToImg(slotARef.current, slotAFocusRef.current);
       if (slotBRef.current) applyFocusToImg(slotBRef.current, slotBFocusRef.current);
     });
     ro.observe(c);
