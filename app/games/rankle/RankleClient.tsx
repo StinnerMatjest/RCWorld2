@@ -61,6 +61,8 @@ export type ApiCoaster = {
   parkId: number;
   parkName: string;
   country: string | null;
+  /** Header photo from /api/coasters; null when the coaster has none. */
+  image?: string | null;
   specs: {
     height: number | null;
     speed: number | null;
@@ -458,21 +460,16 @@ export default function RankleClient() {
       .catch(() => setPhase("error"));
   }, []);
 
+  // The catalogue response already includes each coaster's header photo, so
+  // no per-coaster gallery request is needed (this used to be two requests per
+  // round and up to ~50 in the bonus round).
   const fetchImage = useCallback(async (c: ApiCoaster): Promise<string | null> => {
     if (c.id in imgCacheRef.current) return imgCacheRef.current[c.id];
-    try {
-      const r = await fetch(
-        `/api/coasters/${c.id}/gallery?parkId=${c.parkId}&name=${encodeURIComponent(c.name)}`
-      );
-      const raw = r.ok ? (await r.json()).headerImage ?? null : null;
-      // some coasters only have a video as their "header" (e.g. Desert Race) — no card for them
-      const img = raw && !/\.(mp4|webm|mov)(\?|$)/i.test(raw) ? raw : null;
-      imgCacheRef.current[c.id] = img;
-      return img;
-    } catch {
-      imgCacheRef.current[c.id] = null;
-      return null;
-    }
+    const raw = c.image ?? null;
+    // some coasters only have a video as their "header" (e.g. Desert Race) — no card for them
+    const img = raw && !/\.(mp4|webm|mov)(\?|$)/i.test(raw) ? raw : null;
+    imgCacheRef.current[c.id] = img;
+    return img;
   }, []);
 
   const pickPair = useCallback(

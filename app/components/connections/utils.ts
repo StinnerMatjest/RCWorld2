@@ -25,6 +25,8 @@ export type ConnectionsCoaster = {
   }
 }
 
+// Client-side loader (practice/test pages). The daily board itself is built by
+// /api/connections/daily on the server using the same mapping below.
 export async function fetchConnectionsData(): Promise<ConnectionsCoaster[]> {
   const [coasterRes, parkRes] = await Promise.all([
     fetch("/api/coasters"),
@@ -50,11 +52,13 @@ export async function fetchConnectionsData(): Promise<ConnectionsCoaster[]> {
     throw new Error("Unexpected park data format")
   }
 
-  const parksById = new Map<number, Park>(
-    (parkData.parks as Park[]).map((park) => [park.id, park])
-  )
+  return toConnectionsCoasters(coasterData.coasters as ApiCoaster[], parkData.parks as Park[])
+}
 
-  return (coasterData.coasters as ApiCoaster[]).map((coaster) => {
+export function toConnectionsCoasters(coasters: ApiCoaster[], parks: Park[]): ConnectionsCoaster[] {
+  const parksById = new Map<number, Park>(parks.map((park) => [park.id, park]))
+
+  return coasters.map((coaster) => {
     const park = parksById.get(coaster.parkId)
 
     return {

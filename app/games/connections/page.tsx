@@ -4,14 +4,12 @@ import { useEffect, useState } from "react";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import Link from "next/link";
-import { fetchConnectionsData } from "@/app/components/connections/utils";
-import { getUsableCategories } from "@/app/components/connections/categories";
-import { buildDailyPuzzleGroups } from "@/app/components/connections/generator";
 import { getTodayString } from "@/app/utils/coastle";
 import ConnectionsGame, {
   type Group,
   GROUP_COLOR_CLASS_MAP,
 } from "@/app/components/connections/ConnectionsGame";
+import type { CategoryDifficulty } from "@/app/components/connections/categories";
 
 function getTodaySeed() {
   const now = new Date();
@@ -38,30 +36,24 @@ export default function ConnectionsPage() {
 
     async function loadDailyPuzzle() {
       try {
-        const [allCoasters, disabledRes] = await Promise.all([
-          fetchConnectionsData(),
-          fetch("/api/connections/categories"),
-        ]);
-
+        // Built once per day on the server; the browser no longer downloads the
+        // catalogue or runs the generator.
+        const res = await fetch(`/api/connections/daily?date=${getTodaySeed()}&admin=${isAdminMode ? 1 : 0}`);
         if (!isActive) return;
+        if (!res.ok) throw new Error("Failed to load today's puzzle");
+        const board = await res.json();
 
-        const disabledData = await disabledRes.json();
-        const disabledCategories = new Set<string>(disabledData.disabledCategories || []);
-        const usableCategories = getUsableCategories(allCoasters, disabledCategories, true);
-        const result = buildDailyPuzzleGroups(usableCategories, getTodaySeed());
-        const dailyGroups = isAdminMode ? result.best : result.bestStandard;
-
-        if (dailyGroups.length !== 4) {
-          setError(usableCategories.length < 4 ? "NOT_ENOUGH_CATEGORIES" : "GENERATION_FAILED");
+        if (board.error) {
+          setError(board.error);
           return;
         }
 
-        setGroups(dailyGroups.map((group) => ({
-          id: group.categoryId,
+        setGroups((board.groups as { id: string; label: string; difficulty: CategoryDifficulty; coasters: string[] }[]).map((group) => ({
+          id: group.id,
           label: group.label,
           difficulty: group.difficulty,
           color: GROUP_COLOR_CLASS_MAP[group.difficulty],
-          coasters: group.coasters.map((c) => c.name),
+          coasters: group.coasters,
         })));
       } catch (err) {
         if (isActive) {

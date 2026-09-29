@@ -61,6 +61,23 @@ function pickForDate(date: string, entries: Entry[], excluded: Set<number>): Ent
   return selected;
 }
 
+// The chain walk below costs one full shuffle per day since the epoch, so it
+// is memoised per date (and per pool size, so new images invalidate it).
+const recentCache = new Map<string, Set<number>>();
+function recentAnswerIdsCached(date: string, entries: Entry[]): Set<number> {
+  const key = `${date}:${entries.length}`;
+  const hit = recentCache.get(key);
+  if (hit) return hit;
+  const ids = recentAnswerIds(date, entries);
+  if (recentCache.size > 12) recentCache.clear();
+  recentCache.set(key, ids);
+  return ids;
+}
+
+function isoDate(offsetDays = 0): string {
+  return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
+}
+
 // Walk the selection chain from the epoch up to yesterday, then return the
 // coaster ids picked in the most recent days.
 function recentAnswerIds(date: string, entries: Entry[]): Set<number> {
@@ -79,8 +96,13 @@ function recentAnswerIds(date: string, entries: Entry[]): Set<number> {
 }
 
 export async function GET(req: NextRequest) {
-  const date = new URL(req.url).searchParams.get("date") ??
-    new Date().toISOString().slice(0, 10);
+  // Players send their local date; anything outside yesterday..tomorrow (UTC)
+  // is refused so the chain can't be walked for arbitrary future days.
+  const requested = new URL(req.url).searchParams.get("date");
+  const date = requested && /^\d{4}-\d{2}-\d{2}$/.test(requested) ? requested : isoDate(0);
+  if (![isoDate(-1), isoDate(0), isoDate(1)].includes(date)) {
+    return NextResponse.json({ error: "Date out of range" }, { status: 400 });
+  }
 
   try {
 // Fetch all enabled pool images
@@ -148,7 +170,7 @@ export async function GET(req: NextRequest) {
 
     // Pick up to ROUNDS_PER_DAY (max 1 per coaster, max 1 per image),
     // avoiding coasters that were answers in the last EXCLUDE_RECENT_DAYS days
-    const selected = pickForDate(date, allEntries, recentAnswerIds(date, allEntries));
+    const selected = pickForDate(date, allEntries, recentAnswerIdsCached(date, allEntries));
 
     const coasterPool = coastersRes.rows;
 
