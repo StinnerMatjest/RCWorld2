@@ -15,7 +15,7 @@ export async function PATCH(
     const body = await request.json();
 
     const oldResult = await pool.query(
-      `SELECT r.*, p.name AS park_name FROM ratings r JOIN parks p ON p.id = r.park_id WHERE r.id = $1`,
+      `SELECT r.*, p.name AS park_name FROM visits r JOIN parks p ON p.id = r.park_id WHERE r.id = $1`,
       [ratingId]
     );
     const oldRow = oldResult.rows[0];
@@ -29,7 +29,7 @@ export async function PATCH(
       } = body;
 
       const query = `
-        UPDATE ratings SET 
+        UPDATE visits SET 
           date = $1, parkappearance = $2, parkpracticality = $3, bestcoaster = $4,
           coasterdepth = $5, waterrides = $6, flatridesanddarkrides = $7, food = $8,
           snacksanddrinks = $9, rideoperations = $10, parkmanagement = $11,
@@ -82,7 +82,7 @@ export async function PATCH(
 
     // SCENARIO B: Quick Publish Toggle
     else if (typeof body.published === "boolean") {
-      const query = `UPDATE ratings SET published = $1 WHERE id = $2 RETURNING id`;
+      const query = `UPDATE visits SET published = $1 WHERE id = $2 RETURNING id`;
       const result = await pool.query(query, [body.published, ratingId]);
 
       if (result.rowCount === 0) return NextResponse.json({ error: "Rating not found" }, { status: 404 });
@@ -124,7 +124,7 @@ export async function DELETE(
 
     // Fetch the rating and park details first so we can log the deletion accurately
     const oldResult = await pool.query(
-      `SELECT r.*, p.name AS park_name FROM ratings r JOIN parks p ON p.id = r.park_id WHERE r.id = $1`,
+      `SELECT r.*, p.name AS park_name FROM visits r JOIN parks p ON p.id = r.park_id WHERE r.id = $1`,
       [ratingId]
     );
     const oldRow = oldResult.rows[0];
@@ -133,7 +133,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Rating not found" }, { status: 404 });
     }
 
-    const deleteQuery = `DELETE FROM ratings WHERE id = $1 RETURNING id`;
+    const deleteQuery = `DELETE FROM visits WHERE id = $1 RETURNING id`;
     const result = await pool.query(deleteQuery, [ratingId]);
 
     if (result.rowCount === 0) {

@@ -11,7 +11,7 @@ export async function GET() {
         FROM parks p
         INNER JOIN (
           SELECT DISTINCT ON (park_id) park_id, overall
-          FROM ratings
+          FROM visits
           WHERE published = TRUE
           ORDER BY park_id, date DESC
         ) l ON l.park_id = p.id

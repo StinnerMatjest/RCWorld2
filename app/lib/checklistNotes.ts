@@ -32,7 +32,7 @@ export async function seedParkTextsFromChecklist(opts: {
     if (!checklist) return [];
 
     const existing = await pool.query<{ id: number; category: string; text: string | null }>(
-      `SELECT id, category, text FROM parktexts WHERE rating_id = $1 ORDER BY id`,
+      `SELECT id, category, text FROM parktexts WHERE visit_id = $1 ORDER BY id`,
       [ratingId]
     );
     const written = new Set(existing.rows.filter(r => (r.text ?? "").trim()).map(r => r.category));
@@ -50,7 +50,7 @@ export async function seedParkTextsFromChecklist(opts: {
         await pool.query(`UPDATE parktexts SET text = $1 WHERE id = $2`, [text, emptyId]);
       } else {
         await pool.query(
-          `INSERT INTO parktexts (rating_id, category, text) VALUES ($1, $2, $3)`,
+          `INSERT INTO parktexts (visit_id, category, text) VALUES ($1, $2, $3)`,
           [ratingId, category, text]
         );
       }

@@ -33,7 +33,7 @@ export async function POST(req: Request) {
       SELECT
         pt.category,
         pt.text       AS review_text,
-        pt.rating_id,
+        pt.visit_id AS rating_id,
         p.id          AS park_id,
         p.name        AS park_name,
         p.country,
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
         r.flatridesanddarkrides, r.food, r.snacksanddrinks,
         r.parkpracticality, r.rideoperations, r.parkmanagement, r.overall
       FROM parktexts pt
-      JOIN visits r  ON r.id  = pt.rating_id
+      JOIN visits r  ON r.id  = pt.visit_id
       JOIN parks   p  ON p.id  = r.park_id
       LEFT JOIN fallback_images fi ON fi.park_id = p.id
       WHERE pt.text IS NOT NULL

@@ -38,7 +38,7 @@ export async function POST(req: Request) {
              r.flatridesanddarkrides, r.food, r.snacksanddrinks,
              r.parkpracticality, r.rideoperations, r.parkmanagement, r.overall
       FROM parktexts pt
-      JOIN ratings r ON r.id = pt.rating_id
+      JOIN visits r ON r.id = pt.visit_id
       JOIN parks p ON p.id = r.park_id
       WHERE r.park_id = $1 AND pt.category = $2 AND r.published = TRUE
       ORDER BY r.id DESC
