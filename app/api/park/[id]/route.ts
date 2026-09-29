@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateContent } from "@/app/lib/revalidate";
+import { regenerateParkCuts } from "@/app/lib/cardCut";
 import { pool } from "@/app/lib/db";
 import { diffFields, logChange, FieldDiff } from "@/app/lib/changelog";
 import { revalidateTag, revalidatePath } from "next/cache";
@@ -135,6 +136,17 @@ export async function PATCH(
     }
 
     revalidateTag("parks-leaderboard"); // Clears the Parks Leaderboard cache
+
+    // Card framing changed: cut the visible slice of each wide photo in the
+    // background (a few seconds per photo). Until it lands, cards fall back
+    // to the original, so the admin never waits and nothing breaks.
+    if (body.imagepath || body.imageFocus !== undefined || body.cardImages !== undefined || body.cardImagepath !== undefined) {
+      const row = result.rows[0];
+      void regenerateParkCuts(row)
+        .then(({ made, deleted }) => { if (made || deleted) revalidateContent(); })
+        .catch((err) => console.error("card cut regeneration failed for park", row.id, err));
+    }
+
     return NextResponse.json(result.rows[0], { status: 200 });
   } catch (error: any) {
     console.error("Database update error:", error);
