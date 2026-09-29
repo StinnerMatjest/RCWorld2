@@ -1,5 +1,7 @@
 import { slugify } from "@/app/lib/slug";
 import { pool } from "@/app/lib/db";
+import { getImageSizes } from "@/app/lib/imageDims";
+import { validCut } from "@/app/lib/cardCut";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { logChange } from "@/app/lib/changelog";
 import { NextResponse } from "next/server";
@@ -22,12 +24,30 @@ export async function GET() {
         slug,
         image_focus AS "imageFocus",
         header_focus AS "headerFocus",
-        card_images AS "cardImages"
+        card_images AS "cardImages",
+        card_cut AS "cardCut"
       FROM parks
     `;
     const result = await pool.query(query);
 
+    // Pixel sizes of every photo referenced, so cards can pick the exact file.
+    const urls: string[] = [];
+    for (const row of result.rows) {
+      urls.push(row.imagepath, row.cardImagepath);
+      for (const e of Object.values(row.cardImages ?? {}) as { src?: string }[]) if (e?.src) urls.push(e.src);
+    }
+    const sizes = await getImageSizes(urls);
+
     const parks: Park[] = result.rows.map((row) => {
+      const cardImages = row.cardImages
+        ? Object.fromEntries(
+            Object.entries(row.cardImages as Record<string, { src: string; focus: string; cut?: any }>).map(([k, e]) => [
+              k,
+              e?.src ? { ...e, size: sizes[e.src], cut: validCut(e.cut, e.src, e.focus) } : e,
+            ])
+          )
+        : undefined;
+      const cardSrc = row.cardImagepath || row.imagepath;
       return {
         id: row.id,
         name: row.name,
@@ -35,11 +55,14 @@ export async function GET() {
         country: row.country,
         city: row.city,
         imagepath: row.imagepath,
+        imageSize: sizes[row.imagepath],
         cardImagepath: row.cardImagepath ?? undefined,
+        cardImageSize: row.cardImagepath ? sizes[row.cardImagepath] : undefined,
         slug: row.slug,
         imageFocus: row.imageFocus ?? undefined,
         headerFocus: row.headerFocus ?? undefined,
-        cardImages: row.cardImages ?? undefined,
+        cardCut: validCut(row.cardCut, cardSrc, row.imageFocus),
+        cardImages,
       };
     });
 

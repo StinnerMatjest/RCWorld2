@@ -76,6 +76,45 @@ export function nextLargerVariant(src: string, current: string): string | null {
  */
 export const COVER_UPSCALE_TOLERANCE = 1.25;
 
+/** True for a stored variant URL (`...-w1200.webp`). */
+export function isVariantUrl(url: string): boolean {
+  return VARIANT_SUFFIX.test(url.split("?")[0]);
+}
+
+/**
+ * What a cover-cropped frame should load next when the current file is being
+ * enlarged beyond COVER_UPSCALE_TOLERANCE: the next stored size, or, when the
+ * largest stored size is already the one being enlarged (wide panoramas in a
+ * tall phone card, with crop zoom on top), the original. Null when nothing
+ * larger exists or the source is not an R2 image.
+ */
+export function sharperSource(src: string, current: string): string | null {
+  if (!isR2Image(src)) return null;
+  const next = nextLargerVariant(src, current);
+  if (next) return next;
+  return isVariantUrl(current) ? src : null;
+}
+
+/**
+ * Exact pick for a frame that cover-crops a photo whose pixel size is known:
+ * the smallest stored size whose pixels cover the frame on this screen
+ * (including crop zoom), or the original when even the largest stored size
+ * would have to be enlarged. No guessing, no second download.
+ *
+ * `cssW × cssH` is the frame in CSS px, `zoom` the crop zoom (>= 1), `dpr`
+ * the device pixel ratio. Non-R2 sources are returned unchanged.
+ */
+export function exactCoverSrc(src: string, size: { w: number; h: number }, cssW: number, cssH: number, zoom: number, dpr: number): string {
+  if (!isR2Image(src) || !size.w || !size.h) return src;
+  // Scale at which the photo is drawn to cover the frame, in device px per source px.
+  const drawn = Math.max(cssW / size.w, cssH / size.h) * Math.max(1, zoom) * dpr;
+  // Source width that would be drawn 1:1 on device pixels.
+  const needW = size.w * drawn;
+  const w = VARIANT_WIDTHS.find((v) => v >= needW);
+  if (!w) return src; // only the original has enough pixels
+  return variantKey(src, w); // stored for every width (not enlarged), so the key always exists
+}
+
 /** URL to serve for an R2 image at roughly `width` CSS px (× DPR); the original for non-R2 sources. */
 export function variantUrl(src: string, width: number): string {
   if (!isR2Image(src)) return src;

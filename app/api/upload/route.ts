@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { S3Client, DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import sharp from "sharp";
+import { pool } from "@/app/lib/db";
 import { VARIANT_WIDTHS, VARIANT_QUALITY, variantKey } from "@/app/lib/imageVariants";
 
 const s3Client = new S3Client({
@@ -59,6 +60,16 @@ export async function POST(request: Request) {
     if (file.type.startsWith("image/")) {
       try {
         const img = sharp(buffer, { failOn: "none" }).rotate();
+        // Record the photo's pixel size so pages can pick the exact file to
+        // serve for a given frame instead of guessing (see app/lib/imageDims.ts).
+        const meta = await sharp(buffer, { failOn: "none" }).metadata();
+        if (meta.width && meta.height) {
+          const swap = (meta.orientation ?? 1) >= 5;
+          await pool.query(
+            "INSERT INTO image_dimensions (key, width, height) VALUES ($1, $2, $3) ON CONFLICT (key) DO UPDATE SET width = EXCLUDED.width, height = EXCLUDED.height",
+            [fileName, swap ? meta.height : meta.width, swap ? meta.width : meta.height]
+          );
+        }
         for (const w of VARIANT_WIDTHS) {
           const out = await img.clone().resize({ width: w, withoutEnlargement: true }).webp({ quality: VARIANT_QUALITY[w] }).toBuffer();
           await s3Client.send(new PutObjectCommand({
@@ -92,6 +103,7 @@ export async function DELETE(request: Request) {
     await s3Client.send(new DeleteObjectCommand({ Bucket, Key: fileName }));
     // Variants go with the original (ignore misses: videos and older files have none).
     await Promise.allSettled(VARIANT_WIDTHS.map(w => s3Client.send(new DeleteObjectCommand({ Bucket, Key: variantKey(fileName, w) }))));
+    await pool.query("DELETE FROM image_dimensions WHERE key = $1", [fileName]).catch(() => {});
 
     return NextResponse.json({ message: "Deleted" }, { status: 200 });
   } catch {

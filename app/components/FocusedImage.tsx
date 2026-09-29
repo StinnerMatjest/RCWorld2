@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useRef, useEffect, useCallback } from "react";
-import { isR2Image, variantKey, coverVariantUrl, nextLargerVariant, COVER_UPSCALE_TOLERANCE } from "@/app/lib/imageVariants";
+import { isR2Image, variantKey, coverVariantUrl, sharperSource, exactCoverSrc, COVER_UPSCALE_TOLERANCE } from "@/app/lib/imageVariants";
+import type { ImageSize } from "@/app/types";
 
 // With `variants`, R2 photos start from the largest stored size (safe on any
 // screen and a fraction of the original); lazy ones re-pick for the actual
@@ -29,6 +30,10 @@ export interface FocusedImageProps {
   /** Serve the pre-generated R2 variants (see app/lib/imageVariants.ts) instead
    *  of the original, stepping up after load if a size would be enlarged. */
   variants?: boolean;
+  /** Pixel size of the original; with it the exact file is chosen up front. */
+  size?: ImageSize;
+  /** Screen the server assumes for the SSR pick when `size` is known. */
+  assumedScreen?: { cssW: number; cssH: number; dpr: number };
 }
 
 // Rewrite an image URL to Next's optimizer endpoint — the same endpoint
@@ -69,9 +74,11 @@ export function splitMedia(entry: string): { url: string; focus: string } {
 // Renders an image absolutely positioned inside an overflow-hidden container,
 // matching exactly what CropEditor shows for the given focusStr.
 export function FocusedImage({
-  src, alt = "", focusStr, className = "", imgClassName = "", imgStyle, priority, onLoad: onLoadProp, optimizeWidth, staggerDelayMs = 0, variants = false,
+  src, alt = "", focusStr, className = "", imgClassName = "", imgStyle, priority, onLoad: onLoadProp, optimizeWidth, staggerDelayMs = 0, variants = false, size, assumedScreen,
 }: FocusedImageProps) {
   const useVariants = variants && isR2Image(src);
+  const sizeKnown = useVariants && !!size;
+  const sizeKnownRef = useRef(sizeKnown);
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const nwRef = useRef(0);
@@ -85,19 +92,28 @@ export function FocusedImage({
   const fadeInRef = useRef(false);
   const mountTsRef = useRef(0);
   const staggerRef = useRef(staggerDelayMs);
-  useEffect(() => { focusRef.current = focusStr; staggerRef.current = staggerDelayMs; srcRef.current = src; useVariantsRef.current = useVariants; });
+  useEffect(() => { focusRef.current = focusStr; staggerRef.current = staggerDelayMs; srcRef.current = src; useVariantsRef.current = useVariants; sizeKnownRef.current = sizeKnown; });
 
   // Lazy variant images: before the browser gets to them, swap the safe SSR
   // pick for the smallest stored size that covers this frame on this screen.
   useEffect(() => {
     const img = imgRef.current;
     const c = containerRef.current;
-    if (!img || !c || priority || !useVariants) return;
-    if (img.complete && img.naturalWidth > 0) return; // already loaded, leave it
+    if (!img || !c || !useVariants) return;
     const zoom = parseFocusStr(focusStr).zoom; // a zoomed crop needs a larger source
+    if (size) {
+      // Exact pick for this screen. An eager image is already downloading the
+      // SSR pick; only replace it when this screen needs more pixels.
+      const pick = exactCoverSrc(src, size, c.clientWidth, c.clientHeight, zoom, window.devicePixelRatio || 1);
+      const px = (u: string) => { const m = u.match(/-w(\d+)\.webp/); return m ? Number(m[1]) : Infinity; };
+      if (px(pick) > px(img.src)) img.src = pick;
+      return;
+    }
+    if (priority) return;
+    if (img.complete && img.naturalWidth > 0) return; // already loaded, leave it
     const pick = coverVariantUrl(src, c.clientWidth * zoom, c.clientHeight * zoom, window.devicePixelRatio || 1);
     if (pick !== img.src) img.src = pick;
-  }, [src, priority, useVariants, focusStr]);
+  }, [src, priority, useVariants, focusStr, size]);
 
   const applyStyle = useCallback(() => {
     const c = containerRef.current;
@@ -114,10 +130,10 @@ export function FocusedImage({
     // Step up if this stored size is being enlarged on this screen. The old
     // pixels stay on screen until the larger file has decoded, then onLoad
     // re-runs this with the new natural size.
-    if (useVariantsRef.current) {
+    if (useVariantsRef.current && !sizeKnownRef.current) {
       const scale = cs * zoom * (window.devicePixelRatio || 1);
       if (scale > COVER_UPSCALE_TOLERANCE) {
-        const bigger = nextLargerVariant(srcRef.current, img.src);
+        const bigger = sharperSource(srcRef.current, img.src);
         if (bigger) img.src = bigger;
       }
     }
@@ -168,7 +184,11 @@ export function FocusedImage({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={imgRef}
-        src={useVariants ? variantKey(src, SAFE_VARIANT) : optimizeWidth ? optimizedSrc(src, optimizeWidth) : src}
+        src={
+          sizeKnown && size
+            ? exactCoverSrc(src, size, (assumedScreen ?? { cssW: 360, cssH: 640, dpr: 2 }).cssW, (assumedScreen ?? { cssW: 360, cssH: 640, dpr: 2 }).cssH, parseFocusStr(focusStr).zoom, (assumedScreen ?? { cssW: 360, cssH: 640, dpr: 2 }).dpr)
+            : useVariants ? variantKey(src, SAFE_VARIANT) : optimizeWidth ? optimizedSrc(src, optimizeWidth) : src
+        }
         alt={alt}
         draggable={false}
         className={`absolute max-w-none select-none ${imgClassName}`}

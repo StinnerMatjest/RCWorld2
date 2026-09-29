@@ -1,3 +1,9 @@
+/** Pixel size of an original photo, recorded at upload. Absent for older uploads. */
+export type ImageSize = { w: number; h: number };
+
+/** The slice of a wide photo that the home card shows, saved at native pixels (see app/lib/cardCutGeometry.ts). */
+export type CardCut = { url: string; focus: string; w: number; h: number; for: string };
+
 export interface Park {
   id: number;
   name: string;
@@ -5,16 +11,20 @@ export interface Park {
   country: string;
   city: string;
   imagepath: string;
+  imageSize?: ImageSize;
   cardImagepath?: string;
+  cardImageSize?: ImageSize;
   slug: string;
   imageFocus?: string;
   headerFocus?: string;
+  /** Cut of the card photo for the current framing; absent until generated or when stale. */
+  cardCut?: CardCut;
   cardImages?: {
-    coasters?: { src: string; focus: string };
-    rides?: { src: string; focus: string };
-    park?: { src: string; focus: string };
-    food?: { src: string; focus: string };
-    mgmt?: { src: string; focus: string };
+    coasters?: { src: string; focus: string; size?: ImageSize; cut?: CardCut };
+    rides?: { src: string; focus: string; size?: ImageSize; cut?: CardCut };
+    park?: { src: string; focus: string; size?: ImageSize; cut?: CardCut };
+    food?: { src: string; focus: string; size?: ImageSize; cut?: CardCut };
+    mgmt?: { src: string; focus: string; size?: ImageSize; cut?: CardCut };
   };
 }
 
@@ -185,6 +195,8 @@ export const ALL_MANUFACTURERS = [...MAJOR_MANUFACTURERS, ...MINOR_MANUFACTURERS
 );
 
 export type ApiCoaster = {
+  /** A written review exists. Pages without one are noindex and left out of the sitemap. */
+  hasReview?: boolean;
   id: number;
   name: string;
   manufacturerId: number;
