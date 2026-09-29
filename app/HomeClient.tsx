@@ -158,8 +158,29 @@ const PendingParkCard = ({ park }: { park: Park }) => (
 );
 
 
-const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager = false, assumedScreen = "desktop", onImgReady }: { rating: Visit; park: Park; eager?: boolean; assumedScreen?: keyof typeof ASSUMED_SCREEN; onImgReady?: () => void }) {
+// First-photo gate (phone strip). On a slow connection every photo requested
+// alongside the first card's shares the bandwidth with it, and the first card
+// (the "largest paint") lands seconds later than it needs to. So the other
+// cards ask for their photos only once the first one has arrived (or failed,
+// or 4 s have passed). On a fast connection nobody can tell the difference.
+let firstPhotoDone = false;
+let firstPhotoWaiters: (() => void)[] = [];
+function afterFirstPhoto(fn: () => void): () => void {
+  if (firstPhotoDone) { fn(); return () => {}; }
+  firstPhotoWaiters.push(fn);
+  return () => { firstPhotoWaiters = firstPhotoWaiters.filter((f) => f !== fn); };
+}
+function markFirstPhoto() {
+  if (firstPhotoDone) return;
+  firstPhotoDone = true;
+  const w = firstPhotoWaiters; firstPhotoWaiters = []; w.forEach((f) => f());
+}
+
+const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager = false, first = false, defer = false, assumedScreen = "desktop", onImgReady }: { rating: Visit; park: Park; eager?: boolean; first?: boolean; /** Phone strip: wait for the first card's photo before asking for this one. */ defer?: boolean; assumedScreen?: keyof typeof ASSUMED_SCREEN; onImgReady?: () => void }) {
   const [imgReady, setImgReady] = useState(false);
+  const [wanted, setWanted] = useState(eager || !defer);
+  useEffect(() => { if (!wanted) return afterFirstPhoto(() => setWanted(true)); }, [wanted]);
+  useEffect(() => { if (first) { const t = setTimeout(markFirstPhoto, 4000); return () => clearTimeout(t); } }, [first]);
   const teaser = resolveEntry(
     park.cardImagepath || park.imagepath || "/images/error.PNG",
     park.imageFocus || "0.5 0.5 1",
@@ -175,7 +196,7 @@ const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager 
             <div className="absolute inset-0 animate-[shimmer_1.8s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
           </div>
         )}
-        <FocusedImage
+        {wanted && <FocusedImage
           src={teaserSources ? fallbackSrc(teaser) : teaser.src}
           srcSet={teaserSources?.srcSet}
           sizes={teaserSources?.sizes}
@@ -189,11 +210,12 @@ const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager 
           priority={eager}
           variants={!park.cardCut}
           onLoad={() => {
+            if (first) markFirstPhoto();
             onImgReady?.();
             // Keep the shimmer under the image until its 500ms fade finishes
             setTimeout(() => setImgReady(true), 550);
           }}
-        />
+        />}
 
         {/* Top: park name */}
         <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent px-4 pt-4 pb-14">
@@ -365,6 +387,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     // show instantly; loaded later (slow network, below-fold) -> fade in.
     const reveal = (fade: boolean) => {
       if (!a.naturalWidth) return;
+      if (first) markFirstPhoto();
       // A server-placed photo keeps its CSS box: re-measuring it here produced
       // a box a fraction of a pixel larger (the chosen srcset copy's proportions
       // differ by a hair from the full cut), which the browser reports as a new,
@@ -389,6 +412,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
       }
     };
     if (inHtml) {
+      if (first) { a.onerror = () => markFirstPhoto(); setTimeout(markFirstPhoto, 4000); } // a broken or stalled first photo must not hold the others
       if (a.complete && a.naturalWidth > 0) reveal(false);
       else a.onload = () => reveal(true);
       return;
@@ -408,11 +432,17 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
       if (a.complete && a.naturalWidth > 0) reveal(false);
     };
     loadRef.current = load;
+    // Near view: wait for the first card's photo, then load in strip order
+    // (150 ms apart) so the second card is next in line, not one of a crowd.
+    let cancelWait: (() => void) | null = null;
+    let queued: ReturnType<typeof setTimeout> | null = null;
     const io = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) load();
+      if (!entries.some((e) => e.isIntersecting) || cancelWait) return;
+      io.disconnect();
+      cancelWait = afterFirstPhoto(() => { queued = setTimeout(load, 150 * Math.max(0, delayIndex - 1)); });
     }, { rootMargin: "300% 300%" }); // three screens ahead: keeps up with a fast swipe
     io.observe(c);
-    return () => io.disconnect();
+    return () => { io.disconnect(); cancelWait?.(); if (queued) clearTimeout(queued); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Once the visitor has touched or scrolled (preloadAll), fetch every deferred
@@ -756,7 +786,7 @@ type HomeProps = {
 const MOBILE_QUERY = "(max-width: 767px)"; // below Tailwind's md breakpoint
 // Cards that load immediately and that the reveal gate waits for: a phone
 // shows one card at a time, a desktop grid shows a whole first row.
-const EAGER_MOBILE = 2; // first card at high priority, second at low; the rest after the first swipe
+const EAGER_MOBILE = 1; // only the first card's photo is in the HTML; the next ones follow the moment it lands, the rest after the first swipe
 const EAGER_DESKTOP = 6;
 
 const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile }: HomeProps) => {
@@ -1014,7 +1044,7 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
                 {item.type === "pending" ? (
                   <PendingParkCard park={item.park} />
                 ) : item.type === "teaser" ? (
-                  <TeaserParkCard rating={item.rating} park={item.park} eager={index < EAGER_MOBILE} assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
+                  <TeaserParkCard rating={item.rating} park={item.park} eager={index < EAGER_MOBILE} first={index === 0} defer assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
                 ) : item.type === "rating" ? (
                   <FullBleedRatingCard rating={item.rating} park={item.park} isActive={active} autoCycle={engaged} delayIndex={index} eager={index < EAGER_MOBILE} first={index === 0} defer preloadAll={engaged} assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
                 ) : null}
