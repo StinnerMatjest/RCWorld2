@@ -41,7 +41,7 @@ export const StatBlock = ({
 
     <div className="flex flex-col items-end">
       {label && (
-        <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-slate-500 text-right">
+        <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-slate-400 text-right">
           {label}
         </span>
       )}

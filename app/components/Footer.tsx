@@ -55,7 +55,7 @@ export default function Footer() {
               </a>
             </div>
 
-            <div className="text-xs text-slate-500">
+            <div className="text-xs text-slate-400">
               © {new Date().getFullYear()} Parkrating
             </div>
           </div>

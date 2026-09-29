@@ -22,14 +22,19 @@ We also rate individual roller coasters on a 0–10 scale with written reviews c
 
 ## Key pages
 
-- Full park rankings (all reviewed parks, sorted by overall score): https://parkrating.com/parks
-- Individual park reviews: https://parkrating.com/park/{slug}
-- Coaster ratings and rankings: https://parkrating.com/coasterLibrary
-- Individual coaster reviews: https://parkrating.com/coasters/{slug}
-- Everything in one file (all park reviews and coaster reviews as Markdown): https://parkrating.com/llms-full.txt
-- Sitemap: https://parkrating.com/sitemap.xml
-- Manufacturer hall of fame (makers ranked by Best Coaster awards and average score): https://parkrating.com/manufacturers
-- About: https://parkrating.com/about
+- [Park rankings](https://parkrating.com/parks): all reviewed parks, sorted by overall score
+- [Coaster ratings and rankings](https://parkrating.com/coasterLibrary): every rated roller coaster with its score
+- [Manufacturer hall of fame](https://parkrating.com/manufacturers): makers ranked by Best Coaster awards and average score
+- [About ParkRating](https://parkrating.com/about): who we are and how we score
+- [All reviews in one Markdown file](https://parkrating.com/llms-full.txt): every park review and coaster review, with scores
+- [Sitemap](https://parkrating.com/sitemap.xml): every indexable page
+
+Individual park reviews live at https://parkrating.com/park/{slug} and individual coaster reviews at https://parkrating.com/coasters/{slug}; the full list of both is in the sitemap and in llms-full.txt.
+
+## Optional
+
+- [Europa-Park review](https://parkrating.com/park/europa-park): example of a park page with the 10 category scores and the written review
+- [Coaster rankings](https://parkrating.com/coasterLibrary): example of the ItemList markup and per-coaster scores
 
 ## Data notes
 

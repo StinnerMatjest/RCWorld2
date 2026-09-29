@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useId } from "react";
 import { useRouter } from "next/navigation";
 import { getRatingColor } from "../utils/design";
 
@@ -16,6 +16,7 @@ const SearchBar = ({ collapsible = false }: { collapsible?: boolean }) => {
   const [loaded, setLoaded] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const router = useRouter();
+  const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -130,9 +131,12 @@ const SearchBar = ({ collapsible = false }: { collapsible?: boolean }) => {
           onFocus={() => { setOpen(true); loadData(); }}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
+          role="combobox"
           aria-label="Search parks and coasters"
+          aria-autocomplete="list"
           aria-expanded={showDrop}
           aria-haspopup="listbox"
+          aria-controls={showDrop ? listId : undefined}
         />
         {expanded && val && (
           <button onClick={clear} className="text-slate-400 hover:text-slate-200 ml-1 flex-shrink-0 text-base leading-none">
@@ -144,6 +148,7 @@ const SearchBar = ({ collapsible = false }: { collapsible?: boolean }) => {
       {/* Dropdown */}
       {showDrop && (
         <div
+          id={listId}
           role="listbox"
           className="absolute top-[calc(100%+6px)] left-0 w-80 max-w-[calc(100vw-2rem)] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-[9999]"
         >

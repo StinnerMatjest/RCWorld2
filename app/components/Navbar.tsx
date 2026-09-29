@@ -98,13 +98,15 @@ const Navbar: React.FC = () => {
       <div className="relative md:hidden" ref={mobileRef}>
         <button
           onClick={() => setMobileOpen(v => !v)}
+          aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          aria-expanded={mobileOpen}
           className="inline-flex items-center justify-center w-11 h-11 text-slate-300 hover:text-white focus:outline-none transition"
         >
           <svg className={`w-6 h-6 transition-transform duration-200 ${mobileOpen ? "rotate-90 opacity-0" : "opacity-100"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
           <svg className={`absolute w-6 h-6 transition-transform duration-200 ${mobileOpen ? "opacity-100 rotate-0" : "opacity-0 -rotate-90"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
         </button>
 
-        {mobileOpen && <button onClick={() => setMobileOpen(false)} className="fixed inset-0 z-[9998]" />}
+        {mobileOpen && <button onClick={() => setMobileOpen(false)} aria-label="Close menu" className="fixed inset-0 z-[9998]" />}
 
         <div className={`fixed top-14 right-4 w-64 z-[9999] rounded-2xl border border-slate-800 bg-slate-900 shadow-black/40 transition-all duration-200 overflow-hidden ${mobileOpen ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-2 pointer-events-none"}`}>
           <div className="p-3 border-b border-slate-800">

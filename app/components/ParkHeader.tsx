@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import type { Park } from "@/app/types";
 import ParkHeaderModal from "./parkpage/ParkHeaderModal";
 import { FocusedImage, parseFocusStr } from "./FocusedImage";
@@ -46,6 +46,25 @@ interface ParkHeaderProps {
 const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) => {
   const placed = !!park.imageSize;
   const [imageLoaded, setImageLoaded] = useState(placed);
+  const frameRef = useRef<HTMLDivElement>(null);
+
+  // The HTML shows a placed photo from the start, so a visitor whose photo
+  // arrives before the JavaScript never waits for it. If it is still on its
+  // way when we take over, hide it at once (no transition) and fade it in
+  // from the dark frame when it lands, instead of letting it pop in whole.
+  useLayoutEffect(() => {
+    const img = frameRef.current?.querySelector("img");
+    if (img && !(img.complete && img.naturalWidth > 0)) { img.style.transition = "none"; img.style.opacity = "0"; }
+  }, []);
+  const revealPhoto = () => {
+    const img = frameRef.current?.querySelector("img");
+    if (img && img.style.opacity === "0") {
+      void img.offsetWidth; // commit the hidden state before animating
+      img.style.transition = "opacity 700ms ease-out";
+      img.style.opacity = "1";
+    }
+    setImageLoaded(true);
+  };
   const [showModal, setShowModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
@@ -64,7 +83,7 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
 
   return (
     <>
-      <div className="hero-frame relative w-full aspect-[16/8] md:aspect-[16/4] max-h-screen overflow-hidden bg-slate-800">
+      <div ref={frameRef} className="hero-frame relative w-full aspect-[16/8] md:aspect-[16/4] max-h-screen overflow-hidden bg-slate-900">
 
         {/* LAYER 1: The Clickable Background Image */}
         <div
@@ -78,10 +97,9 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
             placement={park.imageSize ? heroPlacement(park.imageSize, park.headerFocus) : undefined}
             {...(park.imageSize ? heroSources(park.imagepath, park.imageSize) : {})}
             className="absolute inset-0"
-            imgClassName={`transition-opacity duration-700 ${imageLoaded ? "opacity-100" : "opacity-0"
-              }`}
+            imgClassName={`transition-opacity duration-700 ease-out ${imageLoaded ? "opacity-100" : "opacity-0"}`}
             priority
-            onLoad={() => setImageLoaded(true)}
+            onLoad={revealPhoto}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-60" />
         </div>

@@ -90,7 +90,7 @@ const VisitPanelDropdown: React.FC<VisitPanelDropdownProps> = ({ rating, coaster
 
   return (
     <div>
-      <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-2">
+      <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
         Breakdown
       </p>
       <ul className="space-y-0.5">

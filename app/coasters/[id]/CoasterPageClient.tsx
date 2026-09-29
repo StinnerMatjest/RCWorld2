@@ -347,9 +347,9 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 relative">
           <div className="lg:col-span-8 flex flex-col gap-8 md:gap-12 order-2 lg:order-1">
             <section>
-              <h3 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-white border-l-4 border-brand pl-4">
+              <h2 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-white border-l-4 border-brand pl-4">
                 The Experience
-              </h3>
+              </h2>
               <CoasterText
                 coasterId={coaster.id}
                 initialTexts={coasterText}
@@ -358,9 +358,9 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
             </section>
 
             <section>
-              <h3 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-white border-l-4 border-brand pl-4">
+              <h2 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-white border-l-4 border-brand pl-4">
                 Gallery
-              </h3>
+              </h2>
               <CoasterGallery
                 coasterId={coaster.id}
                 coasterName={coaster.name}
@@ -374,9 +374,9 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
               {((coaster.highlights && coaster.highlights.length > 0) ||
                 isAdminMode) && (
                   <div>
-                    <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2">
                       Strengths & Weaknesses
-                    </h4>
+                    </h3>
                     <CoasterHighlightsPanel
                       highlights={coaster.highlights || []}
                       coasterId={coaster.id}
@@ -385,16 +385,16 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
                 )}
 
               <div>
-                <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2">
                   Information
-                </h4>
+                </h3>
                 <CoasterInfo coaster={coaster} onUpdate={refreshCoasterData} />
               </div>
 
               <div>
-                <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2">
                   Technical Specs
-                </h4>
+                </h3>
                 <CoasterSpecsPanel
                   specs={coaster.specs}
                   coasterId={coaster.id}

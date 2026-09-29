@@ -67,7 +67,7 @@ const VisitPanel: React.FC<VisitPanelProps> = ({
 
   return (
     <div ref={ref} className="relative">
-      <p className="text-[11px] md:text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">
+      <p className="text-[11px] md:text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
         Visit
       </p>
 
@@ -116,7 +116,7 @@ const VisitPanel: React.FC<VisitPanelProps> = ({
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
             className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl border border-slate-700 bg-slate-900 shadow-xl overflow-hidden">
-            <p className="px-3 py-2 text-[10px] md:text-xs font-bold uppercase tracking-widest text-slate-500 border-b border-slate-800">
+            <p className="px-3 py-2 text-[10px] md:text-xs font-bold uppercase tracking-widest text-slate-400 border-b border-slate-800">
               Switch visit
             </p>
             <ul className="max-h-60 overflow-y-auto py-1">
