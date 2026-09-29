@@ -24,6 +24,20 @@ const nextConfig = {
   },
   async redirects() {
     return [
+      // www -> apex. Only reachable once www.parkrating.com is added as a custom
+      // domain in Railway; until then the www host does not resolve at all.
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.parkrating.com' }],
+        destination: 'https://parkrating.com/:path*',
+        permanent: true,
+      },
+      // The coaster table used to live at /coasterratings; Google still has it.
+      {
+        source: '/coasterratings',
+        destination: '/coasterLibrary',
+        permanent: true,
+      },
       {
         source: '/admin/carousel',
         destination: '/carousel',

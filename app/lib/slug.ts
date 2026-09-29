@@ -4,6 +4,8 @@
 // Letters that NFD decomposition does not split into base + accent.
 const SPECIAL: Record<string, string> = {
   æ: "ae", ø: "o", å: "a", ß: "ss", ð: "d", þ: "th", đ: "d", ł: "l", œ: "oe",
+  // German umlauts follow the ae/oe/ue convention (Dämonen -> daemonen).
+  ä: "ae", ö: "oe", ü: "ue",
 };
 
 // "Fēnix" -> "fenix", "F.L.Y." -> "fly", "Eurosat - CanCan Coaster" -> "eurosat-cancan-coaster".
@@ -11,7 +13,8 @@ const SPECIAL: Record<string, string> = {
 export function slugify(input: string): string {
   return input
     .toLowerCase()
-    .replace(/[æøåßðþđłœ]/g, (ch) => SPECIAL[ch] ?? ch)
+    .replace(/['’]/g, "")
+    .replace(/[æøåßðþđłœäöü]/g, (ch) => SPECIAL[ch] ?? ch)
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
@@ -34,4 +37,7 @@ export const LEGACY_COASTER_SLUGS: Record<string, string> = {
   "mariehønen": "mariehonen",
   "psyké-underground": "psyke-underground",
   "vilde-hønsejagt": "vilde-honsejagt",
+  // Dead addresses Google still has.
+  "f.l.y": "fly",
+  "boomerang-1789061629384-2390": "boomerang",
 };

@@ -93,7 +93,9 @@ export async function PUT(
       ? Number.isNaN(Number(rideCount)) ? 0 : Number(rideCount)
       : 0;
 
-    let generatedSlug = slugify(name);
+    // Keep the existing slug unless the name actually changed, so editing a
+    // rating never silently moves a page's address.
+    let generatedSlug = oldRow && oldRow.slug && oldRow.name === name ? oldRow.slug : slugify(name);
 
     // Check if the slug exists on a another coaster
     const slugCheck = await pool.query("SELECT id FROM rollercoasters WHERE slug = $1 AND id != $2", [generatedSlug, coasterId]);
