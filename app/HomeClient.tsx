@@ -205,7 +205,7 @@ const FULL_BLEED_GROUPS = [
 const CARD_CATS = ["coasters", "rides", "park", "food", "mgmt"] as const;
 type CardCat = typeof CARD_CATS[number];
 
-const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0, eager = false, first = false, assumedScreen = "desktop", onImgReady }: { rating: Visit; park: Park; isActive?: boolean; delayIndex?: number; eager?: boolean; first?: boolean; assumedScreen?: keyof typeof ASSUMED_SCREEN; onImgReady?: () => void }) {
+const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, park, isActive = false, autoCycle = true, delayIndex = 0, eager = false, first = false, assumedScreen = "desktop", onImgReady }: { rating: Visit; park: Park; isActive?: boolean; autoCycle?: boolean; delayIndex?: number; eager?: boolean; first?: boolean; assumedScreen?: keyof typeof ASSUMED_SCREEN; onImgReady?: () => void }) {
   const headerSrc = park.imagepath || "/images/error.PNG";
   // The card photo as framed in the editor, or its cut when one is ready.
   // Memoised: it feeds the hover/cycle callbacks and the mobile effect below,
@@ -434,9 +434,13 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     }, initialDelay);
   }, [getCycleImages, transitionTo]);
 
-  // Mobile: auto-cycle when active
+  // Mobile: auto-cycle the active card's category images, but only once the
+  // visitor has touched or scrolled the page (autoCycle). Cycling on its own
+  // cost every phone visitor 2-4 MB of category images they might never look
+  // at, and its cross-fades were what Google's speed test recorded as the
+  // page's largest paint. Tapping a category still works immediately.
   useEffect(() => {
-    if (isActive) {
+    if (isActive && autoCycle) {
       startCycle(3000);
     } else {
       stopCycle();
@@ -444,7 +448,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
       // transitioning re-faded the header onto itself on every swipe
       if (showingCategoryRef.current) transitionTo(null, null);
     }
-  }, [isActive, startCycle, stopCycle, transitionTo]);
+  }, [isActive, autoCycle, startCycle, stopCycle, transitionTo]);
 
   // Re-apply absolute positioning on container resize
   useEffect(() => {
@@ -665,6 +669,15 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
   // Only one card layout is rendered at a time so a phone never downloads the
   // grid's images and a desktop never downloads the strip's.
   const [isMobileLayout, setIsMobileLayout] = useState<boolean>(initialIsMobile ?? false);
+  // First touch, scroll, click or key: from then on the active phone card may
+  // auto-cycle its category images (see FullBleedRatingCard).
+  const [engaged, setEngaged] = useState(false);
+  useEffect(() => {
+    const on = () => setEngaged(true);
+    const events = ["touchstart", "pointerdown", "scroll", "keydown", "wheel"] as const;
+    events.forEach((e) => window.addEventListener(e, on, { passive: true, once: true }));
+    return () => events.forEach((e) => window.removeEventListener(e, on));
+  }, []);
   useEffect(() => {
     const mq = window.matchMedia(MOBILE_QUERY);
     setIsMobileLayout(mq.matches);
@@ -906,7 +919,7 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
                 ) : item.type === "teaser" ? (
                   <TeaserParkCard rating={item.rating} park={item.park} eager={index < EAGER_MOBILE} assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
                 ) : item.type === "rating" ? (
-                  <FullBleedRatingCard rating={item.rating} park={item.park} isActive={active} delayIndex={index} eager={index < EAGER_MOBILE} first={index === 0} assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
+                  <FullBleedRatingCard rating={item.rating} park={item.park} isActive={active} autoCycle={engaged} delayIndex={index} eager={index < EAGER_MOBILE} first={index === 0} assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
                 ) : (
                   <RatingCard
                     rating={item.rating}
