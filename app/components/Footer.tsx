@@ -1,31 +1,7 @@
-import Link from "next/link";
-
 const INSTAGRAM_URL = "https://www.instagram.com/parkratings/";
 const FACEBOOK_URL = "https://www.facebook.com/profile.php?id=61587368730086";
 
-type TopCoaster = { name: string; slug: string; parkName?: string; rating?: number | null; haveRidden?: boolean };
-
-// Ten highest-rated coasters, linked from every page so crawlers reach coaster
-// pages in one hop. Cached under the "content" tag like every public fetch.
-async function getTopCoasters(): Promise<TopCoaster[]> {
-  const BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!BASE) return [];
-  try {
-    const res = await fetch(`${BASE}api/coasters`, { cache: "force-cache", next: { tags: ["content"] } });
-    if (!res.ok) return [];
-    const data = await res.json();
-    const list: TopCoaster[] = Array.isArray(data.coasters) ? data.coasters : [];
-    return list
-      .filter((c) => c.slug && c.haveRidden !== false && Number(c.rating) > 0)
-      .sort((a, b) => Number(b.rating) - Number(a.rating))
-      .slice(0, 10);
-  } catch {
-    return [];
-  }
-}
-
-export default async function Footer() {
-  const topCoasters = await getTopCoasters();
+export default function Footer() {
   return (
     <footer className="bg-[#0f172a]">
       <div className="h-px bg-gradient-to-r from-transparent via-brand/50 to-transparent" />
@@ -84,24 +60,6 @@ export default async function Footer() {
             </div>
           </div>
         </div>
-
-        {topCoasters.length > 0 && (
-          <nav aria-label="Top rated coasters" className="mt-6 border-t border-slate-800 pt-4">
-            <div className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-brand md:text-left">
-              Top rated coasters
-            </div>
-            <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm md:justify-start">
-              {topCoasters.map((c) => (
-                <li key={c.slug}>
-                  <Link href={`/coasters/${c.slug}`} className="text-slate-400 transition-colors hover:text-brand">
-                    {c.name}
-                    {c.parkName && <span className="text-slate-600"> · {c.parkName}</span>}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
       </div>
     </footer>
   );
