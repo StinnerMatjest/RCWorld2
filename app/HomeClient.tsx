@@ -395,7 +395,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
       a.onload = () => reveal(true);
       applyEntryToImg(a, header, initialSrc);
       if (a.complete && a.naturalWidth > 0) reveal(false);
-    }, { rootMargin: "100% 100%" });
+    }, { rootMargin: "200% 200%" }); // two screens ahead: keeps up with a fast swipe
     io.observe(c);
     return () => io.disconnect();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
