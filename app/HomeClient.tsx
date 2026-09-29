@@ -534,10 +534,24 @@ type HomeProps = {
   initialRatings?: Visit[];
   initialParks?: Park[];
   initialAdminMode?: boolean;
+  /** Server's guess from the user agent; the viewport decides after hydration. */
+  initialIsMobile?: boolean;
 };
 
-const Home = ({ initialRatings, initialParks, initialAdminMode }: HomeProps) => {
+const MOBILE_QUERY = "(max-width: 767px)"; // below Tailwind's md breakpoint
+
+const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile }: HomeProps) => {
   const router = useRouter();
+  // Only one card layout is rendered at a time so a phone never downloads the
+  // grid's images and a desktop never downloads the strip's.
+  const [isMobileLayout, setIsMobileLayout] = useState<boolean>(initialIsMobile ?? false);
+  useEffect(() => {
+    const mq = window.matchMedia(MOBILE_QUERY);
+    setIsMobileLayout(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setIsMobileLayout(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
   const { query } = useSearch();
   const { isAdminMode, hydrated } = useAdminMode();
 
@@ -745,8 +759,9 @@ const Home = ({ initialRatings, initialParks, initialAdminMode }: HomeProps) => 
 
   return (
     <main id="top" className="relative z-0 bg-[#0f172a] overflow-visible min-h-screen">
-      {/* Mobile: horizontal swipe carousel. The whole strip fades in as one
-          composite once the gate opens — see the reveal gate above. */}
+      {isMobileLayout ? (
+      /* Mobile: horizontal swipe carousel. The whole strip fades in as one
+         composite once the gate opens — see the reveal gate above. */
       <div className={`md:hidden px-4 py-3 relative transition-opacity duration-500 ${revealed ? "opacity-100" : "opacity-0"}`}>
         <div
           ref={carouselRef}
@@ -800,8 +815,9 @@ const Home = ({ initialRatings, initialParks, initialAdminMode }: HomeProps) => 
         </div>
       </div>
 
-      {/* Tablet & up: normal grid. Fades in as one composite once the gate
-          opens — images and their readability overlays arrive together. */}
+      ) : (
+      /* Tablet & up: normal grid. Fades in as one composite once the gate
+         opens — images and their readability overlays arrive together. */
       <div className={`hidden md:grid relative z-10 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 px-6 flex-grow py-2.5 transition-opacity duration-500 ${revealed ? "opacity-100" : "opacity-0"}`}>
         {displayItems.map((item, index) => {
           if (item.type === "pending") {
@@ -813,8 +829,9 @@ const Home = ({ initialRatings, initialParks, initialAdminMode }: HomeProps) => 
           return <FullBleedRatingCard key={item.id} rating={item.rating} park={item.park} delayIndex={index} onImgReady={() => markImgReady(item.id)} />;
         })}
       </div>
+      )}
 
-      <Suspense fallback={<div>Loading...</div>}>
+      <Suspense fallback={null}>
         <RatingModal closeModal={closeModal} fetchRatingsAndParks={fetchRatingsAndParks} />
       </Suspense>
     </main>

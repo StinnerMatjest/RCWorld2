@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import HomeClient from "./HomeClient";
 import { isAdminRequest } from "@/app/lib/adminAuth";
 import type { Visit, Park } from "@/app/types";
@@ -47,14 +47,21 @@ async function getInitialData(): Promise<{ ratings?: Visit[]; parks?: Park[] }> 
 export default async function Page() {
   // The admin cookie is readable server-side, so admins get the admin grid
   // (pending parks, drafts) in the SSR HTML — no post-hydration reshuffle.
-  const [{ ratings, parks }, initialAdminMode] = await Promise.all([
+  const [{ ratings, parks }, initialAdminMode, headerList] = await Promise.all([
     getInitialData(),
     isAdminRequest({ cookies: await cookies() }),
+    headers(),
   ]);
+  // The card strip (phones) and the card grid (tablets and up) used to both be
+  // in the HTML with CSS hiding one, which made every browser download both
+  // sets of images. Pick one from the user agent for the first paint; the
+  // client switches on the real viewport if the guess was wrong.
+  const ua = headerList.get("user-agent") ?? "";
+  const initialIsMobile = /Mobi|iPhone|iPod|Android.*Mobile/i.test(ua);
   return (
     <>
       <h1 className="sr-only">ParkRating: Theme Park Reviews &amp; Roller Coaster Rankings</h1>
-      <HomeClient initialRatings={ratings} initialParks={parks} initialAdminMode={initialAdminMode} />
+      <HomeClient initialRatings={ratings} initialParks={parks} initialAdminMode={initialAdminMode} initialIsMobile={initialIsMobile} />
     </>
   );
 }
