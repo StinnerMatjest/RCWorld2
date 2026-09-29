@@ -10,6 +10,33 @@ import RatingModal from "./components/RatingModal";
 import { useRouter } from "next/navigation";
 import { useSearch } from "./context/SearchContext";
 import { useAdminMode } from "@/app/context/AdminModeContext";
+import { isR2Image, variantKey, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
+
+// Home cards cover-crop the photo into a tall card, so the card's height (not
+// its width) decides how many source pixels are needed. Start from a stored
+// variant that should cover the card on this screen; after it loads, the focus
+// math reports the real device-pixel scale and we step up to the next size (or
+// the original) if the variant would have been enlarged. Net effect: the card
+// never shows fewer source pixels than the screen can display, but downloads
+// a fraction of the multi-megabyte original.
+const CARD_SAFE_VARIANT = 1920 as const;
+function cardSrcFor(original: string, container: HTMLElement | null, eager: boolean): string {
+  if (!isR2Image(original)) return original;
+  if (eager || !container || typeof window === "undefined") return variantKey(original, CARD_SAFE_VARIANT);
+  const dpr = window.devicePixelRatio || 1;
+  // Assume a portrait-ish source (w/h ~ 0.75); the post-load check corrects the rest.
+  const need = Math.max(container.clientWidth, container.clientHeight * 0.75) * dpr;
+  const w = VARIANT_WIDTHS.find(v => v >= need);
+  return w ? variantKey(original, w) : original;
+}
+function largerCardSrc(original: string, current: string): string | null {
+  if (!isR2Image(original)) return null;
+  const m = current.match(/-w(\d+)\.webp$/i);
+  if (!m) return null; // already the original
+  const cur = Number(m[1]);
+  const next = VARIANT_WIDTHS.find(v => v > cur);
+  return next ? variantKey(original, next) : original;
+}
 import LoadingSpinner from "./components/LoadingSpinner";
 import { getParkFlag, getRatingColor } from "@/app/utils/design";
 import { FocusedImage, parseFocusStr } from "./components/FocusedImage";
@@ -130,9 +157,10 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
   const slotARawSrcRef = useRef<string>(cardSrc);
   const slotBRawSrcRef = useRef<string>(cardSrc);
 
-  const applyFocusToImg = useCallback((img: HTMLImageElement, focusStr: string) => {
+  // Returns the device-pixel scale of the drawn image (>1 means the source was enlarged).
+  const applyFocusToImg = useCallback((img: HTMLImageElement, focusStr: string): number => {
     const c = imageContainerRef.current;
-    if (!c || !img.naturalWidth || !img.naturalHeight) return;
+    if (!c || !img.naturalWidth || !img.naturalHeight) return 0;
     const { cx, cy, zoom } = parseFocusStr(focusStr);
     const cs = Math.max(c.clientWidth / img.naturalWidth, c.clientHeight / img.naturalHeight);
     const dw = img.naturalWidth * cs * zoom;
@@ -141,6 +169,17 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     img.style.height = `${dh}px`;
     img.style.left = `${c.clientWidth / 2 - cx * dw}px`;
     img.style.top = `${c.clientHeight / 2 - cy * dh}px`;
+    return cs * zoom * (typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1);
+  }, []);
+
+  // If the loaded variant is being enlarged on this screen, swap in the next
+  // larger stored size (or the original) and report that a reload is pending.
+  const upgradeIfSoft = useCallback((img: HTMLImageElement, original: string, scale: number): boolean => {
+    if (scale <= 1.02) return false;
+    const bigger = largerCardSrc(original, img.src);
+    if (!bigger) return false;
+    img.src = bigger;
+    return true;
   }, []);
 
   const getCardEntry = useCallback((label: string): { src: string; focus: string } => {
@@ -182,15 +221,17 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     slotBRawSrcRef.current = cardSrc;
     a.style.opacity = "0"; a.style.transition = "none";
     b.style.opacity = "0"; b.style.transition = "none";
-    a.src = cardSrc;
-    b.src = cardSrc;
+    const initialSrc = cardSrcFor(cardSrc, imageContainerRef.current, delayIndex < 6);
+    a.src = initialSrc;
+    b.src = initialSrc;
     // Image already loaded when we hydrate: reveal instantly — the page-level
     // gate holds the whole card invisible until enough images are ready, so
     // shell and image arrive as one unit. Loaded after the gate opened
     // (slow network, below-fold cards): fade in over the shimmer.
     const reveal = (fade: boolean) => {
       if (!a.naturalWidth) return;
-      applyFocusToImg(a, cardFocusStr);
+      const scale = applyFocusToImg(a, cardFocusStr);
+      if (upgradeIfSoft(a, cardSrc, scale)) { a.onload = () => reveal(fade); return; }
       onImgReadyRef.current?.();
       if (fade) {
         requestAnimationFrame(() => {
@@ -240,7 +281,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     const active = activeRef.current;
     if (!inactive || !active) return;
 
-    inactive.src = target.src;
+    inactive.src = cardSrcFor(target.src, imageContainerRef.current, false);
     if (inactiveRef === slotARef) {
       slotAFocusRef.current = target.focus;
       slotARawSrcRef.current = target.src;
@@ -252,7 +293,8 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     const startFade = () => {
       inactive.onload = null;
       inactive.onerror = null;
-      applyFocusToImg(inactive, target.focus);
+      const scale = applyFocusToImg(inactive, target.focus);
+      if (upgradeIfSoft(inactive, target.src, scale)) { inactive.onload = startFade; inactive.onerror = startFade; return; }
       raf1Ref.current = requestAnimationFrame(() => {
         raf2Ref.current = requestAnimationFrame(() => {
           inactive.style.transition = "opacity 700ms ease-in-out";
@@ -270,7 +312,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
       inactive.onload = startFade;
       inactive.onerror = startFade;
     }
-  }, [cancelInFlight, cardSrc, cardFocusStr, applyFocusToImg]);
+  }, [cancelInFlight, cardSrc, cardFocusStr, applyFocusToImg, upgradeIfSoft]);
 
   const stopCycle = useCallback(() => {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
@@ -434,7 +476,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
               well before hydration; opacity 0 until the focus math positions it.
               First-row cards load eagerly (they gate the page reveal); the rest lazily. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img ref={slotARef} src={cardSrc} alt="" loading={delayIndex < 6 ? "eager" : "lazy"} className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
+          <img ref={slotARef} src={isR2Image(cardSrc) ? variantKey(cardSrc, CARD_SAFE_VARIANT) : cardSrc} alt="" loading={delayIndex < 6 ? "eager" : "lazy"} className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img ref={slotBRef} alt="" className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
 
