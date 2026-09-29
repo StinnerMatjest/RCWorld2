@@ -53,11 +53,14 @@ const VisitPanel: React.FC<VisitPanelProps> = ({
 
   if (!active) return null;
 
+  // Fixed timezone: the server and a visitor in another timezone must render
+  // the same text, or hydration fails and the page is rebuilt client-side.
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString("en-GB", {
       day: "numeric",
       month: "short",
       year: "numeric",
+      timeZone: "UTC",
     });
 
   const hasMultiple = sorted.length > 1;

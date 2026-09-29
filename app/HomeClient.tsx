@@ -680,7 +680,10 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
               <Image src={getParkFlag(park.country)} alt="" width={20} height={14} className="rounded-sm shrink-0" unoptimized />
               <h2 className="text-white font-bold text-xl leading-tight drop-shadow-md">{park.name}</h2>
             </div>
-            <p className="text-white/50 text-xs mt-1">{new Date(rating.date).toLocaleDateString("en-GB")}</p>
+            {/* Fixed timezone: visit dates are date-only values, and formatting them in
+                the visitor's local zone made the server (UTC) and a US browser disagree
+                by a day, which failed hydration and rebuilt the whole page client-side. */}
+            <p className="text-white/50 text-xs mt-1">{new Date(rating.date).toLocaleDateString("en-GB", { timeZone: "UTC" })}</p>
           </div>
 
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent px-5 pt-16 pb-4 flex flex-col items-center gap-3">

@@ -548,7 +548,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
                   {visibleRatings.map(rating => (
                     <div key={rating.id} className="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
                       <div>
-                        <span className="text-slate-200 font-medium block">{new Date(rating.date).toLocaleDateString("en-GB")}</span>
+                        <span className="text-slate-200 font-medium block">{new Date(rating.date).toLocaleDateString("en-GB", { timeZone: "UTC" })}</span>
                         <span className="text-xs text-slate-500">Score: {rating.overall.toFixed(2)}</span>
                       </div>
                       <button
@@ -584,7 +584,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
               <div className="animate-fade-in-up">
                 <h3 className="text-2xl font-bold text-white mb-2">Delete Visit?</h3>
                 <p className="text-slate-400 mb-8 leading-relaxed">
-                  Are you sure you want to delete the visit from <strong className="text-white">{new Date(deleteContext.rating.date).toLocaleDateString("en-GB")}</strong>? This action cannot be undone.
+                  Are you sure you want to delete the visit from <strong className="text-white">{new Date(deleteContext.rating.date).toLocaleDateString("en-GB", { timeZone: "UTC" })}</strong>? This action cannot be undone.
                 </p>
                 <div className="flex justify-end gap-3 mt-auto">
                   <button onClick={() => setDeleteContext("select")} disabled={isDeleting} className="px-4 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 font-medium transition-colors disabled:opacity-50 cursor-pointer">Back</button>
