@@ -39,6 +39,9 @@ export function pickVariantWidth(width: number): VariantWidth | null {
  * For a frame that cover-crops the photo (home cards): the smallest stored
  * variant that should cover `cssW × cssH` CSS px on a screen with this DPR.
  * The source aspect is unknown before load, so a portrait-ish 3:4 photo is
+ * assumed (the cheaper guess: lazy cards only load as they scroll into view,
+ * and a landscape photo that turns out too small steps up one size). Never
+ * returns the original: cards top out at the largest stored size. A 3:4 photo is
  * assumed; callers check the real scale after load and step up with
  * `nextLargerVariant` if the pick turns out to be enlarged. That way a screen
  * never gets fewer source pixels than it can show, but downloads a fraction of
@@ -47,19 +50,31 @@ export function pickVariantWidth(width: number): VariantWidth | null {
 export function coverVariantUrl(src: string, cssW: number, cssH: number, dpr: number): string {
   if (!isR2Image(src)) return src;
   const need = Math.max(cssW, cssH * 0.75) * dpr;
-  const w = VARIANT_WIDTHS.find((v) => v >= need);
-  return w ? variantKey(src, w) : src;
+  const w = VARIANT_WIDTHS.find((v) => v >= need) ?? VARIANT_WIDTHS[VARIANT_WIDTHS.length - 1];
+  return variantKey(src, w);
 }
 
-/** The next stored size above the variant `current`, or the original; null when `current` already is the original or `src` is not an R2 image. */
+/**
+ * The next stored size above the variant `current`; null when `current` is
+ * already the largest stored size (or the original), or `src` is not an R2
+ * image. Never returns the original: a cover-cropped card is at most a few
+ * hundred CSS px wide, and the multi-megabyte original is for the lightbox.
+ */
 export function nextLargerVariant(src: string, current: string): string | null {
   if (!isR2Image(src)) return null;
   const m = current.match(/-w(\d+)\.webp(?:\?.*)?$/i);
   if (!m) return null;
   const cur = Number(m[1]);
   const next = VARIANT_WIDTHS.find((v) => v > cur);
-  return next ? variantKey(src, next) : src;
+  return next ? variantKey(src, next) : null;
 }
+
+/**
+ * Enlargement a cover-cropped card tolerates before stepping up a size. A
+ * landscape 1920px photo filling a tall phone card is enlarged ~1.1x, which is
+ * invisible at card size; refetching for that used to pull the original.
+ */
+export const COVER_UPSCALE_TOLERANCE = 1.25;
 
 /** URL to serve for an R2 image at roughly `width` CSS px (× DPR); the original for non-R2 sources. */
 export function variantUrl(src: string, width: number): string {

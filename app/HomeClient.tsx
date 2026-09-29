@@ -10,7 +10,7 @@ import RatingModal from "./components/RatingModal";
 import { useRouter } from "next/navigation";
 import { useSearch } from "./context/SearchContext";
 import { useAdminMode } from "@/app/context/AdminModeContext";
-import { isR2Image, variantKey, coverVariantUrl, nextLargerVariant } from "@/app/lib/imageVariants";
+import { isR2Image, variantKey, coverVariantUrl, nextLargerVariant, COVER_UPSCALE_TOLERANCE } from "@/app/lib/imageVariants";
 
 // Home cards cover-crop the photo into a tall card, so the card's height (not
 // its width) decides how many source pixels are needed. Start from a stored
@@ -21,10 +21,13 @@ import { isR2Image, variantKey, coverVariantUrl, nextLargerVariant } from "@/app
 // a fraction of the multi-megabyte original. First-row cards (in the SSR HTML)
 // start from the largest stored size so the eager download is never redone.
 const CARD_SAFE_VARIANT = 1920 as const;
-function cardSrcFor(original: string, container: HTMLElement | null, eager: boolean): string {
+function cardSrcFor(original: string, container: HTMLElement | null, eager: boolean, focusStr?: string): string {
   if (!isR2Image(original)) return original;
   if (eager || !container || typeof window === "undefined") return variantKey(original, CARD_SAFE_VARIANT);
-  return coverVariantUrl(original, container.clientWidth, container.clientHeight, window.devicePixelRatio || 1);
+  // A zoomed crop shows fewer source pixels across the same frame, so it needs
+  // a proportionally larger source.
+  const zoom = parseFocusStr(focusStr).zoom;
+  return coverVariantUrl(original, container.clientWidth * zoom, container.clientHeight * zoom, window.devicePixelRatio || 1);
 }
 import LoadingSpinner from "./components/LoadingSpinner";
 import { getParkFlag, getRatingColor } from "@/app/utils/design";
@@ -134,7 +137,7 @@ const FULL_BLEED_GROUPS = [
 const CARD_CATS = ["coasters", "rides", "park", "food", "mgmt"] as const;
 type CardCat = typeof CARD_CATS[number];
 
-const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0, onImgReady }: { rating: Visit; park: Park; isActive?: boolean; delayIndex?: number; onImgReady?: () => void }) {
+const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0, eager = false, onImgReady }: { rating: Visit; park: Park; isActive?: boolean; delayIndex?: number; eager?: boolean; onImgReady?: () => void }) {
   const headerSrc = park.imagepath || "/images/error.PNG";
   const cardSrc = park.cardImagepath || headerSrc;
   const cardFocusStr = park.imageFocus || "0.5 0.5 1";
@@ -165,7 +168,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
   // If the loaded variant is being enlarged on this screen, swap in the next
   // larger stored size (or the original) and report that a reload is pending.
   const upgradeIfSoft = useCallback((img: HTMLImageElement, original: string, scale: number): boolean => {
-    if (scale <= 1.02) return false;
+    if (scale <= COVER_UPSCALE_TOLERANCE) return false;
     const bigger = nextLargerVariant(original, img.src);
     if (!bigger) return false;
     img.src = bigger;
@@ -211,9 +214,10 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     slotBRawSrcRef.current = cardSrc;
     a.style.opacity = "0"; a.style.transition = "none";
     b.style.opacity = "0"; b.style.transition = "none";
-    const initialSrc = cardSrcFor(cardSrc, imageContainerRef.current, delayIndex < 6);
+    const initialSrc = cardSrcFor(cardSrc, imageContainerRef.current, eager, cardFocusStr);
     a.src = initialSrc;
-    b.src = initialSrc;
+    // Slot B only gets a src when a cross-fade needs it; giving it the header
+    // image here made every card (lazy or not) download immediately.
     // Image already loaded when we hydrate: reveal instantly — the page-level
     // gate holds the whole card invisible until enough images are ready, so
     // shell and image arrive as one unit. Loaded after the gate opened
@@ -271,7 +275,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     const active = activeRef.current;
     if (!inactive || !active) return;
 
-    inactive.src = cardSrcFor(target.src, imageContainerRef.current, false);
+    inactive.src = cardSrcFor(target.src, imageContainerRef.current, false, target.focus);
     if (inactiveRef === slotARef) {
       slotAFocusRef.current = target.focus;
       slotARawSrcRef.current = target.src;
@@ -466,9 +470,9 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
               well before hydration; opacity 0 until the focus math positions it.
               First-row cards load eagerly (they gate the page reveal); the rest lazily. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img ref={slotARef} src={isR2Image(cardSrc) ? variantKey(cardSrc, CARD_SAFE_VARIANT) : cardSrc} alt="" loading={delayIndex < 6 ? "eager" : "lazy"} className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
+          <img ref={slotARef} src={isR2Image(cardSrc) ? variantKey(cardSrc, CARD_SAFE_VARIANT) : cardSrc} alt="" loading={eager ? "eager" : "lazy"} className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img ref={slotBRef} alt="" className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
+          <img ref={slotBRef} alt="" loading="lazy" className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
 
           <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent px-4 pt-4 pb-16 pointer-events-none">
             <div className="flex items-center gap-2">
@@ -539,6 +543,10 @@ type HomeProps = {
 };
 
 const MOBILE_QUERY = "(max-width: 767px)"; // below Tailwind's md breakpoint
+// Cards that load immediately and that the reveal gate waits for: a phone
+// shows one card at a time, a desktop grid shows a whole first row.
+const EAGER_MOBILE = 2;
+const EAGER_DESKTOP = 6;
 
 const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile }: HomeProps) => {
   const router = useRouter();
@@ -637,9 +645,9 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
     () =>
       displayItems
         .filter((it) => it.type === "teaser" || it.type === "rating")
-        .slice(0, 6)
+        .slice(0, isMobileLayout ? EAGER_MOBILE : EAGER_DESKTOP)
         .map((it) => it.id as string),
-    [displayItems]
+    [displayItems, isMobileLayout]
   );
   const markImgReady = useCallback(
     (id: string) => {
@@ -779,9 +787,9 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
                 {item.type === "pending" ? (
                   <PendingParkCard park={item.park} />
                 ) : item.type === "teaser" ? (
-                  <TeaserParkCard rating={item.rating} park={item.park} eager={index < 6} onImgReady={() => markImgReady(item.id)} />
+                  <TeaserParkCard rating={item.rating} park={item.park} eager={index < EAGER_MOBILE} onImgReady={() => markImgReady(item.id)} />
                 ) : item.type === "rating" ? (
-                  <FullBleedRatingCard rating={item.rating} park={item.park} isActive={active} onImgReady={() => markImgReady(item.id)} />
+                  <FullBleedRatingCard rating={item.rating} park={item.park} isActive={active} delayIndex={index} eager={index < EAGER_MOBILE} onImgReady={() => markImgReady(item.id)} />
                 ) : (
                   <RatingCard
                     rating={item.rating}
@@ -824,9 +832,9 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
             return <PendingParkCard key={item.id} park={item.park} />;
           }
           if (item.type === "teaser") {
-            return <TeaserParkCard key={item.id} rating={item.rating} park={item.park} eager={index < 6} onImgReady={() => markImgReady(item.id)} />;
+            return <TeaserParkCard key={item.id} rating={item.rating} park={item.park} eager={index < EAGER_DESKTOP} onImgReady={() => markImgReady(item.id)} />;
           }
-          return <FullBleedRatingCard key={item.id} rating={item.rating} park={item.park} delayIndex={index} onImgReady={() => markImgReady(item.id)} />;
+          return <FullBleedRatingCard key={item.id} rating={item.rating} park={item.park} delayIndex={index} eager={index < EAGER_DESKTOP} onImgReady={() => markImgReady(item.id)} />;
         })}
       </div>
       )}

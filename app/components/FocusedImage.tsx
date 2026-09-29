@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useCallback } from "react";
-import { isR2Image, variantKey, coverVariantUrl, nextLargerVariant } from "@/app/lib/imageVariants";
+import { isR2Image, variantKey, coverVariantUrl, nextLargerVariant, COVER_UPSCALE_TOLERANCE } from "@/app/lib/imageVariants";
 
 // With `variants`, R2 photos start from the largest stored size (safe on any
 // screen and a fraction of the original); lazy ones re-pick for the actual
@@ -94,9 +94,10 @@ export function FocusedImage({
     const c = containerRef.current;
     if (!img || !c || priority || !useVariants) return;
     if (img.complete && img.naturalWidth > 0) return; // already loaded, leave it
-    const pick = coverVariantUrl(src, c.clientWidth, c.clientHeight, window.devicePixelRatio || 1);
+    const zoom = parseFocusStr(focusStr).zoom; // a zoomed crop needs a larger source
+    const pick = coverVariantUrl(src, c.clientWidth * zoom, c.clientHeight * zoom, window.devicePixelRatio || 1);
     if (pick !== img.src) img.src = pick;
-  }, [src, priority, useVariants]);
+  }, [src, priority, useVariants, focusStr]);
 
   const applyStyle = useCallback(() => {
     const c = containerRef.current;
@@ -115,7 +116,7 @@ export function FocusedImage({
     // re-runs this with the new natural size.
     if (useVariantsRef.current) {
       const scale = cs * zoom * (window.devicePixelRatio || 1);
-      if (scale > 1.02) {
+      if (scale > COVER_UPSCALE_TOLERANCE) {
         const bigger = nextLargerVariant(srcRef.current, img.src);
         if (bigger) img.src = bigger;
       }
