@@ -12,7 +12,24 @@ import { useSearch } from "./context/SearchContext";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import { isR2Image, variantKey, coverVariantUrl, sharperSource, exactCoverSrc, COVER_UPSCALE_TOLERANCE } from "@/app/lib/imageVariants";
 import type { ImageSize, CardCut } from "@/app/types";
-import { cutSrcSet, cutSizes } from "@/app/lib/cardCutGeometry";
+import { cutSrcSet, cutSizes, CARD_FRAME_HEIGHT } from "@/app/lib/cardCutGeometry";
+
+// Inline position for a cut, computed on the server so the photo is visible
+// as soon as it downloads, without waiting for hydration. Mirrors
+// applyFocusToImg for a height-limited image in a CARD_FRAME_HEIGHT-tall frame:
+// only the horizontal offset depends on the frame width, hence calc(50%).
+// applyFocusToImg re-applies the same numbers after hydration.
+function ssrPlacement(cut: CardCut): React.CSSProperties {
+  const { cx, cy, zoom } = parseFocusStr(cut.focus);
+  const dh = CARD_FRAME_HEIGHT * zoom;
+  const dw = dh * cut.w / cut.h;
+  return {
+    width: `${dw.toFixed(2)}px`,
+    height: `${dh.toFixed(2)}px`,
+    left: `calc(50% - ${(cx * dw).toFixed(2)}px)`,
+    top: `${(CARD_FRAME_HEIGHT / 2 - cy * dh).toFixed(2)}px`,
+  };
+}
 
 // What a card slot shows: either the original photo (picked by size) or its
 // pre-made cut, which the browser picks a copy of through srcset.
@@ -114,6 +131,7 @@ const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager 
           src={park.cardCut ? park.cardCut.url : (park.cardImagepath || park.imagepath || "/images/error.PNG")}
           srcSet={park.cardCut ? cutSrcSet(park.cardCut) : undefined}
           sizes={park.cardCut ? cutSizes(park.cardCut) : undefined}
+          placement={park.cardCut ? ssrPlacement(park.cardCut) : undefined}
           alt={park.name}
           focusStr={park.cardCut ? park.cardCut.focus : park.imageFocus}
           size={park.cardCut ? undefined : (park.cardImagepath ? park.cardImageSize : park.imageSize)}
@@ -273,7 +291,9 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     slotBFocusRef.current = cardFocusStr;
     slotARawSrcRef.current = cardSrc;
     slotBRawSrcRef.current = cardSrc;
-    a.style.opacity = "0"; a.style.transition = "none";
+    // A cut was positioned and shown by the server render; keep it on screen.
+    const placed = a.dataset.placed === "1";
+    a.style.opacity = placed ? "0.95" : "0"; a.style.transition = "none";
     b.style.opacity = "0"; b.style.transition = "none";
     // The SSR src was chosen for a generous assumed screen and may already be
     // downloading (eager, or lazy but near the viewport). Keep it unless this
@@ -285,16 +305,18 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     if (!header.cut) a.src = initialSrc;
     // Slot B only gets a src when a cross-fade needs it; giving it the header
     // image here made every card (lazy or not) download immediately.
-    // Image already loaded when we hydrate: reveal instantly — the page-level
-    // gate holds the whole card invisible until enough images are ready, so
-    // shell and image arrive as one unit. Loaded after the gate opened
-    // (slow network, below-fold cards): fade in over the shimmer.
+    // Server-placed cut: already visible, just refine the position with the
+    // real frame size and drop the shimmer. Otherwise: loaded by hydration ->
+    // show instantly; loaded later (slow network, below-fold) -> fade in.
     const reveal = (fade: boolean) => {
       if (!a.naturalWidth) return;
       const scale = applyFocusToImg(a, cardFocusStr);
       if (upgradeIfSoft(a, cardSrc, scale, !!cardSize || cardDirect)) { a.onload = () => reveal(fade); return; }
       onImgReadyRef.current?.();
-      if (fade) {
+      if (placed) {
+        a.style.opacity = "0.95";
+        setImgReady(true);
+      } else if (fade) {
         requestAnimationFrame(() => {
           a.style.transition = "opacity 500ms ease";
           a.style.opacity = "0.95";
@@ -551,7 +573,8 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
             // The first card is the page's largest paint: ask the browser to fetch it ahead of scripts and styles.
             {...(first ? { fetchpriority: "high" } : {})}
             className="absolute max-w-none select-none"
-            style={{ opacity: 0 }}
+            style={header.cut ? { ...ssrPlacement(header.cut), opacity: 0.95 } : { opacity: 0 }}
+            data-placed={header.cut ? "1" : undefined}
             draggable={false}
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -722,7 +745,12 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
   // images have fully loaded, then `revealed` fades the whole grid in as one
   // composite — cards, images, and overlays together. A failsafe timeout opens
   // the gate anyway so one slow image can't hold the page hostage.
-  const [revealed, setRevealed] = useState(false);
+  // Cards appear individually as their photos are ready (server-placed cuts
+  // are visible before any JavaScript runs). The former page-level gate that
+  // held every card invisible until the first row had loaded is retired: it
+  // made the first picture wait for the whole bundle. State kept so the
+  // ready-tracking below stays harmless.
+  const [revealed, setRevealed] = useState(true);
   const readyIdsRef = useRef<Set<string>>(new Set());
   const gateIds = React.useMemo(
     () =>

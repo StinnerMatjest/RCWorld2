@@ -37,6 +37,8 @@ export interface FocusedImageProps {
   /** Pre-made copies of the source (card cuts): the browser picks by density; no re-picking here. */
   srcSet?: string;
   sizes?: string;
+  /** Server-computed position for a cut; the image is shown immediately instead of hidden until JS positions it. */
+  placement?: React.CSSProperties;
 }
 
 // Rewrite an image URL to Next's optimizer endpoint — the same endpoint
@@ -77,7 +79,7 @@ export function splitMedia(entry: string): { url: string; focus: string } {
 // Renders an image absolutely positioned inside an overflow-hidden container,
 // matching exactly what CropEditor shows for the given focusStr.
 export function FocusedImage({
-  src, alt = "", focusStr, className = "", imgClassName = "", imgStyle, priority, onLoad: onLoadProp, optimizeWidth, staggerDelayMs = 0, variants = false, size, assumedScreen, srcSet, sizes,
+  src, alt = "", focusStr, className = "", imgClassName = "", imgStyle, priority, onLoad: onLoadProp, optimizeWidth, staggerDelayMs = 0, variants = false, size, assumedScreen, srcSet, sizes, placement,
 }: FocusedImageProps) {
   const useVariants = variants && !srcSet && isR2Image(src);
   const sizeKnown = useVariants && !!size;
@@ -91,7 +93,7 @@ export function FocusedImage({
   const useVariantsRef = useRef(useVariants);
   // First reveal only: fresh network loads fade in; cached images (the
   // complete-check path below) appear instantly so back-navigation doesn't blink.
-  const revealedRef = useRef(false);
+  const revealedRef = useRef(!!placement); // server-placed: nothing to reveal
   const fadeInRef = useRef(false);
   const mountTsRef = useRef(0);
   const staggerRef = useRef(staggerDelayMs);
@@ -197,7 +199,7 @@ export function FocusedImage({
         alt={alt}
         draggable={false}
         className={`absolute max-w-none select-none ${imgClassName}`}
-        style={{ ...imgStyle, visibility: "hidden" }}
+        style={placement ? { ...imgStyle, ...placement, visibility: "visible" } : { ...imgStyle, visibility: "hidden" }}
         loading={priority ? "eager" : "lazy"}
         onLoad={(e) => {
           nwRef.current = e.currentTarget.naturalWidth;
