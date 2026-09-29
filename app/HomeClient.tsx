@@ -12,13 +12,26 @@ import { useSearch } from "./context/SearchContext";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import { isR2Image, variantKey, coverVariantUrl, sharperSource, exactCoverSrc, COVER_UPSCALE_TOLERANCE } from "@/app/lib/imageVariants";
 import type { ImageSize, CardCut } from "@/app/types";
+import { cutSrcSet, cutSizes } from "@/app/lib/cardCutGeometry";
 
 // What a card slot shows: either the original photo (picked by size) or its
-// pre-made cut, which is loaded as-is.
-type CardEntry = { src: string; focus: string; size?: ImageSize; direct?: boolean };
+// pre-made cut, which the browser picks a copy of through srcset.
+type CardEntry = { src: string; focus: string; size?: ImageSize; direct?: boolean; cut?: CardCut };
 function resolveEntry(src: string, focus: string, size: ImageSize | undefined, cut: CardCut | undefined): CardEntry {
-  if (cut) return { src: cut.url, focus: cut.focus, size: { w: cut.w, h: cut.h }, direct: true };
+  if (cut) return { src: cut.url, focus: cut.focus, size: { w: cut.w, h: cut.h }, direct: true, cut };
   return { src, focus, size };
+}
+// Point an <img> at an entry: cuts carry srcset/sizes so the browser picks the
+// copy that matches its density; anything else is a single src.
+function applyEntryToImg(img: HTMLImageElement, entry: CardEntry, src: string) {
+  if (entry.cut) {
+    img.sizes = cutSizes(entry.cut);
+    img.srcset = cutSrcSet(entry.cut);
+  } else {
+    img.removeAttribute("srcset");
+    img.removeAttribute("sizes");
+  }
+  img.src = src;
 }
 
 // What the server assumes about the screen when it has to choose the first
@@ -99,6 +112,8 @@ const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager 
         )}
         <FocusedImage
           src={park.cardCut ? park.cardCut.url : (park.cardImagepath || park.imagepath || "/images/error.PNG")}
+          srcSet={park.cardCut ? cutSrcSet(park.cardCut) : undefined}
+          sizes={park.cardCut ? cutSizes(park.cardCut) : undefined}
           alt={park.name}
           focusStr={park.cardCut ? park.cardCut.focus : park.imageFocus}
           size={park.cardCut ? undefined : (park.cardImagepath ? park.cardImageSize : park.imageSize)}
@@ -168,15 +183,17 @@ const FULL_BLEED_GROUPS = [
 const CARD_CATS = ["coasters", "rides", "park", "food", "mgmt"] as const;
 type CardCat = typeof CARD_CATS[number];
 
-const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0, eager = false, assumedScreen = "desktop", onImgReady }: { rating: Visit; park: Park; isActive?: boolean; delayIndex?: number; eager?: boolean; assumedScreen?: keyof typeof ASSUMED_SCREEN; onImgReady?: () => void }) {
+const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0, eager = false, first = false, assumedScreen = "desktop", onImgReady }: { rating: Visit; park: Park; isActive?: boolean; delayIndex?: number; eager?: boolean; first?: boolean; assumedScreen?: keyof typeof ASSUMED_SCREEN; onImgReady?: () => void }) {
   const headerSrc = park.imagepath || "/images/error.PNG";
   // The card photo as framed in the editor, or its cut when one is ready.
-  const header = resolveEntry(
+  // Memoised: it feeds the hover/cycle callbacks and the mobile effect below,
+  // and a fresh object per render made that effect cancel in-flight fades.
+  const header = useMemo(() => resolveEntry(
     park.cardImagepath || headerSrc,
     park.imageFocus || "0.5 0.5 1",
     park.cardImagepath ? park.cardImageSize : park.imageSize,
     park.cardCut,
-  );
+  ), [park.cardImagepath, headerSrc, park.imageFocus, park.cardImageSize, park.imageSize, park.cardCut]);
   const cardSrc = header.src;
   const cardSize = header.size;
   const cardFocusStr = header.focus;
@@ -218,10 +235,13 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
 
   const getCardEntry = useCallback((label: string): CardEntry => {
     const key = label.toLowerCase() as CardCat;
+    // Coasters is always the card photo itself, with the card's framing; the
+    // picker's Coasters slot is ignored.
+    if (key === "coasters") return header;
     const entry = park.cardImages?.[key];
     if (entry?.src) return resolveEntry(entry.src, entry.focus, entry.size, entry.cut);
-    return { src: cardSrc, focus: cardFocusStr, size: cardSize, direct: cardDirect };
-  }, [park.cardImages, cardSrc, cardFocusStr, cardSize, cardDirect]);
+    return header;
+  }, [park.cardImages, header]);
 
   const getCycleImages = useCallback(() =>
     FULL_BLEED_GROUPS
@@ -260,7 +280,9 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     // screen needs more pixels: a downgrade would only add a second download.
     const exact = cardSrcFor(cardSrc, cardSize, imageContainerRef.current, eager, cardFocusStr, assumedScreen, cardDirect);
     const initialSrc = cardSize && a.src && atLeastAsLarge(a.src, exact) ? a.src : exact;
-    a.src = initialSrc;
+    // A cut already has srcset/sizes from the server render; leave the
+    // browser's choice alone (re-setting src would not change it anyway).
+    if (!header.cut) a.src = initialSrc;
     // Slot B only gets a src when a cross-fade needs it; giving it the header
     // image here made every card (lazy or not) download immediately.
     // Image already loaded when we hydrate: reveal instantly — the page-level
@@ -311,7 +333,11 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     setActiveLabel(label);
     showingCategoryRef.current = entry != null;
 
-    const target: CardEntry = entry ?? { src: cardSrc, focus: cardFocusStr, size: cardSize, direct: cardDirect };
+    const target: CardEntry = entry ?? header;
+    // Already showing this photo (e.g. Coasters = the card photo): nothing to
+    // fade, just record the label. Avoids a cross-fade between identical images.
+    const activeRaw = activeSlotRef.current === "A" ? slotARawSrcRef.current : slotBRawSrcRef.current;
+    if (target.src === activeRaw) return;
     const [inactiveRef, activeRef, nextSlot] = activeSlotRef.current === "A"
       ? [slotBRef, slotARef, "B" as const]
       : [slotARef, slotBRef, "A" as const];
@@ -320,7 +346,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     const active = activeRef.current;
     if (!inactive || !active) return;
 
-    inactive.src = cardSrcFor(target.src, target.size, imageContainerRef.current, false, target.focus, assumedScreen, target.direct);
+    applyEntryToImg(inactive, target, cardSrcFor(target.src, target.size, imageContainerRef.current, false, target.focus, assumedScreen, target.direct));
     if (inactiveRef === slotARef) {
       slotAFocusRef.current = target.focus;
       slotARawSrcRef.current = target.src;
@@ -515,7 +541,19 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
               well before hydration; opacity 0 until the focus math positions it.
               First-row cards load eagerly (they gate the page reveal); the rest lazily. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img ref={slotARef} src={cardSrcFor(cardSrc, cardSize, null, eager, cardFocusStr, assumedScreen, cardDirect)} alt="" loading={eager ? "eager" : "lazy"} className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
+          <img
+            ref={slotARef}
+            src={cardSrcFor(cardSrc, cardSize, null, eager, cardFocusStr, assumedScreen, cardDirect)}
+            srcSet={header.cut ? cutSrcSet(header.cut) : undefined}
+            sizes={header.cut ? cutSizes(header.cut) : undefined}
+            alt=""
+            loading={eager ? "eager" : "lazy"}
+            // The first card is the page's largest paint: ask the browser to fetch it ahead of scripts and styles.
+            {...(first ? { fetchpriority: "high" } : {})}
+            className="absolute max-w-none select-none"
+            style={{ opacity: 0 }}
+            draggable={false}
+          />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img ref={slotBRef} alt="" loading="lazy" className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
 
@@ -834,7 +872,7 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
                 ) : item.type === "teaser" ? (
                   <TeaserParkCard rating={item.rating} park={item.park} eager={index < EAGER_MOBILE} assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
                 ) : item.type === "rating" ? (
-                  <FullBleedRatingCard rating={item.rating} park={item.park} isActive={active} delayIndex={index} eager={index < EAGER_MOBILE} assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
+                  <FullBleedRatingCard rating={item.rating} park={item.park} isActive={active} delayIndex={index} eager={index < EAGER_MOBILE} first={index === 0} assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
                 ) : (
                   <RatingCard
                     rating={item.rating}
@@ -879,7 +917,7 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
           if (item.type === "teaser") {
             return <TeaserParkCard key={item.id} rating={item.rating} park={item.park} eager={index < EAGER_DESKTOP} assumedScreen="desktop" onImgReady={() => markImgReady(item.id)} />;
           }
-          return <FullBleedRatingCard key={item.id} rating={item.rating} park={item.park} delayIndex={index} eager={index < EAGER_DESKTOP} assumedScreen="desktop" onImgReady={() => markImgReady(item.id)} />;
+          return <FullBleedRatingCard key={item.id} rating={item.rating} park={item.park} delayIndex={index} eager={index < EAGER_DESKTOP} first={index === 0} assumedScreen="desktop" onImgReady={() => markImgReady(item.id)} />;
         })}
       </div>
       )}

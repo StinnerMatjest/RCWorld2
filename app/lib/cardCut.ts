@@ -3,10 +3,10 @@ import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { r2 } from "@/app/library/r2";
 import { pool } from "@/app/lib/db";
 import { getImageSizes, r2KeyOf } from "@/app/lib/imageDims";
-import { CARD_CUT, cardCutFor, cardCutKey, planCardCut } from "@/app/lib/cardCutGeometry";
+import { CARD_CUT, cardCutFor, cardCutKey, cutCopyKey, planCardCut } from "@/app/lib/cardCutGeometry";
 
 /** A saved card cut, stored on the park row (card_cut) or inside a card_images entry (cut). */
-export type CardCut = { url: string; focus: string; w: number; h: number; for: string };
+export type CardCut = { url: string; focus: string; w: number; h: number; for: string; copies?: number[] };
 
 const Bucket = process.env.R2_BUCKET_NAME || "themeparks";
 const publicUrl = (key: string) => `https://pub-${process.env.R2_PUBLIC_BUCKET_ID}.r2.dev/${key}`;
@@ -40,13 +40,32 @@ export async function generateCardCut(src: string, focusStr: string | null | und
     Bucket, Key: cutKey, Body: out, ContentType: "image/webp",
     CacheControl: "public, max-age=31536000, immutable",
   }));
-  return { url: publicUrl(cutKey), focus: plan.focus, w: plan.outW, h: plan.outH, for: cardCutFor(src, focusStr) };
+  const copies = await makeCutCopies(cutKey, out, plan.outW);
+  return { url: publicUrl(cutKey), focus: plan.focus, w: plan.outW, h: plan.outH, for: cardCutFor(src, focusStr), copies };
+}
+
+/** Smaller copies of a cut (only widths below the cut's own). Returns the widths made. */
+export async function makeCutCopies(cutKey: string, cutBuffer: Buffer, cutWidth: number): Promise<number[]> {
+  const made: number[] = [];
+  for (const w of CARD_CUT.copyWidths) {
+    if (w >= cutWidth) continue;
+    const out = await sharp(cutBuffer).resize({ width: w }).webp({ quality: CARD_CUT.copyQuality }).toBuffer();
+    await r2.send(new PutObjectCommand({
+      Bucket, Key: cutCopyKey(cutKey, w), Body: out, ContentType: "image/webp",
+      CacheControl: "public, max-age=31536000, immutable",
+    }));
+    made.push(w);
+  }
+  return made;
 }
 
 export async function deleteCardCut(cut: CardCut | null | undefined): Promise<void> {
   const key = cut ? r2KeyOf(cut.url) : null;
   if (!key) return;
   await r2.send(new DeleteObjectCommand({ Bucket, Key: key })).catch(() => {});
+  for (const w of cut?.copies ?? CARD_CUT.copyWidths) {
+    await r2.send(new DeleteObjectCommand({ Bucket, Key: cutCopyKey(key, w) })).catch(() => {});
+  }
 }
 
 type ParkRow = {

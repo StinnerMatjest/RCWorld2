@@ -2,7 +2,7 @@
 export type ImageSize = { w: number; h: number };
 
 /** The slice of a wide photo that the home card shows, saved at native pixels (see app/lib/cardCutGeometry.ts). */
-export type CardCut = { url: string; focus: string; w: number; h: number; for: string };
+export type CardCut = { url: string; focus: string; w: number; h: number; for: string; copies?: number[] };
 
 export interface Park {
   id: number;

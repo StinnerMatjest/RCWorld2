@@ -29,7 +29,42 @@ export const CARD_CUT = {
   quality: 92,
   /** Bump when the geometry changes so every cut is regenerated. */
   version: "v1",
+  /**
+   * Smaller copies saved beside each cut (same slice, fewer pixels) so a
+   * screen that needs fewer pixels than the full cut can fetch a matching
+   * file. The browser picks via srcset from its own device pixel ratio, so a
+   * dense phone still gets the full cut and nothing is ever enlarged.
+   */
+  copyWidths: [640, 1000],
+  copyQuality: 90,
 } as const;
+
+/** Height of the home card frame in CSS px (min-h-[500px]); measured constant across all screens. */
+export const CARD_FRAME_HEIGHT = 500;
+
+export type CardCutRef = { url: string; w: number; h: number; copies?: number[] };
+
+/** R2 key of a copy of a cut: `...-card-<hash>.webp` -> `...-card-<hash>-w640.webp`. */
+export function cutCopyKey(cutKey: string, width: number): string {
+  return cutKey.replace(/\.webp$/i, `-w${width}.webp`);
+}
+
+/** srcset for a cut: its copies plus the full cut, each with its real width. */
+export function cutSrcSet(cut: CardCutRef): string {
+  const parts = (cut.copies ?? []).filter((w) => w < cut.w).map((w) => `${cutCopyKey(cut.url, w)} ${w}w`);
+  parts.push(`${cut.url} ${cut.w}w`);
+  return parts.join(", ");
+}
+
+/**
+ * sizes for a cut: the cut is wider than any card frame, so the frame is
+ * height-limited and the cut is drawn at frameHeight × (w/h) CSS px wide,
+ * whatever the screen. Giving the browser that width lets it pick the copy
+ * whose pixels match its density exactly.
+ */
+export function cutSizes(cut: CardCutRef): string {
+  return `${Math.ceil(CARD_FRAME_HEIGHT * cut.w / cut.h)}px`;
+}
 
 export type ImageSize = { w: number; h: number };
 export type CardCutPlan = {

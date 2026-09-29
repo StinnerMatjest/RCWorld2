@@ -34,6 +34,9 @@ export interface FocusedImageProps {
   size?: ImageSize;
   /** Screen the server assumes for the SSR pick when `size` is known. */
   assumedScreen?: { cssW: number; cssH: number; dpr: number };
+  /** Pre-made copies of the source (card cuts): the browser picks by density; no re-picking here. */
+  srcSet?: string;
+  sizes?: string;
 }
 
 // Rewrite an image URL to Next's optimizer endpoint — the same endpoint
@@ -74,9 +77,9 @@ export function splitMedia(entry: string): { url: string; focus: string } {
 // Renders an image absolutely positioned inside an overflow-hidden container,
 // matching exactly what CropEditor shows for the given focusStr.
 export function FocusedImage({
-  src, alt = "", focusStr, className = "", imgClassName = "", imgStyle, priority, onLoad: onLoadProp, optimizeWidth, staggerDelayMs = 0, variants = false, size, assumedScreen,
+  src, alt = "", focusStr, className = "", imgClassName = "", imgStyle, priority, onLoad: onLoadProp, optimizeWidth, staggerDelayMs = 0, variants = false, size, assumedScreen, srcSet, sizes,
 }: FocusedImageProps) {
-  const useVariants = variants && isR2Image(src);
+  const useVariants = variants && !srcSet && isR2Image(src);
   const sizeKnown = useVariants && !!size;
   const sizeKnownRef = useRef(sizeKnown);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -184,6 +187,8 @@ export function FocusedImage({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={imgRef}
+        srcSet={srcSet}
+        sizes={sizes}
         src={
           sizeKnown && size
             ? exactCoverSrc(src, size, (assumedScreen ?? { cssW: 360, cssH: 640, dpr: 2 }).cssW, (assumedScreen ?? { cssW: 360, cssH: 640, dpr: 2 }).cssH, parseFocusStr(focusStr).zoom, (assumedScreen ?? { cssW: 360, cssH: 640, dpr: 2 }).dpr)
