@@ -14,20 +14,24 @@ import { isR2Image, variantKey, coverVariantUrl, sharperSource, exactCoverSrc, C
 import type { ImageSize, CardCut } from "@/app/types";
 import { cutSrcSet, cutSizes, CARD_FRAME_HEIGHT } from "@/app/lib/cardCutGeometry";
 
-// Inline position for a cut, computed on the server so the photo is visible
-// as soon as it downloads, without waiting for hydration. Mirrors
-// applyFocusToImg for a height-limited image in a CARD_FRAME_HEIGHT-tall frame:
-// only the horizontal offset depends on the frame width, hence calc(50%).
-// applyFocusToImg re-applies the same numbers after hydration.
-function ssrPlacement(cut: CardCut): React.CSSProperties {
-  const { cx, cy, zoom } = parseFocusStr(cut.focus);
-  const dh = CARD_FRAME_HEIGHT * zoom;
-  const dw = dh * cut.w / cut.h;
+// Server-side placement for a photo of known size, so it is visible as soon
+// as it downloads without waiting for hydration. Pure CSS version of
+// applyFocusToImg: the frame is CARD_FRAME_HEIGHT tall, so "cover" is a width
+// of max(frame width, frame height × aspect), times the crop zoom; the height
+// follows from aspect-ratio (which also sizes the box before the bytes
+// arrive); left/top 50% + a percentage translate put the focus point at the
+// frame centre for any drawn size. applyFocusToImg replaces all of it with the
+// same numbers in px after hydration.
+function ssrPlacement(size: ImageSize, focusStr: string): React.CSSProperties {
+  const { cx, cy, zoom } = parseFocusStr(focusStr);
+  const heightLimitedWidth = CARD_FRAME_HEIGHT * zoom * size.w / size.h;
   return {
-    width: `${dw.toFixed(2)}px`,
-    height: `${dh.toFixed(2)}px`,
-    left: `calc(50% - ${(cx * dw).toFixed(2)}px)`,
-    top: `${(CARD_FRAME_HEIGHT / 2 - cy * dh).toFixed(2)}px`,
+    width: `max(${(100 * zoom).toFixed(3)}%, ${heightLimitedWidth.toFixed(2)}px)`,
+    height: "auto",
+    aspectRatio: `${size.w} / ${size.h}`,
+    left: "50%",
+    top: "50%",
+    transform: `translate(${(-cx * 100).toFixed(3)}%, ${(-cy * 100).toFixed(3)}%)`,
   };
 }
 
@@ -131,7 +135,7 @@ const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager 
           src={park.cardCut ? park.cardCut.url : (park.cardImagepath || park.imagepath || "/images/error.PNG")}
           srcSet={park.cardCut ? cutSrcSet(park.cardCut) : undefined}
           sizes={park.cardCut ? cutSizes(park.cardCut) : undefined}
-          placement={park.cardCut ? ssrPlacement(park.cardCut) : undefined}
+          placement={park.cardCut ? ssrPlacement({ w: park.cardCut.w, h: park.cardCut.h }, park.cardCut.focus) : (park.cardImagepath ? park.cardImageSize : park.imageSize) ? ssrPlacement((park.cardImagepath ? park.cardImageSize : park.imageSize)!, park.imageFocus || "0.5 0.5 1") : undefined}
           alt={park.name}
           focusStr={park.cardCut ? park.cardCut.focus : park.imageFocus}
           size={park.cardCut ? undefined : (park.cardImagepath ? park.cardImageSize : park.imageSize)}
@@ -237,6 +241,8 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     img.style.height = `${dh}px`;
     img.style.left = `${c.clientWidth / 2 - cx * dw}px`;
     img.style.top = `${c.clientHeight / 2 - cy * dh}px`;
+    // Drop the server-side CSS placement (see ssrPlacement) now that px values are set.
+    img.style.transform = ""; img.style.minWidth = ""; img.style.minHeight = ""; img.style.aspectRatio = "";
     return cs * zoom * (typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1);
   }, []);
 
@@ -291,7 +297,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     slotBFocusRef.current = cardFocusStr;
     slotARawSrcRef.current = cardSrc;
     slotBRawSrcRef.current = cardSrc;
-    // A cut was positioned and shown by the server render; keep it on screen.
+    // A photo of known size was positioned and shown by the server render; keep it on screen.
     const placed = a.dataset.placed === "1";
     a.style.opacity = placed ? "0.95" : "0"; a.style.transition = "none";
     b.style.opacity = "0"; b.style.transition = "none";
@@ -573,8 +579,8 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
             // The first card is the page's largest paint: ask the browser to fetch it ahead of scripts and styles.
             {...(first ? { fetchpriority: "high" } : {})}
             className="absolute max-w-none select-none"
-            style={header.cut ? { ...ssrPlacement(header.cut), opacity: 0.95 } : { opacity: 0 }}
-            data-placed={header.cut ? "1" : undefined}
+            style={header.size ? { ...ssrPlacement(header.size, header.focus), opacity: 0.95 } : { opacity: 0 }}
+            data-placed={header.size ? "1" : undefined}
             draggable={false}
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}

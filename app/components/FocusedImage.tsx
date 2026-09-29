@@ -132,6 +132,8 @@ export function FocusedImage({
     img.style.height = `${dh}px`;
     img.style.left = `${c.clientWidth / 2 - cx * dw}px`;
     img.style.top = `${c.clientHeight / 2 - cy * dh}px`;
+    // Drop the server-side CSS placement (see HomeClient ssrPlacement) now that px values are set.
+    img.style.transform = ""; img.style.minWidth = ""; img.style.minHeight = ""; img.style.aspectRatio = "";
     // Step up if this stored size is being enlarged on this screen. The old
     // pixels stay on screen until the larger file has decoded, then onLoad
     // re-runs this with the new natural size.
