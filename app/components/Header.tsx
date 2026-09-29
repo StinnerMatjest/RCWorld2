@@ -6,25 +6,33 @@ import Image from "next/image";
 import Navbar from "./Navbar";
 import { getDaysUntil } from "@/app/utils/trips";
 
-const Header = () => {
-  const [days, setDays] = useState<number | null>(null);
-  const [underReviewParks, setUnderReviewParks] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+type HeaderStatus = { tripStartDates: string[]; underReviewParks: string[] };
+
+// Days until the next booked trip, or null when none is upcoming.
+function nextTripDays(dates: string[]): number | null {
+  const nextStart = dates
+    .filter((d) => getDaysUntil(d))
+    .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0];
+  return nextStart ? getDaysUntil(nextStart) : null;
+}
+
+const Header = ({ initialStatus = null }: { initialStatus?: HeaderStatus | null }) => {
+  // Seeded by the root layout so the countdown is in the first paint; the
+  // fetch below only runs when the server had nothing to give.
+  const [days, setDays] = useState<number | null>(() => initialStatus ? nextTripDays(initialStatus.tripStartDates) : null);
+  const [underReviewParks, setUnderReviewParks] = useState<string[]>(initialStatus?.underReviewParks ?? []);
+  const [isLoading, setIsLoading] = useState(!initialStatus);
   const [isVisible, setIsVisible] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
+    if (initialStatus) return;
     const fetchHeaderData = async () => {
       try {
         const res = await fetch("/api/header-status");
         if (res.ok) {
           const data = await res.json();
-
-          const nextStart = (data.tripStartDates ?? [])
-            .filter((d: string) => getDaysUntil(d))
-            .sort((a: string, b: string) => new Date(a).getTime() - new Date(b).getTime())[0];
-          if (nextStart) setDays(getDaysUntil(nextStart));
-
+          setDays(nextTripDays(data.tripStartDates ?? []));
           setUnderReviewParks(data.underReviewParks ?? []);
         }
       } catch (error) {
@@ -35,7 +43,7 @@ const Header = () => {
     };
 
     fetchHeaderData();
-  }, []);
+  }, [initialStatus]);
 
   useEffect(() => {
     const handleToggle = (e: CustomEvent) => {

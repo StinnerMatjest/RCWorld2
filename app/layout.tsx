@@ -72,11 +72,28 @@ const siteJsonLd = {
   ],
 };
 
-export default function RootLayout({
+// Trip countdown + "under review" parks for the header. Same cached fetch
+// pattern as the footer; a failure (or the env-less Docker build) returns null
+// and the header falls back to fetching client-side.
+async function getHeaderStatus(): Promise<{ tripStartDates: string[]; underReviewParks: string[] } | null> {
+  const BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (!BASE) return null;
+  try {
+    const res = await fetch(`${BASE}api/header-status`, { cache: "force-cache", next: { tags: ["content"] } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return { tripStartDates: data.tripStartDates ?? [], underReviewParks: data.underReviewParks ?? [] };
+  } catch {
+    return null;
+  }
+}
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const headerStatus = await getHeaderStatus();
   return (
     <html lang="en" className="dark">
       <head>
@@ -98,7 +115,7 @@ export default function RootLayout({
         <AdminModeProvider>
           <ParksProvider>
             <SearchProvider>
-              <Header />
+              <Header initialStatus={headerStatus} />
               <AdminToggle />
               <main className="flex-grow">{children}</main>
               <Footer />
