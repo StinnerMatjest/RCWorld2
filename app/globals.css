@@ -220,3 +220,8 @@ html.dark ::-webkit-scrollbar-thumb {
 html.dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(180, 180, 180, 0.4);
 }
+/* Park page hero frame height as a CSS variable, so the header photo can be
+   placed by the server (see ParkHeader) before any JavaScript runs. Mirrors
+   the frame's aspect-[16/8] md:aspect-[16/4] max-h-screen classes. */
+.hero-frame { --frame-h: min(50vw, 100vh); }
+@media (min-width: 768px) { .hero-frame { --frame-h: min(25vw, 100vh); } }

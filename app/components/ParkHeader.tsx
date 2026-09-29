@@ -3,7 +3,24 @@
 import React, { useState, useEffect } from "react";
 import type { Park } from "@/app/types";
 import ParkHeaderModal from "./parkpage/ParkHeaderModal";
-import { FocusedImage } from "./FocusedImage";
+import { FocusedImage, parseFocusStr } from "./FocusedImage";
+
+// Server-side placement of the header photo (same idea as the home cards):
+// cover the frame whichever side limits, times the crop zoom, with the focus
+// point at the frame centre. The frame height comes from the .hero-frame CSS
+// variable because it depends on the breakpoint. FocusedImage replaces this
+// with px values after hydration.
+function heroPlacement(size: { w: number; h: number }, focusStr?: string): React.CSSProperties {
+  const { cx, cy, zoom } = parseFocusStr(focusStr);
+  return {
+    width: `max(${(100 * zoom).toFixed(3)}%, calc(var(--frame-h) * ${(zoom * size.w / size.h).toFixed(4)}))`,
+    height: "auto",
+    aspectRatio: `${size.w} / ${size.h}`,
+    left: "50%",
+    top: "50%",
+    transform: `translate(${(-cx * 100).toFixed(3)}%, ${(-cy * 100).toFixed(3)}%)`,
+  };
+}
 
 interface ParkHeaderProps {
   park: Park;
@@ -12,7 +29,8 @@ interface ParkHeaderProps {
 }
 
 const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) => {
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const placed = !!park.imageSize;
+  const [imageLoaded, setImageLoaded] = useState(placed);
   const [showModal, setShowModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
@@ -31,7 +49,7 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
 
   return (
     <>
-      <div className="relative w-full aspect-[16/8] md:aspect-[16/4] max-h-screen overflow-hidden bg-slate-800">
+      <div className="hero-frame relative w-full aspect-[16/8] md:aspect-[16/4] max-h-screen overflow-hidden bg-slate-800">
 
         {/* LAYER 1: The Clickable Background Image */}
         <div
@@ -42,6 +60,7 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
             src={park.imagepath}
             alt={park.name}
             focusStr={park.headerFocus}
+            placement={park.imageSize ? heroPlacement(park.imageSize, park.headerFocus) : undefined}
             className="absolute inset-0"
             imgClassName={`transition-opacity duration-700 ${imageLoaded ? "opacity-100" : "opacity-0"
               }`}

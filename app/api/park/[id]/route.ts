@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { regenerateParkCuts } from "@/app/lib/cardCut";
 import { pool } from "@/app/lib/db";
+import { getImageSizes } from "@/app/lib/imageDims";
 import { diffFields, logChange, FieldDiff } from "@/app/lib/changelog";
 import { revalidateTag, revalidatePath } from "next/cache";
 
@@ -43,7 +44,10 @@ export async function GET(
       return NextResponse.json({ error: "Park not found" }, { status: 404 });
     }
 
-    return NextResponse.json(result.rows[0], { status: 200 });
+    // Header photo size lets the park page place the hero before hydration.
+    const row = result.rows[0];
+    const sizes = await getImageSizes([row.imagepath]);
+    return NextResponse.json({ ...row, imageSize: sizes[row.imagepath] }, { status: 200 });
   } catch (error) {
     console.error("Database query error:", error);
     return NextResponse.json({ error: "Failed to fetch park" }, { status: 500 });
