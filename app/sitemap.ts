@@ -15,7 +15,9 @@ export default async function sitemap() {
   const coastersData = await coastersRes.json();
 
   const parks: { slug: string; lastVisitDate?: string }[] = rankedData.parks || [];
-  const coasters: { slug: string }[] = coastersData.coasters || [];
+  // Only coasters with a written review: the rest are noindex, so listing
+  // them would just ask Google to fetch pages it is then told to ignore.
+  const coasters: { slug: string; hasReview?: boolean }[] = (coastersData.coasters || []).filter((c: { hasReview?: boolean }) => c.hasReview);
 
   const parkUrls = parks.map((park) => ({
     url: `${baseUrl}/park/${park.slug}`,

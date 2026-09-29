@@ -32,6 +32,7 @@ export async function GET() {
         rs.duration_sec AS duration,
         rs.notes,
         img.path AS image,
+        (rv.coaster_id IS NOT NULL) AS has_review,
         p.name AS park_name,
         p.country AS park_country,
         p.slug AS park_slug,
@@ -50,12 +51,19 @@ export async function GET() {
         ORDER BY cg.is_header DESC, cg.id ASC
         LIMIT 1
       ) img ON TRUE
+      -- Whether a written review exists (drives indexing, sitemap and link lists).
+      LEFT JOIN LATERAL (
+        SELECT ct.coaster_id
+        FROM coastertext ct
+        WHERE ct.coaster_id = rc.id AND ct.text IS NOT NULL AND ct.text <> ''
+        LIMIT 1
+      ) rv ON TRUE
       LEFT JOIN visits r ON r.park_id = p.id
       GROUP BY 
         rc.id, rc.name, rc.year, rc.manufacturer_id, m.name, rc.ride_model_id, rc.model, rc.scale, rc.haveridden, 
         rc.isbestcoaster, rc.ridecount, rc.rating, rc.park_id, rc.slug,
         rs.type, rs.classification, rs.length, rs.height, rs.drop, rs.speed,
-        rs.inversions, rs.vertical_angle, rs.gforce, rs.duration_sec, rs.notes, img.path, p.name, p.slug, p.country
+        rs.inversions, rs.vertical_angle, rs.gforce, rs.duration_sec, rs.notes, img.path, rv.coaster_id, p.name, p.slug, p.country
       ORDER BY p.name, rc.name;
     `;
 
@@ -71,6 +79,7 @@ export async function GET() {
       model: row.model,
       scale: row.scale,
       haveRidden: row.haveridden,
+      hasReview: row.has_review === true,
       isBestCoaster: row.isbestcoaster,
       rideCount: Number(row.ridecount) || 0,
       rating: row.rating,

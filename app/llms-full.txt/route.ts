@@ -146,6 +146,7 @@ export async function GET() {
     out.push("");
     for (const c of coasters) {
       const texts = coasterTexts.get(c.id) ?? [];
+      if (texts.length === 0) continue; // unreviewed coasters are listed in the rankings above only
       out.push(`### ${c.name} (${c.park_name})`);
       out.push("");
       out.push(`- URL: https://parkrating.com/coasters/${c.slug}`);

@@ -55,8 +55,11 @@ async function getHeaderImage(id: string): Promise<string | null> {
 
 export async function generateMetadata({ params }: PageProps) {
   const { id } = await params;
-  const coaster = await getCoaster(id);
+  const [coaster, texts] = await Promise.all([getCoaster(id), getCoasterTexts(id)]);
   if (!coaster) return {};
+  // No written review yet: keep the page reachable but out of the index, so
+  // an empty page never counts as thin content. Flips back when a review is saved.
+  const hasReview = texts.some((t: any) => typeof t.text === "string" && t.text.trim() !== "");
 
   const parkName =
     coaster.parkName ||
@@ -80,6 +83,7 @@ export async function generateMetadata({ params }: PageProps) {
   return {
     title,
     description,
+    ...(hasReview ? {} : { robots: { index: false, follow: true } }),
     alternates: {
       canonical: `https://parkrating.com/coasters/${coaster.slug}`,
     },

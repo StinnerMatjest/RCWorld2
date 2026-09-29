@@ -38,7 +38,8 @@ export default async function Page() {
       "Every roller coaster rated by ParkRating, ranked by score. Includes ride counts, manufacturer data, and enthusiast insights.",
     "url": "https://parkrating.com/coasterLibrary",
     "numberOfItems": coasters.length,
-    "itemListElement": ranked.slice(0, 150).map((c: any, i: number) => ({
+    // Structured data lists reviewed coasters only; unreviewed pages are noindex.
+    "itemListElement": ranked.filter((c: any) => c.hasReview).slice(0, 150).map((c: any, i: number) => ({
       "@type": "ListItem",
       "position": i + 1,
       "name": c.name,
