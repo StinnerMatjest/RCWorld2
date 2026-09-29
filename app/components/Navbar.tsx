@@ -108,11 +108,11 @@ const Navbar: React.FC = () => {
 
         {mobileOpen && <button onClick={() => setMobileOpen(false)} aria-label="Close menu" className="fixed inset-0 z-[9998]" />}
 
-        <div className={`fixed top-14 right-4 w-64 z-[9999] rounded-2xl border border-slate-800 bg-slate-900 shadow-black/40 transition-all duration-200 overflow-hidden ${mobileOpen ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-2 pointer-events-none"}`}>
+        <div className={`fixed top-14 right-4 w-64 z-[9999] rounded-2xl border border-slate-800 bg-slate-900 shadow-black/40 transition-all duration-200 ${mobileOpen ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-2 pointer-events-none"}`}>
           <div className="p-3 border-b border-slate-800">
             <SearchBar />
           </div>
-          <ul className="py-1.5">
+          <ul className="py-1.5 rounded-b-2xl overflow-hidden">
             {[
               { href: "/about", label: "About" },
               { href: "/info", label: "Ratings" },

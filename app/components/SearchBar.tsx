@@ -7,6 +7,13 @@ import { getRatingColor } from "../utils/design";
 type SPark = { id: number; name: string; country: string; slug: string; overall?: number };
 type SCoaster = { id: number; name: string; parkName: string; slug: string; rating?: number };
 
+// Lower-case and strip accents and special letters so plain typing matches:
+// é→e, ä→a, ø→o, å→a, æ→ae, ß→ss.
+function fold(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/æ/g, "ae").replace(/ø/g, "o").replace(/œ/g, "oe").replace(/ß/g, "ss").replace(/ł/g, "l").replace(/đ/g, "d");
+}
+
 const SearchBar = ({ collapsible = false }: { collapsible?: boolean }) => {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(!collapsible);
@@ -32,13 +39,17 @@ const SearchBar = ({ collapsible = false }: { collapsible?: boolean }) => {
   }, [loaded]);
 
   const q = val.trim().toLowerCase();
+  // Every word typed must appear somewhere in the entry, accents ignored:
+  // "asterix" finds Parc Astérix, "farup" finds Fårup, "voltron europa" works.
+  const words = fold(q).split(/\s+/).filter(Boolean);
+  const hits = (...fields: string[]) => { const hay = fold(fields.join(" ")); return words.every(w => hay.includes(w)); };
 
   const matchedParks = q.length < 1 ? [] : parks
-    .filter(p => p.name.toLowerCase().includes(q) || p.country.toLowerCase().includes(q))
+    .filter(p => hits(p.name, p.country))
     .slice(0, 5);
 
   const matchedCoasters = q.length < 1 ? [] : coasters
-    .filter(c => c.name.toLowerCase().includes(q) || c.parkName.toLowerCase().includes(q))
+    .filter(c => hits(c.name, c.parkName))
     .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
     .slice(0, 5);
 
@@ -150,7 +161,7 @@ const SearchBar = ({ collapsible = false }: { collapsible?: boolean }) => {
         <div
           id={listId}
           role="listbox"
-          className="absolute top-[calc(100%+6px)] left-0 w-80 max-w-[calc(100vw-2rem)] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-[9999]"
+          className={`absolute top-[calc(100%+6px)] left-0 ${collapsible ? "w-80 max-w-[calc(100vw-2rem)]" : "w-full"} max-h-[60vh] overflow-y-auto bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl z-[9999]`}
         >
           {!loaded && (
             <p className="px-4 py-3 text-sm text-slate-400">Loading…</p>
