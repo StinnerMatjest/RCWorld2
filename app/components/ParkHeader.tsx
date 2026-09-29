@@ -4,6 +4,21 @@ import React, { useState, useEffect } from "react";
 import type { Park } from "@/app/types";
 import ParkHeaderModal from "./parkpage/ParkHeaderModal";
 import { FocusedImage, parseFocusStr } from "./FocusedImage";
+import { isR2Image, variantKey, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
+
+// Stored sizes plus the original, so the browser fetches the smallest file
+// whose pixels cover the hero on its screen (the original on dense, wide
+// screens). Widths are real; the size hint is the hero's drawn width per
+// breakpoint: the frame is 100vw wide and 50vw (phone) / 25vw (desktop)
+// tall, so a photo of aspect a is drawn max(100vw, frameHeight x a) wide.
+function heroSources(src: string, size: { w: number; h: number }): { srcSet: string; sizes: string } | undefined {
+  if (!isR2Image(src) || !size.w || !size.h) return undefined;
+  const a = size.w / size.h;
+  const parts = VARIANT_WIDTHS.filter((w) => w < size.w).map((w) => `${variantKey(src, w)} ${w}w`);
+  parts.push(`${src} ${size.w}w`);
+  const vw = (frameH: number) => `${Math.ceil(Math.max(1, frameH * a) * 100)}vw`;
+  return { srcSet: parts.join(", "), sizes: `(min-width: 768px) ${vw(0.25)}, ${vw(0.5)}` };
+}
 
 // Server-side placement of the header photo (same idea as the home cards):
 // cover the frame whichever side limits, times the crop zoom, with the focus
@@ -61,6 +76,7 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
             alt={park.name}
             focusStr={park.headerFocus}
             placement={park.imageSize ? heroPlacement(park.imageSize, park.headerFocus) : undefined}
+            {...(park.imageSize ? heroSources(park.imagepath, park.imageSize) : {})}
             className="absolute inset-0"
             imgClassName={`transition-opacity duration-700 ${imageLoaded ? "opacity-100" : "opacity-0"
               }`}
