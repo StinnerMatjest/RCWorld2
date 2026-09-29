@@ -47,6 +47,8 @@ export async function POST(request: Request) {
         Key: fileName,
         Body: buffer,
         ContentType: file.type,
+        // File names carry a UUID, so a URL never changes content: cache forever.
+        CacheControl: "public, max-age=31536000, immutable",
       },
     });
 

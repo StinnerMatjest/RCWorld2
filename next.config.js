@@ -22,6 +22,27 @@ const nextConfig = {
     // truncated video uploads. Raised so gallery clips get through.
     middlewareClientMaxBodySize: "250mb",
   },
+  async headers() {
+    return [
+      // Static assets under public/ were sent with max-age=0, so every visit
+      // re-validated logos and the share image. Names rarely change; a day in
+      // the browser plus a week of stale-while-revalidate keeps them cheap.
+      {
+        source: '/:dir(logos|images)/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' }],
+      },
+      // Baseline security headers the site was missing.
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+        ],
+      },
+    ];
+  },
   async redirects() {
     return [
       // www -> apex. Only reachable once www.parkrating.com is added as a custom
