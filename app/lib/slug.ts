@@ -37,7 +37,21 @@ export const LEGACY_COASTER_SLUGS: Record<string, string> = {
   "mariehønen": "mariehonen",
   "psyké-underground": "psyke-underground",
   "vilde-hønsejagt": "vilde-honsejagt",
+  // Slugs where the old generator had dropped accented letters.
+  "c-tautomatix": "cetautomatix",
+  "d-monen": "daemonen",
+  "dæmonen": "daemonen",
+  "d-fi-du-dragon": "defi-du-dragon",
+  "flug-der-d-monen": "flug-der-daemonen",
+  "indiana-jones-et-le-temple-du-p-ril": "indiana-jones-et-le-temple-du-peril",
+  "p-gase-express": "pegase-express",
+  "schwur-des-k-rnan": "schwur-des-kaernan",
+  "souris-m-caniques": "souris-mecaniques",
   // Dead addresses Google still has.
   "f.l.y": "fly",
   "boomerang-1789061629384-2390": "boomerang",
+};
+
+export const LEGACY_PARK_SLUGS: Record<string, string> = {
+  "parc-ast-rix": "parc-asterix",
 };

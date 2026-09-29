@@ -1,5 +1,6 @@
 import { permanentRedirect, notFound } from "next/navigation";
 import ParkPageClient from "./ParkPageClient";
+import { LEGACY_PARK_SLUGS } from "@/app/lib/slug";
 
 type PageProps = {
   params: Promise<{
@@ -174,7 +175,11 @@ export default async function Page({ params, searchParams }: PageProps) {
   const isNumeric = /^\d+$/.test(id);
   const [data, scores, review] = await Promise.all([getPark(id), getScores(id), getReviewTexts(id)]);
 
-  if (!data) notFound();
+  if (!data) {
+    const target = LEGACY_PARK_SLUGS[id];
+    if (target) permanentRedirect(`/park/${target}`);
+    notFound();
+  }
 
   if (isNumeric && data.slug) {
     permanentRedirect(`/park/${data.slug}`);
