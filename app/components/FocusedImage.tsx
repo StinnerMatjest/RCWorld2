@@ -1,6 +1,13 @@
 "use client";
 
 import React, { useRef, useEffect, useCallback } from "react";
+import { isR2Image, variantKey, coverVariantUrl, nextLargerVariant } from "@/app/lib/imageVariants";
+
+// With `variants`, R2 photos start from the largest stored size (safe on any
+// screen and a fraction of the original); lazy ones re-pick for the actual
+// frame on mount. After load the cover math reports the device-pixel scale and
+// the image steps up to the next size (or the original) if it would be enlarged.
+const SAFE_VARIANT = 1920 as const;
 
 export interface FocusedImageProps {
   src: string;
@@ -19,6 +26,9 @@ export interface FocusedImageProps {
    *  for this slot if it hasn't passed, so the image reveal lines up with the
    *  container's own staggered entrance animation. */
   staggerDelayMs?: number;
+  /** Serve the pre-generated R2 variants (see app/lib/imageVariants.ts) instead
+   *  of the original, stepping up after load if a size would be enlarged. */
+  variants?: boolean;
 }
 
 // Rewrite an image URL to Next's optimizer endpoint — the same endpoint
@@ -59,20 +69,34 @@ export function splitMedia(entry: string): { url: string; focus: string } {
 // Renders an image absolutely positioned inside an overflow-hidden container,
 // matching exactly what CropEditor shows for the given focusStr.
 export function FocusedImage({
-  src, alt = "", focusStr, className = "", imgClassName = "", imgStyle, priority, onLoad: onLoadProp, optimizeWidth, staggerDelayMs = 0,
+  src, alt = "", focusStr, className = "", imgClassName = "", imgStyle, priority, onLoad: onLoadProp, optimizeWidth, staggerDelayMs = 0, variants = false,
 }: FocusedImageProps) {
+  const useVariants = variants && isR2Image(src);
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const nwRef = useRef(0);
   const nhRef = useRef(0);
   const focusRef = useRef(focusStr);
+  const srcRef = useRef(src);
+  const useVariantsRef = useRef(useVariants);
   // First reveal only: fresh network loads fade in; cached images (the
   // complete-check path below) appear instantly so back-navigation doesn't blink.
   const revealedRef = useRef(false);
   const fadeInRef = useRef(false);
   const mountTsRef = useRef(0);
   const staggerRef = useRef(staggerDelayMs);
-  useEffect(() => { focusRef.current = focusStr; staggerRef.current = staggerDelayMs; });
+  useEffect(() => { focusRef.current = focusStr; staggerRef.current = staggerDelayMs; srcRef.current = src; useVariantsRef.current = useVariants; });
+
+  // Lazy variant images: before the browser gets to them, swap the safe SSR
+  // pick for the smallest stored size that covers this frame on this screen.
+  useEffect(() => {
+    const img = imgRef.current;
+    const c = containerRef.current;
+    if (!img || !c || priority || !useVariants) return;
+    if (img.complete && img.naturalWidth > 0) return; // already loaded, leave it
+    const pick = coverVariantUrl(src, c.clientWidth, c.clientHeight, window.devicePixelRatio || 1);
+    if (pick !== img.src) img.src = pick;
+  }, [src, priority, useVariants]);
 
   const applyStyle = useCallback(() => {
     const c = containerRef.current;
@@ -86,6 +110,16 @@ export function FocusedImage({
     img.style.height = `${dh}px`;
     img.style.left = `${c.clientWidth / 2 - cx * dw}px`;
     img.style.top = `${c.clientHeight / 2 - cy * dh}px`;
+    // Step up if this stored size is being enlarged on this screen. The old
+    // pixels stay on screen until the larger file has decoded, then onLoad
+    // re-runs this with the new natural size.
+    if (useVariantsRef.current) {
+      const scale = cs * zoom * (window.devicePixelRatio || 1);
+      if (scale > 1.02) {
+        const bigger = nextLargerVariant(srcRef.current, img.src);
+        if (bigger) img.src = bigger;
+      }
+    }
     // Hidden until positioned (see render) — reveal now that the math is done
     if (!revealedRef.current) {
       revealedRef.current = true;
@@ -133,7 +167,7 @@ export function FocusedImage({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={imgRef}
-        src={optimizeWidth ? optimizedSrc(src, optimizeWidth) : src}
+        src={useVariants ? variantKey(src, SAFE_VARIANT) : optimizeWidth ? optimizedSrc(src, optimizeWidth) : src}
         alt={alt}
         draggable={false}
         className={`absolute max-w-none select-none ${imgClassName}`}

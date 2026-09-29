@@ -10,7 +10,7 @@ import RatingModal from "./components/RatingModal";
 import { useRouter } from "next/navigation";
 import { useSearch } from "./context/SearchContext";
 import { useAdminMode } from "@/app/context/AdminModeContext";
-import { isR2Image, variantKey, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
+import { isR2Image, variantKey, coverVariantUrl, nextLargerVariant } from "@/app/lib/imageVariants";
 
 // Home cards cover-crop the photo into a tall card, so the card's height (not
 // its width) decides how many source pixels are needed. Start from a stored
@@ -18,24 +18,13 @@ import { isR2Image, variantKey, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
 // math reports the real device-pixel scale and we step up to the next size (or
 // the original) if the variant would have been enlarged. Net effect: the card
 // never shows fewer source pixels than the screen can display, but downloads
-// a fraction of the multi-megabyte original.
+// a fraction of the multi-megabyte original. First-row cards (in the SSR HTML)
+// start from the largest stored size so the eager download is never redone.
 const CARD_SAFE_VARIANT = 1920 as const;
 function cardSrcFor(original: string, container: HTMLElement | null, eager: boolean): string {
   if (!isR2Image(original)) return original;
   if (eager || !container || typeof window === "undefined") return variantKey(original, CARD_SAFE_VARIANT);
-  const dpr = window.devicePixelRatio || 1;
-  // Assume a portrait-ish source (w/h ~ 0.75); the post-load check corrects the rest.
-  const need = Math.max(container.clientWidth, container.clientHeight * 0.75) * dpr;
-  const w = VARIANT_WIDTHS.find(v => v >= need);
-  return w ? variantKey(original, w) : original;
-}
-function largerCardSrc(original: string, current: string): string | null {
-  if (!isR2Image(original)) return null;
-  const m = current.match(/-w(\d+)\.webp$/i);
-  if (!m) return null; // already the original
-  const cur = Number(m[1]);
-  const next = VARIANT_WIDTHS.find(v => v > cur);
-  return next ? variantKey(original, next) : original;
+  return coverVariantUrl(original, container.clientWidth, container.clientHeight, window.devicePixelRatio || 1);
 }
 import LoadingSpinner from "./components/LoadingSpinner";
 import { getParkFlag, getRatingColor } from "@/app/utils/design";
@@ -83,6 +72,7 @@ const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager 
           className="absolute inset-0"
           imgClassName="opacity-85"
           priority={eager}
+          variants
           onLoad={() => {
             onImgReady?.();
             // Keep the shimmer under the image until its 500ms fade finishes
@@ -176,7 +166,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
   // larger stored size (or the original) and report that a reload is pending.
   const upgradeIfSoft = useCallback((img: HTMLImageElement, original: string, scale: number): boolean => {
     if (scale <= 1.02) return false;
-    const bigger = largerCardSrc(original, img.src);
+    const bigger = nextLargerVariant(original, img.src);
     if (!bigger) return false;
     img.src = bigger;
     return true;

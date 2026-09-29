@@ -35,6 +35,32 @@ export function pickVariantWidth(width: number): VariantWidth | null {
   return null;
 }
 
+/**
+ * For a frame that cover-crops the photo (home cards): the smallest stored
+ * variant that should cover `cssW × cssH` CSS px on a screen with this DPR.
+ * The source aspect is unknown before load, so a portrait-ish 3:4 photo is
+ * assumed; callers check the real scale after load and step up with
+ * `nextLargerVariant` if the pick turns out to be enlarged. That way a screen
+ * never gets fewer source pixels than it can show, but downloads a fraction of
+ * the original.
+ */
+export function coverVariantUrl(src: string, cssW: number, cssH: number, dpr: number): string {
+  if (!isR2Image(src)) return src;
+  const need = Math.max(cssW, cssH * 0.75) * dpr;
+  const w = VARIANT_WIDTHS.find((v) => v >= need);
+  return w ? variantKey(src, w) : src;
+}
+
+/** The next stored size above the variant `current`, or the original; null when `current` already is the original or `src` is not an R2 image. */
+export function nextLargerVariant(src: string, current: string): string | null {
+  if (!isR2Image(src)) return null;
+  const m = current.match(/-w(\d+)\.webp(?:\?.*)?$/i);
+  if (!m) return null;
+  const cur = Number(m[1]);
+  const next = VARIANT_WIDTHS.find((v) => v > cur);
+  return next ? variantKey(src, next) : src;
+}
+
 /** URL to serve for an R2 image at roughly `width` CSS px (× DPR); the original for non-R2 sources. */
 export function variantUrl(src: string, width: number): string {
   if (!isR2Image(src)) return src;
