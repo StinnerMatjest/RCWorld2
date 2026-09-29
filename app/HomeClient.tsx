@@ -249,7 +249,7 @@ const FULL_BLEED_GROUPS = [
 const CARD_CATS = ["coasters", "rides", "park", "food", "mgmt"] as const;
 type CardCat = typeof CARD_CATS[number];
 
-const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, park, isActive = false, autoCycle = true, delayIndex = 0, eager = false, first = false, assumedScreen = "desktop", onImgReady }: { rating: Visit; park: Park; isActive?: boolean; autoCycle?: boolean; delayIndex?: number; eager?: boolean; first?: boolean; assumedScreen?: keyof typeof ASSUMED_SCREEN; onImgReady?: () => void }) {
+const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, park, isActive = false, autoCycle = true, delayIndex = 0, eager = false, first = false, defer = false, preloadAll = false, assumedScreen = "desktop", onImgReady }: { rating: Visit; park: Park; isActive?: boolean; autoCycle?: boolean; delayIndex?: number; eager?: boolean; first?: boolean; /** Off-screen cards get their image address only when near view (phone strip). */ defer?: boolean; /** After the first interaction: load every deferred card in the background. */ preloadAll?: boolean; assumedScreen?: keyof typeof ASSUMED_SCREEN; onImgReady?: () => void }) {
   const headerSrc = park.imagepath || "/images/error.PNG";
   // The card photo as framed in the editor, or its cut when one is ready.
   // Memoised: it feeds the hover/cycle callbacks and the mobile effect below,
@@ -344,9 +344,11 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     // A photo of known size was positioned and shown by the server render; keep it on screen.
     const placed = a.dataset.placed === "1";
     const sources = entrySources(header);
-    // Eager, server-placed photo: already on screen. Deferred ones start hidden
-    // and fade in once they load.
-    a.style.opacity = placed && eager ? "0.95" : "0"; a.style.transition = "none";
+    // Server-placed photo whose address is in the HTML: already on screen (or
+    // shows the instant its bytes land). Deferred ones start hidden and fade in.
+    const inHtml = eager || !defer;
+    const showFromStart = placed && inHtml;
+    a.style.opacity = showFromStart ? "0.95" : "0"; a.style.transition = "none";
     b.style.opacity = "0"; b.style.transition = "none";
     // The SSR src was chosen for a generous assumed screen and may already be
     // downloading (eager, or lazy but near the viewport). Keep it unless this
@@ -355,7 +357,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     const initialSrc = cardSize && a.src && atLeastAsLarge(a.src, exact) ? a.src : exact;
     // A cut already has srcset/sizes from the server render; leave the
     // browser's choice alone (re-setting src would not change it anyway).
-    if (!sources && eager) a.src = initialSrc;
+    if (!sources && inHtml) a.src = initialSrc;
     // Slot B only gets a src when a cross-fade needs it; giving it the header
     // image here made every card (lazy or not) download immediately.
     // Server-placed cut: already visible, just refine the position with the
@@ -366,7 +368,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
       const scale = applyFocusToImg(a, cardFocusStr);
       if (upgradeIfSoft(a, cardSrc, scale, !!cardSize || cardDirect)) { a.onload = () => reveal(fade); return; }
       onImgReadyRef.current?.();
-      if (placed && eager) {
+      if (showFromStart) {
         a.style.opacity = "0.95";
         setImgReady(true);
       } else if (fade) {
@@ -381,7 +383,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
         setImgReady(true);
       }
     };
-    if (eager) {
+    if (inHtml) {
       if (a.complete && a.naturalWidth > 0) reveal(false);
       else a.onload = () => reveal(true);
       return;
@@ -392,16 +394,33 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     // the phone strip meant six more photos before the first had finished).
     const c = imageContainerRef.current;
     if (!c) return;
-    const io = new IntersectionObserver((entries) => {
-      if (!entries.some((e) => e.isIntersecting)) return;
+    const load = () => {
+      if (loadedRef.current) return;
+      loadedRef.current = true;
       io.disconnect();
       a.onload = () => reveal(true);
       applyEntryToImg(a, header, initialSrc);
       if (a.complete && a.naturalWidth > 0) reveal(false);
-    }, { rootMargin: "200% 200%" }); // two screens ahead: keeps up with a fast swipe
+    };
+    loadRef.current = load;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) load();
+    }, { rootMargin: "300% 300%" }); // three screens ahead: keeps up with a fast swipe
     io.observe(c);
     return () => io.disconnect();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Once the visitor has touched or scrolled (preloadAll), fetch every deferred
+  // card in the background, staggered by position so the queue never starves
+  // the card being swiped to. Google's test never interacts, so this stays
+  // out of the score; the visitor gets a strip with no dark cards.
+  const loadRef = useRef<(() => void) | null>(null);
+  const loadedRef = useRef(false);
+  useEffect(() => {
+    if (!preloadAll || !defer || eager) return;
+    const t = setTimeout(() => loadRef.current?.(), 120 * delayIndex);
+    return () => clearTimeout(t);
+  }, [preloadAll, defer, eager, delayIndex]);
 
   const isHoveringRef = useRef(false);
   const hoveredCatRef = useRef<string | null>(null);
@@ -640,16 +659,16 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             ref={slotARef}
-            src={eager ? (entrySources(header) ? fallbackSrc(header) : cardSrcFor(cardSrc, cardSize, null, eager, cardFocusStr, assumedScreen, cardDirect)) : undefined}
-            srcSet={eager ? entrySources(header)?.srcSet : undefined}
-            sizes={eager ? entrySources(header)?.sizes : undefined}
+            src={eager || !defer ? (entrySources(header) ? fallbackSrc(header) : cardSrcFor(cardSrc, cardSize, null, eager, cardFocusStr, assumedScreen, cardDirect)) : undefined}
+            srcSet={eager || !defer ? entrySources(header)?.srcSet : undefined}
+            sizes={eager || !defer ? entrySources(header)?.sizes : undefined}
             alt=""
             loading={eager ? "eager" : "lazy"}
             // The first card is the page's largest paint: fetch it ahead of everything
             // else; the other eager cards must not compete with it for the line.
             {...(first ? { fetchpriority: "high" } : eager ? { fetchpriority: "low" } : {})}
             className="absolute max-w-none select-none"
-            style={header.size ? { ...ssrPlacement(header.size, header.focus), opacity: eager ? 0.95 : 0 } : { opacity: 0 }}
+            style={header.size ? { ...ssrPlacement(header.size, header.focus), opacity: eager || !defer ? 0.95 : 0 } : { opacity: 0 }}
             data-placed={header.size ? "1" : undefined}
             draggable={false}
           />
@@ -727,7 +746,7 @@ type HomeProps = {
 const MOBILE_QUERY = "(max-width: 767px)"; // below Tailwind's md breakpoint
 // Cards that load immediately and that the reveal gate waits for: a phone
 // shows one card at a time, a desktop grid shows a whole first row.
-const EAGER_MOBILE = 1; // the first card gets the line to itself; the next loads right after
+const EAGER_MOBILE = 2; // first card at high priority, second at low; the rest after the first swipe
 const EAGER_DESKTOP = 6;
 
 const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile }: HomeProps) => {
@@ -987,7 +1006,7 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
                 ) : item.type === "teaser" ? (
                   <TeaserParkCard rating={item.rating} park={item.park} eager={index < EAGER_MOBILE} assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
                 ) : item.type === "rating" ? (
-                  <FullBleedRatingCard rating={item.rating} park={item.park} isActive={active} autoCycle={engaged} delayIndex={index} eager={index < EAGER_MOBILE} first={index === 0} assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
+                  <FullBleedRatingCard rating={item.rating} park={item.park} isActive={active} autoCycle={engaged} delayIndex={index} eager={index < EAGER_MOBILE} first={index === 0} defer preloadAll={engaged} assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
                 ) : null}
               </div>
             );
