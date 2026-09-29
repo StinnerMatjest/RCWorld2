@@ -17,6 +17,10 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
+    // Ship the page's CSS inside the HTML instead of as render-blocking
+    // stylesheet requests: on a slow connection those cost ~1.5 s of blank
+    // screen before anything could paint.
+    inlineCss: true,
     // The admin-auth middleware matches /api/*, and Next caps request bodies
     // that pass through middleware at 10MB by default — which silently
     // truncated video uploads. Raised so gallery clips get through.

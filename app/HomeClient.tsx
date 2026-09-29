@@ -4,10 +4,13 @@ import React, { useCallback, useEffect, useMemo, useState, Suspense, useRef, UIE
 import Image from "next/image";
 import Link from "next/link";
 import { RatingWarningType, Visit, Park } from "@/app/types";
-import RatingCard from "./components/RatingCard";
 import RatingWarning from "./components/warnings/RatingWarning";
-import RatingModal from "./components/RatingModal";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
+
+// The rating editor (date picker, animation library, rank lanes) is admin-only
+// and opens via ?modal=true. Loaded on demand so visitors never download it.
+const RatingModal = dynamic(() => import("./components/RatingModal"), { ssr: false });
 import { useSearch } from "./context/SearchContext";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import { isR2Image, variantKey, coverVariantUrl, sharperSource, exactCoverSrc, COVER_UPSCALE_TOLERANCE, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
@@ -724,7 +727,7 @@ type HomeProps = {
 const MOBILE_QUERY = "(max-width: 767px)"; // below Tailwind's md breakpoint
 // Cards that load immediately and that the reveal gate waits for: a phone
 // shows one card at a time, a desktop grid shows a whole first row.
-const EAGER_MOBILE = 2;
+const EAGER_MOBILE = 1; // the first card gets the line to itself; the next loads right after
 const EAGER_DESKTOP = 6;
 
 const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile }: HomeProps) => {
@@ -735,6 +738,8 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
   // First touch, scroll, click or key: from then on the active phone card may
   // auto-cycle its category images (see FullBleedRatingCard).
   const [engaged, setEngaged] = useState(false);
+  const searchParams = useSearchParams();
+  const modalRequested = searchParams?.get("modal") === "true";
   useEffect(() => {
     const on = () => setEngaged(true);
     const events = ["touchstart", "pointerdown", "scroll", "keydown", "wheel"] as const;
@@ -983,20 +988,7 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
                   <TeaserParkCard rating={item.rating} park={item.park} eager={index < EAGER_MOBILE} assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
                 ) : item.type === "rating" ? (
                   <FullBleedRatingCard rating={item.rating} park={item.park} isActive={active} autoCycle={engaged} delayIndex={index} eager={index < EAGER_MOBILE} first={index === 0} assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
-                ) : (
-                  <RatingCard
-                    rating={item.rating}
-                    park={item.park}
-                    delayIndex={index}
-                    ratingWarnings={item.rating.warnings?.map((w: any) => ({
-                      ratingId: w.ratingId ?? item.rating.id,
-                      category: w.category ?? "",
-                      ride: w.ride,
-                      note: w.note,
-                      severity: w.severity || "Moderate",
-                    })) as RatingWarningType[]}
-                  />
-                )}
+                ) : null}
               </div>
             );
           })}
@@ -1032,9 +1024,11 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
       </div>
       )}
 
-      <Suspense fallback={null}>
-        <RatingModal closeModal={closeModal} fetchRatingsAndParks={fetchRatingsAndParks} />
-      </Suspense>
+      {modalRequested && (
+        <Suspense fallback={null}>
+          <RatingModal closeModal={closeModal} fetchRatingsAndParks={fetchRatingsAndParks} />
+        </Suspense>
+      )}
     </main>
   );
 };
