@@ -11,6 +11,7 @@
 export const SECTION_IMAGE_ASPECT = {
   row: { mobile: "3 / 2", desktop: "3 / 2" },    // image beside text — Left / Right, or two/three images side by side
   full: { mobile: "3 / 2", desktop: "16 / 7" }, // full width — Above / Below with one image, Double
+  tall: { mobile: "4 / 5", desktop: "3 / 4" },   // one portrait image beside the text — Tall left / Tall right
 } as const;
 
 export type SectionFrame = { mobile: string; desktop: string };
@@ -18,12 +19,14 @@ export type SectionFrame = { mobile: string; desktop: string };
 /** Most media entries one section can hold. */
 export const MAX_SECTION_IMAGES = 3;
 
-export const SECTION_LAYOUTS = ["left", "right", "above", "below", "double"] as const;
+export const SECTION_LAYOUTS = ["left", "right", "tall-left", "tall-right", "above", "below", "double"] as const;
 export type SectionLayout = typeof SECTION_LAYOUTS[number];
 
 export const SECTION_LAYOUT_LABELS: Record<SectionLayout, string> = {
   left: "Left",
   right: "Right",
+  "tall-left": "Tall left",
+  "tall-right": "Tall right",
   above: "Above",
   below: "Below",
   double: "Double",
@@ -32,7 +35,7 @@ export const SECTION_LAYOUT_LABELS: Record<SectionLayout, string> = {
 export type ResolvedSectionLayout =
   | { mode: "none" }
   | { mode: "double" }
-  | { mode: "row"; isRight: boolean }
+  | { mode: "row"; isRight: boolean; tall: boolean }
   | { mode: "stack"; isAbove: boolean };
 
 /**
@@ -40,6 +43,8 @@ export type ResolvedSectionLayout =
  *
  * - "double" only applies with exactly two images (image, text, image).
  * - Left / Right stack every image (up to MAX_SECTION_IMAGES) in a column beside the text.
+ * - Tall left / Tall right put one portrait image beside the text, as tall as
+ *   two landscape ones; with more than one image they behave like Left / Right.
  * - Above / Below put two or three images side by side in one row.
  * - "center" is a legacy alias for "above".
  * - No layout at all falls back to `defaultLayout`; if that is also empty the
@@ -55,11 +60,13 @@ export function resolveSectionLayout(
   const pref = layout || opts.defaultLayout || null;
 
   if (pref === "double" && imageCount === 2) return { mode: "double" };
-  if (pref === "left") return { mode: "row", isRight: false };
-  if (pref === "right") return { mode: "row", isRight: true };
+  if (pref === "left") return { mode: "row", isRight: false, tall: false };
+  if (pref === "right") return { mode: "row", isRight: true, tall: false };
+  if (pref === "tall-left") return { mode: "row", isRight: false, tall: imageCount === 1 };
+  if (pref === "tall-right") return { mode: "row", isRight: true, tall: imageCount === 1 };
   if (pref === "above" || pref === "center") return { mode: "stack", isAbove: true };
   if (pref === "below") return { mode: "stack", isAbove: false };
-  return { mode: "row", isRight: !!opts.fallbackRight };
+  return { mode: "row", isRight: !!opts.fallbackRight, tall: false };
 }
 
 /**
@@ -72,7 +79,7 @@ export function sectionImageFrame(
   opts: { defaultLayout?: string | null } = {}
 ): SectionFrame {
   const r = resolveSectionLayout(layout, Math.max(imageCount, 1), opts);
-  if (r.mode === "row") return SECTION_IMAGE_ASPECT.row;
+  if (r.mode === "row") return r.tall ? SECTION_IMAGE_ASPECT.tall : SECTION_IMAGE_ASPECT.row;
   if (r.mode === "stack" && imageCount >= 2) return SECTION_IMAGE_ASPECT.row;
   return SECTION_IMAGE_ASPECT.full;
 }
@@ -85,7 +92,7 @@ export function sectionImageFrame(
 export function usesLegacyRow(layout: string | null | undefined, imageCount: number): boolean {
   if (imageCount === 0) return false;
   if (layout === "double") return imageCount !== 2;
-  return !layout || !["left", "right", "above", "center", "below"].includes(layout);
+  return !layout || !["left", "right", "tall-left", "tall-right", "above", "center", "below"].includes(layout);
 }
 
 /** The layout button that should read as active in the editor for a saved value. */
@@ -96,6 +103,14 @@ export function normalizeSectionLayout(
 ): SectionLayout {
   const pref = layout === "center" ? "above" : layout;
   if (pref === "double" && imageCount !== 2) return "above";
+  if ((pref === "tall-left" || pref === "tall-right") && imageCount !== 1) return pref === "tall-left" ? "left" : "right";
   if (pref && (SECTION_LAYOUTS as readonly string[]).includes(pref)) return pref as SectionLayout;
   return defaultLayout;
+}
+
+/** The layout choices the editor offers for a section with this many image slots. */
+export function layoutOptionsFor(imageCount: number): SectionLayout[] {
+  if (imageCount === 1) return ["left", "right", "tall-left", "tall-right", "above", "below"];
+  if (imageCount === 2) return ["left", "right", "above", "below", "double"];
+  return ["left", "right", "above", "below"];
 }

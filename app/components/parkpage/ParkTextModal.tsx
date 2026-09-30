@@ -8,6 +8,7 @@ import {
   usesLegacyRow,
   SECTION_LAYOUT_LABELS,
   MAX_SECTION_IMAGES,
+  layoutOptionsFor,
   type SectionLayout,
 } from "@/app/utils/sectionImageAspect";
 import { SectionBody, isVideoUrl, mediaCaptions } from "./SectionBody";
@@ -551,9 +552,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
     else setSaveMsg({ kind: "err", text: "Failed to unpublish." });
   };
 
-  const layoutOptions: SectionLayout[] = cur.imageCount === 2
-    ? ["left", "right", "above", "below", "double"]
-    : ["left", "right", "above", "below"];
+  const layoutOptions: SectionLayout[] = layoutOptionsFor(cur.imageCount);
   const imageModes = Array.from({ length: MAX_SECTION_IMAGES }, (_, i) => i + 1);
 
   const sectionButton = (cat: Category, compact: boolean) => {

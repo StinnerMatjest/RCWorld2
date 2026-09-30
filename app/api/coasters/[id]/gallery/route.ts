@@ -146,10 +146,21 @@ export async function PATCH(
     const { id } = await context.params;
     const coasterId = parseInt(id, 10);
     const body = await req.json();
-    const imageId = Number(body.imageId);
-
-    if (!imageId) return NextResponse.json({ error: "Missing imageId" }, { status: 400 });
     await ensureFocusColumns();
+
+    // { featuredIds: number[] } sets exactly which photos show in the strip at
+    // the top of the page (an empty list means visitors see all of them).
+    if (Array.isArray(body.featuredIds)) {
+      const ids = body.featuredIds.map(Number).filter((n: number) => Number.isFinite(n));
+      await client.query(
+        `UPDATE coastergallery SET featured = (id = ANY($2::int[])) WHERE coaster_id = $1`,
+        [coasterId, ids]
+      );
+      return NextResponse.json({ success: true, featuredIds: ids }, { status: 200 });
+    }
+
+    const imageId = Number(body.imageId);
+    if (!imageId) return NextResponse.json({ error: "Missing imageId" }, { status: 400 });
 
     // { imageId, featured } only toggles whether the photo shows in the strip
     // at the top of the page; the header is left alone.

@@ -7,6 +7,7 @@ import {
   normalizeSectionLayout,
   SECTION_LAYOUT_LABELS,
   MAX_SECTION_IMAGES,
+  layoutOptionsFor,
   type SectionLayout,
 } from "@/app/utils/sectionImageAspect";
 import { isVideoUrl } from "../parkpage/SectionBody";
@@ -411,9 +412,7 @@ export function SectionMediaPanel({
   const frameCount = Math.max(1, draft.imageCount);
   const activeLayout = normalizeSectionLayout(draft.layout, frameCount, defaultLayout);
   const cropFrame = sectionImageFrame(draft.layout, frameCount, { defaultLayout: null });
-  const layoutOptions: SectionLayout[] = draft.imageCount === 2
-    ? ["left", "right", "above", "below", "double"]
-    : ["left", "right", "above", "below"];
+  const layoutOptions: SectionLayout[] = layoutOptionsFor(draft.imageCount);
   const imageModes = Array.from({ length: MAX_SECTION_IMAGES }, (_, i) => i + 1);
 
   const setImageMode = (n: number) => {

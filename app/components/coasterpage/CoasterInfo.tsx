@@ -86,7 +86,6 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster, onUpdate }) => {
           )
         }
       />
-      {coaster.scale && coaster.scale !== "Unknown" && <InfoRow label="Scale" value={coaster.scale} />}
       <InfoRow label="Our rides" value={coaster.ridecount ?? "0"} />
 
       {/* Admin Edit Button */}

@@ -26,9 +26,14 @@ const formatScore = (rating: number | string | null | undefined) => {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 };
 
-/** True at the desktop breakpoint (lg). Starts false so the server renders the phone crop. */
+/**
+ * True at the desktop breakpoint (lg). Read synchronously on the client so the
+ * very first positioning uses the right crop: the choice only feeds the
+ * image's pixel maths, never the markup, so the server-rendered HTML (which
+ * assumes a phone) still hydrates cleanly.
+ */
 function useDesktop() {
-  const [desktop, setDesktop] = useState(false);
+  const [desktop, setDesktop] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches);
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 1024px)");
     const update = () => setDesktop(mq.matches);
@@ -68,8 +73,9 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
           className={`absolute inset-0 ${onOpenPhoto ? "cursor-zoom-in" : ""}`}
           onClick={onOpenPhoto ? () => onOpenPhoto(headerImage) : undefined}
         >
+          {/* No key on purpose: a frame change re-positions the same image in place
+              instead of remounting it (which showed a dark frame while it reloaded). */}
           <FocusedImage
-            key={desktop ? "d" : "m"}
             src={headerImage}
             alt={coaster.name}
             focusStr={focus}

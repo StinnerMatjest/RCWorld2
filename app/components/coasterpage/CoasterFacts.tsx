@@ -10,6 +10,8 @@ interface Props {
   isAdminMode: boolean;
   /** The page keeps the coaster; it is rendered in two places (phone/desktop) so saves go up. */
   onSaved?: (specs: RollerCoasterSpecs) => void;
+  /** The coaster's scale (Kiddie, Family, High Thrill…), listed under "More specs". */
+  scale?: string | null;
 }
 
 const fmt = (v: number, d = 0) => v.toLocaleString("en-GB", { maximumFractionDigits: d });
@@ -21,7 +23,7 @@ const duration = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}:${String(Math.
  * label, no box. Imperial units throughout, like the rest of the site.
  * Everything else waits behind "All specs".
  */
-export default function CoasterFacts({ specs: initialSpecs, coasterId, isAdminMode, onSaved }: Props) {
+export default function CoasterFacts({ specs: initialSpecs, coasterId, isAdminMode, onSaved, scale }: Props) {
   const [specs, setSpecs] = useState<RollerCoasterSpecs | null | undefined>(initialSpecs);
   const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -39,6 +41,7 @@ export default function CoasterFacts({ specs: initialSpecs, coasterId, isAdminMo
   if (s.drop) extra.push({ label: "Drop", value: `${fmt(s.drop, 1)} ft` });
   if (s.gforce) extra.push({ label: "Max G-force", value: `${fmt(s.gforce, 1)} G` });
   if (s.verticalAngle) extra.push({ label: "Steepest drop", value: `${fmt(s.verticalAngle)}°` });
+  if (scale && scale !== "Unknown") extra.push({ label: "Scale", value: scale });
 
   const kind = [s.type, ...(s.classification || "").split("|").map((t) => t.trim()).filter(Boolean)].filter(Boolean).join(" · ");
   const empty = main.length === 0 && extra.length === 0 && !kind;

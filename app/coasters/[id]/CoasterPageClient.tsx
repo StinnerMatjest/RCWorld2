@@ -19,6 +19,7 @@ import CoasterInfo from "@/app/components/coasterpage/CoasterInfo";
 import CoasterNeighbours from "@/app/components/coasterpage/CoasterNeighbours";
 import CoasterLightbox from "@/app/components/coasterpage/CoasterLightbox";
 import CoasterHeaderModal from "@/app/components/coasterpage/CoasterHeaderModal";
+import CoasterStripEditor from "@/app/components/coasterpage/CoasterStripEditor";
 import { mediaCaptions } from "@/app/components/parkpage/SectionBody";
 import type { CoasterTextEntry, CoasterGalleryImage, CoasterMini } from "@/app/components/coasterpage/coasterPageTypes";
 
@@ -105,22 +106,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
     setGallery(Array.isArray(data.gallery) ? data.gallery : []);
   }, []);
 
-  const toggleFeatured = useCallback(async (img: CoasterGalleryImage, featured: boolean) => {
-    // Optimistic: the star flips at once, the gallery re-fetch confirms it.
-    setGallery((gs) => gs.map((g) => (g.id === img.id ? { ...g, featured } : g)));
-    try {
-      // The gallery route wants the numeric id, not the slug in the URL.
-      const res = await fetch(`/api/coasters/${coaster?.id}/gallery`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageId: img.id, featured }),
-      });
-      if (!res.ok) throw new Error(String(res.status));
-    } catch (err) {
-      console.error("Failed to update featured photo:", err);
-      setGallery((gs) => gs.map((g) => (g.id === img.id ? { ...g, featured: !featured } : g)));
-    }
-  }, [coaster?.id]);
+  const [stripEditorOpen, setStripEditorOpen] = useState(false);
 
   // Desktop rail: stick by the top when it fits the screen, by the bottom when it
   // is taller, so its end (the ranking lists) is what stays in view while reading.
@@ -217,6 +203,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
   const numbers = (
     <CoasterFacts
       specs={coaster.specs}
+      scale={coaster.scale}
       coasterId={coaster.id}
       isAdminMode={isAdminMode}
       onSaved={(s: RollerCoasterSpecs) => setCoaster((c) => (c ? { ...c, specs: s } : c))}
@@ -262,7 +249,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
                 coasterName={coaster.name}
                 onOpen={openPhoto}
                 isAdminMode={isAdminMode}
-                onToggleFeatured={toggleFeatured}
+                onEdit={() => setStripEditorOpen(true)}
               />
             </div>
 
@@ -329,6 +316,16 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
           gallery={gallery}
           current={{ imageId: headerRow?.id ?? null, focusMobile: headerFocus.mobile, focusDesktop: headerFocus.desktop }}
           onClose={() => setIsHeaderModalOpen(false)}
+          onSaved={() => loadGallery(coaster.id)}
+        />
+      )}
+
+      {isAdminMode && stripEditorOpen && (
+        <CoasterStripEditor
+          coasterId={coaster.id}
+          coasterName={coaster.name}
+          gallery={gallery}
+          onClose={() => setStripEditorOpen(false)}
           onSaved={() => loadGallery(coaster.id)}
         />
       )}

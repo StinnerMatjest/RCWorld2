@@ -89,7 +89,7 @@ export function SectionBody({
   const renderMedia = (entry: string, index: number, isHalf = false) => {
     const { url, focus } = splitMedia(entry);
     const pan = parseFocusStr(focus);
-    const a = (isRow || isHalf) ? SECTION_IMAGE_ASPECT.row : SECTION_IMAGE_ASPECT.full;
+    const a = resolved.mode === "row" && resolved.tall ? SECTION_IMAGE_ASPECT.tall : (isRow || isHalf) ? SECTION_IMAGE_ASPECT.row : SECTION_IMAGE_ASPECT.full;
     const clickable = !!onMediaClick;
     const caption = captions?.[url];
     return (
