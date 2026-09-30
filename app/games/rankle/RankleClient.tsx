@@ -7,6 +7,7 @@ import { getParkFlag, getRatingColor } from "@/app/utils/design";
 import { getTodayString, getUTCTodaySeed } from "@/app/utils/coastle";
 import type { GameStats } from "@/app/types";
 import { RankleResultModal } from "./ResultModal";
+import { buildConnectionsShareGrid, type ConnectionsColor } from "@/app/components/connections/ResultModal";
 import { AllInRound, type AllInResolution } from "./AllInRound";
 
 // deterministic PRNG: same seed -> same round sequence for every player
@@ -860,21 +861,10 @@ export default function RankleClient() {
         const isDone = solvedN >= 4 || mistakes >= 4;
 
         if (isDone) {
-          const historyList = state.guessHistory ?? state.guesses ?? state.history ?? [];
-          const grid = historyList
-            .map((row: any) => {
-              const colors = Array.isArray(row) ? row : (row.colors ?? row.guess ?? []);
-              return colors.map((c: any) => {
-                const colorStr = typeof c === "string" ? c : (c.color || c.difficulty || "unknown");
-                if (colorStr.includes("yellow") || colorStr.includes("amber")) return "🟨";
-                if (colorStr.includes("green") || colorStr.includes("emerald")) return "🟩";
-                if (colorStr.includes("blue") || colorStr.includes("sky")) return "🟦";
-                if (colorStr.includes("purple") || colorStr.includes("violet")) return "🟪";
-                return "⬛";
-              }).join(" ");
-            })
-            .filter((r: string) => r.trim().length > 0)
-            .join("\n");
+          // Same grid builder as the Connections result modal, so two groups
+          // that share a colour are told apart here too (second one is orange).
+          const historyList: { tiles: string[]; colors: ConnectionsColor[] }[] = state.guessHistory ?? [];
+          const grid = buildConnectionsShareGrid(historyList, state.groups ?? []);
 
           sections.push(`🔗 Connections — ${solvedN}/4 · ${mistakes} mistake${mistakes !== 1 ? "s" : ""}${grid ? `\n${grid}` : ""}`);
         }

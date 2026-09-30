@@ -175,10 +175,15 @@ export default function ConnectionsGame({ initialGroups, persistKey, onNextBoard
   useEffect(() => {
     if (isPractice || !persistKey) return;
 
-    const data = { solved, playerSolvedCount, mistakes, failedGuesses, guessHistory, tiles };
+    // `groups` is stored so the games hub can rebuild the share grid with the
+    // same duplicate-colour handling as the result modal.
+    const data = {
+      solved, playerSolvedCount, mistakes, failedGuesses, guessHistory, tiles,
+      groups: groups.map((g) => ({ id: g.id, label: g.label, colorClass: g.color, coasters: g.coasters })),
+    };
     localStorage.setItem(persistKey, JSON.stringify(data));
 
-  }, [solved, playerSolvedCount, mistakes, failedGuesses, guessHistory, tiles, persistKey, isPractice]);
+  }, [solved, playerSolvedCount, mistakes, failedGuesses, guessHistory, tiles, groups, persistKey, isPractice]);
 
   // ── Loss reveal ────────────────────────────────────────────────────────────
 

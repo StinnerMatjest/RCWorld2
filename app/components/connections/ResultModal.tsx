@@ -90,6 +90,27 @@ function buildColorMap(groups: ConnectionsSolvedGroup[]) {
 
 /* ------------------ SHARE TEXT ------------------ */
 
+/**
+ * The emoji grid of a finished game. Two groups can share a difficulty colour;
+ * the second one is drawn orange (then red, brown) so a guess that mixed two
+ * blue groups doesn't come out as four identical squares. Every share path
+ * (the result modal, the copy button, the combined "all games" text) must
+ * build its grid here so they agree.
+ */
+export function buildConnectionsShareGrid(
+  guessHistory: ConnectionsGuessHistoryEntry[],
+  groups: ConnectionsSolvedGroup[]
+): string {
+  const map = buildColorMap(groups);
+  return guessHistory
+    .map((guess) =>
+      guess.tiles
+        .map((tile, i) => getEmoji(map.get(tile) ?? guess.colors[i]))
+        .join("  ")
+    )
+    .join("\n \n");
+}
+
 export function buildConnectionsShareText({
   gameState,
   solvedCount,
@@ -117,15 +138,7 @@ export function buildConnectionsShareText({
     status = "I completed it";
   }
 
-  const map = buildColorMap(groups);
-
-  const grid = guessHistory
-    .map((guess) =>
-      guess.tiles
-        .map((tile, i) => getEmoji(map.get(tile) ?? guess.colors[i]))
-        .join("  ")
-    )
-    .join("\n\u200A\n");
+  const grid = buildConnectionsShareGrid(guessHistory, groups);
 
   return [
     "Daily Connections",
