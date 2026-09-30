@@ -22,6 +22,8 @@ export interface CoasterGalleryImage {
   /** Hero crops ("cx cy zoom"), set on the row that is the header. */
   focus_mobile?: string | null;
   focus_desktop?: string | null;
+  /** Shown in the photo strip at the top of the page (none flagged = all shown). */
+  featured?: boolean;
 }
 
 /** A neighbour in a ranking list or a sibling coaster at the same park. */

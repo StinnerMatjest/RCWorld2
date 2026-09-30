@@ -68,18 +68,19 @@ export default function CoasterFacts({ specs: initialSpecs, coasterId, isAdminMo
             ))}
           </div>
 
-          {kind && <p className="mt-4 text-sm text-slate-400 leading-relaxed">{kind}</p>}
+          {/* The type line is part of the fold-out on phones; desktop has the room to show it. */}
+          {kind && <p className={`mt-4 text-sm text-slate-400 leading-relaxed ${showAll ? "" : "hidden lg:block"}`}>{kind}</p>}
 
-          {(extra.length > 0 || s.notes) && (
+          {(extra.length > 0 || s.notes || kind) && (
             <>
               <button
                 type="button"
                 onClick={() => setShowAll((v) => !v)}
                 className="mt-3 text-xs font-bold uppercase tracking-widest text-brand hover:text-brand-light transition-colors cursor-pointer"
               >
-                {showAll ? "Fewer numbers" : "All specs"}
+                {showAll ? "Fewer specs" : "More specs"}
               </button>
-              {showAll && (
+              {showAll && (extra.length > 0 || s.notes) && (
                 <dl className="mt-3 divide-y divide-slate-800 border-t border-slate-800">
                   {extra.map((e) => (
                     <div key={e.label} className="flex items-baseline justify-between gap-4 py-2 text-sm">

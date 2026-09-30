@@ -176,6 +176,9 @@ export default async function Page({ params }: PageProps) {
       coaster.parkSlug.slice(1).replace(/-/g, " ");
 
   const ratingNumber = Number(coaster.rating);
+  const highlights: { category: string; severity: string }[] = Array.isArray(coaster.highlights) ? coaster.highlights : [];
+  const highs = highlights.filter((h) => /positive/i.test(h.severity)).map((h) => h.category);
+  const lows = highlights.filter((h) => /negative/i.test(h.severity)).map((h) => h.category);
 
   const structuredData = {
     "@context": "https://schema.org",
@@ -209,6 +212,10 @@ export default async function Page({ params }: PageProps) {
         .map(t => t.headline ? `${t.headline}: ${t.text}` : t.text)
         .join("\n\n"),
     } : {}),
+    // The highs and lows, in schema.org's own review vocabulary.
+    ...(highs.length > 0 ? { positiveNotes: { "@type": "ItemList", itemListElement: highs.map((h: string, i: number) => ({ "@type": "ListItem", position: i + 1, name: h })) } } : {}),
+    ...(lows.length > 0 ? { negativeNotes: { "@type": "ItemList", itemListElement: lows.map((h: string, i: number) => ({ "@type": "ListItem", position: i + 1, name: h })) } } : {}),
+    ...(headerImage ? { image: headerImage } : {}),
   };
 
   const breadcrumbs = {

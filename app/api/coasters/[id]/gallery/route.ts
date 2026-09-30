@@ -4,7 +4,7 @@ import { revalidateContent } from "@/app/lib/revalidate";
 
 type GalleryRow = {
   id: number; title: string; path: string; description: string; is_header: boolean;
-  focus_mobile: string | null; focus_desktop: string | null;
+  focus_mobile: string | null; focus_desktop: string | null; featured: boolean;
 };
 
 // The header photo is cropped separately for the phone hero (portrait) and the
@@ -16,14 +16,15 @@ function ensureFocusColumns(): Promise<void> {
     focusColumns = pool
       .query(`ALTER TABLE coastergallery
               ADD COLUMN IF NOT EXISTS focus_mobile TEXT,
-              ADD COLUMN IF NOT EXISTS focus_desktop TEXT`)
+              ADD COLUMN IF NOT EXISTS focus_desktop TEXT,
+              ADD COLUMN IF NOT EXISTS featured BOOLEAN NOT NULL DEFAULT false`)
       .then(() => undefined)
       .catch((err) => { focusColumns = null; throw err; });
   }
   return focusColumns;
 }
 
-const COLS = "id, title, path, description, is_header, focus_mobile, focus_desktop";
+const COLS = "id, title, path, description, is_header, focus_mobile, focus_desktop, featured";
 
 export async function GET(
   req: NextRequest,
@@ -149,6 +150,16 @@ export async function PATCH(
 
     if (!imageId) return NextResponse.json({ error: "Missing imageId" }, { status: 400 });
     await ensureFocusColumns();
+
+    // { imageId, featured } only toggles whether the photo shows in the strip
+    // at the top of the page; the header is left alone.
+    if (typeof body.featured === "boolean" && body.focusMobile === undefined && body.focusDesktop === undefined) {
+      const res = await client.query(
+        `UPDATE coastergallery SET featured = $3 WHERE id = $1 AND coaster_id = $2 RETURNING ${COLS}`,
+        [imageId, coasterId, body.featured]
+      );
+      return NextResponse.json({ success: true, image: res.rows[0] ?? null }, { status: 200 });
+    }
 
     await client.query("BEGIN");
 

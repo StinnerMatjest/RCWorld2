@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -105,6 +105,42 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
     setGallery(Array.isArray(data.gallery) ? data.gallery : []);
   }, []);
 
+  const toggleFeatured = useCallback(async (img: CoasterGalleryImage, featured: boolean) => {
+    // Optimistic: the star flips at once, the gallery re-fetch confirms it.
+    setGallery((gs) => gs.map((g) => (g.id === img.id ? { ...g, featured } : g)));
+    try {
+      // The gallery route wants the numeric id, not the slug in the URL.
+      const res = await fetch(`/api/coasters/${coaster?.id}/gallery`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageId: img.id, featured }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+    } catch (err) {
+      console.error("Failed to update featured photo:", err);
+      setGallery((gs) => gs.map((g) => (g.id === img.id ? { ...g, featured: !featured } : g)));
+    }
+  }, [coaster?.id]);
+
+  // Desktop rail: stick by the top when it fits the screen, by the bottom when it
+  // is taller, so its end (the ranking lists) is what stays in view while reading.
+  const railRef = useRef<HTMLDivElement>(null);
+  const [railTop, setRailTop] = useState<number>(24);
+  useEffect(() => {
+    const el = railRef.current;
+    if (!el) return;
+    const measure = () => {
+      const h = el.offsetHeight;
+      const vh = window.innerHeight;
+      setRailTop(h + 48 <= vh ? 24 : vh - h - 24);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener("resize", measure);
+    return () => { ro.disconnect(); window.removeEventListener("resize", measure); };
+  }, [gallery, coasterText, ranks]);
+
   // The server normally seeds everything; this is the fallback for a client-side mount without it.
   useEffect(() => {
     if (!coasterId || coasterId === "undefined" || coasterId === "null" || initialCoaster) return;
@@ -200,7 +236,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
         onOpenPhoto={openPhoto}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6">
+      <div id="below-hero" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6 scroll-mt-4">
         <CoasterScoreRow
           rideCount={coaster.ridecount}
           stats={ranks}
@@ -221,7 +257,13 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
         <div className="mt-8 md:mt-10 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
           <div className="lg:col-span-8 min-w-0 space-y-10 md:space-y-14">
             <div className="-mx-4 sm:mx-0">
-              <CoasterPhotoStrip images={gallery} coasterName={coaster.name} onOpen={openPhoto} />
+              <CoasterPhotoStrip
+                images={gallery}
+                coasterName={coaster.name}
+                onOpen={openPhoto}
+                isAdminMode={isAdminMode}
+                onToggleFeatured={toggleFeatured}
+              />
             </div>
 
             {/* Phone: highs and lows and the numbers before the reading. Desktop: they live in the right rail. */}
@@ -249,18 +291,21 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
                 <CoasterGallery coasterId={coaster.id} coasterName={coaster.name} parkId={coaster.parkId} />
               </section>
             )}
+
+            <section className="max-w-xl">
+              <p className="text-[11px] md:text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Details</p>
+              <CoasterInfo coaster={coaster} onUpdate={refreshCoasterData} />
+            </section>
           </div>
 
           <aside className="lg:col-span-4 min-w-0">
-            <div className="space-y-8">
+            {/* The whole rail sticks on desktop. When it is taller than the screen it
+                pins by its bottom edge instead, so the numbers and the ranking lists
+                stay in view while the review scrolls; at the end of the review it
+                scrolls away with the rest and the details below the photos show. */}
+            <div ref={railRef} className="space-y-8 lg:sticky" style={{ top: railTop }}>
               <div className="hidden lg:block">{verdict}</div>
-
-              {/* Once the numbers reach the top of the screen they stay there; the
-                  rest of the rail scrolls up underneath (opaque, so it hides cleanly). */}
-              <div className="hidden lg:block lg:sticky lg:top-0 z-10 bg-[#0f172a] pt-6 pb-6 border-b border-slate-800">
-                {numbers}
-              </div>
-
+              <div className="hidden lg:block">{numbers}</div>
               <CoasterNeighbours
                 currentId={coaster.id}
                 ladder={initialLadder}
@@ -268,11 +313,6 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
                 parkName={parkName}
                 parkSlug={parkSlug}
               />
-
-              <section>
-                <p className="text-[11px] md:text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Details</p>
-                <CoasterInfo coaster={coaster} onUpdate={refreshCoasterData} />
-              </section>
             </div>
           </aside>
         </div>
