@@ -54,6 +54,7 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
   const desktop = useDesktop();
   const focus = (desktop ? headerFocus?.desktop : headerFocus?.mobile) ?? "0.5 0.5 1";
   const [scrolled, setScrolled] = useState(false);
+  const [photoIn, setPhotoIn] = useState(false);
   useEffect(() => {
     const onScroll = () => { if (window.scrollY > 40) setScrolled(true); };
     onScroll();
@@ -70,11 +71,13 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
     <section className="relative w-full overflow-hidden bg-slate-950 aspect-[4/5] sm:aspect-[16/9] lg:aspect-[21/9] max-h-[82vh] lg:max-h-[68vh]">
       {headerImage ? (
         <div
-          className={`absolute inset-0 ${onOpenPhoto ? "cursor-zoom-in" : ""}`}
+          className={`absolute inset-0 transition-opacity duration-700 ease-out ${photoIn ? "opacity-100" : "opacity-0"} ${onOpenPhoto ? "cursor-zoom-in" : ""}`}
           onClick={onOpenPhoto ? () => onOpenPhoto(headerImage) : undefined}
         >
           {/* No key on purpose: a frame change re-positions the same image in place
-              instead of remounting it (which showed a dark frame while it reloaded). */}
+              instead of remounting it (which showed a dark frame while it reloaded).
+              The photo fades in from the dark frame once it has landed, the same
+              700 ms ease the park hero uses. */}
           <FocusedImage
             src={headerImage}
             alt={coaster.name}
@@ -82,6 +85,7 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
             priority
             variants
             className="absolute inset-0"
+            onLoad={() => setPhotoIn(true)}
           />
         </div>
       ) : (
