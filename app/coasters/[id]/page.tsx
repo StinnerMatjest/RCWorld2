@@ -1,7 +1,8 @@
 import { permanentRedirect, notFound } from "next/navigation";
 import CoasterPageClient from "./CoasterPageClient";
 import { LEGACY_COASTER_SLUGS } from "@/app/lib/slug";
-import { computeCoasterRanks } from "@/app/utils/ranking";
+import { computeCoasterRanks, sortCoastersByRank } from "@/app/utils/ranking";
+import type { CoasterGalleryImage, CoasterMini } from "@/app/components/coasterpage/coasterPageTypes";
 
 type PageProps = {
   params: Promise<{
@@ -29,8 +30,8 @@ async function getCoasterTexts(id: string): Promise<any[]> {
   }
 }
 
-// Rank badges need the whole catalogue; fetching it here (one cached request)
-// keeps ~100 KB of JSON out of every visitor's browser.
+// Rank badges and the neighbour lists need the whole catalogue; fetching it
+// here (one cached request) keeps ~100 KB of JSON out of every visitor's browser.
 async function getAllCoasters(): Promise<any[]> {
   try {
     const res = await fetch(`${BASE}api/coasters`, { cache: "force-cache", next: { tags: ["content"] } });
@@ -42,15 +43,45 @@ async function getAllCoasters(): Promise<any[]> {
   }
 }
 
-async function getHeaderImage(id: string): Promise<string | null> {
+async function getGallery(id: string): Promise<{ headerImage: string | null; gallery: CoasterGalleryImage[] }> {
   try {
     const res = await fetch(`${BASE}api/coasters/${id}/gallery`, { cache: "force-cache", next: { tags: ["content"] } });
-    if (!res.ok) return null;
+    if (!res.ok) return { headerImage: null, gallery: [] };
     const data = await res.json();
-    return data.headerImage ?? null;
+    return {
+      headerImage: data.headerImage ?? null,
+      gallery: Array.isArray(data.gallery) ? data.gallery : [],
+    };
   } catch {
-    return null;
+    return { headerImage: null, gallery: [] };
   }
+}
+
+const toMini = (c: any, rank?: number): CoasterMini => ({
+  id: Number(c.id),
+  name: c.name,
+  slug: c.slug,
+  parkName: c.parkName,
+  manufacturerName: c.manufacturerName,
+  year: c.year ?? null,
+  rating: c.rating === null || c.rating === undefined || c.rating === "" ? null : Number(c.rating),
+  rank,
+  isBest: Boolean(c.isBestCoaster ?? c.isbestcoaster),
+});
+
+/** Two coasters either side of this one in the worldwide list, plus itself. */
+function rankLadder(all: any[], coasterId: number): CoasterMini[] {
+  const sorted = sortCoastersByRank(all);
+  const idx = sorted.findIndex((c) => String(c.id) === String(coasterId));
+  if (idx === -1) return [];
+  return sorted.slice(Math.max(0, idx - 2), idx + 3).map((c, i) => toMini(c, Math.max(0, idx - 2) + i + 1));
+}
+
+/** The rest of the park's lineup, best first. */
+function parkSiblings(all: any[], coaster: any): CoasterMini[] {
+  return sortCoastersByRank(all.filter((c) => String(c.parkId) === String(coaster.parkId) && String(c.id) !== String(coaster.id)))
+    .slice(0, 6)
+    .map((c) => toMini(c));
 }
 
 export async function generateMetadata({ params }: PageProps) {
@@ -60,6 +91,7 @@ export async function generateMetadata({ params }: PageProps) {
   // No written review yet: keep the page reachable but out of the index, so
   // an empty page never counts as thin content. Flips back when a review is saved.
   const hasReview = texts.some((t: any) => typeof t.text === "string" && t.text.trim() !== "");
+  const { headerImage } = await getGallery(String(coaster.id));
 
   const parkName =
     coaster.parkName ||
@@ -79,6 +111,7 @@ export async function generateMetadata({ params }: PageProps) {
   const description = formattedRating
     ? `Discover ${coaster.name}, rated ${formattedRating}/10 at ${parkName}. See our review, rating breakdown and ride details.`
     : `Discover ${coaster.name} at ${parkName}. See our review, rating breakdown and ride details.`;
+  const images = [headerImage || "/images/og-default.png"];
 
   return {
     title,
@@ -93,13 +126,13 @@ export async function generateMetadata({ params }: PageProps) {
       url: `https://parkrating.com/coasters/${coaster.slug}`,
       siteName: "ParkRating",
       type: "article",
-      images: ["/images/og-default.png"],
+      images,
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: ["/images/og-default.png"],
+      images,
     },
   };
 }
@@ -123,13 +156,15 @@ export default async function Page({ params }: PageProps) {
   }
 
   // Seed the client render from the single-coaster response (the API joins the
-  // park, so no full-catalog fetch is needed; rankings are fetched client-side).
+  // park, so no full-catalog fetch is needed for the basics).
   const initParkName = coaster.parkName || null;
   const initParkSlug = coaster.parkSlug || null;
   const initParkId = coaster.parkId || null;
   const initTexts = [...coasterTexts].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
-  const [allCoasters, initialHeaderImage] = await Promise.all([getAllCoasters(), getHeaderImage(String(coaster.id))]);
+  const [allCoasters, { headerImage, gallery }] = await Promise.all([getAllCoasters(), getGallery(String(coaster.id))]);
   const initialRanks = allCoasters.length ? computeCoasterRanks(allCoasters, coaster) : null;
+  const ladder = allCoasters.length ? rankLadder(allCoasters, coaster.id) : [];
+  const siblings = allCoasters.length ? parkSiblings(allCoasters, coaster) : [];
 
   const parkName =
     coaster.parkName ||
@@ -146,6 +181,7 @@ export default async function Page({ params }: PageProps) {
       "@type": "TouristAttraction",
       name: coaster.name,
       url: `https://parkrating.com/coasters/${coaster.slug}`,
+      ...(headerImage ? { image: headerImage } : {}),
       containedInPlace: {
         "@type": "Place",
         name: parkName,
@@ -200,7 +236,10 @@ export default async function Page({ params }: PageProps) {
         initialCoaster={coaster}
         initialCoasterText={initTexts}
         initialRanks={initialRanks}
-        initialHeaderImage={initialHeaderImage}
+        initialHeaderImage={headerImage}
+        initialGallery={gallery}
+        initialLadder={ladder}
+        initialSiblings={siblings}
         initialParkName={initParkName}
         initialParkSlug={initParkSlug}
         initialParkId={initParkId}

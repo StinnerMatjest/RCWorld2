@@ -1,417 +1,292 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import type { RollerCoaster } from "@/app/types";
-import BackToParkButton from "@/app/components/buttons/BackToParkButton";
-import { getRatingColor } from "@/app/utils/design";
-import CoasterInfo from "@/app/components/coasterpage/CoasterInfo";
-import CoasterRanking, { StatBlock, SkeletonStatBlock } from "@/app/components/coasterpage/CoasterRanking";
-import CoasterSpecsPanel from "@/app/components/coasterpage/CoasterSpecsPanel";
-import CoasterHighlightsPanel from "@/app/components/coasterpage/CoasterHighlightsPanel";
-import CoasterGallery from "@/app/components/coasterpage/CoasterGallery";
-import CoasterText, { CoasterTextEntry } from "@/app/components/coasterpage/CoasterText";
-import CoasterHeaderModal from "@/app/components/coasterpage/CoasterHeaderModal";
-import Image from "next/image";
-import { useAdminMode } from "@/app/context/AdminModeContext";
-import type { CoasterRankStats } from "@/app/utils/ranking";
 import { ArrowLeft } from "lucide-react";
+import type { RollerCoaster, RollerCoasterHighlights, RollerCoasterSpecs } from "@/app/types";
+import { useAdminMode } from "@/app/context/AdminModeContext";
+import { computeCoasterRanks, type CoasterRankStats } from "@/app/utils/ranking";
+import BackToParkButton from "@/app/components/buttons/BackToParkButton";
+import CoasterHero from "@/app/components/coasterpage/CoasterHero";
+import CoasterRankStrip from "@/app/components/coasterpage/CoasterRankStrip";
+import CoasterPhotoStrip from "@/app/components/coasterpage/CoasterPhotoStrip";
+import CoasterFacts from "@/app/components/coasterpage/CoasterFacts";
+import CoasterVerdict from "@/app/components/coasterpage/CoasterVerdict";
+import CoasterText from "@/app/components/coasterpage/CoasterText";
+import CoasterGallery from "@/app/components/coasterpage/CoasterGallery";
+import CoasterInfo from "@/app/components/coasterpage/CoasterInfo";
+import CoasterNeighbours from "@/app/components/coasterpage/CoasterNeighbours";
+import CoasterLightbox from "@/app/components/coasterpage/CoasterLightbox";
+import CoasterHeaderModal from "@/app/components/coasterpage/CoasterHeaderModal";
+import { mediaCaptions } from "@/app/components/parkpage/SectionBody";
+import type { CoasterTextEntry, CoasterGalleryImage, CoasterMini } from "@/app/components/coasterpage/coasterPageTypes";
 
-// --- Skeleton Loader ---
+interface CoasterPageClientProps {
+  initialId: string;
+  initialCoaster?: RollerCoaster | null;
+  initialCoasterText?: CoasterTextEntry[];
+  initialRanks?: CoasterRankStats | null;
+  initialHeaderImage?: string | null;
+  initialGallery?: CoasterGalleryImage[];
+  initialLadder?: CoasterMini[];
+  initialSiblings?: CoasterMini[];
+  initialParkName?: string | null;
+  initialParkSlug?: string | null;
+  initialParkId?: number | null;
+}
+
 const CoasterSkeleton = () => (
-  <div className="min-h-screen bg-slate-900 pb-20 font-sans animate-pulse">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-      <div className="flex flex-col lg:flex-row justify-between items-end gap-6 mb-8 pb-6 border-b border-slate-800">
-        <div className="w-full">
-          <div className="h-12 sm:h-16 md:h-24 bg-slate-800 rounded-lg w-3/4 md:w-1/2 mb-4"></div>
-          <div className="h-6 sm:h-8 w-48 sm:w-64 bg-slate-800 rounded-full"></div>
-        </div>
-
-        <div className="flex items-end gap-6 md:gap-12 w-full lg:w-auto justify-start lg:justify-end">
-          <SkeletonStatBlock />
-          <SkeletonStatBlock />
-          <SkeletonStatBlock />
-        </div>
-      </div>
-
-      <div className="w-full aspect-video md:aspect-[21/9] bg-slate-800 rounded-2xl mb-8 md:mb-12"></div>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-        <div className="lg:col-span-8 h-96 bg-slate-800 rounded-2xl"></div>
-        <div className="lg:col-span-4 h-96 bg-slate-800 rounded-2xl"></div>
-      </div>
+  <div className="min-h-screen bg-[#0f172a] animate-pulse">
+    <div className="w-full aspect-[4/5] sm:aspect-[16/10] lg:aspect-[21/9] max-h-[70vh] bg-slate-900" />
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div className="grid grid-cols-3 gap-3">{[0, 1, 2].map((i) => <div key={i} className="h-20 bg-slate-900 rounded-2xl" />)}</div>
+      <div className="h-64 bg-slate-900 rounded-2xl" />
     </div>
   </div>
 );
 
-type CoasterPageClientProps = {
-  initialId: string;
-  initialCoaster?: RollerCoaster | null;
-  initialCoasterText?: CoasterTextEntry[];
-  initialParkName?: string | null;
-  initialParkSlug?: string | null;
-  initialParkId?: number | null;
-  initialRanks?: CoasterRankStats | null;
-  initialHeaderImage?: string | null;
-};
-
+/**
+ * The coaster page. Mobile order: photo hero, ranks, photo strip, verdict and
+ * numbers, the review (with photos woven in), the full gallery, details and
+ * what to ride next. On desktop the verdict, numbers, details and neighbours
+ * move into a sticky right column beside the review.
+ */
 const CoasterPage: React.FC<CoasterPageClientProps> = ({
   initialId,
   initialCoaster = null,
   initialCoasterText = [],
+  initialRanks = null,
+  initialHeaderImage = null,
+  initialGallery = [],
+  initialLadder = [],
+  initialSiblings = [],
   initialParkName = null,
   initialParkSlug = null,
   initialParkId = null,
-  initialRanks = null,
-  initialHeaderImage = null,
 }) => {
   const params = useParams();
   const coasterId = String(params?.id ?? initialId);
+  const { isAdminMode } = useAdminMode();
 
   const [coaster, setCoaster] = useState<RollerCoaster | null>(initialCoaster);
-  // Rankings need the full catalog; it's fetched client-side only (too heavy to
-  // serialize into every coaster page's HTML).
-  const [allCoasters, setAllCoasters] = useState<RollerCoaster[]>([]);
+  const [ranks, setRanks] = useState<CoasterRankStats | null>(initialRanks);
   const [headerImage, setHeaderImage] = useState<string | null>(initialHeaderImage);
+  const [gallery, setGallery] = useState<CoasterGalleryImage[]>(initialGallery);
+  const [coasterText, setCoasterText] = useState<CoasterTextEntry[]>(initialCoasterText);
   const [parkName, setParkName] = useState<string | null>(initialParkName);
   const [parkSlug, setParkSlug] = useState<string | null>(initialParkSlug);
   const [parkId, setParkId] = useState<number | null>(initialParkId);
-  const [coasterText, setCoasterText] = useState<CoasterTextEntry[]>(initialCoasterText);
-  // Seeded from the server, so the page renders on first paint instead of the skeleton.
   const [pageLoading, setPageLoading] = useState(!initialCoaster);
-  const [imageVisualLoaded, setImageVisualLoaded] = useState(false);
   const [isHeaderModalOpen, setIsHeaderModalOpen] = useState(false);
-
-  const { isAdminMode } = useAdminMode();
+  const [lightbox, setLightbox] = useState<number | null>(null);
 
   useEffect(() => {
-    if (coaster?.name) {
-      document.title = `${coaster.name} | Parkrating`;
-    } else {
-      document.title = "Parkrating";
-    }
+    document.title = coaster?.name ? `${coaster.name} | Parkrating` : "Parkrating";
   }, [coaster]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-  useEffect(() => {
-    if (!coasterId || coasterId === "undefined" || coasterId === "null") return;
-    // The server already sent the coaster, its text, park, ranks and header
-    // image (the page is keyed by id, so a new coaster means a fresh mount).
-    // Only fetch when that seed is missing.
-    if (initialCoaster) return;
+  const loadGallery = useCallback(async (id: number | string, name?: string, pId?: number | null) => {
+    const qs = name ? `?name=${encodeURIComponent(name)}&parkId=${pId ?? ""}` : "";
+    const res = await fetch(`/api/coasters/${id}/gallery${qs}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    setHeaderImage(data.headerImage ?? null);
+    setGallery(Array.isArray(data.gallery) ? data.gallery : []);
+  }, []);
 
+  // The server normally seeds everything; this is the fallback for a client-side mount without it.
+  useEffect(() => {
+    if (!coasterId || coasterId === "undefined" || coasterId === "null" || initialCoaster) return;
     (async () => {
       try {
-        const [coasterRes, allCoastersRes, textRes] = await Promise.all([
+        const [coasterRes, textRes] = await Promise.all([
           fetch(`/api/coasters/${coasterId}`),
-          fetch("/api/coasters"),
           fetch(`/api/coasters/${coasterId}/text`),
         ]);
-
         if (!coasterRes.ok) throw new Error("Failed to load coaster");
-
-        const coasterData = await coasterRes.json();
-        const allCoastersData = await allCoastersRes.json();
+        const { coaster: c } = await coasterRes.json();
         const textData = await textRes.json();
-
-        const coasterObj = coasterData.coaster;
-        const allList = allCoastersData.coasters || [];
-        const sortedTexts = (textData.texts || []).sort(
-          (a: CoasterTextEntry, b: CoasterTextEntry) => a.order - b.order
-        );
-
-        let galleryPromise = Promise.resolve(null);
-
-        const coasterInList = allList.find(
-          (c: any) => String(c.id) === String(coasterObj.id)
-        );
-        const fetchedParkName = coasterInList?.parkName || coasterObj?.parkName || "Unknown Park";
-        const fetchedParkSlug = coasterInList?.parkSlug || coasterObj?.parkSlug || null;
-        const fetchedParkId = coasterInList?.parkId || coasterObj?.parkId || null;
-
-        if (coasterObj?.name && coasterObj?.parkId) {
-          galleryPromise = fetch(
-            `/api/coasters/${coasterId}/gallery?name=${encodeURIComponent(
-              coasterObj.name
-            )}&parkId=${coasterObj.parkId}`
-          )
-            .then((res) => (res.ok ? res.json().then((d) => d.headerImage) : null))
-            .catch(() => null);
-        }
-
-        const [galleryImg] = await Promise.all([galleryPromise]);
-
-        setCoaster(coasterObj);
-        setAllCoasters(allList);
-        setHeaderImage(galleryImg);
-        setParkName(fetchedParkName);
-        setParkSlug(fetchedParkSlug);
-        setParkId(fetchedParkId);
-        setCoasterText(sortedTexts);
+        setCoaster(c);
+        setParkName(c?.parkName ?? null);
+        setParkSlug(c?.parkSlug ?? null);
+        setParkId(c?.parkId ?? null);
+        setCoasterText((textData.texts || []).sort((a: CoasterTextEntry, b: CoasterTextEntry) => a.order - b.order));
+        if (c?.id) await loadGallery(c.id, c.name, c.parkId);
       } catch (err) {
         console.error("Error loading page data:", err);
       } finally {
         setPageLoading(false);
       }
     })();
-  }, [coasterId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [coasterId, initialCoaster, loadGallery]);
 
   const refreshText = async () => {
-    if (!coasterId) return;
     const res = await fetch(`/api/coasters/${coasterId}/text`);
     const data = await res.json();
-    setCoasterText(
-      (data.texts || []).sort(
-        (a: CoasterTextEntry, b: CoasterTextEntry) => a.order - b.order
-      )
-    );
+    setCoasterText((data.texts || []).sort((a: CoasterTextEntry, b: CoasterTextEntry) => a.order - b.order));
   };
 
   const refreshCoasterData = async () => {
     try {
       const res = await fetch("/api/coasters");
       const data = await res.json();
-      const updatedCoaster = (data.coasters || []).find(
-        (c: RollerCoaster) => c.id === coaster?.id
-      );
-
-      if (updatedCoaster) {
-        setCoaster(updatedCoaster);
-        setAllCoasters(data.coasters || []); // so the rank badges recompute after an edit
+      const all = data.coasters || [];
+      const updated = all.find((c: RollerCoaster) => c.id === coaster?.id);
+      if (updated) {
+        setCoaster((prev) => ({ ...(prev as RollerCoaster), ...updated }));
+        setRanks(computeCoasterRanks(all, updated));
       }
     } catch (err) {
       console.error("Failed to refresh coaster:", err);
     }
   };
 
-  const getSafeColorClass = (rating: number | null) => {
-    try {
-      if (!rating) return "text-white";
-      const color = getRatingColor(Number(rating));
-      return color.replace("bg-", "text-").replace("border-", "");
-    } catch {
-      return "text-white";
-    }
-  };
+  // Every photo on the page in one order (hero first), for the lightbox.
+  const photos = useMemo(() => {
+    const list = gallery.map((g) => g.path);
+    if (headerImage && !list.includes(headerImage)) list.unshift(headerImage);
+    else if (headerImage) { list.splice(list.indexOf(headerImage), 1); list.unshift(headerImage); }
+    return list;
+  }, [gallery, headerImage]);
+  const captions = useMemo(() => mediaCaptions(gallery), [gallery]);
+  const openPhoto = useCallback((url: string) => {
+    const i = photos.indexOf(url);
+    setLightbox(i === -1 ? null : i);
+    if (i === -1) window.open(url, "_blank");
+  }, [photos]);
 
   if (pageLoading || !coaster) return <CoasterSkeleton />;
 
-  const baseAnim = "transition-all duration-700 ease-out transform";
-  const visibleClass = "opacity-100 translate-y-0";
+  const stripImages = gallery.length ? gallery : [];
+  const parkHref = parkSlug ? `/park/${parkSlug}` : parkId ? `/park/${parkId}` : "/parks";
+
+  const overview = (
+    <>
+      <CoasterVerdict
+        highlights={coaster.highlights || []}
+        coasterId={coaster.id}
+        isAdminMode={isAdminMode}
+        onSaved={(h: RollerCoasterHighlights[]) => setCoaster((c) => (c ? { ...c, highlights: h } : c))}
+      />
+      <CoasterFacts
+        specs={coaster.specs}
+        coasterId={coaster.id}
+        isAdminMode={isAdminMode}
+        onSaved={(s: RollerCoasterSpecs) => setCoaster((c) => (c ? { ...c, specs: s } : c))}
+      />
+    </>
+  );
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-slate-100 pb-20 font-sans">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
-        <div className="mb-6 hidden sm:block">
-          <div className="mb-6 hidden sm:block">
-            <Link
-              href={parkSlug ? `/park/${parkSlug}` : coaster.parkId ? `/park/${coaster.parkId}` : "/"}
-              className="inline-flex items-center text-sm font-medium text-slate-400 hover:text-white transition-colors group"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
-              Back to {parkName || "Park"}
-            </Link>
-          </div>
-        </div>
+    <div className="min-h-screen bg-[#0f172a] text-slate-100 pb-16 font-sans">
+      <CoasterHero
+        coaster={coaster}
+        parkName={parkName}
+        parkSlug={parkSlug}
+        headerImage={headerImage}
+        photoCount={photos.length}
+        isAdminMode={isAdminMode}
+        onPickHeader={() => setIsHeaderModalOpen(true)}
+        onOpenPhoto={openPhoto}
+      />
 
-        <div className="flex flex-col lg:flex-row justify-between items-center lg:items-end gap-6 lg:gap-8 mb-8 pb-6 border-b border-slate-800">
-          <div className="w-full lg:w-auto flex flex-col items-center lg:items-start gap-2 sm:gap-3">
-            <h1 className="text-4xl sm:text-6xl md:text-7xl xl:text-8xl font-black tracking-tighter uppercase italic text-white leading-none break-words max-w-full text-center lg:text-left">
-              {coaster.name}
-            </h1>
-
-            <div className="flex flex-wrap justify-center lg:justify-start items-center gap-2 sm:gap-3 mt-1">
-              <span className="px-2 sm:px-3 py-1 bg-white text-black rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest shadow-sm group-hover:bg-slate-200 transition-colors">
-                {coaster.manufacturerName || "Unknown"}
-              </span>
-              <span className="text-slate-700 hidden sm:inline">
-                |
-              </span>
-              <span className="text-xs sm:text-sm font-bold uppercase tracking-widest text-slate-400">
-                {coaster.model || "Coaster Model"}
-              </span>
-            </div>
-          </div>
-
-          <Link
-            href={`/coasters/${coaster.slug}/rankings`}
-            className="text-[10px] font-bold uppercase tracking-widest text-brand hover:text-brand-light transition-colors flex items-center gap-1"
-          >
-            View Detailed Rankings
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-3 w-3"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
+        <div className="hidden sm:flex items-center justify-between mb-5">
+          <Link href={parkHref} className="inline-flex items-center text-sm font-medium text-slate-400 hover:text-white transition-colors group">
+            <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
+            Back to {parkName || "park"}
           </Link>
-
-          <div className="flex flex-wrap items-end gap-x-6 gap-y-4 sm:gap-8 md:gap-12 shrink-0 w-full lg:w-auto justify-center lg:justify-end">
-            <CoasterRanking
-              coaster={coaster}
-              allCoasters={allCoasters}
-              stats={initialRanks}
-              parkName={parkName}
-            />
-
-            {coaster.rating && (
-              <div className={`${baseAnim} ${visibleClass} delay-300`}>
-                <Link
-                  href={`/coasterLibrary?q=${coaster.rating}`}
-                  title={`View coasters with score ${coaster.rating}`}
-                  className="group cursor-pointer"
-                >
-                  <StatBlock
-                    mainValue={coaster.rating}
-                    label="SCORE"
-                    subLabel={null}
-                    colorClass={getSafeColorClass(coaster.rating)}
-                    isLink={true}
-                  />
-                </Link>
-              </div>
-            )}
-          </div>
         </div>
 
-        <div className="relative w-full aspect-video md:aspect-[32/9] rounded-2xl overflow-hidden shadow-sm mb-8 md:mb-12 bg-slate-800 group">
-          {isAdminMode && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsHeaderModalOpen(true);
-              }}
-              className="absolute top-4 right-4 z-40 p-3 bg-black/60 hover:bg-brand text-white rounded-xl backdrop-blur-md border border-white/20 transition-all shadow-xl cursor-pointer"
-              title="Select Header Image"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className="w-6 h-6"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
-                />
-              </svg>
-            </button>
-          )}
+        <CoasterRankStrip
+          stats={ranks}
+          parkName={parkName}
+          parkSlug={parkSlug}
+          parkId={parkId}
+          manufacturerName={coaster.manufacturerName}
+          manufacturerId={coaster.manufacturerId}
+        />
 
-          {headerImage && (
-            <Image
-              src={headerImage}
-              alt={coaster.name}
-              fill
-              className={`object-cover cursor-pointer transition-all duration-1000 group-hover:scale-105 ${imageVisualLoaded ? "opacity-100 blur-0" : "opacity-0 blur-lg"
-                }`}
-              priority
-              onLoad={() => setImageVisualLoaded(true)}
-              onClick={() => window.open(headerImage, "_blank")}
-            />
-          )}
-        </div>
+        <div className="mt-8 md:mt-10 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12">
+          <div className="lg:col-span-8 min-w-0 space-y-10 md:space-y-14">
+            <div className="-mx-4 sm:mx-0">
+              <CoasterPhotoStrip images={stripImages} coasterName={coaster.name} onOpen={openPhoto} />
+            </div>
 
-        {isHeaderModalOpen && (
-          <CoasterHeaderModal
-            coasterId={coaster.id}
-            coasterName={coaster.name}
-            parkId={coaster.parkId}
-            onClose={() => setIsHeaderModalOpen(false)}
-            onUpdate={() => {
-              fetch(
-                `/api/coasters/${coaster.id}/gallery?name=${encodeURIComponent(
-                  coaster.name
-                )}&parkId=${coaster.parkId}`
-              )
-                .then((res) => res.json())
-                .then((data) => setHeaderImage(data.headerImage));
-            }}
-          />
-        )}
+            {/* Phone: verdict and numbers before the reading. Desktop: they live in the right column. */}
+            <div className="lg:hidden space-y-8">{overview}</div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 relative">
-          <div className="lg:col-span-8 flex flex-col gap-8 md:gap-12 order-2 lg:order-1">
-            <section>
-              <h2 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-white border-l-4 border-brand pl-4">
-                The Experience
-              </h2>
+            <section id="review" className="scroll-mt-20">
+              <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight">Our review</h2>
+              <div className="w-12 h-1 bg-brand rounded-full mt-3 mb-6" />
               <CoasterText
                 coasterId={coaster.id}
+                coasterName={coaster.name}
                 initialTexts={coasterText}
                 refreshTexts={refreshText}
+                galleryImages={gallery}
+                headerImage={headerImage}
+                onMediaClick={openPhoto}
               />
             </section>
 
-            <section>
-              <h2 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-white border-l-4 border-brand pl-4">
-                Gallery
-              </h2>
-              <CoasterGallery
-                coasterId={coaster.id}
-                coasterName={coaster.name}
-                parkId={coaster.parkId}
-              />
-            </section>
+            {(gallery.length > 0 || isAdminMode) && (
+              <section id="gallery" className="scroll-mt-20">
+                <CoasterGallery coasterId={coaster.id} coasterName={coaster.name} parkId={coaster.parkId} />
+              </section>
+            )}
           </div>
 
-          <div className="lg:col-span-4 order-1 lg:order-2">
-            <div className="sticky top-8 flex flex-col gap-8 md:gap-12">
-              {((coaster.highlights && coaster.highlights.length > 0) ||
-                isAdminMode) && (
-                  <div>
-                    <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2">
-                      Strengths & Weaknesses
-                    </h3>
-                    <CoasterHighlightsPanel
-                      highlights={coaster.highlights || []}
-                      coasterId={coaster.id}
-                    />
-                  </div>
-                )}
+          <aside className="lg:col-span-4 min-w-0">
+            <div className="lg:sticky lg:top-6 space-y-8">
+              <div className="hidden lg:block space-y-8">{overview}</div>
 
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2">
-                  Information
-                </h3>
-                <CoasterInfo coaster={coaster} onUpdate={refreshCoasterData} />
-              </div>
+              <section>
+                <h2 className="text-lg sm:text-xl font-bold text-white mb-3">Details</h2>
+                <div className="rounded-2xl bg-slate-900/70 border border-slate-800 px-4 py-2">
+                  <CoasterInfo coaster={coaster} onUpdate={refreshCoasterData} />
+                </div>
+              </section>
 
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2">
-                  Technical Specs
-                </h3>
-                <CoasterSpecsPanel
-                  specs={coaster.specs}
-                  coasterId={coaster.id}
-                />
-              </div>
+              <CoasterNeighbours
+                currentId={coaster.id}
+                ladder={initialLadder}
+                siblings={initialSiblings}
+                parkName={parkName}
+                parkSlug={parkSlug}
+              />
             </div>
-          </div>
+          </aside>
         </div>
 
-        <div className="flex justify-center mt-12 md:mt-20 pt-8 md:pt-10 border-t border-slate-800">
-          <BackToParkButton
-            parkSlug={parkSlug}
-            parkId={parkId}
-            parkName={parkName}
-          />
+        <div className="flex justify-center mt-12 md:mt-16 pt-8 border-t border-slate-800">
+          <BackToParkButton parkSlug={parkSlug} parkId={parkId} parkName={parkName} />
         </div>
       </div>
+
+      {isHeaderModalOpen && (
+        <CoasterHeaderModal
+          coasterId={coaster.id}
+          coasterName={coaster.name}
+          parkId={coaster.parkId}
+          onClose={() => setIsHeaderModalOpen(false)}
+          onUpdate={() => loadGallery(coaster.id, coaster.name, coaster.parkId)}
+        />
+      )}
+
+      {lightbox !== null && (
+        <CoasterLightbox
+          urls={photos}
+          index={lightbox}
+          captions={captions}
+          onClose={() => setLightbox(null)}
+          onIndex={setLightbox}
+        />
+      )}
     </div>
   );
 };

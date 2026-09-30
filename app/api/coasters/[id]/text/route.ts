@@ -3,6 +3,22 @@ import { revalidateContent } from "@/app/lib/revalidate";
 import { pool } from "@/app/lib/db";
 import { diffFields, getCoasterContext, logChange } from "@/app/lib/changelog";
 
+// Review sections can carry up to three gallery images plus a layout, like the
+// park review sections (same "url|cx cy zoom" list and layout names). Added
+// in place so existing rows keep working; runs once per process.
+let imageColumns: Promise<void> | null = null;
+function ensureImageColumns(): Promise<void> {
+    if (!imageColumns) {
+        imageColumns = pool
+            .query(`ALTER TABLE coastertext
+                    ADD COLUMN IF NOT EXISTS image_url TEXT,
+                    ADD COLUMN IF NOT EXISTS image_layout TEXT`)
+            .then(() => undefined)
+            .catch((err) => { imageColumns = null; throw err; });
+    }
+    return imageColumns;
+}
+
 // Helper function to resolve slug OR id to a numeric coaster ID
 async function resolveCoasterId(identifier: string): Promise<number | null> {
     const numId = Number(identifier);
@@ -30,14 +46,17 @@ export async function GET(
     }
 
     try {
+        await ensureImageColumns();
         const query = `
-  SELECT 
+  SELECT
     id,
     coaster_id,
     headline,
     text,
     "order",
-    is_spoiler AS "isSpoiler"
+    is_spoiler AS "isSpoiler",
+    image_url AS "imageUrl",
+    image_layout AS "imageLayout"
   FROM coastertext
   WHERE coaster_id = $1
   ORDER BY "order" ASC
@@ -91,9 +110,12 @@ export async function POST(
         }
 
         const { id: textId, headline, text, isSpoiler } = body;
+        const imageUrl: string | null = typeof body.imageUrl === "string" && body.imageUrl.trim() ? body.imageUrl : null;
+        const imageLayout: string | null = typeof body.imageLayout === "string" && body.imageLayout.trim() ? body.imageLayout : null;
         if (!headline && !text) {
             return NextResponse.json({ error: "Missing headline or text" }, { status: 400 });
         }
+        await ensureImageColumns();
 
         if (textId) {
             // UPDATE existing
@@ -104,12 +126,18 @@ export async function POST(
             const oldRow = oldRes.rows[0];
 
             const updateRes = await pool.query(
-                `UPDATE coastertext SET headline = $1, text = $2, is_spoiler = $3 WHERE id = $4 AND coaster_id = $5 RETURNING id, coaster_id, headline, text, "order", is_spoiler AS "isSpoiler"`,
-                [headline, text, isSpoiler ?? false, textId, coasterId]
+                `UPDATE coastertext SET headline = $1, text = $2, is_spoiler = $3, image_url = $4, image_layout = $5
+                 WHERE id = $6 AND coaster_id = $7
+                 RETURNING id, coaster_id, headline, text, "order", is_spoiler AS "isSpoiler", image_url AS "imageUrl", image_layout AS "imageLayout"`,
+                [headline, text, isSpoiler ?? false, imageUrl, imageLayout, textId, coasterId]
             );
 
             if (oldRow) {
-                const diff = diffFields(oldRow, { headline, text, isSpoiler }, { isSpoiler: "is_spoiler" });
+                const diff = diffFields(
+                    oldRow,
+                    { headline, text, isSpoiler, imageUrl, imageLayout },
+                    { isSpoiler: "is_spoiler", imageUrl: "image_url", imageLayout: "image_layout" }
+                );
                 if (Object.keys(diff).length > 0) {
                     const ctx = await getCoasterContext(coasterId);
                     logChange({
@@ -134,8 +162,10 @@ export async function POST(
             const newOrder = maxOrderRes.rows[0].max_order + 1;
 
             const insertRes = await pool.query(
-                `INSERT INTO coastertext (coaster_id, headline, text, "order", is_spoiler) VALUES ($1, $2, $3, $4, $5) RETURNING id, coaster_id, headline, text, "order", is_spoiler AS "isSpoiler"`,
-                [coasterId, headline, text, newOrder, isSpoiler ?? false]
+                `INSERT INTO coastertext (coaster_id, headline, text, "order", is_spoiler, image_url, image_layout)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                 RETURNING id, coaster_id, headline, text, "order", is_spoiler AS "isSpoiler", image_url AS "imageUrl", image_layout AS "imageLayout"`,
+                [coasterId, headline, text, newOrder, isSpoiler ?? false, imageUrl, imageLayout]
             );
 
             const ctx = await getCoasterContext(coasterId);

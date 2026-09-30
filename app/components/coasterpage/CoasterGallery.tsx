@@ -420,9 +420,7 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
 
             {/* Header */}
             <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold dark:text-white flex items-center gap-3">
-                    Gallery
-                </h2>
+                <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">All photos</h2>
                 {isAdminMode && (
                     <button
                         onClick={() => setIsManageModalOpen(true)}

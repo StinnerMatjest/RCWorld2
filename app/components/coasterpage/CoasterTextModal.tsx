@@ -1,36 +1,42 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
 import { MarkdownEditor, countTextStats } from "../editor/MarkdownEditor";
-import { MarkdownText } from "../MarkdownText";
-import SpoilerText from "../SpoilerText";
+import { SectionBody, mediaCaptions } from "../parkpage/SectionBody";
+import {
+  SectionMediaPanel,
+  mediaDraftFromStored,
+  mediaEntriesOf,
+  mediaStoredOf,
+  type MediaDraft,
+} from "../editor/SectionMediaEditor";
+import type { CoasterTextEntry, CoasterGalleryImage } from "./coasterPageTypes";
 
-export interface CoasterTextEntry {
-  id: number;
-  coaster_id?: number;
-  headline: string | null;
-  text: string | null;
-  order?: number;
-  isSpoiler?: boolean;
-}
+export type { CoasterTextEntry } from "./coasterPageTypes";
 
 interface Props {
   coasterId: number;
   onClose: () => void;
   onSuccess?: () => void;
   textEntry?: CoasterTextEntry;
+  /** The coaster's gallery, for the section image picker. */
+  galleryImages?: CoasterGalleryImage[];
+  /** Gallery paths already placed in other sections (path -> section names). */
+  usedIn?: Record<string, string[]>;
 }
 
 /**
- * Coaster text editor. Same markdown editor as the park review sections, with a
- * live preview of the entry beside it on desktop. Ctrl+S saves.
+ * Coaster review section editor: headline, markdown text, up to three gallery
+ * images with a layout, and a live preview of the section as the page shows
+ * it. Ctrl+S saves.
  */
-export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEntry }: Props) {
+export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEntry, galleryImages = [], usedIn = {} }: Props) {
   useScrollLock();
   const [headline, setHeadline] = useState(textEntry?.headline || "");
   const [text, setText] = useState(textEntry?.text || "");
   const [isSpoiler, setIsSpoiler] = useState(textEntry?.isSpoiler || false);
+  const [media, setMedia] = useState<MediaDraft>(() => mediaDraftFromStored(textEntry?.imageUrl, textEntry?.imageLayout));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewAsVisitor, setPreviewAsVisitor] = useState(false);
@@ -41,20 +47,27 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
       setHeadline(textEntry.headline || "");
       setText(textEntry.text || "");
       setIsSpoiler(textEntry.isSpoiler || false);
+      setMedia(mediaDraftFromStored(textEntry.imageUrl, textEntry.imageLayout));
     }
   }, [textEntry]);
+
+  const captions = useMemo(() => mediaCaptions(galleryImages), [galleryImages]);
+  const storedMedia = mediaStoredOf(media);
+  const storedLayout = media.images.length ? media.layout : null;
 
   const dirty =
     headline !== (textEntry?.headline || "") ||
     text !== (textEntry?.text || "") ||
-    isSpoiler !== (textEntry?.isSpoiler || false);
+    isSpoiler !== (textEntry?.isSpoiler || false) ||
+    storedMedia !== (textEntry?.imageUrl || null) ||
+    storedLayout !== (textEntry?.imageLayout || null);
 
   const save = async () => {
     if (loading) return;
     setLoading(true);
     setError(null);
     try {
-      const body: Record<string, unknown> = { headline, text, isSpoiler };
+      const body: Record<string, unknown> = { headline, text, isSpoiler, imageUrl: storedMedia, imageLayout: storedLayout };
       if (textEntry?.id) body.id = textEntry.id;
 
       const res = await fetch(`/api/coasters/${coasterId}/text`, {
@@ -97,7 +110,7 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [headline, text, isSpoiler, loading, dirty]);
+  }, [headline, text, isSpoiler, media, loading, dirty]);
 
   const handleDelete = async () => {
     if (!textEntry) return;
@@ -125,12 +138,13 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
 
   const stats = countTextStats(text);
   const isAdminView = !previewAsVisitor;
+  const mediaEntries = mediaEntriesOf(media);
 
   const preview = (
-    <div>
+    <div className="space-y-3">
       {headline.trim() && (
-        <div className="flex items-center gap-3 mb-3">
-          <h3 className="text-xl font-bold text-white">{headline}</h3>
+        <div className="flex items-baseline gap-3 border-l-4 border-brand pl-3">
+          <h3 className="text-xl font-semibold text-white">{headline}</h3>
           {isAdminView && isSpoiler && (
             <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-900/40 text-red-400 border border-red-800/50">
               Spoiler
@@ -138,14 +152,17 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
           )}
         </div>
       )}
-      {text.trim() ? (
-        isSpoiler ? (
-          <SpoilerText forceReveal={isAdminView} block={true} isAdminMode={isAdminView}>
-            <MarkdownText text={text} className="whitespace-pre-wrap leading-relaxed text-base text-slate-300" forceReveal={isAdminView} isAdminMode={isAdminView} />
-          </SpoilerText>
-        ) : (
-          <MarkdownText text={text} className="whitespace-pre-wrap leading-relaxed text-base text-slate-300" forceReveal={isAdminView} isAdminMode={isAdminView} />
-        )
+      {text.trim() || mediaEntries.length ? (
+        <SectionBody
+          text={text}
+          media={mediaEntries}
+          layout={media.layout}
+          isSpoiler={isSpoiler}
+          isAdminMode={isAdminView}
+          altLabel={headline || "Section image"}
+          textClassName="text-slate-300 leading-relaxed text-base"
+          captions={captions}
+        />
       ) : (
         <p className="text-slate-600 italic">Nothing to preview yet.</p>
       )}
@@ -155,13 +172,13 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
   return (
     <div className="fixed inset-0 z-[1000] bg-black/80 flex items-center justify-center p-2 sm:p-4" onClick={requestClose}>
       <div
-        className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col overflow-hidden text-slate-200"
+        className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col overflow-hidden text-slate-200"
         onClick={e => e.stopPropagation()}
       >
         {/* Top bar */}
         <div className="flex items-center gap-2 px-4 h-14 border-b border-slate-800 flex-shrink-0">
           <h2 className="font-bold text-white text-base flex-1 truncate">
-            {textEntry ? "Edit coaster text" : "Add coaster text"}
+            {textEntry ? "Edit review section" : "Add review section"}
           </h2>
           <div className="md:hidden flex items-center bg-slate-800 rounded-lg p-0.5 text-xs font-bold">
             {(["write", "preview"] as const).map(v => (
@@ -232,10 +249,20 @@ export default function CoasterTextModal({ coasterId, onClose, onSuccess, textEn
                 />
                 <span className="text-sm font-medium text-slate-300">Mark whole section as spoiler</span>
               </label>
+
+              <div className="pt-4 border-t border-slate-800">
+                <SectionMediaPanel
+                  draft={media}
+                  onChange={setMedia}
+                  galleryImages={galleryImages}
+                  captions={captions}
+                  usedIn={usedIn}
+                />
+              </div>
             </div>
           </form>
 
-          <div className={`${mobileView === "write" ? "hidden md:flex" : "flex"} flex-col flex-1 md:w-[45%] md:flex-none min-w-0 min-h-0 border-l border-slate-800 bg-[#0f172a]`}>
+          <div className={`${mobileView === "write" ? "hidden md:flex" : "flex"} flex-col flex-1 md:w-[42%] md:flex-none min-w-0 min-h-0 border-l border-slate-800 bg-[#0f172a]`}>
             <div className="flex items-center justify-between px-4 h-10 border-b border-slate-800/80 flex-shrink-0 text-xs">
               <span className="font-bold uppercase tracking-wider text-slate-500">Preview</span>
               <div className="flex items-center bg-slate-800 rounded-lg p-0.5 font-bold">
