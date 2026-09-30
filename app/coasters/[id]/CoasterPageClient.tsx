@@ -2,14 +2,13 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import type { RollerCoaster, RollerCoasterHighlights, RollerCoasterSpecs } from "@/app/types";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import { computeCoasterRanks, type CoasterRankStats } from "@/app/utils/ranking";
 import BackToParkButton from "@/app/components/buttons/BackToParkButton";
 import CoasterHero, { type HeaderFocus } from "@/app/components/coasterpage/CoasterHero";
 import CoasterScoreRow from "@/app/components/coasterpage/CoasterScoreRow";
+import CoasterRankRail from "@/app/components/coasterpage/CoasterRankRail";
 import CoasterPhotoStrip from "@/app/components/coasterpage/CoasterPhotoStrip";
 import CoasterFacts from "@/app/components/coasterpage/CoasterFacts";
 import CoasterVerdict from "@/app/components/coasterpage/CoasterVerdict";
@@ -170,7 +169,6 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
 
   if (pageLoading || !coaster) return <CoasterSkeleton />;
 
-  const parkHref = parkSlug ? `/park/${parkSlug}` : parkId ? `/park/${parkId}` : "/parks";
   const headerRow = gallery.find((g) => g.path === headerImage) ?? null;
 
   const verdict = (
@@ -204,25 +202,39 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
         onOpenPhoto={openPhoto}
       />
 
-      <div id="below-hero" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6 scroll-mt-4">
-        <CoasterScoreRow
-          rideCount={coaster.ridecount}
-          stats={ranks}
-          parkName={parkName}
-          parkSlug={parkSlug}
-          parkId={parkId}
-          manufacturerName={coaster.manufacturerName}
-          manufacturerId={coaster.manufacturerId}
-        />
-
-        <div className="hidden sm:flex items-center justify-between mt-5 mb-2">
-          <Link href={parkHref} className="inline-flex items-center text-sm font-medium text-slate-400 hover:text-white transition-colors group">
-            <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
-            Back to {parkName || "park"}
-          </Link>
+      {/* Same outer geometry as the park page: full width, px-6 / md:px-20, three
+          columns (rail · review · rail) with the same proportions, so the review
+          text sits exactly where a park review's does. */}
+      <div id="below-hero" className="w-full px-4 sm:px-6 md:px-20 pt-5 sm:pt-6 lg:py-10 scroll-mt-4">
+        {/* Phones and tablets: the ranks as a row under the hero. */}
+        <div className="lg:hidden mb-8">
+          <CoasterScoreRow
+            rideCount={coaster.ridecount}
+            stats={ranks}
+            parkName={parkName}
+            parkSlug={parkSlug}
+            parkId={parkId}
+            manufacturerName={coaster.manufacturerName}
+            manufacturerId={coaster.manufacturerId}
+          />
         </div>
 
-        <div className="mt-8 md:mt-10 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_20rem] gap-10 lg:gap-14">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_5.5fr_3.5fr] [@media(min-width:2560px)]:grid-cols-[1.8fr_6fr_3.5fr] gap-10 lg:gap-6">
+          {/* Desktop: the ranks where the park page keeps its visit panel. */}
+          <div className="hidden lg:block min-w-0">
+            <div className="lg:sticky lg:top-6">
+              <CoasterRankRail
+                rideCount={coaster.ridecount}
+                stats={ranks}
+                parkName={parkName}
+                parkSlug={parkSlug}
+                parkId={parkId}
+                manufacturerName={coaster.manufacturerName}
+                manufacturerId={coaster.manufacturerId}
+              />
+            </div>
+          </div>
+
           <div className="min-w-0 space-y-10 md:space-y-14">
             <div className="-mx-4 sm:mx-0">
               <CoasterPhotoStrip
