@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import HomeClient from "./HomeClient";
-import TopCoasters from "@/app/components/home/TopCoasters";
 import { isAdminRequest } from "@/app/lib/adminAuth";
 import type { Visit, Park } from "@/app/types";
 
@@ -63,7 +62,6 @@ export default async function Page() {
     <>
       <h1 className="sr-only">ParkRating: Theme Park Reviews &amp; Roller Coaster Rankings</h1>
       <HomeClient initialRatings={ratings} initialParks={parks} initialAdminMode={initialAdminMode} initialIsMobile={initialIsMobile} />
-      <TopCoasters />
     </>
   );
 }
