@@ -1,5 +1,12 @@
 import { pool } from "@/app/lib/db";
 import { NextResponse } from "next/server";
+import { invalidateBoards } from "@/app/lib/connectionsBoards";
+
+// The stored daily boards were generated from the old category set; drop
+// them and rebuild in the background so the change shows up in the game.
+function rebuildBoards() {
+    invalidateBoards().catch((err) => console.error("connections: board rebuild after category change failed:", err));
+}
 
 
 // Fetch all currently disabled categories
@@ -34,6 +41,7 @@ export async function POST(request: Request) {
         ON CONFLICT (category_id) DO NOTHING;
       `;
             await pool.query(query, categoryIds);
+            rebuildBoards();
             return NextResponse.json({ success: true, message: "Categories disabled" }, { status: 200 });
         }
 
@@ -49,6 +57,7 @@ export async function POST(request: Request) {
     `;
         await pool.query(query, [categoryId]);
 
+        rebuildBoards();
         return NextResponse.json({ success: true, message: "Category disabled" }, { status: 200 });
     } catch (error) {
         console.error("Database query error (POST category):", error);
@@ -68,6 +77,7 @@ export async function DELETE(request: Request) {
             const placeholders = categoryIds.map((_, index) => `$${index + 1}`).join(", ");
             const query = `DELETE FROM disabled_connections_categories WHERE category_id IN (${placeholders});`;
             await pool.query(query, categoryIds);
+            rebuildBoards();
             return NextResponse.json({ success: true, message: "Categories enabled" }, { status: 200 });
         }
 
@@ -79,6 +89,7 @@ export async function DELETE(request: Request) {
         const query = `DELETE FROM disabled_connections_categories WHERE category_id = $1;`;
         await pool.query(query, [categoryId]);
 
+        rebuildBoards();
         return NextResponse.json({ success: true, message: "Category enabled" }, { status: 200 });
     } catch (error) {
         console.error("Database query error (DELETE category):", error);
