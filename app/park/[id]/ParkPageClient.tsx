@@ -346,6 +346,15 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
     );
   };
 
+  // The server seeds published visits only, and the mount effect skips its own
+  // fetch when seeded — so drafts never reach the page. Reload the full list
+  // (uncached) whenever admin mode is on, so pending reviews can be seen and
+  // published.
+  useEffect(() => {
+    if (!isAdminMode || !park?.id) return;
+    refreshRatings().catch((err) => console.error("Failed to load draft visits:", err));
+  }, [isAdminMode, park?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Render as soon as the park is known (seeded from the server). The coaster list
   // and gallery show their own loading state while they finish fetching client-side.
   if (!park) return <LoadingSpinner />;
