@@ -40,17 +40,18 @@ const CoasterSkeleton = () => (
   <div className="min-h-screen bg-[#0f172a] animate-pulse">
     <div className="w-full aspect-[4/5] sm:aspect-[16/10] lg:aspect-[21/9] max-h-[70vh] bg-slate-900" />
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-      <div className="grid grid-cols-3 gap-3">{[0, 1, 2].map((i) => <div key={i} className="h-20 bg-slate-900 rounded-2xl" />)}</div>
+      <div className="h-12 w-2/3 bg-slate-900 rounded" />
       <div className="h-64 bg-slate-900 rounded-2xl" />
     </div>
   </div>
 );
 
 /**
- * The coaster page. Mobile order: photo hero, ranks, photo strip, verdict and
- * numbers, the review (with photos woven in), the full gallery, details and
- * what to ride next. On desktop the verdict, numbers, details and neighbours
- * move into a sticky right column beside the review.
+ * The coaster page, set the way the park page is: photo hero, then plain
+ * content on the ground with thin rules, no boxes. Phone order: ranks, photo
+ * strip, verdict and numbers, the review with photos woven in, the full
+ * gallery, details, what to ride next. Desktop keeps the review on the left
+ * with verdict, numbers, details and neighbours in a sticky right rail.
  */
 const CoasterPage: React.FC<CoasterPageClientProps> = ({
   initialId,
@@ -147,24 +148,22 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
 
   // Every photo on the page in one order (hero first), for the lightbox.
   const photos = useMemo(() => {
-    const list = gallery.map((g) => g.path);
-    if (headerImage && !list.includes(headerImage)) list.unshift(headerImage);
-    else if (headerImage) { list.splice(list.indexOf(headerImage), 1); list.unshift(headerImage); }
+    const list = gallery.map((g) => g.path).filter((p) => p !== headerImage);
+    if (headerImage) list.unshift(headerImage);
     return list;
   }, [gallery, headerImage]);
   const captions = useMemo(() => mediaCaptions(gallery), [gallery]);
   const openPhoto = useCallback((url: string) => {
     const i = photos.indexOf(url);
-    setLightbox(i === -1 ? null : i);
     if (i === -1) window.open(url, "_blank");
+    else setLightbox(i);
   }, [photos]);
 
   if (pageLoading || !coaster) return <CoasterSkeleton />;
 
-  const stripImages = gallery.length ? gallery : [];
   const parkHref = parkSlug ? `/park/${parkSlug}` : parkId ? `/park/${parkId}` : "/parks";
 
-  const overview = (
+  const rail = (
     <>
       <CoasterVerdict
         highlights={coaster.highlights || []}
@@ -194,8 +193,8 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
         onOpenPhoto={openPhoto}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
-        <div className="hidden sm:flex items-center justify-between mb-5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
+        <div className="hidden sm:flex items-center justify-between mb-6">
           <Link href={parkHref} className="inline-flex items-center text-sm font-medium text-slate-400 hover:text-white transition-colors group">
             <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
             Back to {parkName || "park"}
@@ -211,14 +210,14 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
           manufacturerId={coaster.manufacturerId}
         />
 
-        <div className="mt-8 md:mt-10 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12">
+        <div className="mt-8 md:mt-10 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
           <div className="lg:col-span-8 min-w-0 space-y-10 md:space-y-14">
             <div className="-mx-4 sm:mx-0">
-              <CoasterPhotoStrip images={stripImages} coasterName={coaster.name} onOpen={openPhoto} />
+              <CoasterPhotoStrip images={gallery} coasterName={coaster.name} onOpen={openPhoto} />
             </div>
 
-            {/* Phone: verdict and numbers before the reading. Desktop: they live in the right column. */}
-            <div className="lg:hidden space-y-8">{overview}</div>
+            {/* Phone: verdict and numbers before the reading. Desktop: they live in the right rail. */}
+            <div className="lg:hidden space-y-8">{rail}</div>
 
             <section id="review" className="scroll-mt-20">
               <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight">Our review</h2>
@@ -243,13 +242,11 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
 
           <aside className="lg:col-span-4 min-w-0">
             <div className="lg:sticky lg:top-6 space-y-8">
-              <div className="hidden lg:block space-y-8">{overview}</div>
+              <div className="hidden lg:block space-y-8">{rail}</div>
 
               <section>
-                <h2 className="text-lg sm:text-xl font-bold text-white mb-3">Details</h2>
-                <div className="rounded-2xl bg-slate-900/70 border border-slate-800 px-4 py-2">
-                  <CoasterInfo coaster={coaster} onUpdate={refreshCoasterData} />
-                </div>
+                <p className="text-[11px] md:text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Details</p>
+                <CoasterInfo coaster={coaster} onUpdate={refreshCoasterData} />
               </section>
 
               <CoasterNeighbours

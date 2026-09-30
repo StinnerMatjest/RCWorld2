@@ -12,13 +12,9 @@ interface CoasterInfoProps {
 }
 
 const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div className="flex justify-between items-baseline py-2 border-b border-slate-800 last:border-0">
-    <span className="text-sm font-medium text-slate-500 uppercase tracking-wide">
-      {label}
-    </span>
-    <span className="text-base font-semibold text-slate-200 text-right">
-      {value}
-    </span>
+  <div className="flex justify-between items-baseline gap-4 py-2.5 border-b border-slate-800">
+    <span className="text-sm text-slate-400">{label}</span>
+    <span className="text-sm font-medium text-slate-200 text-right min-w-0 truncate">{value}</span>
   </div>
 );
 
@@ -43,9 +39,8 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster, onUpdate }) => {
   }, [coaster.parkSlug, coaster.parkId]);
 
   return (
-    <div className="flex flex-col w-full relative">
-      <InfoRow label="Name" value={coaster.name} />
-      <InfoRow label="Year" value={coaster.year} />
+    <div className="flex flex-col w-full relative border-t border-slate-800">
+      <InfoRow label="Opened" value={coaster.year} />
       <InfoRow
         label="Park"
         value={
@@ -91,8 +86,8 @@ const CoasterInfo: React.FC<CoasterInfoProps> = ({ coaster, onUpdate }) => {
           )
         }
       />
-      <InfoRow label="Scale" value={coaster.scale} />
-      <InfoRow label="Ride Count" value={coaster.ridecount ?? "0"} />
+      {coaster.scale && coaster.scale !== "Unknown" && <InfoRow label="Scale" value={coaster.scale} />}
+      <InfoRow label="Our rides" value={coaster.ridecount ?? "0"} />
 
       {/* Admin Edit Button */}
       {isAdminMode && (

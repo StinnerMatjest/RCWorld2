@@ -12,20 +12,17 @@ interface Props {
   onSaved?: (specs: RollerCoasterSpecs) => void;
 }
 
-const TAG_ORDER = ["Sit Down", "Inverted", "Flying", "Wing", "Dive", "Stand Up", "Bobsled", "Wild Mouse", "Spinning", "Family", "Kiddie", "Mega", "Giga", "Strata", "Hyper", "Launched", "LSM", "LIM", "Hydraulic", "Swing Launch", "Switch Track", "Custom", "Beyond Vertical", "Station Drop"];
-
-const ft = (v: number) => v;
-const toM = (v: number) => v * 0.3048;
-const toKmh = (v: number) => v * 1.609344;
-const fmt = (v: number, d = 0) => v.toLocaleString("en-GB", { maximumFractionDigits: d, minimumFractionDigits: 0 });
-const duration = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}` : `${Math.round(s)}`);
-
-type Fact = { key: string; label: string; value: string; unit: string; alt?: string };
+const toM = (ft: number) => ft * 0.3048;
+const toKmh = (mph: number) => mph * 1.609344;
+const fmt = (v: number, d = 0) => v.toLocaleString("en-GB", { maximumFractionDigits: d });
+const duration = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")} min` : `${Math.round(s)} sec`);
 
 /**
- * The numbers a rider wants at a glance, metric first (our readers are in
- * Europe) with the imperial figure the data is stored in as the small print.
- * Only facts we have are shown; the rest of the sheet sits behind "All specs".
+ * The four numbers that describe a coaster (speed, height, length,
+ * inversions), set like the site's stat rows: big figure, small uppercase
+ * label, no box. Metric first because our readers are in Europe; the
+ * imperial figure the data is stored in sits underneath. Everything else
+ * waits behind "All specs".
  */
 export default function CoasterFacts({ specs: initialSpecs, coasterId, isAdminMode, onSaved }: Props) {
   const [specs, setSpecs] = useState<RollerCoasterSpecs | null | undefined>(initialSpecs);
@@ -34,76 +31,70 @@ export default function CoasterFacts({ specs: initialSpecs, coasterId, isAdminMo
   useEffect(() => setSpecs(initialSpecs), [initialSpecs]);
   const s = specs || ({} as RollerCoasterSpecs);
 
-  const facts: Fact[] = [];
-  if (s.speed) facts.push({ key: "speed", label: "Top speed", value: fmt(toKmh(s.speed)), unit: "km/h", alt: `${fmt(ft(s.speed), 1)} mph` });
-  if (s.height) facts.push({ key: "height", label: "Height", value: fmt(toM(s.height)), unit: "m", alt: `${fmt(s.height, 1)} ft` });
-  if (s.length) facts.push({ key: "length", label: "Track length", value: fmt(toM(s.length)), unit: "m", alt: `${fmt(s.length)} ft` });
-  if (s.inversions !== null && s.inversions !== undefined) facts.push({ key: "inversions", label: "Inversions", value: String(s.inversions), unit: "" });
-  if (s.duration) facts.push({ key: "duration", label: "Ride time", value: duration(s.duration), unit: s.duration >= 60 ? "min" : "sec" });
-  if (s.drop) facts.push({ key: "drop", label: "Drop", value: fmt(toM(s.drop)), unit: "m", alt: `${fmt(s.drop, 1)} ft` });
-  if (s.gforce) facts.push({ key: "gforce", label: "Max G-force", value: fmt(s.gforce, 1), unit: "G" });
-  if (s.verticalAngle) facts.push({ key: "angle", label: "Steepest drop", value: fmt(s.verticalAngle), unit: "°" });
+  const main: { label: string; value: string; unit?: string; alt?: string }[] = [];
+  if (s.speed) main.push({ label: "Top speed", value: fmt(toKmh(s.speed)), unit: "km/h", alt: `${fmt(s.speed, 1)} mph` });
+  if (s.height) main.push({ label: "Height", value: fmt(toM(s.height)), unit: "m", alt: `${fmt(s.height, 1)} ft` });
+  if (s.length) main.push({ label: "Length", value: fmt(toM(s.length)), unit: "m", alt: `${fmt(s.length)} ft` });
+  if (s.inversions !== null && s.inversions !== undefined) main.push({ label: "Inversions", value: String(s.inversions) });
 
-  const primary = facts.slice(0, 6);
-  const extra = facts.slice(6);
+  const extra: { label: string; value: string }[] = [];
+  if (s.duration) extra.push({ label: "Ride time", value: duration(s.duration) });
+  if (s.drop) extra.push({ label: "Drop", value: `${fmt(toM(s.drop))} m (${fmt(s.drop, 1)} ft)` });
+  if (s.gforce) extra.push({ label: "Max G-force", value: `${fmt(s.gforce, 1)} G` });
+  if (s.verticalAngle) extra.push({ label: "Steepest drop", value: `${fmt(s.verticalAngle)}°` });
 
-  const tags = (s.classification || "").split("|").map((t) => t.trim()).filter(Boolean)
-    .sort((a, b) => (TAG_ORDER.indexOf(a) === -1 ? 999 : TAG_ORDER.indexOf(a)) - (TAG_ORDER.indexOf(b) === -1 ? 999 : TAG_ORDER.indexOf(b)));
-
-  const empty = facts.length === 0 && tags.length === 0 && !s.type;
+  const kind = [s.type, ...(s.classification || "").split("|").map((t) => t.trim()).filter(Boolean)].filter(Boolean).join(" · ");
+  const empty = main.length === 0 && extra.length === 0 && !kind;
 
   return (
     <section>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg sm:text-xl font-bold text-white">The numbers</h2>
+        <p className="text-[11px] md:text-xs font-bold uppercase tracking-widest text-slate-400">The numbers</p>
         {isAdminMode && (
-          <button onClick={() => setOpen(true)} className="p-1.5 text-slate-500 hover:text-blue-400 hover:bg-slate-800 rounded-md transition-colors cursor-pointer" title="Edit specs">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-            </svg>
-          </button>
+          <button onClick={() => setOpen(true)} className="text-xs font-semibold text-slate-500 hover:text-white transition-colors cursor-pointer">Edit</button>
         )}
       </div>
 
       {empty ? (
-        <p className="text-sm text-slate-500 italic">{isAdminMode ? "No specs yet. Click the pencil to add them." : "Specs coming soon."}</p>
+        <p className="text-sm text-slate-500">{isAdminMode ? "No specs yet. Click Edit to add them." : "Specs coming soon."}</p>
       ) : (
         <>
-          {(tags.length > 0 || s.type) && (
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {s.type && (
-                <span className="px-2.5 py-1 rounded-full bg-slate-800 text-slate-200 text-[11px] font-bold uppercase tracking-wider border border-slate-700">{s.type}</span>
-              )}
-              {tags.map((tag) => (
-                <span key={tag} className="px-2.5 py-1 rounded-full bg-blue-900/20 text-blue-300 text-[11px] font-bold uppercase tracking-wider border border-blue-800/50">{tag}</span>
-              ))}
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {(showAll ? facts : primary).map((f) => (
-              <div key={f.key} className="rounded-2xl bg-slate-900/70 border border-slate-800 px-3.5 py-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-x-6 gap-y-5">
+            {main.map((f) => (
+              <div key={f.label} className="min-w-0">
                 <div className="flex items-baseline gap-1">
-                  <span className="text-2xl sm:text-3xl font-black tracking-tight text-white leading-none">{f.value}</span>
-                  {f.unit && <span className="text-xs font-bold text-slate-400">{f.unit}</span>}
+                  <span className="text-2xl md:text-3xl font-black text-white tabular-nums leading-none">{f.value}</span>
+                  {f.unit && <span className="text-xs text-slate-400">{f.unit}</span>}
                 </div>
-                <p className="mt-1 text-[11px] font-bold uppercase tracking-widest text-slate-500">{f.label}</p>
-                {f.alt && <p className="text-[11px] text-slate-600 mt-0.5">{f.alt}</p>}
+                <div className="mt-1 text-xs text-slate-400 uppercase tracking-wider">{f.label}</div>
+                {f.alt && <div className="text-[11px] text-slate-600">{f.alt}</div>}
               </div>
             ))}
           </div>
 
+          {kind && <p className="mt-4 text-sm text-slate-400 leading-relaxed">{kind}</p>}
+
           {(extra.length > 0 || s.notes) && (
-            <button
-              type="button"
-              onClick={() => setShowAll((v) => !v)}
-              className="mt-2 text-xs font-bold uppercase tracking-widest text-brand hover:text-brand-light transition-colors cursor-pointer"
-            >
-              {showAll ? "Fewer numbers" : "All specs"}
-            </button>
-          )}
-          {showAll && s.notes && (
-            <p className="mt-2 text-sm text-slate-400 leading-relaxed">{s.notes}</p>
+            <>
+              <button
+                type="button"
+                onClick={() => setShowAll((v) => !v)}
+                className="mt-3 text-xs font-bold uppercase tracking-widest text-brand hover:text-brand-light transition-colors cursor-pointer"
+              >
+                {showAll ? "Fewer numbers" : "All specs"}
+              </button>
+              {showAll && (
+                <dl className="mt-3 divide-y divide-slate-800 border-t border-slate-800">
+                  {extra.map((e) => (
+                    <div key={e.label} className="flex items-baseline justify-between gap-4 py-2 text-sm">
+                      <dt className="text-slate-400">{e.label}</dt>
+                      <dd className="text-slate-200 font-medium tabular-nums">{e.value}</dd>
+                    </div>
+                  ))}
+                  {s.notes && <p className="py-2 text-sm text-slate-400 leading-relaxed">{s.notes}</p>}
+                </dl>
+              )}
+            </>
           )}
         </>
       )}

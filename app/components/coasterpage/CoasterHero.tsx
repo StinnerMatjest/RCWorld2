@@ -117,8 +117,8 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
 
           <div className="flex items-end justify-between sm:justify-end gap-4 sm:gap-5 w-full sm:w-auto flex-shrink-0 pointer-events-auto">
             {coaster.isbestcoaster && (
-              <span className="mb-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-brand text-white text-[11px] font-bold uppercase tracking-wider shadow-lg">
-                <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 14.9l-5.2 2.7 1-5.8L1.5 7.7l5.9-.9z" /></svg>
+              // Same tag the park page puts next to its best coaster.
+              <span className="mb-3 rounded px-1.5 py-0.5 text-[12px] font-semibold bg-yellow-900/30 text-yellow-300">
                 Best in park
               </span>
             )}
@@ -129,9 +129,8 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
                 </span>
                 {score && <span className="text-lg sm:text-xl font-bold text-slate-300/80">/10</span>}
               </div>
-              <p className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-slate-300/80 mt-1">
-                {score ? "Our score" : "Not rated yet"}
-                {coaster.ridecount > 0 && <span className="text-slate-400/80 normal-case tracking-normal font-medium"> · ridden {coaster.ridecount}×</span>}
+              <p className="text-xs sm:text-sm text-slate-300/90 mt-1 drop-shadow">
+                {score ? (coaster.ridecount > 0 ? `Ridden ${coaster.ridecount} ${coaster.ridecount === 1 ? "time" : "times"}` : "Our score") : "Not rated yet"}
               </p>
             </div>
           </div>
