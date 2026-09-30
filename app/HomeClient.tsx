@@ -703,7 +703,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
             loading={eager ? "eager" : "lazy"}
             // The first card is the page's largest paint: fetch it ahead of everything
             // else; the other eager cards must not compete with it for the line.
-            {...(first ? { fetchpriority: "high" } : eager ? { fetchpriority: "low" } : {})}
+            {...(first ? { fetchPriority: "high" as const } : eager ? { fetchPriority: "low" as const } : {})}
             className="absolute max-w-none select-none"
             style={header.size ? { ...ssrPlacement(header.size, header.focus), opacity: eager || !defer ? 0.95 : 0 } : { opacity: 0 }}
             data-placed={header.size ? "1" : undefined}
