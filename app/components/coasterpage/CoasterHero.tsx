@@ -3,7 +3,6 @@
 import React from "react";
 import Link from "next/link";
 import { R2Image } from "../R2Image";
-import { getRatingColor } from "@/app/utils/design";
 import type { RollerCoaster } from "@/app/types";
 
 interface Props {
@@ -11,33 +10,23 @@ interface Props {
   parkName: string | null;
   parkSlug: string | null;
   headerImage: string | null;
-  photoCount: number;
   isAdminMode: boolean;
   onPickHeader?: () => void;
   onOpenPhoto?: (url: string) => void;
 }
 
-const formatScore = (rating: number | string | null | undefined) => {
-  const n = Number(rating);
-  if (!rating || Number.isNaN(n) || n <= 0) return null;
-  return Number.isInteger(n) ? String(n) : n.toFixed(1);
-};
-
 /**
- * The coaster's opening: one photo, tall on a phone (coasters go up, and the
- * hero is the one place the photo gets the whole screen), wide on desktop,
- * with the name, where it is and the score laid over the bottom. Without a
- * photo the same block sits on a dark gradient with a faint track line, so a
- * coaster with no gallery still opens like every other.
+ * The coaster's opening: one photo, tall on a phone, wide on desktop, with
+ * only the name and where it is laid over the bottom, the way the park page
+ * opens. The score and ranks come in the row directly underneath. Without a
+ * photo the same block sits on a dark gradient with a faint track line.
  */
-export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, photoCount, isAdminMode, onPickHeader, onOpenPhoto }: Props) {
-  const score = formatScore(coaster.rating);
-  const scoreColor = score ? getRatingColor(Number(coaster.rating)) : "text-slate-500";
+export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, isAdminMode, onPickHeader, onOpenPhoto }: Props) {
   const parkHref = parkSlug ? `/park/${parkSlug}` : coaster.parkId ? `/park/${coaster.parkId}` : "/parks";
   const eyebrow = [coaster.manufacturerName, coaster.year ? String(coaster.year) : null].filter(Boolean);
 
   return (
-    <section className="relative w-full overflow-hidden bg-slate-950 aspect-[4/5] sm:aspect-[16/10] lg:aspect-[21/9] max-h-[82vh] lg:max-h-[70vh]">
+    <section className="relative w-full overflow-hidden bg-slate-950 aspect-[4/5] sm:aspect-[16/9] lg:aspect-[21/9] max-h-[78vh] lg:max-h-[68vh]">
       {headerImage ? (
         <div
           className={`absolute inset-0 ${onOpenPhoto ? "cursor-zoom-in" : ""}`}
@@ -45,14 +34,7 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
         >
           {/* Shown from the first paint: an onLoad fade would miss images that are
               already complete when React hydrates, and leave the hero dark. */}
-          <R2Image
-            src={headerImage}
-            alt={coaster.name}
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover"
-          />
+          <R2Image src={headerImage} alt={coaster.name} fill priority sizes="100vw" className="object-cover" />
         </div>
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-[#0f172a] to-slate-950">
@@ -63,9 +45,8 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
         </div>
       )}
 
-      {/* Legibility: dark from the bottom, never a flat tint over the whole photo. */}
-      <div className="absolute inset-x-0 bottom-0 h-[70%] bg-gradient-to-t from-[#0f172a] via-[#0f172a]/70 to-transparent pointer-events-none" />
-      <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/40 to-transparent pointer-events-none" />
+      {/* Legibility for the name only: dark from the bottom edge, like the park hero. */}
+      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/60 to-transparent pointer-events-none" />
 
       {isAdminMode && onPickHeader && (
         <button
@@ -79,61 +60,22 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
         </button>
       )}
 
-      {photoCount > 1 && (
-        <a
-          href="#photos"
-          className="absolute top-4 left-4 z-20 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/45 backdrop-blur-sm text-white/90 text-xs font-semibold border border-white/15 hover:bg-black/65 transition-colors"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 7h3l2-3h6l2 3h3v12H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
-          {photoCount} photos
-        </a>
-      )}
-
-      <div className="absolute inset-x-0 bottom-0 px-4 sm:px-8 lg:px-20 pb-5 sm:pb-8 lg:pb-10 pointer-events-none">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 sm:gap-8">
-          <div className="min-w-0 pointer-events-auto">
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm sm:text-base text-slate-200/90 drop-shadow">
-              {parkName && (
-                <Link href={parkHref} className="font-semibold text-white hover:text-brand-light transition-colors">
-                  {parkName}
-                </Link>
-              )}
-              {eyebrow.map((part) => (
-                <React.Fragment key={part}>
-                  <span className="text-white/40">·</span>
-                  <span>{part}</span>
-                </React.Fragment>
-              ))}
-            </p>
-            <h1 className="mt-1 text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight text-white leading-[1.02] drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)] break-words">
-              {coaster.name}
-            </h1>
-            {(coaster.rideModel?.name || coaster.model) && (
-              <p className="mt-1.5 text-sm sm:text-base text-slate-300/90 drop-shadow">
-                {coaster.rideModel?.name || coaster.model}
-              </p>
+      <div className="absolute inset-x-0 bottom-0 px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 pointer-events-none">
+        <div className="max-w-7xl mx-auto pointer-events-auto">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.02] drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] break-words">
+            {coaster.name}
+          </h1>
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm sm:text-base text-slate-200/90 drop-shadow">
+            {parkName && (
+              <Link href={parkHref} className="hover:text-white transition-colors">{parkName}</Link>
             )}
-          </div>
-
-          <div className="flex items-end justify-between sm:justify-end gap-4 sm:gap-5 w-full sm:w-auto flex-shrink-0 pointer-events-auto">
-            {coaster.isbestcoaster && (
-              // Same tag the park page puts next to its best coaster.
-              <span className="mb-3 rounded px-1.5 py-0.5 text-[12px] font-semibold bg-yellow-900/30 text-yellow-300">
-                Best in park
-              </span>
-            )}
-            <div className="text-right">
-              <div className="flex items-baseline justify-end gap-1">
-                <span className={`text-6xl sm:text-7xl lg:text-8xl font-black leading-none tracking-tighter ${scoreColor} drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]`}>
-                  {score ?? "NR"}
-                </span>
-                {score && <span className="text-lg sm:text-xl font-bold text-slate-300/80">/10</span>}
-              </div>
-              <p className="text-xs sm:text-sm text-slate-300/90 mt-1 drop-shadow">
-                {score ? (coaster.ridecount > 0 ? `Ridden ${coaster.ridecount} ${coaster.ridecount === 1 ? "time" : "times"}` : "Our score") : "Not rated yet"}
-              </p>
-            </div>
-          </div>
+            {eyebrow.map((part) => (
+              <React.Fragment key={part}>
+                <span className="text-white/40">·</span>
+                <span>{part}</span>
+              </React.Fragment>
+            ))}
+          </p>
         </div>
       </div>
     </section>

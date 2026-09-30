@@ -12,17 +12,14 @@ interface Props {
   onSaved?: (specs: RollerCoasterSpecs) => void;
 }
 
-const toM = (ft: number) => ft * 0.3048;
-const toKmh = (mph: number) => mph * 1.609344;
 const fmt = (v: number, d = 0) => v.toLocaleString("en-GB", { maximumFractionDigits: d });
 const duration = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")} min` : `${Math.round(s)} sec`);
 
 /**
  * The four numbers that describe a coaster (speed, height, length,
  * inversions), set like the site's stat rows: big figure, small uppercase
- * label, no box. Metric first because our readers are in Europe; the
- * imperial figure the data is stored in sits underneath. Everything else
- * waits behind "All specs".
+ * label, no box. Imperial units throughout, like the rest of the site.
+ * Everything else waits behind "All specs".
  */
 export default function CoasterFacts({ specs: initialSpecs, coasterId, isAdminMode, onSaved }: Props) {
   const [specs, setSpecs] = useState<RollerCoasterSpecs | null | undefined>(initialSpecs);
@@ -31,15 +28,15 @@ export default function CoasterFacts({ specs: initialSpecs, coasterId, isAdminMo
   useEffect(() => setSpecs(initialSpecs), [initialSpecs]);
   const s = specs || ({} as RollerCoasterSpecs);
 
-  const main: { label: string; value: string; unit?: string; alt?: string }[] = [];
-  if (s.speed) main.push({ label: "Top speed", value: fmt(toKmh(s.speed)), unit: "km/h", alt: `${fmt(s.speed, 1)} mph` });
-  if (s.height) main.push({ label: "Height", value: fmt(toM(s.height)), unit: "m", alt: `${fmt(s.height, 1)} ft` });
-  if (s.length) main.push({ label: "Length", value: fmt(toM(s.length)), unit: "m", alt: `${fmt(s.length)} ft` });
+  const main: { label: string; value: string; unit?: string }[] = [];
+  if (s.speed) main.push({ label: "Top speed", value: fmt(s.speed, 1), unit: "mph" });
+  if (s.height) main.push({ label: "Height", value: fmt(s.height, 1), unit: "ft" });
+  if (s.length) main.push({ label: "Length", value: fmt(s.length), unit: "ft" });
   if (s.inversions !== null && s.inversions !== undefined) main.push({ label: "Inversions", value: String(s.inversions) });
 
   const extra: { label: string; value: string }[] = [];
   if (s.duration) extra.push({ label: "Ride time", value: duration(s.duration) });
-  if (s.drop) extra.push({ label: "Drop", value: `${fmt(toM(s.drop))} m (${fmt(s.drop, 1)} ft)` });
+  if (s.drop) extra.push({ label: "Drop", value: `${fmt(s.drop, 1)} ft` });
   if (s.gforce) extra.push({ label: "Max G-force", value: `${fmt(s.gforce, 1)} G` });
   if (s.verticalAngle) extra.push({ label: "Steepest drop", value: `${fmt(s.verticalAngle)}°` });
 
@@ -67,7 +64,6 @@ export default function CoasterFacts({ specs: initialSpecs, coasterId, isAdminMo
                   {f.unit && <span className="text-xs text-slate-400">{f.unit}</span>}
                 </div>
                 <div className="mt-1 text-xs text-slate-400 uppercase tracking-wider">{f.label}</div>
-                {f.alt && <div className="text-[11px] text-slate-600">{f.alt}</div>}
               </div>
             ))}
           </div>

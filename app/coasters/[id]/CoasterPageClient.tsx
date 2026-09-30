@@ -9,7 +9,7 @@ import { useAdminMode } from "@/app/context/AdminModeContext";
 import { computeCoasterRanks, type CoasterRankStats } from "@/app/utils/ranking";
 import BackToParkButton from "@/app/components/buttons/BackToParkButton";
 import CoasterHero from "@/app/components/coasterpage/CoasterHero";
-import CoasterRankStrip from "@/app/components/coasterpage/CoasterRankStrip";
+import CoasterScoreRow from "@/app/components/coasterpage/CoasterScoreRow";
 import CoasterPhotoStrip from "@/app/components/coasterpage/CoasterPhotoStrip";
 import CoasterFacts from "@/app/components/coasterpage/CoasterFacts";
 import CoasterVerdict from "@/app/components/coasterpage/CoasterVerdict";
@@ -163,6 +163,19 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
 
   const parkHref = parkSlug ? `/park/${parkSlug}` : parkId ? `/park/${parkId}` : "/parks";
 
+  const scoreRow = (
+    <CoasterScoreRow
+      rating={coaster.rating}
+      rideCount={coaster.ridecount}
+      stats={ranks}
+      parkName={parkName}
+      parkSlug={parkSlug}
+      parkId={parkId}
+      manufacturerName={coaster.manufacturerName}
+      manufacturerId={coaster.manufacturerId}
+    />
+  );
+
   const rail = (
     <>
       <CoasterVerdict
@@ -187,28 +200,20 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
         parkName={parkName}
         parkSlug={parkSlug}
         headerImage={headerImage}
-        photoCount={photos.length}
         isAdminMode={isAdminMode}
         onPickHeader={() => setIsHeaderModalOpen(true)}
         onOpenPhoto={openPhoto}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
-        <div className="hidden sm:flex items-center justify-between mb-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6">
+        {scoreRow}
+
+        <div className="hidden sm:flex items-center justify-between mt-5 mb-2">
           <Link href={parkHref} className="inline-flex items-center text-sm font-medium text-slate-400 hover:text-white transition-colors group">
             <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
             Back to {parkName || "park"}
           </Link>
         </div>
-
-        <CoasterRankStrip
-          stats={ranks}
-          parkName={parkName}
-          parkSlug={parkSlug}
-          parkId={parkId}
-          manufacturerName={coaster.manufacturerName}
-          manufacturerId={coaster.manufacturerId}
-        />
 
         <div className="mt-8 md:mt-10 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
           <div className="lg:col-span-8 min-w-0 space-y-10 md:space-y-14">
@@ -241,13 +246,8 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
           </div>
 
           <aside className="lg:col-span-4 min-w-0">
-            <div className="lg:sticky lg:top-6 space-y-8">
+            <div className="space-y-8">
               <div className="hidden lg:block space-y-8">{rail}</div>
-
-              <section>
-                <p className="text-[11px] md:text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Details</p>
-                <CoasterInfo coaster={coaster} onUpdate={refreshCoasterData} />
-              </section>
 
               <CoasterNeighbours
                 currentId={coaster.id}
@@ -256,6 +256,11 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
                 parkName={parkName}
                 parkSlug={parkSlug}
               />
+
+              <section>
+                <p className="text-[11px] md:text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Details</p>
+                <CoasterInfo coaster={coaster} onUpdate={refreshCoasterData} />
+              </section>
             </div>
           </aside>
         </div>
