@@ -2,11 +2,9 @@
 
 import React from "react";
 import Link from "next/link";
-import { getRatingColor } from "@/app/utils/design";
 import type { CoasterRankStats } from "@/app/utils/ranking";
 
 interface Props {
-  rating: number | string | null | undefined;
   rideCount?: number;
   stats: CoasterRankStats | null;
   parkName: string | null;
@@ -16,12 +14,6 @@ interface Props {
   manufacturerId?: number | null;
 }
 
-const formatScore = (rating: number | string | null | undefined) => {
-  const n = Number(rating);
-  if (!rating || Number.isNaN(n) || n <= 0) return null;
-  return Number.isInteger(n) ? String(n) : n.toFixed(1);
-};
-
 // Same podium colours as the coaster library's rank column.
 const rankColor = (rank: number | null) => (rank === 1 ? "text-yellow-400" : rank === 2 ? "text-slate-300" : rank === 3 ? "text-orange-400" : "text-white");
 
@@ -29,7 +21,7 @@ function Rank({ rank, total, label, href }: { rank: number | null; total: number
   return (
     <Link href={href} className="group min-w-0" title={`${label}: ${rank !== null ? `#${rank}` : "unranked"} of ${total}`}>
       <div className="flex items-baseline gap-1">
-        <span className={`text-2xl sm:text-3xl font-black tabular-nums leading-none ${rankColor(rank)}`}>{rank !== null ? `#${rank}` : "–"}</span>
+        <span className={`text-3xl sm:text-4xl font-black tabular-nums leading-none ${rankColor(rank)}`}>{rank !== null ? `#${rank}` : "–"}</span>
         <span className="text-[11px] sm:text-xs text-slate-500">of {total}</span>
       </div>
       <div className="mt-1 text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider leading-tight truncate group-hover:text-slate-200 transition-colors">{label}</div>
@@ -38,33 +30,27 @@ function Rank({ rank, total, label, href }: { rank: number | null; total: number
 }
 
 /**
- * The line under the hero: our score, then where the coaster stands in its
- * park, among its manufacturer's rides and worldwide. One row, four figures,
- * the way the home cards put their numbers under the score.
+ * The line under the hero: where the coaster stands in its park, among its
+ * manufacturer's rides and worldwide, plus how often we've ridden it.
  */
-export default function CoasterScoreRow({ rating, rideCount = 0, stats, parkName, parkSlug, parkId, manufacturerName, manufacturerId }: Props) {
-  const score = formatScore(rating);
+export default function CoasterScoreRow({ rideCount = 0, stats, parkName, parkSlug, parkId, manufacturerName, manufacturerId }: Props) {
   const ranked = !!stats && (stats.park.rank !== null || stats.manuf.rank !== null || stats.overall.rank !== null);
+  if (!ranked || !stats) return null;
   const parkHref = parkSlug ? `/park/${parkSlug}` : parkId ? `/park/${parkId}` : "/parks";
   const manufHref = manufacturerId ? `/manufacturers/directory?mfg=${manufacturerId}` : "/manufacturers";
 
   return (
-    <div className={`grid ${ranked ? "grid-cols-4" : "grid-cols-1"} gap-3 sm:flex sm:flex-wrap sm:gap-x-12 md:gap-x-16 items-end border-b border-slate-800 pb-5`}>
-      <div className="min-w-0">
-        <div className="flex items-baseline gap-1">
-          <span className={`text-4xl sm:text-5xl font-black tabular-nums leading-none tracking-tight ${score ? getRatingColor(Number(rating)) : "text-slate-500"}`}>{score ?? "NR"}</span>
-          {score && <span className="text-[11px] sm:text-xs text-slate-500">/10</span>}
-        </div>
-        <div className="mt-1 text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider leading-tight truncate">
-          {score ? (rideCount > 0 ? `Score · ${rideCount} ${rideCount === 1 ? "ride" : "rides"}` : "Score") : "Not rated"}
-        </div>
+    <div className="flex items-end justify-between gap-4 border-b border-slate-800 pb-5">
+      <div className="grid grid-cols-3 gap-3 sm:flex sm:gap-x-12 md:gap-x-16 flex-1 min-w-0">
+        <Rank rank={stats.park.rank} total={stats.park.total} label={parkName ?? "in park"} href={parkHref} />
+        <Rank rank={stats.manuf.rank} total={stats.manuf.total} label={manufacturerName ?? "manufacturer"} href={manufHref} />
+        <Rank rank={stats.overall.rank} total={stats.overall.total} label="Worldwide" href="/coasterLibrary" />
       </div>
-      {ranked && stats && (
-        <>
-          <Rank rank={stats.park.rank} total={stats.park.total} label={parkName ?? "in park"} href={parkHref} />
-          <Rank rank={stats.manuf.rank} total={stats.manuf.total} label={manufacturerName ?? "manufacturer"} href={manufHref} />
-          <Rank rank={stats.overall.rank} total={stats.overall.total} label="Worldwide" href="/coasterLibrary" />
-        </>
+      {rideCount > 0 && (
+        <div className="hidden sm:block text-right flex-shrink-0">
+          <div className="text-3xl sm:text-4xl font-black tabular-nums leading-none text-white">{rideCount}</div>
+          <div className="mt-1 text-xs text-slate-400 uppercase tracking-wider">{rideCount === 1 ? "ride" : "rides"}</div>
+        </div>
       )}
     </div>
   );

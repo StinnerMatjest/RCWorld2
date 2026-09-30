@@ -2,7 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
 import { revalidateContent } from "@/app/lib/revalidate";
 
-type GalleryRow = { id: number; title: string; path: string; description: string; is_header: boolean };
+type GalleryRow = {
+  id: number; title: string; path: string; description: string; is_header: boolean;
+  focus_mobile: string | null; focus_desktop: string | null;
+};
+
+// The header photo is cropped separately for the phone hero (portrait) and the
+// desktop hero (wide). Both crops live on the gallery row that is the header,
+// as "cx cy zoom" strings (see FocusedImage). Added in place; runs once per process.
+let focusColumns: Promise<void> | null = null;
+function ensureFocusColumns(): Promise<void> {
+  if (!focusColumns) {
+    focusColumns = pool
+      .query(`ALTER TABLE coastergallery
+              ADD COLUMN IF NOT EXISTS focus_mobile TEXT,
+              ADD COLUMN IF NOT EXISTS focus_desktop TEXT`)
+      .then(() => undefined)
+      .catch((err) => { focusColumns = null; throw err; });
+  }
+  return focusColumns;
+}
+
+const COLS = "id, title, path, description, is_header, focus_mobile, focus_desktop";
 
 export async function GET(
   req: NextRequest,
@@ -15,50 +36,39 @@ export async function GET(
     if (!coasterId || isNaN(coasterId)) {
       return NextResponse.json({ error: "Invalid or missing coaster ID" }, { status: 400 });
     }
+    await ensureFocusColumns();
 
     // Fetch explicit headers based on the new boolean column
-    const headerRes = await pool.query(
-      `
-      SELECT id, title, path, description, is_header
-      FROM coastergallery
-      WHERE coaster_id = $1 AND is_header = true
-      ORDER BY id DESC
-      `,
+    const headerRes = await pool.query<GalleryRow>(
+      `SELECT ${COLS} FROM coastergallery WHERE coaster_id = $1 AND is_header = true ORDER BY id DESC`,
       [coasterId]
     );
     const allActiveHeaders = headerRes.rows;
-    let activeHeader = headerRes.rows[0] || null;
+    let activeHeader: GalleryRow | null = headerRes.rows[0] || null;
 
     // Fallback to any coaster image if no explicit header is flagged
     if (!activeHeader) {
-      const fallbackRes = await pool.query(
-        `
-        SELECT id, title, path, description, is_header
-        FROM coastergallery
-        WHERE coaster_id = $1
-        ORDER BY id ASC
-        LIMIT 1
-        `,
+      const fallbackRes = await pool.query<GalleryRow>(
+        `SELECT ${COLS} FROM coastergallery WHERE coaster_id = $1 ORDER BY id ASC LIMIT 1`,
         [coasterId]
       );
       activeHeader = fallbackRes.rows[0] || null;
     }
 
     // Fetch the rest of the gallery images for this coaster
-    const galleryRes = await pool.query(
-      `
-      SELECT id, title, path, description, is_header
-      FROM coastergallery
-      WHERE coaster_id = $1
-      ORDER BY id ASC
-      `,
+    const galleryRes = await pool.query<GalleryRow>(
+      `SELECT ${COLS} FROM coastergallery WHERE coaster_id = $1 ORDER BY id ASC`,
       [coasterId]
     );
     const gallery = galleryRes.rows;
 
     const headerImage = activeHeader?.path || null;
+    const headerFocus = {
+      mobile: activeHeader?.focus_mobile ?? null,
+      desktop: activeHeader?.focus_desktop ?? null,
+    };
 
-    return NextResponse.json({ headerImage, activeHeader, allActiveHeaders, gallery });
+    return NextResponse.json({ headerImage, headerFocus, activeHeader, allActiveHeaders, gallery });
   } catch (error) {
     console.error("Failed to fetch coaster gallery images", error);
     return NextResponse.json(
@@ -84,7 +94,7 @@ export async function POST(
     }
 
     const res = await pool.query(
-      `INSERT INTO coastergallery (coaster_id, path, title, description, is_header) 
+      `INSERT INTO coastergallery (coaster_id, path, title, description, is_header)
              VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [coasterId, path, title || "", description || "", isHeader || false]
     );
@@ -117,6 +127,14 @@ export async function DELETE(
   }
 }
 
+const FOCUS_RE = /^\d?\.?\d+(\.\d+)? \d?\.?\d+(\.\d+)? \d+(\.\d+)?$/;
+const cleanFocus = (v: unknown): string | null =>
+  typeof v === "string" && FOCUS_RE.test(v.trim()) ? v.trim() : null;
+
+/**
+ * Make an image the header and/or set its phone and desktop crops.
+ * Body: { imageId, focusMobile?, focusDesktop? }. Omitted crops are kept.
+ */
 export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -126,21 +144,31 @@ export async function PATCH(
   try {
     const { id } = await context.params;
     const coasterId = parseInt(id, 10);
-    const { imageId } = await req.json();
+    const body = await req.json();
+    const imageId = Number(body.imageId);
 
     if (!imageId) return NextResponse.json({ error: "Missing imageId" }, { status: 400 });
+    await ensureFocusColumns();
 
     await client.query("BEGIN");
 
     // Remove the header flag from all images belonging to this coaster
     await client.query(`UPDATE coastergallery SET is_header = false WHERE coaster_id = $1`, [coasterId]);
 
-    // Add the header flag exclusively to the selected image
-    await client.query(`UPDATE coastergallery SET is_header = true WHERE id = $1 AND coaster_id = $2`, [imageId, coasterId]);
+    // Add the header flag exclusively to the selected image, with its crops
+    const res = await client.query(
+      `UPDATE coastergallery
+         SET is_header = true,
+             focus_mobile = COALESCE($3, focus_mobile),
+             focus_desktop = COALESCE($4, focus_desktop)
+       WHERE id = $1 AND coaster_id = $2
+       RETURNING ${COLS}`,
+      [imageId, coasterId, cleanFocus(body.focusMobile), cleanFocus(body.focusDesktop)]
+    );
 
     await client.query("COMMIT");
 
-    return NextResponse.json({ success: true }, { status: 200 });
+    return NextResponse.json({ success: true, image: res.rows[0] ?? null }, { status: 200 });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Failed to patch coaster header:", error);

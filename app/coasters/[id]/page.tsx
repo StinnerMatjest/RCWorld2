@@ -43,17 +43,21 @@ async function getAllCoasters(): Promise<any[]> {
   }
 }
 
-async function getGallery(id: string): Promise<{ headerImage: string | null; gallery: CoasterGalleryImage[] }> {
+type HeaderFocus = { mobile: string | null; desktop: string | null };
+const NO_GALLERY = { headerImage: null, headerFocus: { mobile: null, desktop: null }, gallery: [] as CoasterGalleryImage[] };
+
+async function getGallery(id: string): Promise<{ headerImage: string | null; headerFocus: HeaderFocus; gallery: CoasterGalleryImage[] }> {
   try {
     const res = await fetch(`${BASE}api/coasters/${id}/gallery`, { cache: "force-cache", next: { tags: ["content"] } });
-    if (!res.ok) return { headerImage: null, gallery: [] };
+    if (!res.ok) return NO_GALLERY;
     const data = await res.json();
     return {
       headerImage: data.headerImage ?? null,
+      headerFocus: { mobile: data.headerFocus?.mobile ?? null, desktop: data.headerFocus?.desktop ?? null },
       gallery: Array.isArray(data.gallery) ? data.gallery : [],
     };
   } catch {
-    return { headerImage: null, gallery: [] };
+    return NO_GALLERY;
   }
 }
 
@@ -161,7 +165,7 @@ export default async function Page({ params }: PageProps) {
   const initParkSlug = coaster.parkSlug || null;
   const initParkId = coaster.parkId || null;
   const initTexts = [...coasterTexts].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
-  const [allCoasters, { headerImage, gallery }] = await Promise.all([getAllCoasters(), getGallery(String(coaster.id))]);
+  const [allCoasters, { headerImage, headerFocus, gallery }] = await Promise.all([getAllCoasters(), getGallery(String(coaster.id))]);
   const initialRanks = allCoasters.length ? computeCoasterRanks(allCoasters, coaster) : null;
   const ladder = allCoasters.length ? rankLadder(allCoasters, coaster.id) : [];
   const siblings = allCoasters.length ? parkSiblings(allCoasters, coaster) : [];
@@ -237,6 +241,7 @@ export default async function Page({ params }: PageProps) {
         initialCoasterText={initTexts}
         initialRanks={initialRanks}
         initialHeaderImage={headerImage}
+        initialHeaderFocus={headerFocus}
         initialGallery={gallery}
         initialLadder={ladder}
         initialSiblings={siblings}

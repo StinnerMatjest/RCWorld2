@@ -8,7 +8,7 @@ import type { RollerCoaster, RollerCoasterHighlights, RollerCoasterSpecs } from 
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import { computeCoasterRanks, type CoasterRankStats } from "@/app/utils/ranking";
 import BackToParkButton from "@/app/components/buttons/BackToParkButton";
-import CoasterHero from "@/app/components/coasterpage/CoasterHero";
+import CoasterHero, { type HeaderFocus } from "@/app/components/coasterpage/CoasterHero";
 import CoasterScoreRow from "@/app/components/coasterpage/CoasterScoreRow";
 import CoasterPhotoStrip from "@/app/components/coasterpage/CoasterPhotoStrip";
 import CoasterFacts from "@/app/components/coasterpage/CoasterFacts";
@@ -28,6 +28,7 @@ interface CoasterPageClientProps {
   initialCoasterText?: CoasterTextEntry[];
   initialRanks?: CoasterRankStats | null;
   initialHeaderImage?: string | null;
+  initialHeaderFocus?: HeaderFocus;
   initialGallery?: CoasterGalleryImage[];
   initialLadder?: CoasterMini[];
   initialSiblings?: CoasterMini[];
@@ -36,9 +37,11 @@ interface CoasterPageClientProps {
   initialParkId?: number | null;
 }
 
+const NO_FOCUS: HeaderFocus = { mobile: null, desktop: null };
+
 const CoasterSkeleton = () => (
   <div className="min-h-screen bg-[#0f172a] animate-pulse">
-    <div className="w-full aspect-[4/5] sm:aspect-[16/10] lg:aspect-[21/9] max-h-[70vh] bg-slate-900" />
+    <div className="w-full aspect-[4/5] sm:aspect-[16/9] lg:aspect-[21/9] max-h-[68vh] bg-slate-900" />
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       <div className="h-12 w-2/3 bg-slate-900 rounded" />
       <div className="h-64 bg-slate-900 rounded-2xl" />
@@ -47,11 +50,12 @@ const CoasterSkeleton = () => (
 );
 
 /**
- * The coaster page, set the way the park page is: photo hero, then plain
- * content on the ground with thin rules, no boxes. Phone order: ranks, photo
- * strip, verdict and numbers, the review with photos woven in, the full
- * gallery, details, what to ride next. Desktop keeps the review on the left
- * with verdict, numbers, details and neighbours in a sticky right rail.
+ * The coaster page, set the way the park page is: photo hero with the name
+ * and score, then plain content on the ground with thin rules, no boxes.
+ * Phone order: ranks, photo strip, highs and lows, the numbers, the review
+ * with photos woven in, the full gallery, what to ride next, details. On
+ * desktop the right rail holds highs and lows, then the numbers (which stick
+ * once reached), then the ranking lists and details.
  */
 const CoasterPage: React.FC<CoasterPageClientProps> = ({
   initialId,
@@ -59,6 +63,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
   initialCoasterText = [],
   initialRanks = null,
   initialHeaderImage = null,
+  initialHeaderFocus = NO_FOCUS,
   initialGallery = [],
   initialLadder = [],
   initialSiblings = [],
@@ -73,6 +78,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
   const [coaster, setCoaster] = useState<RollerCoaster | null>(initialCoaster);
   const [ranks, setRanks] = useState<CoasterRankStats | null>(initialRanks);
   const [headerImage, setHeaderImage] = useState<string | null>(initialHeaderImage);
+  const [headerFocus, setHeaderFocus] = useState<HeaderFocus>(initialHeaderFocus);
   const [gallery, setGallery] = useState<CoasterGalleryImage[]>(initialGallery);
   const [coasterText, setCoasterText] = useState<CoasterTextEntry[]>(initialCoasterText);
   const [parkName, setParkName] = useState<string | null>(initialParkName);
@@ -90,12 +96,12 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
     window.scrollTo(0, 0);
   }, []);
 
-  const loadGallery = useCallback(async (id: number | string, name?: string, pId?: number | null) => {
-    const qs = name ? `?name=${encodeURIComponent(name)}&parkId=${pId ?? ""}` : "";
-    const res = await fetch(`/api/coasters/${id}/gallery${qs}`);
+  const loadGallery = useCallback(async (id: number | string) => {
+    const res = await fetch(`/api/coasters/${id}/gallery`, { cache: "no-store" });
     if (!res.ok) return;
     const data = await res.json();
     setHeaderImage(data.headerImage ?? null);
+    setHeaderFocus({ mobile: data.headerFocus?.mobile ?? null, desktop: data.headerFocus?.desktop ?? null });
     setGallery(Array.isArray(data.gallery) ? data.gallery : []);
   }, []);
 
@@ -116,7 +122,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
         setParkSlug(c?.parkSlug ?? null);
         setParkId(c?.parkId ?? null);
         setCoasterText((textData.texts || []).sort((a: CoasterTextEntry, b: CoasterTextEntry) => a.order - b.order));
-        if (c?.id) await loadGallery(c.id, c.name, c.parkId);
+        if (c?.id) await loadGallery(c.id);
       } catch (err) {
         console.error("Error loading page data:", err);
       } finally {
@@ -162,35 +168,23 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
   if (pageLoading || !coaster) return <CoasterSkeleton />;
 
   const parkHref = parkSlug ? `/park/${parkSlug}` : parkId ? `/park/${parkId}` : "/parks";
+  const headerRow = gallery.find((g) => g.path === headerImage) ?? null;
 
-  const scoreRow = (
-    <CoasterScoreRow
-      rating={coaster.rating}
-      rideCount={coaster.ridecount}
-      stats={ranks}
-      parkName={parkName}
-      parkSlug={parkSlug}
-      parkId={parkId}
-      manufacturerName={coaster.manufacturerName}
-      manufacturerId={coaster.manufacturerId}
+  const verdict = (
+    <CoasterVerdict
+      highlights={coaster.highlights || []}
+      coasterId={coaster.id}
+      isAdminMode={isAdminMode}
+      onSaved={(h: RollerCoasterHighlights[]) => setCoaster((c) => (c ? { ...c, highlights: h } : c))}
     />
   );
-
-  const rail = (
-    <>
-      <CoasterVerdict
-        highlights={coaster.highlights || []}
-        coasterId={coaster.id}
-        isAdminMode={isAdminMode}
-        onSaved={(h: RollerCoasterHighlights[]) => setCoaster((c) => (c ? { ...c, highlights: h } : c))}
-      />
-      <CoasterFacts
-        specs={coaster.specs}
-        coasterId={coaster.id}
-        isAdminMode={isAdminMode}
-        onSaved={(s: RollerCoasterSpecs) => setCoaster((c) => (c ? { ...c, specs: s } : c))}
-      />
-    </>
+  const numbers = (
+    <CoasterFacts
+      specs={coaster.specs}
+      coasterId={coaster.id}
+      isAdminMode={isAdminMode}
+      onSaved={(s: RollerCoasterSpecs) => setCoaster((c) => (c ? { ...c, specs: s } : c))}
+    />
   );
 
   return (
@@ -200,13 +194,22 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
         parkName={parkName}
         parkSlug={parkSlug}
         headerImage={headerImage}
+        headerFocus={headerFocus}
         isAdminMode={isAdminMode}
         onPickHeader={() => setIsHeaderModalOpen(true)}
         onOpenPhoto={openPhoto}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6">
-        {scoreRow}
+        <CoasterScoreRow
+          rideCount={coaster.ridecount}
+          stats={ranks}
+          parkName={parkName}
+          parkSlug={parkSlug}
+          parkId={parkId}
+          manufacturerName={coaster.manufacturerName}
+          manufacturerId={coaster.manufacturerId}
+        />
 
         <div className="hidden sm:flex items-center justify-between mt-5 mb-2">
           <Link href={parkHref} className="inline-flex items-center text-sm font-medium text-slate-400 hover:text-white transition-colors group">
@@ -221,8 +224,11 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
               <CoasterPhotoStrip images={gallery} coasterName={coaster.name} onOpen={openPhoto} />
             </div>
 
-            {/* Phone: verdict and numbers before the reading. Desktop: they live in the right rail. */}
-            <div className="lg:hidden space-y-8">{rail}</div>
+            {/* Phone: highs and lows and the numbers before the reading. Desktop: they live in the right rail. */}
+            <div className="lg:hidden space-y-8">
+              {verdict}
+              {numbers}
+            </div>
 
             <section id="review" className="scroll-mt-20">
               <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight">Our review</h2>
@@ -247,7 +253,13 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
 
           <aside className="lg:col-span-4 min-w-0">
             <div className="space-y-8">
-              <div className="hidden lg:block space-y-8">{rail}</div>
+              <div className="hidden lg:block">{verdict}</div>
+
+              {/* Once the numbers reach the top of the screen they stay there; the
+                  rest of the rail scrolls up underneath (opaque, so it hides cleanly). */}
+              <div className="hidden lg:block lg:sticky lg:top-0 z-10 bg-[#0f172a] pt-6 pb-6 border-b border-slate-800">
+                {numbers}
+              </div>
 
               <CoasterNeighbours
                 currentId={coaster.id}
@@ -274,9 +286,10 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
         <CoasterHeaderModal
           coasterId={coaster.id}
           coasterName={coaster.name}
-          parkId={coaster.parkId}
+          gallery={gallery}
+          current={{ imageId: headerRow?.id ?? null, focusMobile: headerFocus.mobile, focusDesktop: headerFocus.desktop }}
           onClose={() => setIsHeaderModalOpen(false)}
-          onUpdate={() => loadGallery(coaster.id, coaster.name, coaster.parkId)}
+          onSaved={() => loadGallery(coaster.id)}
         />
       )}
 
