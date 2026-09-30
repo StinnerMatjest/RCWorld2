@@ -222,7 +222,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_5.5fr_3.5fr] [@media(min-width:2560px)]:grid-cols-[1.8fr_6fr_3.5fr] gap-10 lg:gap-6">
           {/* Desktop: the ranks where the park page keeps its visit panel. */}
           <div className="hidden lg:block min-w-0">
-            <div className="lg:sticky lg:top-6">
+            <div>
               <CoasterRankRail
                 rideCount={coaster.ridecount}
                 stats={ranks}
@@ -272,13 +272,16 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
               </section>
             )}
 
+            {/* Admin only: this is where the coaster's basics are edited. */}
+            {isAdminMode && (
             <section className="max-w-xl">
               <p className="text-[11px] md:text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Details</p>
               <CoasterInfo coaster={coaster} onUpdate={refreshCoasterData} />
             </section>
+            )}
           </div>
 
-          <aside className="min-w-0 space-y-8">
+          <aside className="min-w-0 space-y-8 lg:max-w-[24rem]">
               <div className="hidden lg:block">{verdict}</div>
               {/* From the numbers down the rail sticks (desktop), pinned by its top so
                   the numbers lead. If it is taller than the screen it scrolls inside
