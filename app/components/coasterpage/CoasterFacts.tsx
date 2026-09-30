@@ -71,8 +71,8 @@ export default function CoasterFacts({ specs: initialSpecs, coasterId, isAdminMo
             ))}
           </div>
 
-          {/* The type line is part of the fold-out on phones; desktop has the room to show it. */}
-          {kind && <p className={`mt-4 text-sm text-slate-400 leading-relaxed ${showAll ? "" : "hidden lg:block"}`}>{kind}</p>}
+          {/* The type line lives in the fold-out with the rest of the sheet. */}
+          {kind && showAll && <p className="mt-4 text-sm text-slate-400 leading-relaxed">{kind}</p>}
 
           {(extra.length > 0 || s.notes || kind) && (
             <>

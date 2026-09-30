@@ -173,7 +173,7 @@ export function SectionBody({
     return (
       <div>
         <div className={`flex flex-col gap-6 items-start ${resolved.isRight ? "md:flex-row-reverse" : "md:flex-row"}`}>
-          <div className="w-full md:w-1/2 flex-shrink-0 flex flex-col gap-4 mt-1.5">
+          <div className="w-full md:w-[44%] flex-shrink-0 flex flex-col gap-4 mt-1.5">
             {media.map((entry, i) => renderMedia(entry, i))}
           </div>
           {textContent}

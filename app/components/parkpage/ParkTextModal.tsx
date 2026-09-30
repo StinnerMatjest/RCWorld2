@@ -309,7 +309,11 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
   const updateText = useCallback((text: string) => patch(c => ({ ...c, text })), [patch]);
   const updateSpoiler = useCallback((isSpoiler: boolean) => patch(c => ({ ...c, isSpoiler })), [patch]);
-  const updateLayout = useCallback((layout: SectionLayout) => patch(c => ({ ...c, layout })), [patch]);
+  const updateLayout = useCallback((layout: SectionLayout) => {
+    patch(c => ({ ...c, layout }));
+    // A tall frame is a different crop: open the position tool for it right away.
+    if (layout.startsWith("tall") && draftsRef.current[selectedCat].images[0]) setCropIndex(0);
+  }, [patch, selectedCat]);
   const updateFocus = useCallback((index: number, focus: string) => patch(c => {
     const focuses = [...c.focuses];
     focuses[index] = focus;
@@ -719,13 +723,13 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
 
                 {/* Slots: one box per image the section can hold. Drag filled boxes to reorder. */}
-                <div className="flex gap-3">
+                <div className="flex gap-3" style={{ "--slot-aspect": cropFrame.desktop } as React.CSSProperties}>
                   {Array.from({ length: cur.imageCount }, (_, i) => {
                     const url = cur.images[i];
                     const nextFree = i === cur.images.length;
                     const picking = activeSlot !== null && Math.min(activeSlot, cur.images.length) === i;
                     const slotWrap = "flex-1 min-w-0 max-w-48";
-                    const boxCls = "relative w-full aspect-[3/2] rounded-xl overflow-hidden";
+                    const boxCls = "relative w-full aspect-[var(--slot-aspect)] rounded-xl overflow-hidden";
                     if (!url) {
                       return nextFree ? (
                         <button key={`empty-${i}`} type="button"

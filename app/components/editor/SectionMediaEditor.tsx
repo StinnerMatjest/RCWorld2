@@ -315,8 +315,8 @@ export function SectionImageCropper({
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
-        className="relative w-full overflow-hidden rounded-xl bg-slate-950 cursor-grab active:cursor-grabbing select-none touch-none"
-        style={{ aspectRatio: desktopAspect, maxHeight: "58vh" }}
+        className="relative mx-auto overflow-hidden rounded-xl bg-slate-950 cursor-grab active:cursor-grabbing select-none touch-none"
+        style={{ aspectRatio: desktopAspect, width: `min(100%, calc(58vh * ${ratio(desktopAspect)}))` }}
       >
         {isVideo ? (
           <canvas
@@ -500,7 +500,7 @@ export function SectionMediaPanel({
         {draft.images.length > 0 && (
           <div className="flex items-center gap-0.5 bg-slate-800 rounded-lg p-0.5">
             {layoutOptions.map((opt) => (
-              <button key={opt} type="button" onClick={() => patch((c) => ({ ...c, layout: opt }))}
+              <button key={opt} type="button" onClick={() => { patch((c) => ({ ...c, layout: opt })); if (opt.startsWith("tall") && draft.images[0]) setCropIndex(0); }}
                 title={opt === "double" ? "Image, text, image" : undefined}
                 className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${activeLayout === opt ? "bg-slate-700 text-blue-400 shadow-sm" : "text-slate-500 hover:text-slate-300"}`}>
                 {SECTION_LAYOUT_LABELS[opt]}
@@ -511,13 +511,13 @@ export function SectionMediaPanel({
       </div>
 
       {/* Slots: one box per image the section can hold. */}
-      <div className="flex gap-3">
+      <div className="flex gap-3" style={{ "--slot-aspect": cropFrame.desktop } as React.CSSProperties}>
         {Array.from({ length: draft.imageCount }, (_, i) => {
           const url = draft.images[i];
           const nextFree = i === draft.images.length;
           const picking = activeSlot !== null && Math.min(activeSlot, draft.images.length) === i;
           const slotWrap = "flex-1 min-w-0 max-w-48";
-          const boxCls = "relative w-full aspect-[3/2] rounded-xl overflow-hidden";
+          const boxCls = "relative w-full aspect-[var(--slot-aspect)] rounded-xl overflow-hidden";
           if (!url) {
             return nextFree ? (
               <button key={`empty-${i}`} type="button"

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -107,25 +107,6 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
   }, []);
 
   const [stripEditorOpen, setStripEditorOpen] = useState(false);
-
-  // Desktop rail: stick by the top when it fits the screen, by the bottom when it
-  // is taller, so its end (the ranking lists) is what stays in view while reading.
-  const railRef = useRef<HTMLDivElement>(null);
-  const [railTop, setRailTop] = useState<number>(24);
-  useEffect(() => {
-    const el = railRef.current;
-    if (!el) return;
-    const measure = () => {
-      const h = el.offsetHeight;
-      const vh = window.innerHeight;
-      setRailTop(h + 48 <= vh ? 24 : vh - h - 24);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    window.addEventListener("resize", measure);
-    return () => { ro.disconnect(); window.removeEventListener("resize", measure); };
-  }, [gallery, coasterText, ranks]);
 
   // The server normally seeds everything; this is the fallback for a client-side mount without it.
   useEffect(() => {
@@ -241,8 +222,8 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
           </Link>
         </div>
 
-        <div className="mt-8 md:mt-10 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
-          <div className="lg:col-span-8 min-w-0 space-y-10 md:space-y-14">
+        <div className="mt-8 md:mt-10 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_20rem] gap-10 lg:gap-14">
+          <div className="min-w-0 space-y-10 md:space-y-14">
             <div className="-mx-4 sm:mx-0">
               <CoasterPhotoStrip
                 images={gallery}
@@ -285,22 +266,25 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
             </section>
           </div>
 
-          <aside className="lg:col-span-4 min-w-0">
-            {/* The whole rail sticks on desktop. When it is taller than the screen it
-                pins by its bottom edge instead, so the numbers and the ranking lists
-                stay in view while the review scrolls; at the end of the review it
-                scrolls away with the rest and the details below the photos show. */}
-            <div ref={railRef} className="space-y-8 lg:sticky" style={{ top: railTop }}>
+          <aside className="min-w-0 space-y-8">
               <div className="hidden lg:block">{verdict}</div>
-              <div className="hidden lg:block">{numbers}</div>
-              <CoasterNeighbours
-                currentId={coaster.id}
-                ladder={initialLadder}
-                siblings={initialSiblings}
-                parkName={parkName}
-                parkSlug={parkSlug}
-              />
-            </div>
+              {/* From the numbers down the rail sticks (desktop), pinned by its top so
+                  the numbers lead. If it is taller than the screen it scrolls inside
+                  itself; when the review ends it scrolls away with the page and the
+                  details below the photos come into view. */}
+              <div
+                className="space-y-8 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto"
+                style={{ scrollbarWidth: "none" }}
+              >
+                <div className="hidden lg:block">{numbers}</div>
+                <CoasterNeighbours
+                  currentId={coaster.id}
+                  ladder={initialLadder}
+                  siblings={initialSiblings}
+                  parkName={parkName}
+                  parkSlug={parkSlug}
+                />
+              </div>
           </aside>
         </div>
 
