@@ -38,29 +38,38 @@ export async function GET(
       return NextResponse.json({ error: "Invalid or missing coaster ID" }, { status: 400 });
     }
 
-    const headerRes = await pool.query(
-      `SELECT id, title, path, description, is_header FROM coastergallery WHERE coaster_id = $1 AND is_header = true ORDER BY id DESC`,
+    await ensureFocusColumns();
+
+    // The selects carry the hero crops (focus_mobile / focus_desktop) and the
+    // strip flag (featured) along with the basics: the hero, the header crop
+    // editor and the photo strip all read them from here.
+    const headerRes = await pool.query<GalleryRow>(
+      `SELECT ${COLS} FROM coastergallery WHERE coaster_id = $1 AND is_header = true ORDER BY id DESC`,
       [coasterId]
     );
     const allActiveHeaders = headerRes.rows;
-    let activeHeader = headerRes.rows[0] || null;
+    let activeHeader: GalleryRow | null = headerRes.rows[0] || null;
 
     if (!activeHeader) {
-      const fallbackRes = await pool.query(
-        `SELECT id, title, path, description, is_header FROM coastergallery WHERE coaster_id = $1 ORDER BY sort_order ASC, id ASC LIMIT 1`,
+      const fallbackRes = await pool.query<GalleryRow>(
+        `SELECT ${COLS} FROM coastergallery WHERE coaster_id = $1 ORDER BY sort_order ASC, id ASC LIMIT 1`,
         [coasterId]
       );
       activeHeader = fallbackRes.rows[0] || null;
     }
 
-    const galleryRes = await pool.query(
-      `SELECT id, title, path, description, is_header FROM coastergallery WHERE coaster_id = $1 ORDER BY sort_order ASC, id ASC`,
+    const galleryRes = await pool.query<GalleryRow>(
+      `SELECT ${COLS} FROM coastergallery WHERE coaster_id = $1 ORDER BY sort_order ASC, id ASC`,
       [coasterId]
     );
     const gallery = galleryRes.rows;
     const headerImage = activeHeader?.path || null;
+    const headerFocus = {
+      mobile: activeHeader?.focus_mobile ?? null,
+      desktop: activeHeader?.focus_desktop ?? null,
+    };
 
-    return NextResponse.json({ headerImage, activeHeader, allActiveHeaders, gallery });
+    return NextResponse.json({ headerImage, headerFocus, activeHeader, allActiveHeaders, gallery });
   } catch (error) {
     console.error("Failed to fetch coaster gallery images", error);
     return NextResponse.json({ error: "Failed to fetch coaster gallery images" }, { status: 500 });
