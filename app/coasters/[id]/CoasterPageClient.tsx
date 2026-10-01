@@ -99,7 +99,6 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
     setGallery(Array.isArray(data.gallery) ? data.gallery : []);
   }, []);
 
-  // The server normally seeds everything; this is the fallback for a client-side mount without it.
   useEffect(() => {
     if (!coasterId || coasterId === "undefined" || coasterId === "null" || initialCoaster) return;
     (async () => {
@@ -178,12 +177,12 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
       specs={coaster.specs}
       scale={coaster.scale}
       coasterId={coaster.id}
+      slug={coaster.slug}
       isAdminMode={isAdminMode}
       onSaved={(s: RollerCoasterSpecs) => setCoaster((c) => (c ? { ...c, specs: s } : c))}
     />
   );
 
-  // Reusable button linking to the detailed standings
   const DetailedRankingsButton = () => (
     <Link
       href={`/coasters/${coaster.slug}/rankings`}
@@ -214,7 +213,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
 
       <div id="below-hero" className="w-full px-4 sm:px-6 md:px-20 pt-5 sm:pt-6 lg:py-10 scroll-mt-4">
 
-        {/* Phones and tablets: the ranks as a row under the hero. */}
+        {/* Phones and tablets: the ranks as a row under the hero (without the detailed standings button here anymore). */}
         <div className="lg:hidden mb-8">
           <CoasterScoreRow
             rideCount={coaster.ridecount}
@@ -225,12 +224,11 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
             manufacturerName={coaster.manufacturerName}
             manufacturerId={coaster.manufacturerId}
           />
-          <DetailedRankingsButton />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_5.5fr_3.5fr] [@media(min-width:2560px)]:grid-cols-[1.8fr_6fr_3.5fr] gap-10 lg:gap-6">
 
-          {/* Desktop: the ranks where the park page keeps its visit panel. */}
+          {/* Desktop: rank rail + detailed standings button underneath */}
           <div className="hidden lg:block min-w-0">
             <div>
               <CoasterRankRail
@@ -257,10 +255,12 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
               />
             </div>
 
-            {/* Phone: highs and lows and the numbers before the reading. */}
+            {/* Phone: highs/lows and numbers (Detailed Standings is neatly tucked inside More specs) */}
             <div className="lg:hidden space-y-8">
               {verdict}
-              {numbers}
+              <div>
+                {numbers}
+              </div>
             </div>
 
             <section id="review" className="scroll-mt-20">
@@ -292,7 +292,6 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
             >
               <div className="hidden lg:block">{numbers}</div>
 
-              {/* Admin only: this is where the coaster's basics are edited. */}
               {isAdminMode && (
                 <section>
                   <p className="text-[11px] md:text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Details</p>

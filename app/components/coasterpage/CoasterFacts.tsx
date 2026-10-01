@@ -1,29 +1,23 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import type { RollerCoasterSpecs } from "@/app/types";
 import CoasterSpecsModal from "./CoasterSpecsModal";
 
 interface Props {
   specs: RollerCoasterSpecs | null | undefined;
   coasterId: number;
+  slug?: string;
   isAdminMode: boolean;
-  /** The page keeps the coaster; it is rendered in two places (phone/desktop) so saves go up. */
   onSaved?: (specs: RollerCoasterSpecs) => void;
-  /** The coaster's scale (Kiddie, Family, High Thrill…), listed under "More specs". */
   scale?: string | null;
 }
 
 const fmt = (v: number, d = 0) => v.toLocaleString("en-GB", { maximumFractionDigits: d });
 const duration = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")} min` : `${Math.round(s)} sec`);
 
-/**
- * The four numbers that describe a coaster (speed, height, length,
- * inversions), set like the site's stat rows: big figure, small uppercase
- * label, no box. Imperial units throughout, like the rest of the site.
- * Everything else waits behind "All specs".
- */
-export default function CoasterFacts({ specs: initialSpecs, coasterId, isAdminMode, onSaved, scale }: Props) {
+export default function CoasterFacts({ specs: initialSpecs, coasterId, slug, isAdminMode, onSaved, scale }: Props) {
   const [specs, setSpecs] = useState<RollerCoasterSpecs | null | undefined>(initialSpecs);
   const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -71,7 +65,6 @@ export default function CoasterFacts({ specs: initialSpecs, coasterId, isAdminMo
             ))}
           </div>
 
-          {/* The type line lives in the fold-out with the rest of the sheet. */}
           {kind && showAll && <p className="mt-4 text-sm text-slate-400 leading-relaxed">{kind}</p>}
 
           {(extra.length > 0 || s.notes || kind) && (
@@ -83,16 +76,29 @@ export default function CoasterFacts({ specs: initialSpecs, coasterId, isAdminMo
               >
                 {showAll ? "Fewer specs" : "More specs"}
               </button>
-              {showAll && (extra.length > 0 || s.notes) && (
-                <dl className="mt-3 divide-y divide-slate-800 border-t border-slate-800">
-                  {extra.map((e) => (
-                    <div key={e.label} className="flex items-baseline justify-between gap-4 py-2 text-sm">
-                      <dt className="text-slate-400">{e.label}</dt>
-                      <dd className="text-slate-200 font-medium tabular-nums">{e.value}</dd>
-                    </div>
-                  ))}
-                  {s.notes && <p className="py-2 text-sm text-slate-400 leading-relaxed">{s.notes}</p>}
-                </dl>
+              {showAll && (
+                <div className="mt-3 divide-y divide-slate-800 border-t border-slate-800 space-y-3">
+                  <dl className="divide-y divide-slate-800">
+                    {extra.map((e) => (
+                      <div key={e.label} className="flex items-baseline justify-between gap-4 py-2 text-sm">
+                        <dt className="text-slate-400">{e.label}</dt>
+                        <dd className="text-slate-200 font-medium tabular-nums">{e.value}</dd>
+                      </div>
+                    ))}
+                    {s.notes && <p className="py-2 text-sm text-slate-400 leading-relaxed">{s.notes}</p>}
+                  </dl>
+
+                  {/* Detailed Standings Link - Mobile Only inside More Specs */}
+                  {slug && (
+                    <Link
+                      href={`/coasters/${slug}/rankings`}
+                      className="lg:hidden flex items-center justify-between w-full pt-3 pb-1 text-xs font-bold uppercase tracking-widest text-brand hover:text-brand-light transition-colors group"
+                    >
+                      <span>Detailed Standings</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                    </Link>
+                  )}
+                </div>
               )}
             </>
           )}
