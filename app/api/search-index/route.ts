@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
 
 // Minimal payload powering the navbar search — one small request instead of
-// the full parks + coasters endpoints. Cacheable for repeat visitors.
+// the full endpoints. Cacheable for repeat visitors.
 export async function GET() {
   try {
-    const [parksRes, coastersRes] = await Promise.all([
+    const [parksRes, coastersRes, manRes, modRes] = await Promise.all([
       pool.query(`
         SELECT p.id, p.name, p.country, p.slug, l.overall
         FROM parks p
@@ -24,6 +24,19 @@ export async function GET() {
         WHERE rc.rating IS NOT NULL AND rc.slug IS NOT NULL
         ORDER BY rc.rating DESC
       `),
+      pool.query(`
+        SELECT id, name, slug 
+        FROM manufacturers 
+        WHERE slug IS NOT NULL 
+        ORDER BY name ASC
+      `),
+      pool.query(`
+        SELECT rm.id, rm.name, rm.slug, m.name AS manufacturer_name, m.id AS manufacturer_id
+        FROM ridemodels rm
+        LEFT JOIN manufacturers m ON m.id = rm.manufacturer_id
+        WHERE rm.slug IS NOT NULL
+        ORDER BY rm.name ASC
+      `),
     ]);
 
     return NextResponse.json(
@@ -36,6 +49,12 @@ export async function GET() {
           id: r.id, name: r.name, slug: r.slug, parkName: r.park_name,
           rating: r.rating == null ? undefined : Number(r.rating),
         })),
+        manufacturers: manRes.rows.map(r => ({
+          id: r.id, name: r.name, slug: r.slug
+        })),
+        models: modRes.rows.map(r => ({
+          id: r.id, name: r.name, slug: r.slug, manufacturerName: r.manufacturer_name, manufacturerId: r.manufacturer_id
+        }))
       },
       { headers: { "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=3600" } }
     );

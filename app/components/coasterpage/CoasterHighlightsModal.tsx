@@ -13,47 +13,18 @@ interface CoasterHighlightsModalProps {
     coasterId: number;
 }
 
-// 1. Config for Ranking & Colors
+type LocalHighlight = RollerCoasterHighlights & { _localId: string };
+
+// Config for Ranking & Colors
 const SEVERITY_CONFIG: Record<string, { rank: number; color: string; bg: string; border: string }> = {
-    "very positive": { 
-        rank: 1,
-        color: " text-blue-400", 
-        bg: " bg-blue-900/20",
-        border: " border-blue-800"
-    },
-    "positive": { 
-        rank: 2,
-        color: " text-green-400", 
-        bg: " bg-green-900/20",
-        border: " border-green-800"
-    },
-    "neutral": { 
-        rank: 3,
-        color: " text-yellow-400", 
-        bg: " bg-yellow-900/20",
-        border: " border-yellow-800"
-    },
-    "negative": { 
-        rank: 4,
-        color: " text-orange-400", 
-        bg: " bg-orange-900/20",
-        border: " border-orange-800"
-    },
-    "very negative": { 
-        rank: 5,
-        color: " text-red-400", 
-        bg: " bg-red-900/20",
-        border: " border-red-800"
-    }
+    "very positive": { rank: 1, color: " text-blue-400", bg: " bg-blue-900/20", border: " border-blue-800" },
+    "positive": { rank: 2, color: " text-green-400", bg: " bg-green-900/20", border: " border-green-800" },
+    "neutral": { rank: 3, color: " text-yellow-400", bg: " bg-yellow-900/20", border: " border-yellow-800" },
+    "negative": { rank: 4, color: " text-orange-400", bg: " bg-orange-900/20", border: " border-orange-800" },
+    "very negative": { rank: 5, color: " text-red-400", bg: " bg-red-900/20", border: " border-red-800" }
 };
 
-const SEVERITY_OPTIONS = [
-    "very positive",
-    "positive",
-    "neutral",
-    "negative",
-    "very negative"
-];
+const SEVERITY_OPTIONS = ["very positive", "positive", "neutral", "negative", "very negative"];
 
 const CoasterHighlightsModal: React.FC<CoasterHighlightsModalProps> = ({
     isOpen,
@@ -63,23 +34,21 @@ const CoasterHighlightsModal: React.FC<CoasterHighlightsModalProps> = ({
     coasterId,
 }) => {
     useScrollLock(isOpen);
-    const [items, setItems] = useState<RollerCoasterHighlights[]>([]);
+    const [items, setItems] = useState<LocalHighlight[]>([]);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
-            // 1. Normalize (lowercase)
             let loadedItems = (initialHighlights || []).map(item => ({
                 ...item,
-                severity: item.severity.toLowerCase()
+                severity: item.severity.toLowerCase(),
+                _localId: Math.random().toString(36).substr(2, 9) // Stable key generation
             }));
 
-            // 2. SORT (Best -> Worst)
-            // If you want Worst -> Best, swap to: return rankB - rankA
             loadedItems.sort((a, b) => {
                 const rankA = SEVERITY_CONFIG[a.severity]?.rank || 99;
                 const rankB = SEVERITY_CONFIG[b.severity]?.rank || 99;
-                return rankA - rankB; // Rank 1 (Best) comes first
+                return rankA - rankB;
             });
 
             setItems(loadedItems);
@@ -87,7 +56,7 @@ const CoasterHighlightsModal: React.FC<CoasterHighlightsModalProps> = ({
     }, [isOpen, initialHighlights]);
 
     const handleAddRow = () => {
-        setItems([...items, { category: "", severity: "positive" } as any]);
+        setItems([...items, { category: "", severity: "positive", _localId: Math.random().toString(36).substr(2, 9) } as any]);
     };
 
     const handleRemoveRow = (index: number) => {
@@ -107,14 +76,17 @@ const CoasterHighlightsModal: React.FC<CoasterHighlightsModalProps> = ({
         setLoading(true);
 
         try {
+            // Strip the _localId before sending to the backend
+            const cleanItems = items.map(({ _localId, ...rest }) => rest);
+
             const res = await fetch(`/api/coasters/${coasterId}/highlights`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(items),
+                body: JSON.stringify(cleanItems),
             });
 
             const data = await res.json();
-            
+
             if (!res.ok) {
                 throw new Error(data.details || data.error || "Failed to save");
             }
@@ -132,59 +104,63 @@ const CoasterHighlightsModal: React.FC<CoasterHighlightsModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className=" bg-gray-900 rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
-                <div className="p-6 border-b border-gray-800">
-                    <h2 className="text-xl font-bold text-white">Edit Strengths & Weaknesses</h2>
+        // Performance Fix: bg-black/90 instead of backdrop-blur
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/90 p-4">
+            <div className="bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+                <div className="p-6 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center">
+                    <h2 className="text-xl font-black text-white uppercase tracking-wide">Edit Highs & Lows</h2>
+                    <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors cursor-pointer p-1">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 space-y-3">
+                <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-950">
                     {items.length === 0 && (
-                        <p className="text-sm text-gray-400 italic text-center py-4">No items added yet.</p>
+                        <p className="text-sm text-slate-500 font-medium text-center py-10">No items added yet. Click below to add one.</p>
                     )}
-                    
+
                     {items.map((item, index) => {
-                        // Safe lookup for styling
                         const style = SEVERITY_CONFIG[item.severity] || SEVERITY_CONFIG["neutral"];
 
                         return (
-                            <div key={index} className="flex gap-2 items-center">
+                            // Using the stable _localId completely eliminates input lag
+                            <div key={item._localId} className="flex flex-col sm:flex-row gap-3 items-center bg-slate-900 p-3 rounded-xl border border-slate-800 shadow-sm">
                                 {/* Category Input */}
-                                <div className="flex-1">
+                                <div className="flex-1 w-full">
                                     <input
                                         type="text"
                                         placeholder="e.g. Airtime, Rattle..."
-                                        className="w-full rounded border border-gray-700 bg-transparent p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
+                                        className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm font-medium focus:ring-1 focus:ring-brand focus:border-brand outline-none text-white placeholder-slate-500 transition-colors"
                                         value={item.category}
                                         onChange={(e) => handleChange(index, "category", e.target.value)}
                                     />
                                 </div>
 
                                 {/* Colored Dropdown */}
-                                <div className="w-36 relative">
+                                <div className="w-full sm:w-44 relative flex-shrink-0">
                                     <select
-                                        className={`w-full appearance-none rounded border p-2 pl-3 pr-8 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer transition-colors
+                                        className={`w-full appearance-none rounded-lg border p-2.5 pl-3 pr-8 text-sm font-bold focus:ring-1 focus:ring-brand focus:border-brand outline-none cursor-pointer transition-colors shadow-inner
                                             ${style.bg} ${style.color} ${style.border}`}
                                         value={item.severity}
                                         onChange={(e) => handleChange(index, "severity", e.target.value)}
                                     >
                                         {SEVERITY_OPTIONS.map(opt => (
-                                            <option key={opt} value={opt} className=" bg-gray-800 text-gray-100">
+                                            <option key={opt} value={opt} className="bg-slate-800 text-white font-medium">
                                                 {opt}
                                             </option>
                                         ))}
                                     </select>
-                                    <ChevronDown className={`absolute right-2 top-2.5 w-4 h-4 pointer-events-none opacity-50 ${style.color}`} />
+                                    <ChevronDown className={`absolute right-3 top-3 w-4 h-4 pointer-events-none opacity-75 ${style.color}`} />
                                 </div>
 
                                 {/* Delete */}
                                 <button
                                     type="button"
                                     onClick={() => handleRemoveRow(index)}
-                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-900/20 rounded transition-colors cursor-pointer"
+                                    className="p-2.5 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors cursor-pointer w-full sm:w-auto flex justify-center"
                                     title="Remove item"
                                 >
-                                    <Trash2 className="w-4 h-4" />
+                                    <Trash2 className="w-5 h-5" />
                                 </button>
                             </div>
                         );
@@ -193,23 +169,23 @@ const CoasterHighlightsModal: React.FC<CoasterHighlightsModalProps> = ({
                     <button
                         type="button"
                         onClick={handleAddRow}
-                        className="flex items-center gap-2 text-sm text-blue-600 font-medium hover:text-blue-700 mt-2 cursor-pointer"
+                        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed border-slate-700 text-sm text-slate-400 font-bold hover:text-brand hover:border-brand/50 hover:bg-brand/5 mt-4 transition-colors cursor-pointer"
                     >
                         <Plus className="w-4 h-4" /> Add Item
                     </button>
                 </div>
 
-                <div className="p-6 border-t border-gray-800 flex justify-end gap-3 bg-gray-900/50 rounded-b-lg">
+                <div className="p-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-900 flex-shrink-0">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-gray-200 cursor-pointer"
+                        className="px-5 py-2.5 text-sm font-bold text-slate-300 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleSubmit}
                         disabled={loading}
-                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors cursor-pointer"
+                        className="px-6 py-2.5 text-sm font-black text-white bg-brand hover:bg-brand-light shadow-lg rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer uppercase tracking-wider"
                     >
                         {loading ? "Saving..." : "Save Changes"}
                     </button>

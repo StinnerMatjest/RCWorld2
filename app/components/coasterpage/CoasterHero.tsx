@@ -55,17 +55,20 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
   const focus = (desktop ? headerFocus?.desktop : headerFocus?.mobile) ?? "0.5 0.5 1";
   const [scrolled, setScrolled] = useState(false);
   const [photoIn, setPhotoIn] = useState(false);
+
   useEffect(() => {
     const onScroll = () => { if (window.scrollY > 40) setScrolled(true); };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
   const score = formatScore(coaster.rating);
   const scoreColor = score ? getRatingColor(Number(coaster.rating)) : "text-slate-500";
   const parkHref = parkSlug ? `/park/${parkSlug}` : coaster.parkId ? `/park/${coaster.parkId}` : "/parks";
-  const model = coaster.rideModel?.name || coaster.model;
-  const where = [parkName, coaster.manufacturerName, coaster.year ? String(coaster.year) : null].filter(Boolean) as string[];
+
+  const modelName = coaster.rideModel?.name || coaster.model;
+  const modelId = coaster.rideModel?.id || coaster.rideModelId;
 
   return (
     <section className="relative w-full overflow-hidden bg-slate-950 aspect-[4/5] sm:aspect-[16/9] lg:aspect-[21/9] max-h-[82vh] lg:max-h-[68vh]">
@@ -130,21 +133,54 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
             <h1 className="text-[2.75rem] leading-[0.95] sm:text-6xl lg:text-7xl font-bold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)] break-words">
               {coaster.name}
             </h1>
-            {model && (
-              <p className="mt-2 text-base sm:text-lg text-white/90 font-medium drop-shadow">{model}</p>
-            )}
-            <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm sm:text-base text-slate-300/90 drop-shadow">
-              {where.map((part, i) => (
-                <React.Fragment key={part}>
-                  {i > 0 && <span className="text-white/40">·</span>}
-                  {i === 0 && parkName ? (
-                    <Link href={parkHref} className="hover:text-white transition-colors">{part}</Link>
+
+            <div className="flex flex-col drop-shadow-md">
+              {modelName && (
+                coaster.manufacturerId ? (
+                  <Link
+                    href={`/manufacturers/directory?mfg=${coaster.manufacturerId}${modelId ? `&model=${modelId}` : ''}`}
+                    className="mt-2 text-base sm:text-lg text-white/90 font-medium drop-shadow hover:text-brand hover:underline transition-colors w-fit block"
+                  >
+                    {modelName}
+                  </Link>
+                ) : (
+                  <p className="mt-2 text-base sm:text-lg text-white/90 font-medium drop-shadow">{modelName}</p>
+                )
+              )}
+
+              <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm sm:text-base text-slate-300/90 drop-shadow">
+                {parkName && (
+                  <Link href={parkHref} className="hover:text-white hover:underline transition-colors">
+                    {parkName}
+                  </Link>
+                )}
+
+                {parkName && coaster.manufacturerName && <span className="text-slate-500">·</span>}
+                {coaster.manufacturerName && (
+                  coaster.manufacturerId ? (
+                    <Link
+                      href={`/manufacturers/directory?mfg=${coaster.manufacturerId}`}
+                      className="hover:text-white hover:underline transition-colors"
+                    >
+                      {coaster.manufacturerName}
+                    </Link>
                   ) : (
-                    <span>{part}</span>
-                  )}
-                </React.Fragment>
-              ))}
-            </p>
+                    <span>{coaster.manufacturerName}</span>
+                  )
+                )}
+
+                {(parkName || coaster.manufacturerName) && coaster.year && <span className="text-slate-500">·</span>}
+                {coaster.year && (
+                  <Link
+                    href={`/coasterLibrary?q=${coaster.year}`}
+                    className="hover:text-white hover:underline transition-colors tabular-nums"
+                  >
+                    {coaster.year}
+                  </Link>
+                )}
+
+              </div>
+            </div>
           </div>
 
           <div className="flex-shrink-0 text-right">

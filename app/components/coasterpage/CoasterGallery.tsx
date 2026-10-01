@@ -250,6 +250,11 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
     const [isManageModalOpen, setIsManageModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    // Image position
+    const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+    const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+    const [isSavingOrder, setIsSavingOrder] = useState(false);
+
     useEffect(() => {
         if (selectedIndex !== null) {
             const prev = document.body.style.overflow;
@@ -272,6 +277,65 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
             console.error("Failed to fetch coaster gallery images", err);
         } finally {
             setLoading(false);
+        }
+    };
+
+
+    const handleDragStart = (e: React.DragEvent, index: number) => {
+        if (!isAdminMode) return;
+        setDraggedIndex(index);
+        e.dataTransfer.effectAllowed = "move";
+        // Ghost image transparency trick
+        setTimeout(() => {
+            const el = document.getElementById(`gallery-img-${index}`);
+            if (el) el.classList.add("opacity-50");
+        }, 0);
+    };
+
+    const handleDragOver = (e: React.DragEvent, index: number) => {
+        if (!isAdminMode || draggedIndex === null) return;
+        e.preventDefault(); // Necessary to allow dropping
+        setDragOverIndex(index);
+    };
+
+    const handleDragEnd = (index: number) => {
+        setDraggedIndex(null);
+        setDragOverIndex(null);
+        const el = document.getElementById(`gallery-img-${index}`);
+        if (el) el.classList.remove("opacity-50");
+    };
+
+    const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
+        e.preventDefault();
+        if (!isAdminMode || draggedIndex === null || draggedIndex === dropIndex) {
+            handleDragEnd(draggedIndex || 0);
+            return;
+        }
+
+        // 1. Reorder locally for instant UI update
+        const newImages = [...images];
+        const [movedImage] = newImages.splice(draggedIndex, 1);
+        newImages.splice(dropIndex, 0, movedImage);
+
+        setImages(newImages);
+        handleDragEnd(draggedIndex);
+
+        // 2. Save to database
+        setIsSavingOrder(true);
+        try {
+            const reorderedIds = newImages.map(img => img.id);
+            const res = await fetch(`/api/coasters/${coasterId}/gallery`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ reorderedIds }),
+            });
+            if (!res.ok) throw new Error("Failed to save new order");
+        } catch (err) {
+            console.error(err);
+            alert("Failed to save image order. Refresh the page to sync.");
+            fetchImages(); // Revert to DB state on failure
+        } finally {
+            setIsSavingOrder(false);
         }
     };
 
@@ -443,12 +507,32 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
                     {images.map((img, index) => (
                         <div
                             key={img.id}
+                            id={`gallery-img-${index}`}
+                            // Only allow dragging in admin mode
+                            draggable={isAdminMode}
+                            onDragStart={(e) => handleDragStart(e, index)}
+                            onDragOver={(e) => handleDragOver(e, index)}
+                            onDragLeave={() => setDragOverIndex(null)}
+                            onDrop={(e) => handleDrop(e, index)}
+                            onDragEnd={() => handleDragEnd(index)}
                             onClick={() => {
+                                // Prevent clicking if we are actively dragging/saving
+                                if (isSavingOrder || draggedIndex !== null) return;
                                 setDirection(null);
                                 setSelectedIndex(index);
                             }}
-                            className="group cursor-pointer overflow-hidden rounded-xl border border-transparent hover:border-brand/50 hover:shadow-[0_0_15px_rgba(var(--brand-rgb),0.1)] transition-all duration-300 relative"
+                            className={`group cursor-pointer overflow-hidden rounded-xl border-2 transition-all duration-300 relative
+                                ${isAdminMode ? "cursor-grab active:cursor-grabbing" : ""}
+                                ${dragOverIndex === index ? "border-brand scale-105 shadow-2xl z-10" : "border-transparent hover:border-brand/50 hover:shadow-[0_0_15px_rgba(var(--brand-rgb),0.1)]"}
+                            `}
                         >
+                            {/* Loading Spinner Overlay when saving order */}
+                            {isSavingOrder && (
+                                <div className="absolute inset-0 bg-black/50 z-20 flex items-center justify-center backdrop-blur-sm">
+                                    <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                            )}
+
                             {img.is_header && (
                                 <div className="absolute top-2 left-2 z-10 bg-brand text-white text-[10px] font-bold px-2 py-1 rounded shadow-md uppercase tracking-wider">
                                     Header
@@ -457,7 +541,7 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
                             {img.path.match(/\.(mp4|webm|ogg)$/i) ? (
                                 <video
                                     src={img.path}
-                                    className="rounded-xl object-cover h-40 md:h-48 w-full transition-transform duration-500 group-hover:scale-105"
+                                    className="rounded-xl object-cover h-40 md:h-48 w-full transition-transform duration-500 group-hover:scale-105 pointer-events-none"
                                     muted autoPlay loop playsInline
                                 />
                             ) : (
@@ -467,7 +551,7 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
                                     width={400} height={300}
                                     sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
                                     quality={85}
-                                    className="rounded-xl object-cover h-40 md:h-48 w-full transition-transform duration-500 group-hover:scale-105"
+                                    className="rounded-xl object-cover h-40 md:h-48 w-full transition-transform duration-500 group-hover:scale-105 pointer-events-none"
                                 />
                             )}
                         </div>

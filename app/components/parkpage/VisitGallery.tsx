@@ -97,7 +97,7 @@ const DescriptionEditor = ({
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => e.stopPropagation()}
-        className="w-full p-2.5 rounded-lg bg-black/60 text-white border border-white/20 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm md:text-base resize-none backdrop-blur-md"
+        className="w-full p-2.5 rounded-lg bg-black/60 text-white border border-white/20 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand text-sm md:text-base resize-none backdrop-blur-md"
         rows={2}
         placeholder="Enter image description..."
         autoFocus
@@ -112,7 +112,7 @@ const DescriptionEditor = ({
         <button
           onClick={() => onSave(text)}
           disabled={saving}
-          className="px-4 py-1.5 text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-md transition disabled:opacity-50 cursor-pointer"
+          className="px-4 py-1.5 text-sm font-bold bg-brand hover:bg-brand-light text-white rounded-md transition disabled:opacity-50 cursor-pointer"
         >
           {saving ? "Saving..." : "Save Description"}
         </button>
@@ -134,6 +134,24 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
   const mouseDownTarget = useRef<EventTarget | null>(null);
   const selected = selectedIndex !== null ? images[selectedIndex] : null;
 
+  // --- DRAG AND DROP & BATCH SAVE STATE ---
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [hasUnsavedOrder, setHasUnsavedOrder] = useState(false);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
+  const wasDragged = useRef(false);
+
+  // Browser-level unsaved changes warning
+  useEffect(() => {
+    if (!hasUnsavedOrder) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = ""; // This triggers the browser's native "Leave site?" prompt
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedOrder]);
+
   useEffect(() => {
     if (selectedIndex !== null) {
       const prev = document.body.style.overflow;
@@ -142,10 +160,92 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
     }
   }, [selectedIndex]);
 
-  // Reset edit mode if they swipe to a new image
   useEffect(() => {
     setIsEditingDesc(false);
   }, [selectedIndex, selected]);
+
+  // Only sync with parent images if we aren't actively editing the order locally
+  useEffect(() => {
+    if (!hasUnsavedOrder) {
+      setImages(initialImages);
+    }
+  }, [initialImages, hasUnsavedOrder]);
+
+  // --- DRAG AND DROP HANDLERS ---
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    if (!isAdminMode || isSavingOrder) return;
+    wasDragged.current = true;
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (!isAdminMode || draggedIndex === null || draggedIndex === index || isSavingOrder) return;
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragLeave = (index: number) => {
+    if (dragOverIndex === index) {
+      setDragOverIndex(null);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    setTimeout(() => { wasDragged.current = false; }, 100);
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (!isAdminMode || draggedIndex === null || draggedIndex === dropIndex) {
+      handleDragEnd();
+      return;
+    }
+
+    // Instantly update the local UI array and flag it as unsaved
+    const newImages = [...images];
+    const [movedImage] = newImages.splice(draggedIndex, 1);
+    newImages.splice(dropIndex, 0, movedImage);
+
+    setImages(newImages);
+    setHasUnsavedOrder(true);
+    handleDragEnd();
+  };
+
+  // --- BATCH SAVE ACTIONS ---
+  const handleCancelOrder = () => {
+    setImages(initialImages);
+    setHasUnsavedOrder(false);
+  };
+
+  const handleSaveOrder = async () => {
+    if (!hasUnsavedOrder) return;
+    setIsSavingOrder(true);
+
+    try {
+      const reorderedIds = images.map(img => img.id);
+      const res = await fetch(`/api/visits/${visitId}/gallery`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reorderedIds }),
+      });
+
+      if (!res.ok) throw new Error("Failed to save new order");
+
+      setHasUnsavedOrder(false);
+      refreshImages(); // Sync fresh DB state just to be safe
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save image order. Please try again.");
+    } finally {
+      setIsSavingOrder(false);
+    }
+  };
 
   const handleSaveDescription = async (newText: string) => {
     if (!selected) return;
@@ -214,11 +314,6 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
     }
   };
 
-  // Sync state if the parent updates the images
-  useEffect(() => {
-    setImages(initialImages);
-  }, [initialImages]);
-
   // STATE: Track zoom to disable/enable panning props
   const [isZoomed, setIsZoomed] = useState(false);
 
@@ -245,10 +340,8 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
     if (swipe.didDrag()) return;
 
     if (isDesktop()) {
-      // DESKTOP: Toggle Fullscreen
       toggleFullscreen();
     } else {
-      // MOBILE: Open in new tab
       if (selected?.path) {
         window.open(selected.path, '_blank');
       }
@@ -323,6 +416,8 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
     return () => window.removeEventListener("resize", recalcScale);
   }, [images.length]);
 
+  const isDraggingAnything = draggedIndex !== null;
+
   return (
     <div className="space-y-4">
       <style>{`
@@ -339,47 +434,106 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
       `}</style>
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Gallery</h2>
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Gallery</h2>
         {isAdminMode && (
-          <button onClick={() => setShowModal(true)} className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm cursor-pointer">
+          <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition text-sm cursor-pointer shadow-md">
             + Upload
           </button>
         )}
       </div>
 
+      {/* UNSAVED CHANGES BANNER */}
+      {hasUnsavedOrder && isAdminMode && (
+        <div className="bg-brand/10 border border-brand/50 text-brand p-3 rounded-xl flex items-center justify-between mb-4 shadow-lg animate-fadeIn">
+          <span className="text-sm font-bold tracking-wide">You have unsaved layout changes.</span>
+          <div className="flex gap-2">
+            <button
+              onClick={handleCancelOrder}
+              disabled={isSavingOrder}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveOrder}
+              disabled={isSavingOrder}
+              className="px-4 py-2 bg-brand hover:bg-brand-light text-white text-xs font-black uppercase tracking-wider rounded-lg transition-colors shadow-lg disabled:opacity-50 cursor-pointer"
+            >
+              {isSavingOrder ? "Saving..." : "Save Layout"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Grid */}
       {!images.length ? (
         loading ? (
-          <div className="flex items-center justify-center gap-3 py-8 text-gray-400">
-            <span className="h-4 w-4 rounded-full border-2 border-gray-500 border-t-transparent animate-spin" />
+          <div className="flex items-center justify-center gap-3 py-8 text-slate-400">
+            <span className="h-4 w-4 rounded-full border-2 border-slate-500 border-t-transparent animate-spin" />
             <span className="italic">Loading images, sit tight…</span>
           </div>
         ) : (
-          <p className="text-center py-4 italic text-gray-600">No images available yet.</p>
+          <p className="text-center py-10 text-slate-500 bg-slate-900/50 rounded-2xl border border-slate-800 border-dashed">
+            No images available yet.
+          </p>
         )
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {images.map((img, index) => (
-            <div
-              key={img.id}
-              onClick={() => { setDirection(null); setSelectedIndex(index); }}
-              className="group cursor-pointer overflow-hidden rounded-lg hover:scale-105 transition-transform duration-300 transform-gpu will-change-transform"
-            >
-              {isVideo(img.path) ? (
-                <video
-                  src={img.path}
-                  muted
-                  autoPlay
-                  loop
-                  playsInline
-                  className="rounded-lg object-cover h-40 w-full bg-black transition-transform duration-300 group-hover:scale-105 transform-gpu will-change-transform"
-                />
-              ) : (
-                <R2Image src={img.path} alt={img.title || "Gallery"} width={400} height={300} className="rounded-lg object-cover h-40 w-full" />
-              )}
-            </div>
-          ))}
+          {images.map((img, index) => {
+            const isDraggingThis = draggedIndex === index;
+            const isDragOverThis = dragOverIndex === index;
+
+            return (
+              <div
+                key={img.id}
+                id={`gallery-img-${index}`}
+                draggable={isAdminMode && !isSavingOrder}
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragLeave={() => handleDragLeave(index)}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+                onClick={() => {
+                  // Prevent opening image while dragging or saving
+                  if (isSavingOrder || isDraggingAnything || wasDragged.current) return;
+                  setDirection(null);
+                  setSelectedIndex(index);
+                }}
+                className={`group cursor-pointer overflow-hidden rounded-xl border-2 transition-all duration-200 relative transform-gpu select-none
+                  ${isAdminMode && !isSavingOrder ? "active:cursor-grabbing" : ""}
+                  ${isDraggingThis ? "opacity-30 grayscale scale-90 border-dashed border-slate-500 z-0" : ""}
+                  ${!isDraggingThis && isDraggingAnything && !isDragOverThis ? "opacity-80 scale-95 border-transparent" : ""}
+                  ${!isDraggingAnything ? "border-transparent hover:border-brand/50 hover:shadow-[0_0_15px_rgba(var(--brand-rgb),0.1)] scale-100" : ""}
+                  ${isDragOverThis ? "!opacity-100 !scale-105 shadow-2xl !border-brand z-10" : ""}
+                `}
+              >
+                {/* DROP INDICATOR LINE */}
+                {isDragOverThis && draggedIndex !== null && (
+                  <div className={`absolute inset-y-0 w-2.5 bg-brand shadow-[0_0_15px_rgba(255,255,255,0.4)] z-30 ${draggedIndex < index ? "right-0" : "left-0"}`} />
+                )}
+
+                {isVideo(img.path) ? (
+                  <video
+                    src={img.path}
+                    muted
+                    autoPlay
+                    loop
+                    playsInline
+                    className="rounded-xl object-cover h-40 md:h-48 w-full bg-black transition-transform duration-500 group-hover:scale-105 pointer-events-none"
+                  />
+                ) : (
+                  <R2Image
+                    src={img.path}
+                    alt={img.title || "Gallery"}
+                    width={400}
+                    height={300}
+                    className="rounded-xl object-cover h-40 md:h-48 w-full transition-transform duration-500 group-hover:scale-105 pointer-events-none"
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -424,16 +578,16 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
                   </button>
                 )}
               </div>
-              <div className="pointer-events-auto flex items-center gap-3">
+              <div className="pointer-events-auto flex items-center gap-4">
                 {/* --- DELETE BUTTON --- */}
                 {isAdminMode && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDeleteImage(); }}
                     disabled={isDeleting}
-                    className="text-red-500/70 hover:text-red-500 transition cursor-pointer disabled:opacity-50"
+                    className="text-red-500/70 hover:text-red-500 transition cursor-pointer disabled:opacity-50 bg-black/40 p-2 rounded-full backdrop-blur-md"
                     title="Delete Image"
                   >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>
@@ -442,26 +596,26 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
                   href={`/api/download?url=${encodeURIComponent(selected.path)}`}
                   download
                   onClick={(e) => e.stopPropagation()}
-                  className="text-white/70 hover:text-white transition"
+                  className="text-white/70 hover:text-white transition bg-black/40 p-2 rounded-full backdrop-blur-md"
                   title="Download image"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
                   </svg>
                 </a>
-                <button onClick={(e) => { e.stopPropagation(); setSelectedIndex(null); }} className="text-white/80 hover:text-white text-4xl leading-none font-bold transition cursor-pointer">
+                <button onClick={(e) => { e.stopPropagation(); setSelectedIndex(null); }} className="text-white/80 hover:text-white text-3xl font-bold cursor-pointer bg-black/40 w-9 h-9 flex items-center justify-center rounded-full backdrop-blur-md pb-1">
                   &times;
                 </button>
               </div>
             </div>
 
             {selectedIndex !== null && selectedIndex > 0 && (
-              <button onClick={(e) => { e.stopPropagation(); goPrev(); }} className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-4xl md:text-6xl z-[60] transition-all p-4 cursor-pointer hidden md:block">
+              <button onClick={(e) => { e.stopPropagation(); goPrev(); }} className="absolute left-6 top-1/2 -translate-y-1/2 text-white/50 hover:text-white text-6xl hidden md:block z-[60] transition-colors pb-2 cursor-pointer">
                 &#8249;
               </button>
             )}
             {selectedIndex !== null && selectedIndex < images.length - 1 && (
-              <button onClick={(e) => { e.stopPropagation(); goNext(); }} className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-4xl md:text-6xl z-[60] transition-all p-4 cursor-pointer hidden md:block">
+              <button onClick={(e) => { e.stopPropagation(); goNext(); }} className="absolute right-6 top-1/2 -translate-y-1/2 text-white/50 hover:text-white text-6xl hidden md:block z-[60] transition-colors pb-2 cursor-pointer">
                 &#8250;
               </button>
             )}
@@ -476,7 +630,7 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
                 )}
               </div>
               <div
-                className={`relative ${animClass} w-full h-full flex items-center justify-center`}
+                className={`relative ${animClass} w-full h-full flex items-center justify-center p-4 md:p-12`}
                 onClick={(e) => e.stopPropagation()}
               >
                 {isVideo(selected.path) ? (
@@ -487,7 +641,7 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
                     muted
                     loop
                     preload="metadata"
-                    className="w-auto h-auto max-w-full max-h-[80vh] object-contain cursor-pointer shadow-2xl rounded-sm"
+                    className="w-auto h-auto max-w-full max-h-[85vh] object-contain shadow-2xl rounded-lg"
                   />
                 ) : (
                   <TransformWrapper
@@ -512,7 +666,7 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
                         height={1080}
                         unoptimized
                         onClick={handleImageClick}
-                        className="w-auto h-auto max-w-full max-h-[80vh] object-contain cursor-pointer shadow-2xl rounded-sm block mx-auto"
+                        className="w-auto h-auto max-w-full max-h-[85vh] object-contain cursor-pointer shadow-2xl rounded-lg block mx-auto"
                         draggable={false}
                         priority
                       />
@@ -522,8 +676,8 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
               </div>
             </div>
 
-            <div className="p-4 bg-gradient-to-t from-black/80 to-transparent z-50">
-              <div className="w-full max-w-2xl mx-auto mb-4" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+            <div className="p-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent z-50">
+              <div className="w-full max-w-2xl mx-auto mb-6" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
                 {isEditingDesc ? (
                   <DescriptionEditor
                     initialText={selected.description || ""}
@@ -551,14 +705,15 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
                   </div>
                 )}
               </div>
+
               <div className="w-full flex items-center justify-center pb-2" ref={dotsContainerRef}>
-                <div className="px-2.5 py-1 rounded-full bg-black/40 border border-white/10 backdrop-blur-md" style={{ transform: `scale(${scale})`, transformOrigin: "center center" }} onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center gap-1.5">
+                <div className="px-3 py-2 rounded-full bg-black/50 border border-white/10 backdrop-blur-xl" style={{ transform: `scale(${scale})`, transformOrigin: "center center" }} onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-2">
                     {images.map((_, i) => (
                       <button
                         key={i}
                         onClick={(e) => { e.stopPropagation(); setSelectedIndex(i); setDirection(i > (selectedIndex || 0) ? "right" : "left"); }}
-                        className={`h-2 w-2 rounded-full transition-all duration-200 ${i === selectedIndex ? "bg-blue-500 scale-125" : "bg-white/40 hover:bg-white/60"}`}
+                        className={`h-2 rounded-full transition-all duration-300 ${i === selectedIndex ? "w-6 bg-brand shadow-[0_0_8px_rgba(var(--brand-rgb),0.8)]" : "w-2 bg-white/30 hover:bg-white/60"}`}
                       />
                     ))}
                   </div>

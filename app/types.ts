@@ -99,7 +99,7 @@ export interface RollerCoaster {
   slug: string;
   parkSlug?: string;
   parkName?: string;
-  isDefunct?: boolean; // NEW
+  isDefunct?: boolean;
   specs?: RollerCoasterSpecs | null;
   highlights?: RollerCoasterHighlights[] | null;
 }

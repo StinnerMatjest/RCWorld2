@@ -202,9 +202,6 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
         onOpenPhoto={openPhoto}
       />
 
-      {/* Same outer geometry as the park page: full width, px-6 / md:px-20, three
-          columns (rail · review · rail) with the same proportions, so the review
-          text sits exactly where a park review's does. */}
       <div id="below-hero" className="w-full px-4 sm:px-6 md:px-20 pt-5 sm:pt-6 lg:py-10 scroll-mt-4">
         {/* Phones and tablets: the ranks as a row under the hero. */}
         <div className="lg:hidden mb-8">
@@ -271,35 +268,32 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
                 <CoasterGallery coasterId={coaster.id} coasterName={coaster.name} parkId={coaster.parkId} />
               </section>
             )}
-
-            {/* Admin only: this is where the coaster's basics are edited. */}
-            {isAdminMode && (
-            <section className="max-w-xl">
-              <p className="text-[11px] md:text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Details</p>
-              <CoasterInfo coaster={coaster} onUpdate={refreshCoasterData} />
-            </section>
-            )}
           </div>
 
           <aside className="min-w-0 space-y-8 lg:max-w-[24rem]">
-              <div className="hidden lg:block">{verdict}</div>
-              {/* From the numbers down the rail sticks (desktop), pinned by its top so
-                  the numbers lead. If it is taller than the screen it scrolls inside
-                  itself; when the review ends it scrolls away with the page and the
-                  details below the photos come into view. */}
-              <div
-                className="space-y-8 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto"
-                style={{ scrollbarWidth: "none" }}
-              >
-                <div className="hidden lg:block">{numbers}</div>
-                <CoasterNeighbours
-                  currentId={coaster.id}
-                  ladder={initialLadder}
-                  siblings={initialSiblings}
-                  parkName={parkName}
-                  parkSlug={parkSlug}
-                />
-              </div>
+            <div className="hidden lg:block">{verdict}</div>
+            <div
+              className="space-y-8 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto pb-8"
+              style={{ scrollbarWidth: "none" }}
+            >
+              <div className="hidden lg:block">{numbers}</div>
+
+              {/* Admin only: this is where the coaster's basics are edited. Moved here for Desktop! */}
+              {isAdminMode && (
+                <section>
+                  <p className="text-[11px] md:text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Details</p>
+                  <CoasterInfo coaster={coaster} onUpdate={refreshCoasterData} />
+                </section>
+              )}
+
+              <CoasterNeighbours
+                currentId={coaster.id}
+                ladder={initialLadder}
+                siblings={initialSiblings}
+                parkName={parkName}
+                parkSlug={parkSlug}
+              />
+            </div>
           </aside>
         </div>
 
@@ -313,7 +307,11 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
           coasterId={coaster.id}
           coasterName={coaster.name}
           gallery={gallery}
-          current={{ imageId: headerRow?.id ?? null, focusMobile: headerFocus.mobile, focusDesktop: headerFocus.desktop }}
+          current={{
+            imageId: headerRow?.id ?? null,
+            focusMobile: headerFocus.mobile,
+            focusDesktop: headerFocus.desktop
+          }}
           onClose={() => setIsHeaderModalOpen(false)}
           onSaved={() => loadGallery(coaster.id)}
         />

@@ -71,3 +71,39 @@ export async function POST(
         return NextResponse.json({ error: "Failed to save gallery image" }, { status: 500 });
     }
 }
+
+export async function PUT(
+    req: NextRequest,
+    context: { params: Promise<{ id: string }> }
+) {
+    revalidateContent();
+    const client = await pool.connect();
+    try {
+        const { id } = await context.params;
+        const visitId = parseInt(id, 10);
+        const { reorderedIds } = await req.json();
+
+        if (!reorderedIds || !Array.isArray(reorderedIds)) {
+            return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+        }
+
+        await client.query("BEGIN");
+
+        // Update the sort_order for every image based on its new array index
+        for (let i = 0; i < reorderedIds.length; i++) {
+            await client.query(
+                `UPDATE visitgallery SET sort_order = $1 WHERE id = $2 AND visit_id = $3`,
+                [i, reorderedIds[i], visitId]
+            );
+        }
+
+        await client.query("COMMIT");
+        return NextResponse.json({ success: true }, { status: 200 });
+    } catch (error) {
+        await client.query("ROLLBACK");
+        console.error("Failed to reorder visit gallery:", error);
+        return NextResponse.json({ error: "Failed to reorder" }, { status: 500 });
+    } finally {
+        client.release();
+    }
+}

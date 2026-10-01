@@ -122,6 +122,16 @@ export default async function RootLayout({
             </SearchProvider>
           </ParksProvider>
         </AdminModeProvider>
+        <Script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@3.0.0-rc.0/index.min.js" strategy="lazyOnload" />
+        <Script id="mobile-drag-drop-init" strategy="lazyOnload">
+          {`
+            window.addEventListener('load', function() {
+              if (window.MobileDragDrop) {
+                MobileDragDrop.polyfill({ holdToDrag: 500 }); // 500ms long-press to drag
+              }
+            });
+          `}
+        </Script>
       </body>
     </html>
   );

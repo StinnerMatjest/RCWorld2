@@ -37,45 +37,69 @@ export async function GET(
     if (!coasterId || isNaN(coasterId)) {
       return NextResponse.json({ error: "Invalid or missing coaster ID" }, { status: 400 });
     }
-    await ensureFocusColumns();
 
-    // Fetch explicit headers based on the new boolean column
-    const headerRes = await pool.query<GalleryRow>(
-      `SELECT ${COLS} FROM coastergallery WHERE coaster_id = $1 AND is_header = true ORDER BY id DESC`,
+    const headerRes = await pool.query(
+      `SELECT id, title, path, description, is_header FROM coastergallery WHERE coaster_id = $1 AND is_header = true ORDER BY id DESC`,
       [coasterId]
     );
     const allActiveHeaders = headerRes.rows;
-    let activeHeader: GalleryRow | null = headerRes.rows[0] || null;
+    let activeHeader = headerRes.rows[0] || null;
 
-    // Fallback to any coaster image if no explicit header is flagged
     if (!activeHeader) {
-      const fallbackRes = await pool.query<GalleryRow>(
-        `SELECT ${COLS} FROM coastergallery WHERE coaster_id = $1 ORDER BY id ASC LIMIT 1`,
+      const fallbackRes = await pool.query(
+        `SELECT id, title, path, description, is_header FROM coastergallery WHERE coaster_id = $1 ORDER BY sort_order ASC, id ASC LIMIT 1`,
         [coasterId]
       );
       activeHeader = fallbackRes.rows[0] || null;
     }
 
-    // Fetch the rest of the gallery images for this coaster
-    const galleryRes = await pool.query<GalleryRow>(
-      `SELECT ${COLS} FROM coastergallery WHERE coaster_id = $1 ORDER BY id ASC`,
+    const galleryRes = await pool.query(
+      `SELECT id, title, path, description, is_header FROM coastergallery WHERE coaster_id = $1 ORDER BY sort_order ASC, id ASC`,
       [coasterId]
     );
     const gallery = galleryRes.rows;
-
     const headerImage = activeHeader?.path || null;
-    const headerFocus = {
-      mobile: activeHeader?.focus_mobile ?? null,
-      desktop: activeHeader?.focus_desktop ?? null,
-    };
 
-    return NextResponse.json({ headerImage, headerFocus, activeHeader, allActiveHeaders, gallery });
+    return NextResponse.json({ headerImage, activeHeader, allActiveHeaders, gallery });
   } catch (error) {
     console.error("Failed to fetch coaster gallery images", error);
-    return NextResponse.json(
-      { error: "Failed to fetch coaster gallery images" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch coaster gallery images" }, { status: 500 });
+  }
+}
+
+export async function PUT(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  revalidateContent();
+  const client = await pool.connect();
+  try {
+    const { id } = await context.params;
+    const coasterId = parseInt(id, 10);
+    const { reorderedIds } = await req.json();
+
+    if (!reorderedIds || !Array.isArray(reorderedIds)) {
+      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    }
+
+    await client.query("BEGIN");
+
+    // Update the sort_order for every image based on its new array index
+    for (let i = 0; i < reorderedIds.length; i++) {
+      await client.query(
+        `UPDATE coastergallery SET sort_order = $1 WHERE id = $2 AND coaster_id = $3`,
+        [i, reorderedIds[i], coasterId]
+      );
+    }
+
+    await client.query("COMMIT");
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Failed to reorder gallery:", error);
+    return NextResponse.json({ error: "Failed to reorder" }, { status: 500 });
+  } finally {
+    client.release();
   }
 }
 
@@ -132,10 +156,6 @@ const FOCUS_RE = /^\d?\.?\d+(\.\d+)? \d?\.?\d+(\.\d+)? \d+(\.\d+)?$/;
 const cleanFocus = (v: unknown): string | null =>
   typeof v === "string" && FOCUS_RE.test(v.trim()) ? v.trim() : null;
 
-/**
- * Make an image the header and/or set its phone and desktop crops.
- * Body: { imageId, focusMobile?, focusDesktop? }. Omitted crops are kept.
- */
 export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -148,8 +168,6 @@ export async function PATCH(
     const body = await req.json();
     await ensureFocusColumns();
 
-    // { featuredIds: number[] } sets exactly which photos show in the strip at
-    // the top of the page (an empty list means visitors see all of them).
     if (Array.isArray(body.featuredIds)) {
       const ids = body.featuredIds.map(Number).filter((n: number) => Number.isFinite(n));
       await client.query(
@@ -162,8 +180,6 @@ export async function PATCH(
     const imageId = Number(body.imageId);
     if (!imageId) return NextResponse.json({ error: "Missing imageId" }, { status: 400 });
 
-    // { imageId, featured } only toggles whether the photo shows in the strip
-    // at the top of the page; the header is left alone.
     if (typeof body.featured === "boolean" && body.focusMobile === undefined && body.focusDesktop === undefined) {
       const res = await client.query(
         `UPDATE coastergallery SET featured = $3 WHERE id = $1 AND coaster_id = $2 RETURNING ${COLS}`,
@@ -173,11 +189,7 @@ export async function PATCH(
     }
 
     await client.query("BEGIN");
-
-    // Remove the header flag from all images belonging to this coaster
     await client.query(`UPDATE coastergallery SET is_header = false WHERE coaster_id = $1`, [coasterId]);
-
-    // Add the header flag exclusively to the selected image, with its crops
     const res = await client.query(
       `UPDATE coastergallery
          SET is_header = true,
