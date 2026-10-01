@@ -6,9 +6,11 @@ import { getRatingColor } from "../utils/design";
 
 type SPark = { id: number; name: string; country: string; slug: string; overall?: number };
 type SCoaster = { id: number; name: string; parkName: string; slug: string; rating?: number };
-type SManufacturer = { id: number; name: string; slug: string };
-type SModel = { id: number; name: string; manufacturerName?: string; slug: string; manufacturerId?: number };
+// Fixed: Removed slug properties from Manufacturers and Models
+type SManufacturer = { id: number; name: string };
+type SModel = { id: number; name: string; manufacturerName?: string; manufacturerId?: number };
 
+// Lower-case and strip accents and special letters so plain typing matches
 function fold(s: string): string {
   if (!s) return "";
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -86,7 +88,6 @@ const SearchBar = ({ collapsible = false }: { collapsible?: boolean }) => {
   const hasResults = total > 0;
   const showDrop = open && q.length > 0;
 
-  // --- UPDATED NAVIGATION LOGIC ---
   function navigate(type: "park" | "coaster" | "manufacturer" | "model", item: any) {
     if (type === "park") router.push(`/park/${item.slug}`);
     else if (type === "coaster") router.push(`/coasters/${item.slug}`);

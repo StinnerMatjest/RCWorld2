@@ -25,18 +25,22 @@ export async function GET() {
         ORDER BY rc.rating DESC
       `),
       pool.query(`
-        SELECT id, name, slug 
+        SELECT id, name
         FROM manufacturers 
-        WHERE slug IS NOT NULL 
         ORDER BY name ASC
       `),
+      // Fallback catch to safely handle either table naming convention 
       pool.query(`
-        SELECT rm.id, rm.name, rm.slug, m.name AS manufacturer_name, m.id AS manufacturer_id
+        SELECT rm.id, rm.name, m.name AS manufacturer_name, m.id AS manufacturer_id
+        FROM ride_models rm
+        LEFT JOIN manufacturers m ON m.id = rm.manufacturer_id
+        ORDER BY rm.name ASC
+      `).catch(() => pool.query(`
+        SELECT rm.id, rm.name, m.name AS manufacturer_name, m.id AS manufacturer_id
         FROM ridemodels rm
         LEFT JOIN manufacturers m ON m.id = rm.manufacturer_id
-        WHERE rm.slug IS NOT NULL
         ORDER BY rm.name ASC
-      `),
+      `)),
     ]);
 
     return NextResponse.json(
@@ -50,10 +54,10 @@ export async function GET() {
           rating: r.rating == null ? undefined : Number(r.rating),
         })),
         manufacturers: manRes.rows.map(r => ({
-          id: r.id, name: r.name, slug: r.slug
+          id: r.id, name: r.name
         })),
         models: modRes.rows.map(r => ({
-          id: r.id, name: r.name, slug: r.slug, manufacturerName: r.manufacturer_name, manufacturerId: r.manufacturer_id
+          id: r.id, name: r.name, manufacturerName: r.manufacturer_name, manufacturerId: r.manufacturer_id
         }))
       },
       { headers: { "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=3600" } }

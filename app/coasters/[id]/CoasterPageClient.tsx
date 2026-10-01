@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import type { RollerCoaster, RollerCoasterHighlights, RollerCoasterSpecs } from "@/app/types";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import { computeCoasterRanks, type CoasterRankStats } from "@/app/utils/ranking";
@@ -49,14 +50,6 @@ const CoasterSkeleton = () => (
   </div>
 );
 
-/**
- * The coaster page, set the way the park page is: photo hero with the name
- * and score, then plain content on the ground with thin rules, no boxes.
- * Phone order: ranks, photo strip, highs and lows, the numbers, the review
- * with photos woven in, the full gallery, what to ride next, details. On
- * desktop the right rail holds highs and lows, then the numbers (which stick
- * once reached), then the ranking lists and details.
- */
 const CoasterPage: React.FC<CoasterPageClientProps> = ({
   initialId,
   initialCoaster = null,
@@ -87,6 +80,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
   const [pageLoading, setPageLoading] = useState(!initialCoaster);
   const [isHeaderModalOpen, setIsHeaderModalOpen] = useState(false);
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const [stripEditorOpen, setStripEditorOpen] = useState(false);
 
   useEffect(() => {
     document.title = coaster?.name ? `${coaster.name} | Parkrating` : "Parkrating";
@@ -104,8 +98,6 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
     setHeaderFocus({ mobile: data.headerFocus?.mobile ?? null, desktop: data.headerFocus?.desktop ?? null });
     setGallery(Array.isArray(data.gallery) ? data.gallery : []);
   }, []);
-
-  const [stripEditorOpen, setStripEditorOpen] = useState(false);
 
   // The server normally seeds everything; this is the fallback for a client-side mount without it.
   useEffect(() => {
@@ -154,13 +146,14 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
     }
   };
 
-  // Every photo on the page in one order (hero first), for the lightbox.
   const photos = useMemo(() => {
     const list = gallery.map((g) => g.path).filter((p) => p !== headerImage);
     if (headerImage) list.unshift(headerImage);
     return list;
   }, [gallery, headerImage]);
+
   const captions = useMemo(() => mediaCaptions(gallery), [gallery]);
+
   const openPhoto = useCallback((url: string) => {
     const i = photos.indexOf(url);
     if (i === -1) window.open(url, "_blank");
@@ -179,6 +172,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
       onSaved={(h: RollerCoasterHighlights[]) => setCoaster((c) => (c ? { ...c, highlights: h } : c))}
     />
   );
+
   const numbers = (
     <CoasterFacts
       specs={coaster.specs}
@@ -187,6 +181,22 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
       isAdminMode={isAdminMode}
       onSaved={(s: RollerCoasterSpecs) => setCoaster((c) => (c ? { ...c, specs: s } : c))}
     />
+  );
+
+  // Reusable button linking to the detailed standings
+  const DetailedRankingsButton = () => (
+    <Link
+      href={`/coasters/${coaster.slug}/rankings`}
+      className="mt-4 flex items-center justify-between w-full p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-brand/60 transition-all group shadow-sm"
+    >
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-brand/10 text-brand rounded-lg group-hover:bg-brand group-hover:text-white transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></svg>
+        </div>
+        <span className="font-bold text-slate-300 group-hover:text-white transition-colors uppercase tracking-widest text-xs">Detailed Standings</span>
+      </div>
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-slate-600 group-hover:text-brand transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+    </Link>
   );
 
   return (
@@ -203,6 +213,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
       />
 
       <div id="below-hero" className="w-full px-4 sm:px-6 md:px-20 pt-5 sm:pt-6 lg:py-10 scroll-mt-4">
+
         {/* Phones and tablets: the ranks as a row under the hero. */}
         <div className="lg:hidden mb-8">
           <CoasterScoreRow
@@ -214,9 +225,11 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
             manufacturerName={coaster.manufacturerName}
             manufacturerId={coaster.manufacturerId}
           />
+          <DetailedRankingsButton />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_5.5fr_3.5fr] [@media(min-width:2560px)]:grid-cols-[1.8fr_6fr_3.5fr] gap-10 lg:gap-6">
+
           {/* Desktop: the ranks where the park page keeps its visit panel. */}
           <div className="hidden lg:block min-w-0">
             <div>
@@ -229,6 +242,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
                 manufacturerName={coaster.manufacturerName}
                 manufacturerId={coaster.manufacturerId}
               />
+              <DetailedRankingsButton />
             </div>
           </div>
 
@@ -243,7 +257,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
               />
             </div>
 
-            {/* Phone: highs and lows and the numbers before the reading. Desktop: they live in the right rail. */}
+            {/* Phone: highs and lows and the numbers before the reading. */}
             <div className="lg:hidden space-y-8">
               {verdict}
               {numbers}
@@ -278,7 +292,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
             >
               <div className="hidden lg:block">{numbers}</div>
 
-              {/* Admin only: this is where the coaster's basics are edited. Moved here for Desktop! */}
+              {/* Admin only: this is where the coaster's basics are edited. */}
               {isAdminMode && (
                 <section>
                   <p className="text-[11px] md:text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Details</p>
@@ -307,11 +321,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
           coasterId={coaster.id}
           coasterName={coaster.name}
           gallery={gallery}
-          current={{
-            imageId: headerRow?.id ?? null,
-            focusMobile: headerFocus.mobile,
-            focusDesktop: headerFocus.desktop
-          }}
+          current={{ imageId: headerRow?.id ?? null, focusMobile: headerFocus.mobile, focusDesktop: headerFocus.desktop }}
           onClose={() => setIsHeaderModalOpen(false)}
           onSaved={() => loadGallery(coaster.id)}
         />

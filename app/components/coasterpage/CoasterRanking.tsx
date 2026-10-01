@@ -71,7 +71,6 @@ export const SkeletonStatBlock = () => (
 interface CoasterRankingProps {
   coaster: RollerCoaster;
   allCoasters: RollerCoaster[];
-  /** Ranks computed on the server; used until the client has a catalogue of its own. */
   stats?: CoasterRankStats | null;
   parkName: string | null;
 }
