@@ -52,6 +52,7 @@ const editorCss=`
   #ed-gallery .g-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
   #ed-gallery .g-tabs button { flex: 1; font: 700 10px Roboto, sans-serif; letter-spacing: 1px; padding: 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: transparent; color: rgba(255,255,255,0.7); cursor: pointer; }
   #ed-gallery .g-tabs button.on { background: #e9820e; color: #0c0c0c; border-color: #e9820e; }
+  #ed-gallery #g-park { width: 100%; margin-bottom: 8px; font: 500 11px Roboto, sans-serif; padding: 5px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: #16223c; color: rgba(255,255,255,0.75); }
   #ed-gallery input { width: 100%; box-sizing: border-box; font: 12px Roboto, sans-serif; padding: 7px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: #111827; color: #fff; }
   #ed-gallery .g-grid { flex: 1; min-height: 160px; overflow-y: auto; padding: 10px; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: max-content; gap: 8px; align-content: start; }
   #ed-gallery .g-item { cursor: pointer; border-radius: 6px; overflow: hidden; background: #111827; border: 2px solid transparent; }
@@ -103,7 +104,8 @@ const editorUi=`
 <div id="ed-gallery">
   <div class="g-head">
     <div class="g-title" id="g-title">Click a photo on a slide to replace it</div>
-    <div class="g-tabs"><button data-park="AW" onclick="edTab('AW')">ADVENTURE WORLD</button><button data-park="DLP" onclick="edTab('DLP')">DISNEYLAND PARK</button></div>
+    <div class="g-tabs" id="g-tabs"></div>
+    <select id="g-park" onchange="edAddPark(this.value)"><option value="">Photos from another park...</option></select>
     <input id="g-search" placeholder="Search photo titles..." oninput="edRenderGallery()">
   </div>
   <div id="ed-crop" style="display:none">
@@ -127,12 +129,14 @@ const editorUi=`
   const status=document.getElementById('ed-status');
   const meta=new WeakMap();
   let sel=null, tab='AW', stickers=true;
+  // gallery parks: PARKS = tabs shown for this carousel ({id,key,label,name,slug}), ALLPARKS = every park on the site (for the dropdown)
+  let PARKS=[], ALLPARKS=[];
 
   const slides=()=>[...document.querySelectorAll('.carousel-track .slide')];
   const urlOf=el=>{const m=(el.style.backgroundImage||getComputedStyle(el).backgroundImage).match(/url\\(["']?(.*?)["']?\\)/);return m?m[1]:null;};
   const posOf=el=>{const p=(el.style.backgroundPosition||'50% 50%').split(/\\s+/).map(parseFloat);return {x:isNaN(p[0])?50:p[0],y:isNaN(p[1])?50:p[1]};};
   const partOf=el=>el.closest('.vs-top')?'top':el.closest('.vs-bottom')?'bottom':el.classList.contains('hero')?'hero':'inset';
-  const parkOf=el=>el.dataset.park||(partOf(el)==='top'||partOf(el)==='hero'?'AW':'DLP');
+  const parkOf=el=>el.dataset.park||(PARKS.some(p=>p.key==='AW')?(partOf(el)==='top'||partOf(el)==='hero'?'AW':'DLP'):(PARKS[0]?PARKS[0].key:tab));
 
   function ensureMeta(el){return new Promise(res=>{const m0=meta.get(el);if(m0&&m0.url===urlOf(el))return res(m0);const img=new Image();img.onload=()=>{const m={iw:img.naturalWidth,ih:img.naturalHeight,zoom:parseFloat(el.dataset.zoom||'1'),url:urlOf(el)};meta.set(el,m);res(m);};img.onerror=()=>res(null);img.src=urlOf(el);});}
   function rendered(el,m){const cw=el.offsetWidth,ch=el.offsetHeight;const s=Math.max(cw/m.iw,ch/m.ih)*m.zoom;return {cw,ch,w:m.iw*s,h:m.ih*s};}
@@ -150,7 +154,8 @@ const editorUi=`
   }
   window.edTab=function(p){tab=p;edRenderGallery();};
   window.edRenderGallery=function(){
-    document.querySelectorAll('#ed-gallery .g-tabs button').forEach(b=>b.classList.toggle('on',b.dataset.park===tab));
+    const tabs=document.getElementById('g-tabs');tabs.innerHTML='';
+    PARKS.forEach(p=>{const b=document.createElement('button');b.dataset.park=p.key;b.textContent=p.label.toUpperCase();b.classList.toggle('on',p.key===tab);b.addEventListener('click',()=>edTab(p.key));tabs.appendChild(b);});
     const grid=document.getElementById('g-grid');
     const title=document.getElementById('g-title');
     if(!sel){title.textContent='Click a photo on a slide to replace it';return;}
@@ -172,7 +177,7 @@ const editorUi=`
       it.addEventListener('mouseleave',()=>{clearTimeout(pvTimer);pv.style.display='none';});
     });
     grid.querySelectorAll('.g-item').forEach(it=>it.addEventListener('click',()=>{
-      if(!sel)return; sel.style.backgroundImage="url('"+it.dataset.url+"')"; sel.style.backgroundPosition='50% 50%'; sel.style.backgroundSize='cover'; delete sel.dataset.zoom; meta.delete(sel); ensureMeta(sel).then(()=>{renderCrop();show(sel);}); edRenderGallery(); save();
+      if(!sel)return; sel.style.backgroundImage="url('"+it.dataset.url+"')"; sel.dataset.park=tab; sel.style.backgroundPosition='50% 50%'; sel.style.backgroundSize='cover'; delete sel.dataset.zoom; meta.delete(sel); ensureMeta(sel).then(()=>{renderCrop();show(sel);}); edRenderGallery(); save();
     }));
   };
 
@@ -388,8 +393,32 @@ const editorUi=`
   window.__ed={slides,save,init,select,syncScores,renderCrop,cleanTrackHtml,ensureMeta,bindPhoto,bindText,SYNC};
   if(window.ED_SYNC&&window.ED_SYNC.galleryApi){
     const norm=p=>{p=String(p).replace(/^:?\\/*/,"").replace(/^https?:\\/\\//,"");return "https://"+p.replace(/\\.(jpg|jpeg|png|webp)$/i,"")+"-w1200.webp";};
-    Promise.all([[110,"AW"],[109,"DLP"]].map(([id,park])=>fetch("/api/park/"+id+"/gallery").then(r=>r.json()).then(j=>{const arr=Array.isArray(j)?j:(j.images||j.gallery||Object.values(j)[0]||[]);return arr.filter(x=>!/\\.mp4$|DUPLICATE/i.test(String(x.path||x.url||""))).map((x,i)=>({park,n:i,title:String(x.title||"untitled").replace(/^Disneyland Paris - (Disney Adventure World|Disneyland Park) - /,""),url:norm(x.path||x.url)}));}).catch(()=>[])))
-    .then(lists=>{GALLERY=lists.flat();edRenderGallery();});
+    const esc=s=>s.replace(/[-[\\]{}()*+?.,\\\\^$|#]/g,m=>'\\\\'+m);
+    const loadPark=(id,park,name)=>fetch("/api/park/"+id+"/gallery").then(r=>r.json()).then(j=>{const arr=Array.isArray(j)?j:(j.images||j.gallery||Object.values(j)[0]||[]);const strip=new RegExp("^"+esc(name)+" - ");return arr.filter(x=>!/\\.mp4$|DUPLICATE/i.test(String(x.path||x.url||""))).map((x,i)=>({park,n:i,title:String(x.title||"untitled").replace(/^Disneyland Paris - (Disney Adventure World|Disneyland Park) - /,"").replace(strip,""),url:norm(x.path||x.url)}));}).catch(()=>[]);
+    // the Disney fight template keeps its AW / DLP keys and short labels
+    const DISNEY=[{id:110,key:'AW',label:'Adventure World'},{id:109,key:'DLP',label:'Disneyland Park'}];
+    window.edAddPark=function(id){
+      const p=ALLPARKS.find(x=>String(x.id)===String(id)); document.getElementById('g-park').value=''; if(!p)return;
+      if(PARKS.some(k=>k.key===p.key)){tab=p.key;edRenderGallery();return;}
+      PARKS.push(p); loadPark(p.id,p.key,p.name).then(list=>{GALLERY=GALLERY.concat(list);tab=p.key;edRenderGallery();});
+    };
+    fetch("/api/parks").then(r=>r.json()).then(j=>{
+      ALLPARKS=(j.parks||[]).map(p=>{const d=DISNEY.find(x=>x.id===p.id);return {id:p.id,key:d?d.key:String(p.id),label:d?d.label:p.name,name:p.name,slug:p.slug||''};}).sort((a,b)=>a.name.localeCompare(b.name));
+      const dd=document.getElementById('g-park'); ALLPARKS.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;dd.appendChild(o);});
+      // parks this carousel uses: <meta name="carousel-parks" content="112,109"> if declared, else inferred from the
+      // photo filenames (R2 names start with the park slug), else the Disney pair
+      const declared=(document.querySelector('meta[name="carousel-parks"]')||{}).content||'';
+      let used=declared.split(/[,\\s]+/).map(id=>ALLPARKS.find(p=>String(p.id)===id.trim())).filter(Boolean);
+      if(!used.length){
+        const files=slides().flatMap(s=>[...s.querySelectorAll(PHOTOS)].map(urlOf).filter(Boolean)).map(u=>u.split('/').pop());
+        const bySlug=ALLPARKS.filter(p=>p.slug).sort((a,b)=>b.slug.length-a.slug.length);
+        files.forEach(f=>{const p=bySlug.find(p=>f.startsWith(p.slug+'-'));if(p&&!used.includes(p))used.push(p);});
+      }
+      if(!used.length)used=DISNEY.map(d=>ALLPARKS.find(p=>p.id===d.id)).filter(Boolean);
+      used.sort((a,b)=>(a.key==='AW'?-1:b.key==='AW'?1:0));
+      PARKS=used; tab=PARKS[0]?PARKS[0].key:tab;
+      return Promise.all(PARKS.map(p=>loadPark(p.id,p.key,p.name))).then(lists=>{GALLERY=lists.flat();edRenderGallery();});
+    }).catch(()=>{});
   }
 })();
 </script>
