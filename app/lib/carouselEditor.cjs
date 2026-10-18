@@ -287,7 +287,10 @@ const editorUi=`
       }
       if(isFinal){const W=slide.querySelector('.ff-nums .w'),L=slide.querySelector('.ff-nums .l');if(W)W.textContent=aw;if(L)L.textContent=dlp;}
     });
+    syncStickerBtn();
   }
+  // the WIN sticker toggle only means something on VS fight slides; hide it on other carousels
+  function syncStickerBtn(){const b=document.getElementById('ed-stick-btn');if(b)b.style.display=document.querySelector('.carousel-track .vs-half')?'':'none';}
 
   // ---- winner toggle
   function winnerOf(slide){if(slide.classList.contains('tie'))return 'tie';if(slide.querySelector('.score-block.sb-aw.win'))return 'aw';if(slide.querySelector('.score-block.sb-dlp.win'))return 'dlp';return null;}
@@ -389,7 +392,7 @@ const editorUi=`
   window.edPositions=function(){return [...document.querySelectorAll('.carousel-track .slide')].flatMap((s,i)=>[...s.querySelectorAll(PHOTOS)].map(el=>({slide:i+1,part:partOf(el),url:urlOf(el),position:el.style.backgroundPosition||'50% 50%',size:el.style.backgroundSize||'cover'})));};
   window.edCopyJson=function(){const t=document.getElementById('ed-json');t.value=JSON.stringify(edPositions(),null,1);t.style.display='block';t.select();try{navigator.clipboard.writeText(t.value);}catch(e){}};
 
-  init(); edRenderGallery();
+  init(); edRenderGallery(); syncStickerBtn();
   window.__ed={slides,save,init,select,syncScores,renderCrop,cleanTrackHtml,ensureMeta,bindPhoto,bindText,SYNC};
   if(window.ED_SYNC&&window.ED_SYNC.galleryApi){
     const norm=p=>{p=String(p).replace(/^:?\\/*/,"").replace(/^https?:\\/\\//,"");return "https://"+p.replace(/\\.(jpg|jpeg|png|webp)$/i,"")+"-w1200.webp";};
