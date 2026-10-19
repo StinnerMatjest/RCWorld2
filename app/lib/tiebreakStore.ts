@@ -3,17 +3,18 @@ import { pool } from "@/app/lib/db";
 // Tiebreak: the two admins settle the order of coasters that share a score,
 // live, each on their own phone (app/tiebreak, app/api/tiebreak).
 //
-// The result is rollercoasters.tie_rank: the coaster's position inside its
-// score group (1 = best of that score), kept dense 1..k over the placed
-// coasters; unplaced ones are NULL. Scores never change here. The site's
-// ranking (app/utils/ranking.ts) sorts by rating, then tie_rank, then the old
-// fallbacks, so settled groups get a real order and unsettled ones behave
+// Two layers:
+//   draft     tiebreak_groups.order_ids: the list the two of you are building (top first).
+//             Placing, moving and removing only touch the draft.
+//   published rollercoasters.tie_rank: what the site uses (1 = best of the score group, dense
+//             1..k over the placed coasters, NULL = unplaced). Written only by submit().
+// Scores never change here. The site's ranking (app/utils/ranking.ts) sorts by rating, then
+// tie_rank, then the old fallbacks, so settled groups get a real order and unsettled ones behave
 // exactly as before.
 //
 // Tables (created on first use):
-//   tiebreak_groups   one row per score being worked on: round, picks {player: coasterId}, revealed
-//                     (mode is a leftover column from the first version, unused)
-//   tiebreak_log      every settled round: match / caved / split / lock / auto
+//   tiebreak_groups   one row per score: round, picks {player: coasterId}, revealed, order_ids
+//   tiebreak_log      every settled round: match / caved / split / lock / auto / submit
 //   tiebreak_players  who is around (name, last_seen) for the presence dots
 
 let ready: Promise<void> | null = null;
@@ -29,6 +30,8 @@ export function ensureTiebreak(): Promise<void> {
         revealed BOOLEAN NOT NULL DEFAULT false,
         updated_at TIMESTAMPTZ DEFAULT now()
       )`);
+      await pool.query(`ALTER TABLE tiebreak_groups ADD COLUMN IF NOT EXISTS order_ids JSONB`);
+      await pool.query(`ALTER TABLE tiebreak_groups ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMPTZ`);
       await pool.query(`CREATE TABLE IF NOT EXISTS tiebreak_log (
         id SERIAL PRIMARY KEY,
         score NUMERIC NOT NULL,
@@ -59,16 +62,31 @@ export function ensureTieRankColumn(): Promise<void> {
   return colReady;
 }
 
-export type GroupRow = { score: string; round: number; picks: Record<string, number>; revealed: boolean; updated_at: string };
+export type GroupRow = { score: string; round: number; picks: Record<string, number>; revealed: boolean; order: number[]; submitted_at: string | null; updated_at: string };
 
+/** The group row; the draft order is seeded from the published order the first time. */
 export async function getGroup(score: number): Promise<GroupRow> {
-  const r = await pool.query<GroupRow>(
+  const r = await pool.query(
     `INSERT INTO tiebreak_groups (score) VALUES ($1)
      ON CONFLICT (score) DO UPDATE SET score = EXCLUDED.score
-     RETURNING score, round, picks, revealed, updated_at`,
+     RETURNING score, round, picks, revealed, order_ids, submitted_at, updated_at`,
     [score]
   );
-  return r.rows[0];
+  const row = r.rows[0];
+  const ids = await pool.query<{ id: number; tie_rank: number | null }>(`SELECT id, tie_rank FROM rollercoasters WHERE rating = $1`, [score]);
+  const inGroup = new Set(ids.rows.map(x => x.id));
+  let order: number[];
+  if (row.order_ids == null) {
+    order = ids.rows.filter(x => x.tie_rank != null).sort((a, b) => a.tie_rank! - b.tie_rank!).map(x => x.id);
+    await pool.query(`UPDATE tiebreak_groups SET order_ids = $2::jsonb WHERE score = $1`, [score, JSON.stringify(order)]);
+  } else {
+    order = (row.order_ids as number[]).filter(id => inGroup.has(id)); // a coaster re-scored out of the group drops out
+  }
+  return { score: row.score, round: row.round, picks: row.picks, revealed: row.revealed, order, submitted_at: row.submitted_at, updated_at: row.updated_at };
+}
+
+async function saveOrder(score: number, order: number[]) {
+  await pool.query(`UPDATE tiebreak_groups SET order_ids = $2::jsonb, updated_at = now() WHERE score = $1`, [score, JSON.stringify(order)]);
 }
 
 export async function candidates(score: number) {
@@ -84,19 +102,22 @@ export async function candidates(score: number) {
      LEFT JOIN rollercoasterspecs rs ON rs.coaster_id = rc.id
      LEFT JOIN LATERAL (SELECT cg.path FROM coastergallery cg WHERE cg.coaster_id = rc.id AND cg.path <> '' ORDER BY cg.is_header DESC, cg.id ASC LIMIT 1) img ON TRUE
      WHERE rc.rating = $1
-     ORDER BY rc.tie_rank NULLS LAST, rc.name`,
+     ORDER BY rc.name`,
     [score]
   );
   return r.rows;
 }
 
-/** All score groups with more than one coaster, with how many are placed. */
+/** All score groups with more than one coaster: how many are in the draft list, and whether the draft is on the site. */
 export async function overview() {
   const r = await pool.query(
-    `SELECT rating AS score, COUNT(*)::int AS count, COUNT(tie_rank)::int AS placed,
-            (SELECT COUNT(*)::int FROM rollercoasters x WHERE x.rating > rc.rating) AS above
-     FROM rollercoasters rc WHERE rating IS NOT NULL
-     GROUP BY rating HAVING COUNT(*) > 1 ORDER BY rating DESC`
+    `SELECT rc.rating AS score, COUNT(*)::int AS count, COUNT(rc.tie_rank)::int AS published,
+            COALESCE(jsonb_array_length(g.order_ids), 0)::int AS placed,
+            (SELECT COUNT(*)::int FROM rollercoasters x WHERE x.rating > rc.rating) AS above,
+            g.submitted_at
+     FROM rollercoasters rc LEFT JOIN tiebreak_groups g ON g.score = rc.rating
+     WHERE rc.rating IS NOT NULL
+     GROUP BY rc.rating, g.order_ids, g.submitted_at HAVING COUNT(*) > 1 ORDER BY rc.rating DESC`
   );
   return r.rows;
 }
@@ -106,53 +127,54 @@ export async function countAbove(score: number) {
   return r.rows[0].n as number;
 }
 
-/** Placed coasters of a group, top first. */
-async function placedIds(score: number): Promise<number[]> {
-  const r = await pool.query(`SELECT id FROM rollercoasters WHERE rating = $1 AND tie_rank IS NOT NULL ORDER BY tie_rank, name`, [score]);
-  return r.rows.map(x => x.id);
-}
-
-/** Write a dense 1..k order for the given ids (top first). */
-async function writeOrder(score: number, ids: number[]) {
-  for (let i = 0; i < ids.length; i++) {
-    await pool.query(`UPDATE rollercoasters SET tie_rank = $1 WHERE id = $2 AND rating = $3`, [i + 1, ids[i], score]);
-  }
-}
-
 /**
- * Put a coaster into the agreed list at `position` (1 = top; null/too big = bottom).
- * If exactly one coaster is left unplaced afterwards, it goes to the bottom by itself.
+ * Put a coaster into the draft list at `position` (1 = top; null/too big = bottom).
+ * If exactly one coaster is left out afterwards, it goes to the bottom by itself.
  */
 export async function place(score: number, coasterId: number, position: number | null) {
-  const ids = (await placedIds(score)).filter(id => id !== coasterId);
-  const k = position == null ? ids.length : Math.min(Math.max(position, 1), ids.length + 1) - 1;
-  ids.splice(k, 0, coasterId);
-  await writeOrder(score, ids);
-  const rest = await pool.query(`SELECT id FROM rollercoasters WHERE rating = $1 AND tie_rank IS NULL`, [score]);
+  const g = await getGroup(score);
+  const order = g.order.filter(id => id !== coasterId);
+  const k = position == null ? order.length : Math.min(Math.max(position, 1), order.length + 1) - 1;
+  order.splice(k, 0, coasterId);
+  const all = await pool.query<{ id: number }>(`SELECT id FROM rollercoasters WHERE rating = $1`, [score]);
+  const rest = all.rows.map(x => x.id).filter(id => !order.includes(id));
   let auto: number | null = null;
-  if (rest.rowCount === 1) { auto = rest.rows[0].id; await writeOrder(score, [...ids, auto!]); }
+  if (rest.length === 1) { auto = rest[0]; order.push(auto); }
+  await saveOrder(score, order);
   return { slot: k + 1, auto };
 }
 
-/** Move a placed coaster one step up (dir -1) or down (dir +1). */
+/** Move a listed coaster one step up (dir -1) or down (dir +1) in the draft. */
 export async function move(score: number, coasterId: number, dir: number) {
-  const ids = await placedIds(score);
-  const i = ids.indexOf(coasterId); const j = i + (dir < 0 ? -1 : 1);
-  if (i < 0 || j < 0 || j >= ids.length) return false;
-  [ids[i], ids[j]] = [ids[j], ids[i]];
-  await writeOrder(score, ids);
+  const g = await getGroup(score); const order = [...g.order];
+  const i = order.indexOf(coasterId); const j = i + (dir < 0 ? -1 : 1);
+  if (i < 0 || j < 0 || j >= order.length) return false;
+  [order[i], order[j]] = [order[j], order[i]];
+  await saveOrder(score, order);
   return true;
 }
 
 export async function unplace(score: number, coasterId: number) {
-  await pool.query(`UPDATE rollercoasters SET tie_rank = NULL WHERE id = $1 AND rating = $2`, [coasterId, score]);
-  await writeOrder(score, await placedIds(score));
+  const g = await getGroup(score);
+  await saveOrder(score, g.order.filter(id => id !== coasterId));
 }
 
-/** "Start this group over": the order, the round and the group's history on the scoreboard. */
+/** Publish the draft: tie_rank 1..k for the listed coasters, NULL for the rest of the group. */
+export async function submit(score: number) {
+  const g = await getGroup(score);
+  await pool.query(`UPDATE rollercoasters SET tie_rank = NULL WHERE rating = $1`, [score]);
+  for (let i = 0; i < g.order.length; i++) {
+    await pool.query(`UPDATE rollercoasters SET tie_rank = $1 WHERE id = $2 AND rating = $3`, [i + 1, g.order[i], score]);
+  }
+  await pool.query(`UPDATE tiebreak_groups SET submitted_at = now(), updated_at = now() WHERE score = $1`, [score]);
+  await pool.query(`INSERT INTO tiebreak_log (score, round, mode, picks, result) VALUES ($1,$2,'list','{}'::jsonb,'submit')`, [score, g.round]);
+  return g.order;
+}
+
+/** "Start this group over": draft, published order, round and the group's history on the scoreboard. */
 export async function resetGroup(score: number) {
   await pool.query(`UPDATE rollercoasters SET tie_rank = NULL WHERE rating = $1`, [score]);
-  await pool.query(`UPDATE tiebreak_groups SET picks = '{}'::jsonb, revealed = false, round = 1, updated_at = now() WHERE score = $1`, [score]);
+  await pool.query(`UPDATE tiebreak_groups SET picks = '{}'::jsonb, revealed = false, round = 1, order_ids = '[]'::jsonb, submitted_at = NULL, updated_at = now() WHERE score = $1`, [score]);
   await pool.query(`DELETE FROM tiebreak_log WHERE score = $1`, [score]);
 }
 

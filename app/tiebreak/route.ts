@@ -105,6 +105,12 @@ const head = (title: string) => `<!DOCTYPE html>
   .slots{display:flex;flex-direction:column;gap:6px}
   .slot{text-align:left;background:var(--el);color:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-weight:700}
   .slot:active{background:var(--el2)}
+  .slot b{color:var(--accent-light)} .slot small{display:block;font-weight:500;color:var(--muted);font-size:11px;margin-top:2px}
+  .banner{display:flex;align-items:center;gap:12px;margin-top:10px;padding:12px 14px;border-radius:12px;font-size:13px;line-height:1.35}
+  .banner.dirty{background:rgba(233,130,14,.12);border:1px solid rgba(233,130,14,.45);color:#fff}
+  .banner.dirty b{color:var(--accent-light)} .banner.dirty>div{flex:1}
+  .banner.dirty button{white-space:nowrap}
+  .banner.ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);color:rgba(255,255,255,.8)} .banner.ok b{color:var(--good)}
   .picks{display:flex;gap:8px}
   .pk{flex:1;background:var(--el);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
   .pk small{display:block;color:var(--muted);font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px}
@@ -128,7 +134,8 @@ const head = (title: string) => `<!DOCTYPE html>
   .stamp{font-size:54px;font-weight:900;letter-spacing:4px;padding:6px 26px;border:5px solid currentColor;border-radius:14px;transform:rotate(-7deg) scale(1);transition:transform .35s cubic-bezier(.2,1.6,.4,1),opacity .2s}
   .stamp.hide{transform:rotate(-7deg) scale(3);opacity:0}
   .stamp.match{color:var(--good)} .stamp.split{color:var(--accent-light)}
-  .ov-hint{color:var(--muted);font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-top:6px}
+  .ov-btn{margin-top:8px;padding:14px 38px;font-size:16px;transition:opacity .3s,transform .3s}
+  .ov-btn.hide{opacity:0;transform:translateY(10px);pointer-events:none}
   /* bottom sheet: stats */
   .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:40;display:none}
   .sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;max-height:88vh;overflow:auto;background:#0b1222;border-radius:18px 18px 0 0;transform:translateY(100%);transition:transform .25s;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
@@ -175,7 +182,7 @@ const appPage = head("Parkrating tiebreak") + `
 <div class="sheet-bg" id="sheet-bg" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet"></div>
 <div class="toast" id="toast"></div>
-<script src="/tiebreak.js?v=2"></script>
+<script src="/tiebreak.js?v=3"></script>
 </body></html>`;
 
 export async function GET(req: NextRequest) {

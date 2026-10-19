@@ -2,22 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
 import { isAdminRequest } from "@/app/lib/adminAuth";
 import { revalidateContent } from "@/app/lib/revalidate";
-import { candidates, countAbove, ensureTiebreak, getGroup, logAuto, logFor, move, newRound, overview, place, players, resetGroup, seen, unplace } from "@/app/lib/tiebreakStore";
+import { candidates, countAbove, ensureTiebreak, getGroup, logAuto, logFor, move, newRound, overview, place, players, resetGroup, seen, submit, unplace } from "@/app/lib/tiebreakStore";
 
 // Live tiebreak tool (UI: app/tiebreak/route.ts + public/tiebreak.js).
 // GET  /api/tiebreak                 -> { groups, players, log }           (home)
-// GET  /api/tiebreak?score=7         -> { group, candidates, above, players, log }
+// GET  /api/tiebreak?score=7         -> { group (with draft order), candidates (with published tie_rank), above, players, log }
 // POST /api/tiebreak  JSON { action, ... }  (admin cookie, enforced by middleware)
 //   hello   { name }                                   presence heartbeat
 //   pick    { score, name, coasterId }                 your hidden pick (null clears it)
 //   reveal  { score }                                  needs two picks
-//   lock    { score, coasterId, position?, cavedBy? }  put it into the agreed list (1 = top, default bottom),
+//   lock    { score, coasterId, position?, cavedBy? }  put it into the DRAFT list (1 = top, default bottom),
 //                                                      log match / caved / lock, next round
 //   again   { score }                                  split, nobody caves: log it, next round
-//   move    { score, coasterId, dir }                  one step up (-1) or down (+1) in the agreed list
-//   unplace { score, coasterId }                       take a coaster back out of the agreed list
-//   reset   { score }                                  clear the whole group's order
-// Every change to the order calls revalidateContent() so the public ranking follows.
+//   move    { score, coasterId, dir }                  one step up (-1) or down (+1) in the draft
+//   unplace { score, coasterId }                       take a coaster back out of the draft
+//   submit  { score }                                  publish the draft to the site (tie_rank) and revalidate
+//   reset   { score }                                  clear draft, published order and the group's history
+// Only submit and reset touch what the site shows.
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -77,8 +78,8 @@ export async function POST(req: NextRequest) {
         await pool.query(`UPDATE tiebreak_groups SET picks = picks - $2::text, updated_at = now() WHERE score = $1`, [score, name]);
       } else {
         const id = idOf(body.coasterId); if (id === null) return bad("Bad coasterId");
-        const ok = await pool.query(`SELECT 1 FROM rollercoasters WHERE id = $1 AND rating = $2 AND tie_rank IS NULL`, [id, score]);
-        if (!ok.rowCount) return bad("Not a candidate in this group");
+        const ok = await pool.query(`SELECT 1 FROM rollercoasters WHERE id = $1 AND rating = $2`, [id, score]);
+        if (!ok.rowCount || g.order.includes(id)) return bad("Not a candidate in this group");
         await pool.query(`UPDATE tiebreak_groups SET picks = picks || $2::jsonb, updated_at = now() WHERE score = $1 AND revealed = false`, [score, JSON.stringify({ [name]: id })]);
       }
       await seen(name);
@@ -98,7 +99,6 @@ export async function POST(req: NextRequest) {
       const { slot, auto } = await place(score, id, position);
       await newRound(score, { result: unanimous ? "match" : cavedBy ? "caved" : "lock", coasterId: id, cavedBy });
       if (auto) await logAuto(score, auto);
-      revalidateContent();
       return NextResponse.json({ ok: true, slot, auto, ...(await groupPayload(score)) }, NO_STORE);
     }
     case "again": {
@@ -107,14 +107,17 @@ export async function POST(req: NextRequest) {
     }
     case "move": {
       const id = idOf(body.coasterId); if (id === null) return bad("coasterId required");
-      const moved = await move(score, id, Number(body.dir) < 0 ? -1 : 1);
-      if (moved) revalidateContent();
+      await move(score, id, Number(body.dir) < 0 ? -1 : 1);
       break;
     }
     case "unplace": {
       const id = idOf(body.coasterId); if (id === null) return bad("coasterId required");
       await unplace(score, id);
       await pool.query(`UPDATE tiebreak_groups SET picks = '{}'::jsonb, revealed = false, updated_at = now() WHERE score = $1`, [score]);
+      break;
+    }
+    case "submit": {
+      await submit(score);
       revalidateContent();
       break;
     }
