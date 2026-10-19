@@ -149,7 +149,7 @@
       + '<div class="info" onclick="event.stopPropagation();window.__tb.sheet(' + c.id + ')">i</div>' + (c.id === mine ? '<span class="tick">YOUR PICK</span>' : "") + '</div>';
 
     // the draft list; while placing, the new coaster sits in it as a draggable row (at the bottom to start)
-    const rowOf = (c, i, total, extra) => '<div class="pl ' + (extra || "") + '" data-id="' + c.id + '"><div class="rk" style="color:' + (extra ? "#fff" : col(g.score)) + '">' + (i + 1) + '</div><div class="nm">' + esc(c.name) + '<small>' + esc(c.park) + ' · #' + (above + i + 1) + (extra ? "" : c.tie_rank === i + 1 ? "" : c.tie_rank == null ? " · new" : " · was #" + (above + c.tie_rank)) + '</small></div>'
+    const rowOf = (c, i, total, extra) => '<div class="pl ' + (extra || "") + '" data-id="' + c.id + '"><div class="rk" style="color:' + (extra ? "#fff" : col(g.score)) + '">' + (i + 1) + '</div><div class="nm">' + esc(c.name) + '<small>' + esc(park(c.park)) + ' · #' + (above + i + 1) + (extra ? "" : c.tie_rank === i + 1 ? "" : c.tie_rank == null ? " · new" : " · was #" + (above + c.tie_rank)) + '</small></div>'
       + (extra ? '<div class="grip">⋮⋮</div>' : '<div class="mv"><button ' + (i === 0 ? "disabled" : "") + ' onclick="window.__tb.move(' + c.id + ',-1)" title="Up">▲</button><button ' + (i === total - 1 ? "disabled" : "") + ' onclick="window.__tb.move(' + c.id + ',1)" title="Down">▼</button></div>'
       + '<button class="x" title="Take it back out" onclick="window.__tb.unplace(' + c.id + ',\'' + esc(c.name).replace(/'/g, "\\'") + '\')">✕</button>') + '</div>';
     let listHtml;
@@ -288,7 +288,7 @@
     const spec = (v, l) => v == null || v === "" ? "" : '<div class="spec"><b>' + esc(v) + '</b><small>' + l + '</small></div>';
     sh.innerHTML = '<div class="grab"></div><button class="close" onclick="closeSheet()" aria-label="Close">✕</button>'
       + (c.image ? '<div class="ph" style="background-image:url(\'' + thumb(c.image, 1200) + '\')"></div><div class="sc">' + fmtScore(c.rating) + '</div>' : '<div class="ph" style="height:70px;background:var(--el)"></div><div class="sc" style="top:30px">' + fmtScore(c.rating) + '</div>')
-      + '<div class="bd"><h3>' + esc(c.name) + '</h3><div class="sub">' + esc(c.park) + ' · ' + esc(c.country) + (c.year ? ' · opened ' + c.year : "") + '</div>'
+      + '<div class="bd"><h3>' + esc(c.name) + '</h3><div class="sub">' + esc(park(c.park)) + ' · ' + esc(c.country) + (c.year ? ' · opened ' + c.year : "") + '</div>'
       + '<div class="specs">' + spec(c.manufacturer, "make") + spec(c.model, "model") + spec(c.type, "type") + spec(ft(c.height), "height") + spec(mph(c.speed), "speed") + spec(c.length != null ? Math.round(c.length).toLocaleString("en") + " ft" : null, "length") + spec(c.inversions, "inversions") + spec(c.gforce ? c.gforce + " g" : null, "g-force") + spec(c.duration ? Math.round(c.duration) + " s" : null, "duration") + spec(c.ridecount, "our rides") + spec(c.last_visit ? new Date(c.last_visit).getFullYear() : null, "last visit") + spec(c.isbestcoaster ? "yes" : null, "park's best") + '</div>'
       + (c.notes ? '<p class="hint" style="text-align:left">' + esc(c.notes) + '</p>' : "")
       + '<div class="rev" id="rev">Loading our review…</div>'
