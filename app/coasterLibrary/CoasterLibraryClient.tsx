@@ -19,6 +19,7 @@ type Coaster = {
   rideCount: number;
   visitCount: number;
   rating: number | null;
+  tieRank: number | null; // agreed order inside the score group (tiebreak tool), 1 = best
   parkId: number;
   parkName: string;
   country: string;
@@ -97,6 +98,7 @@ function parseCoasterList(raw: any[]): Coaster[] {
     rideCount: c.rideCount ?? 0,
     visitCount: c.visitCount ?? 1,
     rating: c.rating === null || c.rating === undefined ? null : typeof c.rating === "string" ? parseFloat(c.rating) : c.rating,
+    tieRank: c.tieRank ?? c.tie_rank ?? null,
     parkId: c.parkId,
     parkName: c.parkName,
     country: c.country ?? "Unknown",
@@ -181,7 +183,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
         const rDiff = ((a.rating ?? 0) - (b.rating ?? 0)) * d;
         if (rDiff !== 0) return rDiff;
         // agreed tiebreak order within the score (1 = best), unsettled last
-        const tA = (a as any).tieRank ?? Number.POSITIVE_INFINITY, tB = (b as any).tieRank ?? Number.POSITIVE_INFINITY;
+        const tA = a.tieRank ?? Number.POSITIVE_INFINITY, tB = b.tieRank ?? Number.POSITIVE_INFINITY;
         if (tA !== tB) return (tA - tB) * -d;
         const cDiff = ((a.rideCount ?? 0) - (b.rideCount ?? 0)) * d;
         if (cDiff !== 0) return cDiff;
