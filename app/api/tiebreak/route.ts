@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
 import { isAdminRequest } from "@/app/lib/adminAuth";
 import { revalidateContent } from "@/app/lib/revalidate";
-import { candidates, countAbove, ensureTiebreak, getGroup, logAuto, logFor, move, newRound, overview, place, players, resetGroup, seen, submit, unplace } from "@/app/lib/tiebreakStore";
+import { candidates, countAbove, ensureTiebreak, getGroup, logAuto, logFor, move, newRound, overview, place, players, reorder, resetGroup, seen, setPlacing, submit, sweepStale, unplace } from "@/app/lib/tiebreakStore";
 
 // Live tiebreak tool (UI: app/tiebreak/route.ts + public/tiebreak.js).
 // GET  /api/tiebreak                 -> { groups, players, log }           (home)
@@ -15,6 +15,8 @@ import { candidates, countAbove, ensureTiebreak, getGroup, logAuto, logFor, move
 //                                                      log match / caved / lock, next round
 //   again   { score }                                  split, nobody caves: log it, next round
 //   move    { score, coasterId, dir }                  one step up (-1) or down (+1) in the draft
+//   reorder { score, order: [ids] }                    the whole draft order after a drag
+//   placing { score, name, coasterId|null, position }  live marker: "name is dragging coasterId to position" (null clears)
 //   unplace { score, coasterId }                       take a coaster back out of the draft
 //   submit  { score }                                  publish the draft to the site (tie_rank) and revalidate
 //   reset   { score }                                  clear draft, published order and the group's history
@@ -42,6 +44,7 @@ export async function GET(req: NextRequest) {
   await ensureTiebreak();
   const s = req.nextUrl.searchParams.get("score");
   if (s === null) {
+    await sweepStale();
     const [groups, ps, log] = await Promise.all([overview(), players(), logFor(null)]);
     return NextResponse.json({ groups, players: ps, log }, NO_STORE);
   }
@@ -96,13 +99,30 @@ export async function POST(req: NextRequest) {
       const vals = Object.values(g.picks);
       const unanimous = vals.length >= 2 && vals.every(v => v === vals[0]) && vals[0] === id;
       const cavedBy = typeof body.cavedBy === "string" && body.cavedBy ? body.cavedBy.slice(0, 40) : null;
-      const { slot, auto } = await place(score, id, position);
-      await newRound(score, { result: unanimous ? "match" : cavedBy ? "caved" : "lock", coasterId: id, cavedBy });
-      if (auto) await logAuto(score, auto);
-      return NextResponse.json({ ok: true, slot, auto, ...(await groupPayload(score)) }, NO_STORE);
+      const { slot, auto, already } = await place(score, id, position);
+      if (!already) {   // a second phone pressing Done for the same coaster changes nothing
+        await newRound(score, { result: unanimous ? "match" : cavedBy ? "caved" : "lock", coasterId: id, cavedBy });
+        if (auto) await logAuto(score, auto);
+      }
+      return NextResponse.json({ ok: true, slot, auto, already, ...(await groupPayload(score)) }, NO_STORE);
     }
     case "again": {
       await newRound(score, Object.keys(g.picks).length >= 2 ? { result: "split" } : null);
+      break;
+    }
+    case "reorder": {
+      if (!Array.isArray(body.order)) return bad("order required");
+      await reorder(score, body.order);
+      break;
+    }
+    case "placing": {
+      if (body.coasterId === null || body.coasterId === undefined) await setPlacing(score, null);
+      else {
+        const id = idOf(body.coasterId); if (id === null) return bad("Bad coasterId");
+        // first phone to claim a coaster places it; the other one watches the ghost
+        if (g.placing && g.placing.id === id && g.placing.by !== name) break;
+        await setPlacing(score, { id, pos: Math.max(1, Number(body.position) || 1), by: name || "?" });
+      }
       break;
     }
     case "move": {

@@ -54,30 +54,28 @@ const head = (title: string) => `<!DOCTYPE html>
   .other summary{cursor:pointer;padding:6px 0}
   .other input{margin-top:8px}
   .err{color:#f87171;font-size:12px;min-height:18px;margin-top:8px}
-  /* home: the tied scores */
-  .grp{display:block;position:relative;overflow:hidden;background:var(--el);border:1px solid var(--line);border-radius:16px;margin-bottom:10px;text-decoration:none;padding:14px 16px 14px 14px}
-  .grp .row{display:flex;align-items:center;gap:14px}
-  .grp .sc{font-size:46px;font-weight:900;letter-spacing:-2.5px;line-height:.9;width:92px;flex:0 0 auto;text-shadow:0 2px 14px rgba(0,0,0,.4)}
+  /* home: the tied scores, each a strip of the group's photos with the score on top */
+  .grp{display:block;position:relative;overflow:hidden;height:124px;background:var(--el);border-radius:16px;margin-bottom:10px;text-decoration:none}
+  .grp .strip{position:absolute;inset:0;display:flex}
+  .grp .strip i{flex:1;background:#0b1222 center/cover no-repeat;filter:saturate(.9)}
+  .grp .shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(10,15,26,.96) 0%,rgba(10,15,26,.82) 38%,rgba(10,15,26,.35) 70%,rgba(10,15,26,.15) 100%)}
+  .grp .row{position:absolute;left:16px;right:16px;top:0;bottom:0;display:flex;align-items:center;gap:14px}
+  .grp .sc{font-size:56px;font-weight:900;letter-spacing:-3px;line-height:.85;min-width:84px;flex:0 0 auto;text-shadow:0 2px 16px rgba(0,0,0,.6)}
   .grp .nm{flex:1;min-width:0}
-  .grp .nm b{display:block;color:#fff;font-size:17px;letter-spacing:-.2px}
-  .grp .nm small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
-  .grp .thumbs{display:flex;margin-top:10px;padding-left:106px}
-  .grp .thumbs i{width:34px;height:34px;border-radius:50%;background:#0b1222 center/cover no-repeat;border:2px solid var(--el);margin-left:-9px;flex:0 0 auto}
-  .grp .thumbs i:first-child{margin-left:0}
-  .grp .thumbs i.more{display:flex;align-items:center;justify-content:center;font:900 11px Roboto,sans-serif;color:var(--muted);background:var(--el2);font-style:normal}
-  .grp .bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.06)}
+  .grp .nm b{display:block;color:#fff;font-size:18px;font-weight:900;letter-spacing:-.3px;text-shadow:0 1px 8px rgba(0,0,0,.7)}
+  .grp .nm small{display:block;color:rgba(255,255,255,.75);font-size:12px;margin-top:3px;text-shadow:0 1px 6px rgba(0,0,0,.7)}
+  .grp .bar{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.08)}
   .grp .bar i{display:block;height:100%}
-  .grp.done{opacity:.72}
   .grp.done .nm b::after{content:' ✓';color:var(--good)}
+  .grp.fresh .nm small{color:var(--accent-light);font-weight:700}
   .stats{display:flex;gap:8px;flex-wrap:wrap}
   .stat{flex:1;min-width:88px;background:var(--el);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
   .stat b{display:block;font-size:24px;font-weight:900;color:#fff;letter-spacing:-.6px;line-height:1.1}
   .stat small{display:block;color:var(--muted);font-size:10px;letter-spacing:1.2px;text-transform:uppercase;margin-top:3px}
   /* group screen */
-  .ghead{display:flex;align-items:flex-end;gap:16px;margin:4px 0 18px}
+  .ghead{display:flex;align-items:center;gap:16px;margin:0 0 18px}
   .ghead .sc{font-size:64px;font-weight:900;letter-spacing:-3.5px;line-height:.85;text-shadow:0 2px 16px rgba(0,0,0,.45)}
-  .ghead .hl{margin:0;flex:1;font-size:24px}
-  .ghead .hl small{margin-bottom:6px}
+  .ghead .hl{margin:0;flex:1;font-size:26px;padding-bottom:10px}
   .round{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:10px}
   .round b{color:#fff;font-size:15px;margin-right:4px}
   .chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:100px;background:var(--el);border:1px solid var(--line);font-size:12px;color:#fff}
@@ -85,36 +83,38 @@ const head = (title: string) => `<!DOCTYPE html>
   .chip.ok::before{content:'✓';color:var(--good);font-weight:900}
   .chip.wait::before{content:'…';color:var(--muted)}
   .list{display:flex;flex-direction:column;gap:10px}
-  .cand{display:flex;gap:12px;padding:10px;background:var(--el);border:2px solid transparent;border-radius:16px;cursor:pointer;user-select:none;position:relative}
+  .cand{padding:10px 12px 12px;background:var(--el);border:2px solid transparent;border-radius:16px;cursor:pointer;user-select:none;position:relative}
   .cand.mine{border-color:var(--accent);background:var(--el2)}
-  .cand .th{width:84px;height:84px;border-radius:12px;background:#0b1222 center/cover no-repeat;flex:0 0 auto}
-  .cand .tx{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;padding-right:34px}
-  .cand .tx b{display:block;color:#fff;font-size:17px;font-weight:900;letter-spacing:-.3px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .cand .tx small{display:block;color:var(--muted);font-size:12px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .cand .tx small em{font-style:normal;color:rgba(255,255,255,.8)}
-  .specs4{display:flex;gap:14px;margin-top:8px}
-  .specs4 div{min-width:0}
-  .specs4 b{display:block;font-size:16px;font-weight:900;color:#fff;letter-spacing:-.4px;line-height:1}
-  .specs4 b i{font-style:normal;font-size:10px;font-weight:700;color:var(--muted);margin-left:2px;letter-spacing:0}
-  .specs4 small{display:block;font-size:9px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-top:3px}
+  .cand .hd{display:flex;align-items:center;gap:12px;padding-right:36px}
+  .cand .th{width:64px;height:64px;border-radius:12px;background:#0b1222 center/cover no-repeat;flex:0 0 auto}
+  .cand .tx{flex:1;min-width:0}
+  .cand .tx b{display:block;color:#fff;font-size:18px;font-weight:900;letter-spacing:-.3px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cand .tx .ln{display:block;color:var(--muted);font-size:12px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cand .tx .ln em{font-style:normal;color:rgba(255,255,255,.8)}
+  .specs4{display:flex;justify-content:space-between;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+  .specs4 div{flex:1;min-width:0;text-align:center}
+  .specs4 b{display:block;font-size:18px;font-weight:900;color:#fff;letter-spacing:-.5px;line-height:1;white-space:nowrap}
+  .specs4 .lb{display:block;font-size:9px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-top:4px;white-space:nowrap}
   .cand .info{position:absolute;right:10px;top:10px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.08);color:#fff;font:700 14px Roboto,serif;display:flex;align-items:center;justify-content:center}
   .cand .tick{position:absolute;left:-2px;top:-2px;background:var(--accent);color:#0c0c0c;font:900 10px Roboto,sans-serif;letter-spacing:1px;padding:3px 8px;border-radius:14px 0 10px 0}
+  .cand .tick.new{background:var(--good);color:#06260f}
   /* the draft list */
   .placed{display:flex;flex-direction:column;gap:6px}
-  .pl{display:flex;align-items:center;gap:8px;padding:9px 6px 9px 12px;background:rgba(255,255,255,.04);border-radius:12px}
-  .pl .rk{width:30px;font-weight:900;font-size:18px;text-align:right;flex:0 0 auto;letter-spacing:-.5px}
-  .pl .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;font-weight:700}
-  .pl .nm small{display:block;color:var(--muted);font-weight:400;font-size:11px}
-  .pl .mv{display:flex;flex-direction:column;gap:2px}
-  .pl .mv button{padding:4px 10px;font-size:11px;border-radius:8px;background:rgba(255,255,255,.1);color:#fff;line-height:1}
-  .pl .mv button:disabled{opacity:.2}
+  .pl{display:flex;align-items:center;gap:10px;padding:7px 6px 7px 10px;background:var(--el);border:1px solid transparent;border-radius:14px;user-select:none;position:relative;transition:transform .12s}
+  .pl .rk{width:26px;font-weight:900;font-size:20px;text-align:right;flex:0 0 auto;letter-spacing:-.8px}
+  .pl .th{width:46px;height:46px;border-radius:10px;background:#0b1222 center/cover no-repeat;flex:0 0 auto}
+  .pl .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;font-weight:900;font-size:15px;letter-spacing:-.2px}
+  .pl .nm small{display:block;color:var(--muted);font-weight:400;font-size:11px;letter-spacing:0}
+  .pl .grip{font-size:20px;color:rgba(255,255,255,.4);padding:6px 12px 6px 6px;touch-action:none;cursor:grab}
   .pl .x{background:transparent;border:0;color:var(--muted);font-size:18px;padding:6px 8px}
+  .pl.lift{transition:none;z-index:5;background:var(--el2);box-shadow:0 10px 30px rgba(0,0,0,.55);cursor:grabbing}
   /* the coaster being placed: a lifted, draggable row (like the park rank lane) */
-  .pl.new{background:rgba(37,99,235,.9);border:1px solid #60a5fa;color:#fff;touch-action:none;cursor:grab;user-select:none;position:relative;z-index:5;transition:transform .12s}
-  .pl.new .rk{color:#fff} .pl.new .nm small{color:rgba(255,255,255,.75)}
-  .pl.new .grip{font-size:20px;letter-spacing:-6px;color:rgba(255,255,255,.85);padding:0 10px 0 4px}
-  .pl.new.lift{transition:none;box-shadow:0 0 14px rgba(96,165,250,.7),0 10px 30px rgba(0,0,0,.5);cursor:grabbing}
-  .placed .pl:not(.new){transition:transform .12s}
+  .pl.new{background:rgba(37,99,235,.9);border-color:#60a5fa;color:#fff;touch-action:none;cursor:grab;z-index:5}
+  .pl.new .rk{color:#fff} .pl.new .nm small{color:rgba(255,255,255,.75)} .pl.new .grip{color:rgba(255,255,255,.9)}
+  .pl.new.lift{box-shadow:0 0 14px rgba(96,165,250,.7),0 10px 30px rgba(0,0,0,.5)}
+  /* what the other phone is dragging right now */
+  .pl.ghost{background:rgba(37,99,235,.18);border:1px dashed rgba(96,165,250,.7);color:rgba(255,255,255,.85)}
+  .pl.ghost .rk{color:var(--blue)} .pl.ghost .nm small{color:var(--blue)}
   .banner{display:flex;align-items:center;gap:12px;margin-top:10px;padding:12px 14px;border-radius:12px;font-size:14px;font-weight:700}
   .banner.dirty{background:rgba(233,130,14,.12);border:1px solid rgba(233,130,14,.45);color:var(--accent-light)}
   .banner.dirty>div{flex:1} .banner.dirty button{white-space:nowrap}
@@ -180,7 +180,7 @@ const head = (title: string) => `<!DOCTYPE html>
   .rev .spoil{filter:blur(6px);cursor:pointer}
   .rev .spoil.show{filter:none}
   .sheet .links{display:flex;gap:8px;margin-top:14px}
-  .toast{position:fixed;left:50%;top:70px;transform:translateX(-50%);background:#fff;color:#0c0c0c;font-weight:700;padding:10px 16px;border-radius:100px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#fff;color:#0c0c0c;font-weight:700;padding:10px 16px;border-radius:100px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
   .toast.on{opacity:1}
   .log{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
   .log b{color:#fff}
@@ -206,7 +206,7 @@ const appPage = head("Parkrating tiebreak") + `
 <div class="sheet-bg" id="sheet-bg" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet"></div>
 <div class="toast" id="toast"></div>
-<script src="/tiebreak.js?v=5"></script>
+<script src="/tiebreak.js?v=6"></script>
 </body></html>`;
 
 export async function GET(req: NextRequest) {

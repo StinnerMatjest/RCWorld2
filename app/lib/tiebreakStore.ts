@@ -32,6 +32,7 @@ export function ensureTiebreak(): Promise<void> {
       )`);
       await pool.query(`ALTER TABLE tiebreak_groups ADD COLUMN IF NOT EXISTS order_ids JSONB`);
       await pool.query(`ALTER TABLE tiebreak_groups ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMPTZ`);
+      await pool.query(`ALTER TABLE tiebreak_groups ADD COLUMN IF NOT EXISTS live_place JSONB`);
       await pool.query(`CREATE TABLE IF NOT EXISTS tiebreak_log (
         id SERIAL PRIMARY KEY,
         score NUMERIC NOT NULL,
@@ -52,6 +53,13 @@ export function ensureTiebreak(): Promise<void> {
   return ready;
 }
 
+/** Safety net: a coaster whose score changed is not in its new group's draft, so its old position must go. */
+export async function sweepStale() {
+  await pool.query(`UPDATE rollercoasters rc SET tie_rank = NULL
+     WHERE rc.tie_rank IS NOT NULL AND NOT EXISTS (
+       SELECT 1 FROM tiebreak_groups g WHERE g.score = rc.rating AND g.order_ids @> to_jsonb(rc.id))`);
+}
+
 /** Only the tie_rank column, for the public coaster APIs (cheap, cached per process). */
 let colReady: Promise<void> | null = null;
 export function ensureTieRankColumn(): Promise<void> {
@@ -62,14 +70,15 @@ export function ensureTieRankColumn(): Promise<void> {
   return colReady;
 }
 
-export type GroupRow = { score: string; round: number; picks: Record<string, number>; revealed: boolean; order: number[]; submitted_at: string | null; updated_at: string };
+export type Placing = { id: number; pos: number; by: string } | null;
+export type GroupRow = { score: string; round: number; picks: Record<string, number>; revealed: boolean; order: number[]; placing: Placing; submitted_at: string | null; updated_at: string };
 
 /** The group row; the draft order is seeded from the published order the first time. */
 export async function getGroup(score: number): Promise<GroupRow> {
   const r = await pool.query(
     `INSERT INTO tiebreak_groups (score) VALUES ($1)
      ON CONFLICT (score) DO UPDATE SET score = EXCLUDED.score
-     RETURNING score, round, picks, revealed, order_ids, submitted_at, updated_at`,
+     RETURNING score, round, picks, revealed, order_ids, live_place AS placing, submitted_at, updated_at`,
     [score]
   );
   const row = r.rows[0];
@@ -82,7 +91,7 @@ export async function getGroup(score: number): Promise<GroupRow> {
   } else {
     order = (row.order_ids as number[]).filter(id => inGroup.has(id)); // a coaster re-scored out of the group drops out
   }
-  return { score: row.score, round: row.round, picks: row.picks, revealed: row.revealed, order, submitted_at: row.submitted_at, updated_at: row.updated_at };
+  return { score: row.score, round: row.round, picks: row.picks, revealed: row.revealed, order, placing: row.placing ?? null, submitted_at: row.submitted_at, updated_at: row.updated_at };
 }
 
 async function saveOrder(score: number, order: number[]) {
@@ -146,7 +155,8 @@ export async function countAbove(score: number) {
  */
 export async function place(score: number, coasterId: number, position: number | null) {
   const g = await getGroup(score);
-  const order = g.order.filter(id => id !== coasterId);
+  if (g.order.includes(coasterId)) { await setPlacing(score, null); return { slot: g.order.indexOf(coasterId) + 1, auto: null, already: true }; }
+  const order = [...g.order];
   const k = position == null ? order.length : Math.min(Math.max(position, 1), order.length + 1) - 1;
   order.splice(k, 0, coasterId);
   const all = await pool.query<{ id: number }>(`SELECT id FROM rollercoasters WHERE rating = $1`, [score]);
@@ -154,7 +164,22 @@ export async function place(score: number, coasterId: number, position: number |
   let auto: number | null = null;
   if (rest.length === 1) { auto = rest[0]; order.push(auto); }
   await saveOrder(score, order);
-  return { slot: k + 1, auto };
+  await setPlacing(score, null);
+  return { slot: k + 1, auto, already: false };
+}
+
+/** The live "X is dragging Y to position p" marker the other phone shows; null clears it. */
+export async function setPlacing(score: number, p: Placing) {
+  await pool.query(`UPDATE tiebreak_groups SET live_place = $2::jsonb, updated_at = now() WHERE score = $1`, [score, p ? JSON.stringify(p) : null]);
+}
+
+/** Replace the whole draft order (drag reorder). Only ids of this group, no duplicates; missing ones stay out. */
+export async function reorder(score: number, ids: number[]) {
+  const all = await pool.query<{ id: number }>(`SELECT id FROM rollercoasters WHERE rating = $1`, [score]);
+  const ok = new Set(all.rows.map(x => x.id));
+  const clean = [...new Set(ids.map(Number))].filter(id => ok.has(id));
+  await saveOrder(score, clean);
+  return clean;
 }
 
 /** Move a listed coaster one step up (dir -1) or down (dir +1) in the draft. */
@@ -187,7 +212,7 @@ export async function submit(score: number) {
 /** "Start this group over": draft, published order, round and the group's history on the scoreboard. */
 export async function resetGroup(score: number) {
   await pool.query(`UPDATE rollercoasters SET tie_rank = NULL WHERE rating = $1`, [score]);
-  await pool.query(`UPDATE tiebreak_groups SET picks = '{}'::jsonb, revealed = false, round = 1, order_ids = '[]'::jsonb, submitted_at = NULL, updated_at = now() WHERE score = $1`, [score]);
+  await pool.query(`UPDATE tiebreak_groups SET picks = '{}'::jsonb, revealed = false, round = 1, order_ids = '[]'::jsonb, live_place = NULL, submitted_at = NULL, updated_at = now() WHERE score = $1`, [score]);
   await pool.query(`DELETE FROM tiebreak_log WHERE score = $1`, [score]);
 }
 
@@ -197,7 +222,7 @@ export async function newRound(score: number, logResult: { result: string; coast
     await pool.query(`INSERT INTO tiebreak_log (score, round, mode, picks, result, coaster_id, caved_by) VALUES ($1,$2,'list',$3,$4,$5,$6)`,
       [score, g.round, JSON.stringify(g.picks), logResult.result, logResult.coasterId ?? null, logResult.cavedBy ?? null]);
   }
-  await pool.query(`UPDATE tiebreak_groups SET picks = '{}'::jsonb, revealed = false, round = round + 1, updated_at = now() WHERE score = $1`, [score]);
+  await pool.query(`UPDATE tiebreak_groups SET picks = '{}'::jsonb, revealed = false, round = round + 1, live_place = NULL, updated_at = now() WHERE score = $1`, [score]);
 }
 
 export async function logAuto(score: number, coasterId: number) {

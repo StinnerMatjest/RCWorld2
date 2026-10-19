@@ -117,7 +117,9 @@ export async function PUT(
       isbestcoaster = $8,
       rating = $9,
       ridecount = $10, 
-      slug = $11
+      slug = $11,
+      -- a new score means a new tie group: the agreed position no longer applies (tiebreak tool)
+      tie_rank = CASE WHEN rating IS DISTINCT FROM $9 THEN NULL ELSE tie_rank END
   WHERE id = $12 AND park_id = $13
   RETURNING *;
 `;

@@ -1,9 +1,12 @@
 // Parkrating tiebreak: the phone app. Served by app/tiebreak/route.ts, talks to /api/tiebreak.
 // Two people, two phones, same room. Pick in secret, reveal together, drag what you agree on into
-// one shared draft list, move things up or down, and submit the list to the site when it is right.
+// one shared draft list, and submit the list to the site when the group is complete.
 //
-// Phases on the group screen:  pick (candidates shown)  ->  decide (reveal result, candidates hidden)
-//                              ->  place (the new coaster is a draggable row in the list)  ->  pick again
+// Phases on the group screen:
+//   pick    candidates shown, each phone picks in secret
+//   decide  revealed; MATCH goes straight to placing, NO MATCH asks who gives way
+//   place   the new coaster is a draggable row in the list on the placer's phone...
+//   watch   ...and a ghost row that follows along on the other phone
 (function () {
   const $ = (s, r) => (r || document).querySelector(s);
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -11,9 +14,6 @@
   const NAMES = ["Jannik", "Nicklas"];
   const R2 = "https://pub-ea1e61b5d5614f95909efeacb8943e78.r2.dev/";
   const thumb = (u, w) => { if (!u) return ""; const base = u.startsWith("http") ? u : R2 + u; return base.replace(/\.(jpe?g|png|webp)$/i, "") + "-w" + (w || 480) + ".webp"; };
-  // the database stores feet and mph; shown as they are
-  const ft = v => v == null ? null : Math.round(v) + " ft";
-  const mph = v => v == null ? null : Math.round(v) + " mph";
   const fmtScore = s => String(Number(s)).replace(/\.0$/, "");
   const park = p => String(p || "").replace("Disneyland Paris - ", "DLP · ");
   const recent = d => (Date.now() - new Date(d).getTime()) / 1000 < 12;
@@ -24,10 +24,10 @@
 
   let me = localStorage.getItem("tiebreak-name") || "";
   let state = null, score = null, timer = null, busy = false;
-  let placing = null;              // { id, cavedBy } while dragging a coaster into the list
+  let placing = null;              // { id, cavedBy } while this phone drags a coaster into the list
   let dragging = false;            // no repaint while a finger is on a row
-  let actionSeq = 0, lastActionDone = 0, lastKey = "";  // actions bump the sequence so stale polls are dropped; lastKey skips no-op re-renders
-  const seenReveal = {};           // score -> "round:revealed" we last animated
+  let actionSeq = 0, lastActionDone = 0, lastKey = "";
+  const seenReveal = {}, autoPlaced = {};   // per score: "round:revealed" animated / round auto-placed on a match
 
   async function api(body) {
     const r = await fetch("/api/tiebreak", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -53,7 +53,6 @@
     clearTimeout(timer);
     if (!me) { renderName(); return; }
     try {
-      // a poll is only trusted if no action started or finished while it was in flight
       const seq = actionSeq, started = Date.now();
       const fresh = () => seq === actionSeq && started > lastActionDone && !busy;
       if (score === null) { const d = await get(); if (d && fresh()) { state = d; renderHome(); } }
@@ -72,25 +71,24 @@
   function setName(v) { v = (v || "").trim(); if (!v) return; me = v.slice(0, 40); localStorage.setItem("tiebreak-name", me); api({ action: "hello", name: me }).catch(() => {}); tick(); }
   function changeName() { localStorage.removeItem("tiebreak-name"); me = ""; renderName(); }
 
-  function topbar(title, back) {
-    // the two of you always; anyone else only while they are actually here
+  function topbar(back) {
     const ps = (state && state.players) || [];
     const others = [...new Set([...NAMES.filter(n => n !== me), ...ps.filter(p => recent(p.last_seen) && !NAMES.includes(p.name)).map(p => p.name).filter(n => n !== me)])].slice(0, 3);
     const seen = Object.fromEntries(ps.map(p => [p.name, p.last_seen]));
     const dots = others.map(n => '<span class="chip"><span class="dot ' + (seen[n] && recent(seen[n]) ? "on" : "") + '"></span>' + esc(n) + '</span>').join("");
-    return '<div class="top">' + (back ? '<a class="back" href="#/">‹</a>' : "") + '<div class="ttl">' + title + '</div><div class="who">' + dots + '<span class="me" onclick="window.__tb.changeName()" title="Change name">' + esc(me) + '</span></div></div>';
+    return '<div class="top">' + (back ? '<a class="back" href="#/">‹</a>' : "") + '<div class="ttl"><span>Tiebreak</span></div><div class="who">' + dots + '<span class="me" onclick="window.__tb.changeName()" title="Change name">' + esc(me) + '</span></div></div>';
   }
 
-  // ---- home: the score groups
+  // ---- home: the tied scores
   function renderHome() {
     const groups = state.groups || [];
     const open = groups.filter(g => g.placed < g.count), done = groups.filter(g => g.placed >= g.count);
-    const row = g => { const pct = Math.round(100 * g.placed / g.count), c = col(g.score), left = g.count - g.placed, done = g.placed >= g.count;
-      const status = done ? (g.published === g.count && g.submitted_at ? "on the site" : "ready to submit") : (left === g.count ? "all " + left : left) + " to settle";
-      const thumbs = (g.thumbs || []).slice(0, 5).map(t => '<i style="background-image:url(\'' + thumb(t, 480) + '\')"></i>').join("") + (g.count > 5 ? '<i class="more">+' + (g.count - 5) + '</i>' : "");
-      return '<a class="grp ' + (done ? "done" : "") + '" href="#/g/' + fmtScore(g.score) + '"><div class="row"><div class="sc" style="color:' + c + '">' + fmtScore(g.score) + '</div><div class="nm"><b>' + g.count + ' coasters</b><small>' + status + '</small></div></div><div class="thumbs">' + thumbs + '</div><div class="bar"><i style="width:' + pct + '%;background:' + c + '"></i></div></a>'; };
+    const row = g => { const pct = Math.round(100 * g.placed / g.count), c = col(g.score), left = g.count - g.placed, isDone = g.placed >= g.count;
+      const status = isDone ? (g.published === g.count && g.submitted_at ? "on the site" : "ready to submit") : g.submitted_at ? left + " new to place" : (left === g.count ? "all " + left : left) + " to settle";
+      const strip = (g.thumbs || []).slice(0, 6).map(t => '<i style="background-image:url(\'' + thumb(t, 480) + '\')"></i>').join("");
+      return '<a class="grp ' + (isDone ? "done" : g.submitted_at ? "fresh" : "") + '" href="#/g/' + fmtScore(g.score) + '"><div class="strip">' + strip + '</div><div class="shade"></div><div class="row"><div class="sc" style="color:' + c + '">' + fmtScore(g.score) + '</div><div class="nm"><b>' + g.count + ' coasters</b><small>' + status + '</small></div></div><div class="bar"><i style="width:' + pct + '%;background:' + c + '"></i></div></a>'; };
     const s = stats(state.log || []);
-    app.innerHTML = topbar('<span>Tiebreak</span>', false) + '<div class="wrap">'
+    app.innerHTML = topbar(false) + '<div class="wrap">'
       + '<div class="hl"><small>Parkrating · admin</small>Tied scores</div>'
       + '<div>' + (open.map(row).join("") || '<div class="hint" style="text-align:left">Nothing tied. Go ride something.</div>') + '</div>'
       + (done.length ? '<h2>Settled</h2><div>' + done.map(row).join("") + '</div>' : "")
@@ -98,29 +96,27 @@
       + '</div>';
   }
   function stats(log) {
-    const s = { rounds: 0, match: 0, split: 0, caved: {} };
-    log.forEach(l => { if (l.result === "auto" || l.result === "submit") return; s.rounds++; if (l.result === "match") s.match++; if (l.result === "split") s.split++; if (l.result === "caved" && l.caved_by) s.caved[l.caved_by] = (s.caved[l.caved_by] || 0) + 1; });
+    const s = { rounds: 0, match: 0, disagree: 0 };
+    log.forEach(l => { if (l.result === "auto" || l.result === "submit") return; s.rounds++; if (l.result === "match") s.match++; if (l.result === "split" || l.result === "caved") s.disagree++; });
     return s;
   }
   function statsHtml(s) {
     const pct = s.rounds ? Math.round(100 * s.match / s.rounds) : 0;
-    const caved = Object.entries(s.caved).map(([n, c]) => '<div class="stat"><b>' + c + '</b><small>' + esc(n) + ' caved</small></div>').join("");
-    return '<div class="stats"><div class="stat"><b>' + pct + '%</b><small>agreed first try</small></div><div class="stat"><b>' + s.match + '</b><small>matches</small></div><div class="stat"><b>' + s.split + '</b><small>no match, re-picked</small></div>' + caved + '</div>';
+    return '<div class="stats"><div class="stat"><b>' + pct + '%</b><small>agreed first try</small></div><div class="stat"><b>' + s.match + '</b><small>matches</small></div><div class="stat"><b>' + s.disagree + '</b><small>times we disagreed</small></div></div>';
   }
   function logLine(l) {
     const who = Object.keys(l.picks || {});
     const t = l.result === "match" ? "<b>match</b> on " : l.result === "caved" ? "<b>" + esc(l.caved_by) + " caved</b>, listed " : l.result === "split" ? "<b>no match</b> " + who.map(esc).join(" vs ") + ", picked again" : l.result === "auto" ? "last one standing: " : l.result === "submit" ? "<b>submitted to the site</b>" : "listed ";
-    return '<div>' + fmtScore(l.score) + ' · ' + t + (l.coaster ? "<b>" + esc(l.coaster) + "</b>" : "") + '</div>';
+    return '<div>' + t + (l.coaster ? "<b>" + esc(l.coaster) + "</b>" : "") + '</div>';
   }
 
   // ---- one group
   function renderKey() {
     const g = state.group, ps = (state.players || []).map(p => p.name + ":" + (recent(p.last_seen) ? 1 : 0)).sort().join(",");
-    return JSON.stringify([g.round, g.revealed, g.picks, g.order, g.submitted_at, state.candidates.map(c => c.id + ":" + c.tie_rank), (state.log || []).length, ps, placing && placing.id, me]);
+    return JSON.stringify([g.round, g.revealed, g.picks, g.order, g.placing, g.submitted_at, state.candidates.map(c => c.id + ":" + c.tie_rank), (state.log || []).length, ps, placing && placing.id, placing && placing.pos, me]);
   }
   function renderGroup() {
     if (dragging) return;
-    const rkey = renderKey(); if (rkey === lastKey) return; lastKey = rkey;
     const g = state.group, all = state.candidates, above = state.above;
     const byId = Object.fromEntries(all.map(c => [c.id, c]));
     const order = (g.order || []).filter(id => byId[id]);
@@ -128,57 +124,55 @@
     const published = all.filter(c => c.tie_rank != null).sort((a, b) => a.tie_rank - b.tie_rank).map(c => c.id);
     const dirty = JSON.stringify(order) !== JSON.stringify(published);
     const picks = g.picks || {}, names = Object.keys(picks), mine = picks[me];
-    const revealed = g.revealed;
-    if (placing && (!byId[placing.id] || order.includes(placing.id))) placing = null;   // the other phone listed it meanwhile
-    const phase = placing ? "place" : revealed && names.length >= 2 ? "decide" : "pick";
+    const revealed = g.revealed && names.length >= 2;
+    const vals = names.map(nm => picks[nm]), unanimous = revealed && vals.every(v => v === vals[0]);
+    if (placing && (!byId[placing.id] || order.includes(placing.id))) placing = null;        // listed meanwhile
+    const live = g.placing && byId[g.placing.id] && !order.includes(g.placing.id) ? g.placing : null;  // someone is dragging
+    if (placing && live && live.by !== me) placing = null;                                      // the other phone got there first
+    const phase = placing ? "place" : live && live.by !== me ? "watch" : revealed ? "decide" : "pick";
 
     // the reveal moment, once per round, on both phones
-    const key = g.round + ":" + revealed;
-    if (revealed && names.length >= 2 && seenReveal[score] !== key) { seenReveal[score] = key; drama(names, picks, byId); }
-    if (!revealed) { seenReveal[score] = key; }
+    const key = g.round + ":" + g.revealed;
+    if (revealed && seenReveal[score] !== key) { seenReveal[score] = key; drama(names, picks, byId); }
+    if (!g.revealed) seenReveal[score] = key;
+    // a match needs no button: straight to placing (the server hands the drag to the first phone that asks)
+    if (unanimous && phase === "decide" && autoPlaced[score] !== g.round) { autoPlaced[score] = g.round; A.startPlace(vals[0], null); }
+
+    const rkey = renderKey(); if (rkey === lastKey) return; lastKey = rkey;
 
     const everyone = [...new Set([...NAMES, me, ...names])];
     const chips = everyone.map(nm => '<span class="chip ' + (picks[nm] != null ? "ok" : "wait") + '">' + esc(nm) + '</span>').join("");
 
     // candidates still to list (pick phase only)
-    const stat = (v, unit, label) => v == null ? "" : '<div><b>' + esc(v) + (unit ? '<i>' + unit + '</i>' : "") + '</b><small>' + label + '</small></div>';
+    const stat = (v, label) => '<div><b>' + (v == null ? "–" : esc(v)) + '</b><span class="lb">' + label + '</span></div>';
     const cand = c => '<div class="cand ' + (c.id === mine ? "mine" : "") + '" onclick="window.__tb.pick(' + c.id + ')">'
-      + '<div class="th" style="background-image:url(\'' + thumb(c.image, 480) + '\')"></div>'
-      + '<div class="tx"><div><b>' + esc(c.name) + '</b><small><em>' + esc(park(c.park)) + '</em> · ' + esc(c.country) + (c.manufacturer ? ' · ' + esc(c.manufacturer) : "") + (c.year ? ' ' + c.year : "") + '</small></div>'
-      + '<div class="specs4">' + stat(c.inversions, "", "inv") + stat(c.speed != null ? Math.round(c.speed) : null, "mph", "speed") + stat(c.height != null ? Math.round(c.height) : null, "ft", "height") + stat(c.ridecount || null, "", c.ridecount === 1 ? "ride" : "rides") + '</div></div>'
-      + '<div class="info" onclick="event.stopPropagation();window.__tb.sheet(' + c.id + ')">i</div>' + (c.id === mine ? '<span class="tick">YOUR PICK</span>' : "") + '</div>';
+      + '<div class="hd"><div class="th" style="background-image:url(\'' + thumb(c.image, 480) + '\')"></div>'
+      + '<div class="tx"><b>' + esc(c.name) + '</b><span class="ln"><em>' + esc(park(c.park)) + '</em> · ' + (c.manufacturer ? esc(c.manufacturer) : esc(c.country)) + (c.year ? ' ' + c.year : "") + '</span></div></div>'
+      + '<div class="specs4">' + stat(c.inversions, "inv") + stat(c.speed != null ? Math.round(c.speed) : null, "mph") + stat(c.height != null ? Math.round(c.height) : null, "ft") + stat(c.ridecount, c.ridecount === 1 ? "ride" : "rides") + '</div>'
+      + '<div class="info" onclick="event.stopPropagation();window.__tb.sheet(' + c.id + ')">i</div>' + (c.id === mine ? '<span class="tick">YOUR PICK</span>' : g.submitted_at ? '<span class="tick new">NEW</span>' : "") + '</div>';
 
-    // the draft list; while placing, the new coaster sits in it as a draggable row (at the bottom to start)
-    const rowOf = (c, i, total, extra) => '<div class="pl ' + (extra || "") + '" data-id="' + c.id + '"><div class="rk" style="color:' + (extra ? "#fff" : col(g.score)) + '">' + (i + 1) + '</div><div class="nm">' + esc(c.name) + '<small>' + esc(park(c.park)) + ' · #' + (above + i + 1) + (extra ? "" : c.tie_rank === i + 1 ? "" : c.tie_rank == null ? " · new" : " · was #" + (above + c.tie_rank)) + '</small></div>'
-      + (extra ? '<div class="grip">⋮⋮</div>' : '<div class="mv"><button ' + (i === 0 ? "disabled" : "") + ' onclick="window.__tb.move(' + c.id + ',-1)" title="Up">▲</button><button ' + (i === total - 1 ? "disabled" : "") + ' onclick="window.__tb.move(' + c.id + ',1)" title="Down">▼</button></div>'
-      + '<button class="x" title="Take it back out" onclick="window.__tb.unplace(' + c.id + ',\'' + esc(c.name).replace(/'/g, "\\'") + '\')">✕</button>') + '</div>';
-    let listHtml;
-    if (phase === "place") {
-      const rows = placed.map((c, i) => rowOf(c, i, placed.length + 1, "")).join("") + rowOf(byId[placing.id], placed.length, placed.length + 1, "new");
-      listHtml = '<div class="placed" id="placed">' + rows + '</div>';
-    } else {
-      const banner = dirty
-        ? '<div class="banner dirty"><div>Not on the site yet</div><button onclick="window.__tb.submit()">Submit to site</button></div>'
-        : (placed.length ? '<div class="banner ok">On the site' + (g.submitted_at ? '<small>' + when(g.submitted_at) + '</small>' : "") + '</div>' : "");
-      listHtml = (placed.length ? '<div class="placed" id="placed">' + placed.map((c, i) => rowOf(c, i, placed.length, "")).join("") + '</div>' : "") + banner;
-    }
+    // the draft list
+    const rowOf = (c, i, kind) => '<div class="pl ' + kind + '" data-id="' + c.id + '"><div class="rk" style="color:' + (kind ? "" : col(g.score)) + '">' + (i + 1) + '</div><div class="th" style="background-image:url(\'' + thumb(c.image, 480) + '\')"></div><div class="nm">' + esc(c.name) + '<small>' + (kind === "ghost" ? esc(live.by) + " is placing…" : esc(park(c.park))) + '</small></div>'
+      + (kind === "new" ? '<div class="grip">⠿</div>' : kind === "ghost" ? "" : '<div class="grip">⠿</div><button class="x" title="Take it back out" onclick="window.__tb.unplace(' + c.id + ',\'' + esc(c.name).replace(/'/g, "\\'") + '\')">✕</button>') + '</div>';
+    let rows = placed.map((c, i) => rowOf(c, i, ""));
+    if (phase === "place") rows.splice(Math.min(Math.max((placing.pos || rows.length + 1) - 1, 0), rows.length), 0, rowOf(byId[placing.id], 0, "new"));
+    if (phase === "watch") rows.splice(Math.min(live.pos - 1, rows.length), 0, rowOf(byId[live.id], 0, "ghost"));
+    rows = rows.map((h, i) => h.replace(/<div class="rk"([^>]*)>\d+<\/div>/, '<div class="rk"$1>' + (i + 1) + '</div>'));
+    const complete = !open.length;
+    const banner = complete ? (dirty ? '<div class="banner dirty"><div>Not on the site yet</div><button onclick="window.__tb.submit()">Submit to site</button></div>' : '<div class="banner ok">On the site' + (g.submitted_at ? '<small>' + when(g.submitted_at) + '</small>' : "") + '</div>') : "";
+    const listHtml = (rows.length ? '<div class="placed" id="placed">' + rows.join("") + '</div>' : "") + banner;
 
     // action bar
     let act = "";
-    if (phase === "place") {
-      const c = byId[placing.id];
-      act = '<div class="verdict place">Drag <b>' + esc(c.name) + '</b> into place</div><div class="btns"><button class="sec" onclick="window.__tb.cancelPlace()">Back</button><button onclick="window.__tb.placeDone()">Done</button></div>';
-    } else if (!open.length) {
-      act = '<div class="verdict match">LIST COMPLETE</div>' + (dirty ? '<div class="btns"><button onclick="window.__tb.submit()">Submit to site</button></div>' : "")
-        + '<div class="btns"><button class="danger" onclick="window.__tb.reset()">Start this group over</button></div>';
-    } else if (phase === "pick") {
+    if (phase === "place") act = '<div class="verdict place">Drag <b>' + esc(byId[placing.id].name) + '</b> into place</div><div class="btns"><button class="sec" onclick="window.__tb.cancelPlace()">Back</button><button onclick="window.__tb.placeDone()">Done</button></div>';
+    else if (phase === "watch") act = '<div class="verdict place"><b>' + esc(live.by) + '</b> is placing ' + esc(byId[live.id].name) + '</div>';
+    else if (complete) act = '<div class="verdict match">LIST COMPLETE</div>' + (dirty ? '<div class="btns"><button onclick="window.__tb.submit()">Submit to site</button></div>' : "") + '<div class="btns"><button class="danger" onclick="window.__tb.reset()">Start this group over</button></div>';
+    else if (phase === "pick") {
       const can = names.length >= 2;
-      act = '<div class="verdict round">Round ' + g.round + '</div>'
-        + '<div class="btns">' + (mine != null ? '<button class="sec" onclick="window.__tb.pick(null)">Clear my pick</button>' : "") + '<button ' + (can ? "" : "disabled") + ' onclick="window.__tb.reveal()">Reveal</button></div>';
+      act = '<div class="verdict round">Round ' + g.round + '</div><div class="btns">' + (mine != null ? '<button class="sec" onclick="window.__tb.pick(null)">Clear my pick</button>' : "") + '<button ' + (can ? "" : "disabled") + ' onclick="window.__tb.reveal()">Reveal</button></div>';
     } else {
-      const vals = names.map(nm => picks[nm]); const unanimous = vals.every(v => v === vals[0]);
       const pk = names.map(nm => '<div class="pk ' + (nm === me ? "a" : "b") + '"><small>' + esc(nm) + '</small><b>' + esc(byId[picks[nm]] ? byId[picks[nm]].name : "?") + '</b></div>').join("");
-      if (unanimous) act = '<div class="verdict match">MATCH</div><div class="picks">' + pk + '</div><div class="btns"><button class="sec" onclick="window.__tb.again()">Pick again</button><button onclick="window.__tb.startPlace(' + vals[0] + ',null)">List ' + esc(byId[vals[0]] ? byId[vals[0]].name : "") + '</button></div>';
+      if (unanimous) act = '<div class="verdict match">MATCH</div><div class="picks">' + pk + '</div>';
       else {
         const uniq = [...new Set(vals)];
         act = '<div class="verdict split">NO MATCH</div><div class="picks">' + pk + '</div><div class="slots">' + uniq.map(id => { const cavers = names.filter(nm => picks[nm] !== id);
@@ -188,39 +182,44 @@
     }
 
     const s = stats(state.log || []);
-    app.innerHTML = topbar('<span>Tiebreak</span>', true) + '<div class="wrap">'
-      + '<div class="ghead"><div class="sc" style="color:' + col(g.score) + '">' + fmtScore(g.score) + '</div><div class="hl"><small>' + n + ' coasters · ' + placed.length + ' listed · #' + (above + 1) + '–' + (above + n) + '</small>Tied at ' + fmtScore(g.score) + '</div></div>'
-      + (placed.length || phase === "place" ? '<h2 style="margin-top:0">The list</h2>' : "") + listHtml
+    app.innerHTML = topbar(true) + '<div class="wrap">'
+      + '<div class="ghead"><div class="sc" style="color:' + col(g.score) + '">' + fmtScore(g.score) + '</div><div class="hl">Tied at ' + fmtScore(g.score) + '</div></div>'
+      + (rows.length ? '<h2 style="margin-top:0">The list</h2>' : "") + listHtml
       + (phase === "pick" && open.length ? '<h2>Still to list</h2><div class="round"><b>Round ' + g.round + '</b>' + chips + '</div><div class="list">' + open.map(cand).join("") + '</div>' : "")
       + (phase === "pick" && s.rounds ? '<h2>Scoreboard</h2>' + statsHtml(s) + '<h2>Rounds</h2><div class="log">' + state.log.filter(l => l.result !== "submit").slice(0, 10).map(logLine).join("") + '</div>' : "")
       + '</div><div class="act"><div class="in">' + act + '</div></div>';
-    if (phase === "place") { const row = $("#placed .pl.new"); if (row) { bindDrag(row); row.scrollIntoView({ block: "center" }); } }
+    if (phase === "place") { const row = $("#placed .pl.new"); if (row) { bindDrag(row, row, () => { if (placing) placing.pos = dropIndex() + 1; sendPlacing(); }); row.scrollIntoView({ block: "center" }); } }
+    else if (phase === "pick" || complete) document.querySelectorAll("#placed .pl").forEach(r => { const grip = r.querySelector(".grip"); if (grip) bindDrag(r, grip, () => A.reorder()); });
   }
 
-  // ---- dragging the new row up and down the list (same feel as the park rank lane: the new one lifts, the others shift)
-  function bindDrag(row) {
+  // ---- dragging a row up and down the list: the row lifts, the others shift (same feel as the park rank lane)
+  function bindDrag(row, handle, onDrop) {
     const box = row.parentElement;
     const renumber = () => [...box.querySelectorAll(".pl")].forEach((r, i) => { r.querySelector(".rk").textContent = i + 1; });
-    row.addEventListener("pointerdown", e => {
+    handle.addEventListener("pointerdown", e => {
       if (e.pointerType === "mouse" && e.button !== 0) return;
-      e.preventDefault(); row.setPointerCapture(e.pointerId);
+      e.preventDefault(); handle.setPointerCapture(e.pointerId);
       dragging = true; row.classList.add("lift"); buzz(10);
-      const startY = e.clientY; let shift = 0;
-      const step = row.offsetHeight + 6;   // row + gap
+      const startY = e.clientY; let shift = 0, moved = false;
+      const step = row.offsetHeight + 6;
+      const place = dy => { row.style.transform = "translateY(" + (dy + shift) + "px) scale(1.02)"; };
       const mv = ev => {
-        const dy = ev.clientY - startY;
-        row.style.transform = "translateY(" + (dy + shift) + "px) scale(1.03)";
+        const dy = ev.clientY - startY; place(dy);
         const r = row.getBoundingClientRect(), mid = r.top + r.height / 2;
         const prev = row.previousElementSibling, next = row.nextElementSibling;
-        if (prev && prev.classList.contains("pl")) { const pr = prev.getBoundingClientRect(); if (mid < pr.top + pr.height / 2) { box.insertBefore(row, prev); shift += step; row.style.transform = "translateY(" + (dy + shift) + "px) scale(1.03)"; renumber(); buzz(8); return; } }
-        if (next && next.classList.contains("pl")) { const nr = next.getBoundingClientRect(); if (mid > nr.top + nr.height / 2) { box.insertBefore(next, row); shift -= step; row.style.transform = "translateY(" + (dy + shift) + "px) scale(1.03)"; renumber(); buzz(8); } }
+        if (prev && prev.classList.contains("pl")) { const pr = prev.getBoundingClientRect(); if (mid < pr.top + pr.height / 2) { box.insertBefore(row, prev); shift += step; place(dy); renumber(); moved = true; buzz(8); if (onDrop) onDrop(true); return; } }
+        if (next && next.classList.contains("pl")) { const nr = next.getBoundingClientRect(); if (mid > nr.top + nr.height / 2) { box.insertBefore(next, row); shift -= step; place(dy); renumber(); moved = true; buzz(8); if (onDrop) onDrop(true); } }
       };
-      const up = () => { row.removeEventListener("pointermove", mv); row.removeEventListener("pointerup", up); row.removeEventListener("pointercancel", up);
-        row.style.transform = ""; row.classList.remove("lift"); dragging = false; renumber(); };
-      row.addEventListener("pointermove", mv); row.addEventListener("pointerup", up); row.addEventListener("pointercancel", up);
+      const up = () => { handle.removeEventListener("pointermove", mv); handle.removeEventListener("pointerup", up); handle.removeEventListener("pointercancel", up);
+        row.style.transform = ""; row.classList.remove("lift"); dragging = false; renumber(); if (moved && onDrop) onDrop(false); };
+      handle.addEventListener("pointermove", mv); handle.addEventListener("pointerup", up); handle.addEventListener("pointercancel", up);
     });
   }
+  const listIds = () => [...document.querySelectorAll("#placed .pl")].map(r => Number(r.dataset.id));
   function dropIndex() { const rows = [...document.querySelectorAll("#placed .pl")]; const i = rows.findIndex(r => r.classList.contains("new")); return i < 0 ? rows.length : i; }
+  // tell the other phone where the new row is now (throttled; fire and forget)
+  let placingT = null;
+  function sendPlacing() { if (!placing) return; clearTimeout(placingT); placingT = setTimeout(() => { if (placing) api({ action: "placing", score, name: me, coasterId: placing.id, position: dropIndex() + 1 }).catch(() => {}); }, 120); }
 
   // ---- the reveal: a short, tense sequence on both phones; Skip jumps to the end, Continue closes
   function drama(names, picks, byId) {
@@ -238,7 +237,6 @@
     const stop = e => { if (e) { e.preventDefault(); e.stopPropagation(); } t.forEach(clearTimeout); };
     const showAll = e => { stop(e); ov.querySelectorAll(".hide").forEach(x => x.classList.remove("hide")); skip.classList.add("hide"); };
     const close = e => { stop(e); ov.classList.remove("on"); ov.innerHTML = ""; };
-    // preventDefault on touchend stops the follow-up click from landing on whatever is underneath
     skip.addEventListener("touchend", showAll, { passive: false }); skip.addEventListener("click", showAll);
     go.addEventListener("touchend", close, { passive: false }); go.addEventListener("click", close);
     ov.addEventListener("touchend", e => e.preventDefault(), { passive: false });
@@ -253,20 +251,23 @@
       if (state.group.revealed) return;
       const next = id === state.group.picks[me] ? null : id;
       const picks = { ...state.group.picks }; if (next === null) delete picks[me]; else picks[me] = next;
-      state = { ...state, group: { ...state.group, picks } }; renderGroup();   // show it at once
+      state = { ...state, group: { ...state.group, picks } }; renderGroup();
       act({ action: "pick", name: me, coasterId: next });
     },
     reveal: () => act({ action: "reveal" }),
     again: () => act({ action: "again" }),
-    startPlace: (id, cavedBy) => {
-      if (!(state.group.order || []).length) { act({ action: "lock", coasterId: id, position: 1, cavedBy: cavedBy || null }).then(() => toast("Listed")); return; }
-      placing = { id, cavedBy: cavedBy || null }; renderGroup();
+    startPlace: async (id, cavedBy) => {
+      const order = state.group.order || [];
+      if (!order.length) { act({ action: "lock", coasterId: id, position: 1, cavedBy: cavedBy || null }).then(() => toast("Listed")); return; }
+      // claim the drag; if the other phone was first, we watch instead
+      const d = await act({ action: "placing", name: me, coasterId: id, position: order.length + 1 });
+      if (d && d.group && d.group.placing && d.group.placing.by === me) { placing = { id, cavedBy: cavedBy || null, pos: order.length + 1 }; lastKey = ""; renderGroup(); }
     },
-    cancelPlace: () => { placing = null; renderGroup(); },
+    cancelPlace: () => { const p = placing; placing = null; lastKey = ""; act({ action: "placing", name: me, coasterId: null }); if (!p) renderGroup(); },
     placeDone: () => { const p = placing; if (!p) return; const pos = dropIndex() + 1; placing = null; act({ action: "lock", coasterId: p.id, position: pos, cavedBy: p.cavedBy }).then(() => toast("Listed at " + pos)); },
-    move: (id, dir) => act({ action: "move", coasterId: id, dir }),
+    reorder: () => act({ action: "reorder", order: listIds() }),
     unplace: (id, name) => { if (confirm("Take " + name + " back out of the list?")) act({ action: "unplace", coasterId: id }); },
-    submit: () => { if (confirm("Put this order on the site? Coaster pages and rankings update right away.")) act({ action: "submit" }).then(() => toast("On the site")); },
+    submit: () => { if (confirm("Put this order on the site?")) act({ action: "submit" }).then(() => toast("On the site")); },
     reset: () => { if (confirm("Clear this group's list, its order on the site and its history, and start over?")) act({ action: "reset" }); },
     sheet: id => openSheet(id),
   };
@@ -285,6 +286,7 @@
   async function openSheet(id) {
     const c = (state.candidates || []).find(x => x.id === id); if (!c) return;
     const sh = $("#sheet");
+    const ft = v => v == null ? null : Math.round(v) + " ft", mph = v => v == null ? null : Math.round(v) + " mph";
     const spec = (v, l) => v == null || v === "" ? "" : '<div class="spec"><b>' + esc(v) + '</b><small>' + l + '</small></div>';
     sh.innerHTML = '<div class="grab"></div><button class="close" onclick="closeSheet()" aria-label="Close">✕</button>'
       + (c.image ? '<div class="ph" style="background-image:url(\'' + thumb(c.image, 1200) + '\')"></div><div class="sc">' + fmtScore(c.rating) + '</div>' : '<div class="ph" style="height:70px;background:var(--el)"></div><div class="sc" style="top:30px">' + fmtScore(c.rating) + '</div>')
