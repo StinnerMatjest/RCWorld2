@@ -14,6 +14,7 @@ type Coaster = {
   slug: string;
   manufacturer: string;
   rating: number;
+  tieRank: number | null; // agreed order inside the score group (tiebreak tool)
   isBest: boolean;
   parkId: number;
   parkName: string;
@@ -41,6 +42,7 @@ function parseCoasters(raw: any[]): Coaster[] {
       slug: c.slug,
       manufacturer: c.manufacturerName || "Unknown",
       rating: Number(c.rating) || 0,
+      tieRank: c.tieRank ?? c.tie_rank ?? null,
       isBest: Boolean(c.isbestcoaster ?? c.isBestCoaster),
       parkId: c.parkId,
       parkName: c.parkName,
@@ -57,7 +59,7 @@ function aggregate(coasters: Coaster[]): Manufacturer[] {
     map.get(c.manufacturer)!.push(c);
   }
   return [...map.entries()].map(([name, list]) => {
-    const sorted = [...list].sort((a, b) => b.rating - a.rating);
+    const sorted = [...list].sort((a, b) => b.rating - a.rating || (a.tieRank ?? Infinity) - (b.tieRank ?? Infinity));
     return {
       name,
       coasters: sorted,
