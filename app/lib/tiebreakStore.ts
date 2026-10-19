@@ -149,9 +149,11 @@ export async function unplace(score: number, coasterId: number) {
   await writeOrder(score, await placedIds(score));
 }
 
+/** "Start this group over": the order, the round and the group's history on the scoreboard. */
 export async function resetGroup(score: number) {
   await pool.query(`UPDATE rollercoasters SET tie_rank = NULL WHERE rating = $1`, [score]);
   await pool.query(`UPDATE tiebreak_groups SET picks = '{}'::jsonb, revealed = false, round = 1, updated_at = now() WHERE score = $1`, [score]);
+  await pool.query(`DELETE FROM tiebreak_log WHERE score = $1`, [score]);
 }
 
 export async function newRound(score: number, logResult: { result: string; coasterId?: number | null; cavedBy?: string | null } | null) {
