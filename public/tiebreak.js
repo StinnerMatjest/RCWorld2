@@ -25,6 +25,7 @@
   let me = localStorage.getItem("tiebreak-name") || "";
   let state = null, score = null, timer = null, busy = false;
   let placing = null;              // { id, cavedBy } while this phone drags a coaster into the list
+  let showSettled = false;
   let dragging = false;            // no repaint while a finger is on a row
   let actionSeq = 0, lastActionDone = 0, lastKey = "";
   const seenReveal = {}, autoPlaced = {};   // per score: "round:revealed" animated / round auto-placed on a match
@@ -88,10 +89,13 @@
       const strip = (g.thumbs || []).slice(0, 6).map(t => '<i style="background-image:url(\'' + thumb(t, 480) + '\')"></i>').join("");
       return '<a class="grp ' + (isDone ? "done" : g.submitted_at ? "fresh" : "") + '" href="#/g/' + fmtScore(g.score) + '"><div class="strip">' + strip + '</div><div class="shade"></div><div class="row"><div class="sc" style="color:' + c + '">' + fmtScore(g.score) + '</div><div class="nm"><b>' + g.count + ' coasters</b><small>' + status + '</small></div></div><div class="bar"><i style="width:' + pct + '%;background:' + c + '"></i></div></a>'; };
     const s = stats(state.log || []);
+    const adds = state.additions || [];
+    const add = a => '<a class="add" href="#/g/' + fmtScore(a.score) + '"><div class="th" style="background-image:url(\'' + thumb(a.image, 480) + '\')"></div><div class="tx"><b>' + esc(a.name) + '</b><small>' + esc(park(a.park)) + '</small></div><div class="chg">' + (a.from != null ? '<span class="from">' + fmtScore(a.from) + '</span> → <span style="color:' + col(a.score) + '">' + fmtScore(a.score) + '</span>' : 'new at <span style="color:' + col(a.score) + '">' + fmtScore(a.score) + '</span>') + '</div></a>';
     app.innerHTML = topbar(false) + '<div class="wrap">'
       + '<div class="hl"><small>Parkrating · admin</small>Tied scores</div>'
-      + '<div>' + (open.map(row).join("") || '<div class="hint" style="text-align:left">Nothing tied. Go ride something.</div>') + '</div>'
-      + (done.length ? '<h2>Settled</h2><div>' + done.map(row).join("") + '</div>' : "")
+      + (adds.length ? '<h2 style="margin-top:0">New additions</h2><div class="adds">' + adds.map(add).join("") + '</div><h2>To settle</h2>' : "")
+      + '<div>' + (open.map(row).join("") || '<div class="hint" style="text-align:left">Nothing to settle.</div>') + '</div>'
+      + (done.length ? '<button class="sec sm settled-toggle" onclick="window.__tb.toggleSettled()">' + done.length + ' settled · ' + (showSettled ? "hide" : "show") + '</button>' + (showSettled ? '<div style="margin-top:10px">' + done.map(row).join("") + '</div>' : "") : "")
       + (s.rounds ? '<h2>Scoreboard</h2>' + statsHtml(s) : "")
       + '</div>';
   }
@@ -154,19 +158,20 @@
     // the draft list
     const rowOf = (c, i, kind) => '<div class="pl ' + kind + '" data-id="' + c.id + '"><div class="rk" style="color:' + (kind ? "" : col(g.score)) + '">' + (i + 1) + '</div><div class="th" style="background-image:url(\'' + thumb(c.image, 480) + '\')"></div><div class="nm">' + esc(c.name) + '<small>' + (kind === "ghost" ? esc(live.by) + " is placing…" : esc(park(c.park))) + '</small></div>'
       + (kind === "new" ? '<div class="grip">⠿</div>' : kind === "ghost" ? "" : '<div class="grip">⠿</div><button class="x" title="Take it back out" onclick="window.__tb.unplace(' + c.id + ',\'' + esc(c.name).replace(/'/g, "\\'") + '\')">✕</button>') + '</div>';
-    let rows = placed.map((c, i) => rowOf(c, i, ""));
+    const complete = !open.length;
+    const bigOf = (c, i) => '<div class="pl bc" data-id="' + c.id + '"><div class="img" style="background-image:url(\'' + thumb(c.image, 1200) + '\')"></div><div class="rk" style="color:' + col(g.score) + '">' + (i + 1) + '</div><div class="grip">⠿</div><div class="bot"><b>' + esc(c.name) + '</b><small>' + esc(park(c.park)) + (c.manufacturer ? ' · ' + esc(c.manufacturer) : "") + '</small></div><button class="x" title="Take it back out" onclick="window.__tb.unplace(' + c.id + ',\'' + esc(c.name).replace(/'/g, "\\'") + '\')">✕</button></div>';
+    let rows = placed.map((c, i) => complete && !placing ? bigOf(c, i) : rowOf(c, i, ""));
     if (phase === "place") rows.splice(Math.min(Math.max((placing.pos || rows.length + 1) - 1, 0), rows.length), 0, rowOf(byId[placing.id], 0, "new"));
     if (phase === "watch") rows.splice(Math.min(live.pos - 1, rows.length), 0, rowOf(byId[live.id], 0, "ghost"));
     rows = rows.map((h, i) => h.replace(/<div class="rk"([^>]*)>\d+<\/div>/, '<div class="rk"$1>' + (i + 1) + '</div>'));
-    const complete = !open.length;
-    const banner = complete ? (dirty ? '<div class="banner dirty"><div>Not on the site yet</div><button onclick="window.__tb.submit()">Submit to site</button></div>' : '<div class="banner ok">On the site' + (g.submitted_at ? '<small>' + when(g.submitted_at) + '</small>' : "") + '</div>') : "";
-    const listHtml = (rows.length ? '<div class="placed" id="placed">' + rows.join("") + '</div>' : "") + banner;
+    const listHtml = (rows.length ? '<div class="placed' + (complete && !placing ? " big" : "") + '" id="placed">' + rows.join("") + '</div>' : "")
+      + (complete && dirty ? '<div class="btns" style="margin-top:14px"><button style="width:100%;padding:16px;font-size:16px" onclick="window.__tb.submit()">Submit to site</button></div>' : "");
 
     // action bar
     let act = "";
     if (phase === "place") act = '<div class="verdict place">Drag <b>' + esc(byId[placing.id].name) + '</b> into place</div><div class="btns"><button class="sec" onclick="window.__tb.cancelPlace()">Back</button><button onclick="window.__tb.placeDone()">Done</button></div>';
     else if (phase === "watch") act = '<div class="verdict place"><b>' + esc(live.by) + '</b> is placing ' + esc(byId[live.id].name) + '</div>';
-    else if (complete) act = '<div class="verdict match">LIST COMPLETE</div>' + (dirty ? '<div class="btns"><button onclick="window.__tb.submit()">Submit to site</button></div>' : "") + '<div class="btns"><button class="danger" onclick="window.__tb.reset()">Start this group over</button></div>';
+    else if (complete) act = '<div class="verdict ' + (dirty ? "match" : "onsite") + '">' + (dirty ? "LIST COMPLETE" : "ON THE SITE" + (g.submitted_at ? '<small>' + when(g.submitted_at) + '</small>' : "")) + '</div><div class="btns">' + (dirty ? '<button onclick="window.__tb.submit()">Submit to site</button>' : "") + '<button class="danger" onclick="window.__tb.reset()">Start over</button></div>';
     else if (phase === "pick") {
       const can = names.length >= 2;
       act = '<div class="verdict round">Round ' + g.round + '</div><div class="btns">' + (mine != null ? '<button class="sec" onclick="window.__tb.pick(null)">Clear my pick</button>' : "") + '<button ' + (can ? "" : "disabled") + ' onclick="window.__tb.reveal()">Reveal</button></div>';
@@ -184,7 +189,7 @@
     const s = stats(state.log || []);
     app.innerHTML = topbar(true) + '<div class="wrap">'
       + '<div class="ghead"><div class="sc" style="color:' + col(g.score) + '">' + fmtScore(g.score) + '</div><div class="hl">Tied at ' + fmtScore(g.score) + '</div></div>'
-      + (rows.length ? '<h2 style="margin-top:0">The list</h2>' : "") + listHtml
+      + (rows.length ? '<h2 style="margin-top:0">' + (complete ? "The final list" : "The list") + '</h2>' : "") + listHtml
       + (phase === "pick" && open.length ? '<h2>Still to list</h2><div class="round"><b>Round ' + g.round + '</b>' + chips + '</div><div class="list">' + open.map(cand).join("") + '</div>' : "")
       + (phase === "pick" && s.rounds ? '<h2>Scoreboard</h2>' + statsHtml(s) + '<h2>Rounds</h2><div class="log">' + state.log.filter(l => l.result !== "submit").slice(0, 10).map(logLine).join("") + '</div>' : "")
       + '</div><div class="act"><div class="in">' + act + '</div></div>';
@@ -201,7 +206,7 @@
       e.preventDefault(); handle.setPointerCapture(e.pointerId);
       dragging = true; row.classList.add("lift"); buzz(10);
       const startY = e.clientY; let shift = 0, moved = false;
-      const step = row.offsetHeight + 6;
+      const step = row.offsetHeight + (parseFloat(getComputedStyle(box).rowGap) || 6);
       const place = dy => { row.style.transform = "translateY(" + (dy + shift) + "px) scale(1.02)"; };
       const mv = ev => {
         const dy = ev.clientY - startY; place(dy);
@@ -247,6 +252,7 @@
   async function act(body) { if (busy) return; busy = true; actionSeq++; try { const d = await api({ score, ...body }); lastActionDone = Date.now(); if (d && d.group) { state = { ...state, ...d }; renderGroup(); } return d; } catch (e) { lastActionDone = Date.now(); } finally { busy = false; } }
   const A = {
     setName, changeName,
+    toggleSettled: () => { showSettled = !showSettled; renderHome(); },
     pick: id => {
       if (state.group.revealed) return;
       const next = id === state.group.picks[me] ? null : id;

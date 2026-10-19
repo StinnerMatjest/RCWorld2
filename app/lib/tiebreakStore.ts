@@ -144,6 +144,29 @@ export async function overview() {
   return out;
 }
 
+/**
+ * Coasters that sit in a score group that was already submitted but are not in its list: added since, or
+ * re-rated into the group. With the previous score from the site changelog when there is one.
+ */
+export async function additions() {
+  const g = await pool.query<{ score: string; order_ids: number[] }>(`SELECT score, order_ids FROM tiebreak_groups WHERE submitted_at IS NOT NULL AND jsonb_array_length(COALESCE(order_ids, '[]'::jsonb)) > 0`);
+  if (!g.rows.length) return [];
+  const drafts = new Map(g.rows.map(r => [Number(r.score), new Set(r.order_ids)]));
+  const rc = await pool.query(
+    `SELECT rc.id, rc.name, rc.rating, p.name AS park, img.path AS image
+     FROM rollercoasters rc JOIN parks p ON p.id = rc.park_id
+     LEFT JOIN LATERAL (SELECT cg.path FROM coastergallery cg WHERE cg.coaster_id = rc.id AND cg.path <> '' ORDER BY cg.is_header DESC, cg.id ASC LIMIT 1) img ON TRUE
+     WHERE rc.rating = ANY($1::numeric[])`, [[...drafts.keys()]]);
+  const fresh = rc.rows.filter(r => !drafts.get(Number(r.rating))!.has(r.id));
+  if (!fresh.length) return [];
+  const ch = await pool.query<{ entity_id: number; details: any; created_at: string }>(
+    `SELECT entity_id, details, created_at FROM changelog
+     WHERE entity_type = 'coaster' AND entity_id = ANY($1::int[]) AND (details::jsonb) ? 'rating' ORDER BY created_at DESC`, [fresh.map(f => f.id)]);
+  const latest = new Map<number, any>(); ch.rows.forEach(r => { if (!latest.has(r.entity_id)) latest.set(r.entity_id, r); });
+  return fresh.map(f => { const l = latest.get(f.id); const d = l && l.details && l.details.rating; const from = d && typeof d === "object" && d !== null && "old" in d ? Number(d.old) : null;
+    return { id: f.id, name: f.name, park: f.park, image: f.image, score: Number(f.rating), from: from != null && from !== Number(f.rating) ? from : null, at: l ? l.created_at : null }; });
+}
+
 export async function countAbove(score: number) {
   const r = await pool.query(`SELECT COUNT(*)::int AS n FROM rollercoasters WHERE rating > $1`, [score]);
   return r.rows[0].n as number;

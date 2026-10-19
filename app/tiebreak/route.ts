@@ -68,6 +68,13 @@ const head = (title: string) => `<!DOCTYPE html>
   .grp .bar i{display:block;height:100%}
   .grp.done .nm b::after{content:' ✓';color:var(--good)}
   .grp.fresh .nm small{color:var(--accent-light);font-weight:700}
+  /* new additions: added or re-rated coasters that need a spot in an existing list */
+  .adds{display:flex;flex-direction:column;gap:8px}
+  .add{display:flex;align-items:center;gap:12px;padding:8px 12px 8px 8px;background:var(--el);border:1px solid rgba(233,130,14,.35);border-radius:14px;text-decoration:none}
+  .add .th{width:48px;height:48px;border-radius:10px;background:#0b1222 center/cover no-repeat;flex:0 0 auto}
+  .add .tx{flex:1;min-width:0} .add .tx b{display:block;color:#fff;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .add .tx small{color:var(--muted);font-size:12px}
+  .add .chg{font-weight:900;font-size:18px;letter-spacing:-.5px;color:#fff;white-space:nowrap} .add .chg .from{color:var(--muted);text-decoration:line-through;font-size:15px}
+  .settled-toggle{display:block;margin:8px auto 0;background:transparent;border:1.5px solid rgba(255,255,255,.18);color:var(--muted)}
   .stats{display:flex;gap:8px;flex-wrap:wrap}
   .stat{flex:1;min-width:88px;background:var(--el);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
   .stat b{display:block;font-size:24px;font-weight:900;color:#fff;letter-spacing:-.6px;line-height:1.1}
@@ -112,6 +119,19 @@ const head = (title: string) => `<!DOCTYPE html>
   .pl.new{background:rgba(37,99,235,.9);border-color:#60a5fa;color:#fff;touch-action:none;cursor:grab;z-index:5}
   .pl.new .rk{color:#fff} .pl.new .nm small{color:rgba(255,255,255,.75)} .pl.new .grip{color:rgba(255,255,255,.9)}
   .pl.new.lift{box-shadow:0 0 14px rgba(96,165,250,.7),0 10px 30px rgba(0,0,0,.5)}
+  /* the final list: full cards, the photo is the card */
+  .placed.big{gap:10px}
+  .pl.bc{display:block;position:relative;height:172px;padding:0;border-radius:18px;overflow:hidden;background:#0b1222;border:1px solid rgba(255,255,255,.06)}
+  .pl.bc .img{position:absolute;inset:0;background:#0b1222 center/cover no-repeat}
+  .pl.bc::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,8,16,.55) 0%,rgba(5,8,16,0) 35%,rgba(5,8,16,0) 45%,rgba(5,8,16,.92) 100%)}
+  .pl.bc .rk{position:absolute;left:14px;top:8px;width:auto;font-size:44px;letter-spacing:-2.5px;line-height:1;text-shadow:0 2px 14px rgba(0,0,0,.7)}
+  .pl.bc .grip{position:absolute;right:50px;top:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:rgba(0,0,0,.45);color:#fff;font-size:22px;padding:0}
+  .pl.bc .x{position:absolute;right:8px;top:10px;width:36px;height:44px;color:rgba(255,255,255,.7)}
+  .pl.bc .bot{position:absolute;left:16px;right:16px;bottom:14px}
+  .pl.bc .bot b{display:block;color:#fff;font-size:24px;font-weight:900;letter-spacing:-.6px;line-height:1.05;text-shadow:0 2px 12px rgba(0,0,0,.8)}
+  .pl.bc .bot small{display:block;color:rgba(255,255,255,.75);font-size:12px;margin-top:4px;text-shadow:0 1px 6px rgba(0,0,0,.8)}
+  .pl.bc.lift{box-shadow:0 0 0 2px var(--accent),0 18px 40px rgba(0,0,0,.6)}
+  .verdict.onsite{color:var(--good)} .verdict.onsite small{display:block;font-size:11px;letter-spacing:1px;color:var(--muted);font-weight:500;margin-top:2px}
   /* what the other phone is dragging right now */
   .pl.ghost{background:rgba(37,99,235,.18);border:1px dashed rgba(96,165,250,.7);color:rgba(255,255,255,.85)}
   .pl.ghost .rk{color:var(--blue)} .pl.ghost .nm small{color:var(--blue)}
@@ -206,7 +226,7 @@ const appPage = head("Parkrating tiebreak") + `
 <div class="sheet-bg" id="sheet-bg" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet"></div>
 <div class="toast" id="toast"></div>
-<script src="/tiebreak.js?v=6"></script>
+<script src="/tiebreak.js?v=7"></script>
 </body></html>`;
 
 export async function GET(req: NextRequest) {

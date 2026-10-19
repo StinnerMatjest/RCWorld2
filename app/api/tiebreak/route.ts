@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
 import { isAdminRequest } from "@/app/lib/adminAuth";
 import { revalidateContent } from "@/app/lib/revalidate";
-import { candidates, countAbove, ensureTiebreak, getGroup, logAuto, logFor, move, newRound, overview, place, players, reorder, resetGroup, seen, setPlacing, submit, sweepStale, unplace } from "@/app/lib/tiebreakStore";
+import { additions, candidates, countAbove, ensureTiebreak, getGroup, logAuto, logFor, move, newRound, overview, place, players, reorder, resetGroup, seen, setPlacing, submit, sweepStale, unplace } from "@/app/lib/tiebreakStore";
 
 // Live tiebreak tool (UI: app/tiebreak/route.ts + public/tiebreak.js).
 // GET  /api/tiebreak                 -> { groups, players, log }           (home)
@@ -45,8 +45,8 @@ export async function GET(req: NextRequest) {
   const s = req.nextUrl.searchParams.get("score");
   if (s === null) {
     await sweepStale();
-    const [groups, ps, log] = await Promise.all([overview(), players(), logFor(null)]);
-    return NextResponse.json({ groups, players: ps, log }, NO_STORE);
+    const [groups, ps, log, adds] = await Promise.all([overview(), players(), logFor(null), additions()]);
+    return NextResponse.json({ groups, players: ps, log, additions: adds }, NO_STORE);
   }
   const score = parseScore(s);
   if (score === null) return bad("Bad score");
