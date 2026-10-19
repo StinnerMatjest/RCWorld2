@@ -4,18 +4,17 @@ import { pool } from "@/app/lib/db";
 // live, each on their own phone (app/tiebreak, app/api/tiebreak).
 //
 // The result is rollercoasters.tie_rank: the coaster's position inside its
-// score group (1 = best of that score). Scores never change here. The site's
+// score group (1 = best of that score), kept dense 1..k over the placed
+// coasters; unplaced ones are NULL. Scores never change here. The site's
 // ranking (app/utils/ranking.ts) sorts by rating, then tie_rank, then the old
-// fallbacks (ride count, last ridden), so settled groups get a real order and
-// unsettled ones behave exactly as before.
+// fallbacks, so settled groups get a real order and unsettled ones behave
+// exactly as before.
 //
 // Tables (created on first use):
-//   tiebreak_groups   one row per score being worked on: mode (best|worst),
-//                     round, picks {player: coasterId}, revealed
-//   tiebreak_log      every settled round: match / caved / split / auto
+//   tiebreak_groups   one row per score being worked on: round, picks {player: coasterId}, revealed
+//                     (mode is a leftover column from the first version, unused)
+//   tiebreak_log      every settled round: match / caved / split / lock / auto
 //   tiebreak_players  who is around (name, last_seen) for the presence dots
-
-export type Mode = "best" | "worst";
 
 let ready: Promise<void> | null = null;
 export function ensureTiebreak(): Promise<void> {
@@ -24,7 +23,7 @@ export function ensureTiebreak(): Promise<void> {
       await pool.query(`ALTER TABLE rollercoasters ADD COLUMN IF NOT EXISTS tie_rank INTEGER`);
       await pool.query(`CREATE TABLE IF NOT EXISTS tiebreak_groups (
         score NUMERIC PRIMARY KEY,
-        mode TEXT NOT NULL DEFAULT 'best',
+        mode TEXT NOT NULL DEFAULT 'list',
         round INTEGER NOT NULL DEFAULT 1,
         picks JSONB NOT NULL DEFAULT '{}'::jsonb,
         revealed BOOLEAN NOT NULL DEFAULT false,
@@ -60,13 +59,13 @@ export function ensureTieRankColumn(): Promise<void> {
   return colReady;
 }
 
-export type GroupRow = { score: string; mode: Mode; round: number; picks: Record<string, number>; revealed: boolean; updated_at: string };
+export type GroupRow = { score: string; round: number; picks: Record<string, number>; revealed: boolean; updated_at: string };
 
 export async function getGroup(score: number): Promise<GroupRow> {
   const r = await pool.query<GroupRow>(
     `INSERT INTO tiebreak_groups (score) VALUES ($1)
      ON CONFLICT (score) DO UPDATE SET score = EXCLUDED.score
-     RETURNING score, mode, round, picks, revealed, updated_at`,
+     RETURNING score, round, picks, revealed, updated_at`,
     [score]
   );
   return r.rows[0];
@@ -107,31 +106,47 @@ export async function countAbove(score: number) {
   return r.rows[0].n as number;
 }
 
-/** Next free slot from the top (best) or the bottom (worst) of the group. */
-export async function nextSlot(score: number, mode: Mode): Promise<number | null> {
-  const r = await pool.query(`SELECT COUNT(*)::int AS n, ARRAY_REMOVE(ARRAY_AGG(tie_rank), NULL) AS used FROM rollercoasters WHERE rating = $1`, [score]);
-  const n: number = r.rows[0].n; const used = new Set<number>(r.rows[0].used || []);
-  if (mode === "best") { for (let k = 1; k <= n; k++) if (!used.has(k)) return k; }
-  else { for (let k = n; k >= 1; k--) if (!used.has(k)) return k; }
-  return null;
+/** Placed coasters of a group, top first. */
+async function placedIds(score: number): Promise<number[]> {
+  const r = await pool.query(`SELECT id FROM rollercoasters WHERE rating = $1 AND tie_rank IS NOT NULL ORDER BY tie_rank, name`, [score]);
+  return r.rows.map(x => x.id);
 }
 
-export async function place(score: number, coasterId: number, mode: Mode) {
-  const slot = await nextSlot(score, mode);
-  if (slot === null) throw new Error("No free slot in this group");
-  await pool.query(`UPDATE rollercoasters SET tie_rank = $1 WHERE id = $2 AND rating = $3`, [slot, coasterId, score]);
-  // one left over: it takes the last free slot by itself
+/** Write a dense 1..k order for the given ids (top first). */
+async function writeOrder(score: number, ids: number[]) {
+  for (let i = 0; i < ids.length; i++) {
+    await pool.query(`UPDATE rollercoasters SET tie_rank = $1 WHERE id = $2 AND rating = $3`, [i + 1, ids[i], score]);
+  }
+}
+
+/**
+ * Put a coaster into the agreed list at `position` (1 = top; null/too big = bottom).
+ * If exactly one coaster is left unplaced afterwards, it goes to the bottom by itself.
+ */
+export async function place(score: number, coasterId: number, position: number | null) {
+  const ids = (await placedIds(score)).filter(id => id !== coasterId);
+  const k = position == null ? ids.length : Math.min(Math.max(position, 1), ids.length + 1) - 1;
+  ids.splice(k, 0, coasterId);
+  await writeOrder(score, ids);
   const rest = await pool.query(`SELECT id FROM rollercoasters WHERE rating = $1 AND tie_rank IS NULL`, [score]);
   let auto: number | null = null;
-  if (rest.rowCount === 1) {
-    const last = await nextSlot(score, "best");
-    if (last !== null) { auto = rest.rows[0].id; await pool.query(`UPDATE rollercoasters SET tie_rank = $1 WHERE id = $2`, [last, auto]); }
-  }
-  return { slot, auto };
+  if (rest.rowCount === 1) { auto = rest.rows[0].id; await writeOrder(score, [...ids, auto!]); }
+  return { slot: k + 1, auto };
+}
+
+/** Move a placed coaster one step up (dir -1) or down (dir +1). */
+export async function move(score: number, coasterId: number, dir: number) {
+  const ids = await placedIds(score);
+  const i = ids.indexOf(coasterId); const j = i + (dir < 0 ? -1 : 1);
+  if (i < 0 || j < 0 || j >= ids.length) return false;
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  await writeOrder(score, ids);
+  return true;
 }
 
 export async function unplace(score: number, coasterId: number) {
   await pool.query(`UPDATE rollercoasters SET tie_rank = NULL WHERE id = $1 AND rating = $2`, [coasterId, score]);
+  await writeOrder(score, await placedIds(score));
 }
 
 export async function resetGroup(score: number) {
@@ -142,10 +157,15 @@ export async function resetGroup(score: number) {
 export async function newRound(score: number, logResult: { result: string; coasterId?: number | null; cavedBy?: string | null } | null) {
   const g = await getGroup(score);
   if (logResult) {
-    await pool.query(`INSERT INTO tiebreak_log (score, round, mode, picks, result, coaster_id, caved_by) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [score, g.round, g.mode, JSON.stringify(g.picks), logResult.result, logResult.coasterId ?? null, logResult.cavedBy ?? null]);
+    await pool.query(`INSERT INTO tiebreak_log (score, round, mode, picks, result, coaster_id, caved_by) VALUES ($1,$2,'list',$3,$4,$5,$6)`,
+      [score, g.round, JSON.stringify(g.picks), logResult.result, logResult.coasterId ?? null, logResult.cavedBy ?? null]);
   }
   await pool.query(`UPDATE tiebreak_groups SET picks = '{}'::jsonb, revealed = false, round = round + 1, updated_at = now() WHERE score = $1`, [score]);
+}
+
+export async function logAuto(score: number, coasterId: number) {
+  const g = await getGroup(score);
+  await pool.query(`INSERT INTO tiebreak_log (score, round, mode, picks, result, coaster_id) VALUES ($1,$2,'list','{}'::jsonb,'auto',$3)`, [score, g.round, coasterId]);
 }
 
 export async function logFor(score: number | null) {

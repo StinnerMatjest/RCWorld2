@@ -2,21 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
 import { isAdminRequest } from "@/app/lib/adminAuth";
 import { revalidateContent } from "@/app/lib/revalidate";
-import { candidates, countAbove, ensureTiebreak, getGroup, logFor, newRound, overview, place, players, resetGroup, seen, unplace, Mode } from "@/app/lib/tiebreakStore";
+import { candidates, countAbove, ensureTiebreak, getGroup, logAuto, logFor, move, newRound, overview, place, players, resetGroup, seen, unplace } from "@/app/lib/tiebreakStore";
 
 // Live tiebreak tool (UI: app/tiebreak/route.ts + public/tiebreak.js).
 // GET  /api/tiebreak                 -> { groups, players, log }           (home)
 // GET  /api/tiebreak?score=7         -> { group, candidates, above, players, log }
 // POST /api/tiebreak  JSON { action, ... }  (admin cookie, enforced by middleware)
-//   hello   { name }                               presence heartbeat
-//   mode    { score, mode: best|worst }
-//   pick    { score, name, coasterId }             your hidden pick (null clears it)
-//   reveal  { score }                              needs two picks
-//   lock    { score, coasterId, cavedBy? }         place the coaster, log match/caved, next round
-//   again   { score }                              split, nobody caves: log it, next round
-//   unplace { score, coasterId }                   take a coaster back out of the agreed order
-//   reset   { score }                              clear the whole group's order
-// Every placement calls revalidateContent() so the public ranking follows.
+//   hello   { name }                                   presence heartbeat
+//   pick    { score, name, coasterId }                 your hidden pick (null clears it)
+//   reveal  { score }                                  needs two picks
+//   lock    { score, coasterId, position?, cavedBy? }  put it into the agreed list (1 = top, default bottom),
+//                                                      log match / caved / lock, next round
+//   again   { score }                                  split, nobody caves: log it, next round
+//   move    { score, coasterId, dir }                  one step up (-1) or down (+1) in the agreed list
+//   unplace { score, coasterId }                       take a coaster back out of the agreed list
+//   reset   { score }                                  clear the whole group's order
+// Every change to the order calls revalidateContent() so the public ranking follows.
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -65,27 +66,22 @@ export async function POST(req: NextRequest) {
   const score = parseScore(body.score);
   if (score === null) return bad("Bad score");
   const g = await getGroup(score);
+  const idOf = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
 
   switch (action) {
-    case "mode": {
-      const mode = body.mode === "worst" ? "worst" : "best";
-      // a new mode mid-round throws the hidden picks away: you were picking for the other question
-      await pool.query(`UPDATE tiebreak_groups SET mode = $2, picks = '{}'::jsonb, revealed = false, updated_at = now() WHERE score = $1`, [score, mode]);
-      break;
-    }
     case "pick": {
       if (!name) return bad("Name required");
       if (g.revealed) return bad("Already revealed, start a new round");
-      const picks = { ...g.picks };
-      if (body.coasterId === null || body.coasterId === undefined) delete picks[name];
-      else {
-        const id = Number(body.coasterId);
+      // atomic jsonb merge / remove: two phones tapping at the same moment must not lose a pick
+      if (body.coasterId === null || body.coasterId === undefined) {
+        await pool.query(`UPDATE tiebreak_groups SET picks = picks - $2::text, updated_at = now() WHERE score = $1`, [score, name]);
+      } else {
+        const id = idOf(body.coasterId); if (id === null) return bad("Bad coasterId");
         const ok = await pool.query(`SELECT 1 FROM rollercoasters WHERE id = $1 AND rating = $2 AND tie_rank IS NULL`, [id, score]);
         if (!ok.rowCount) return bad("Not a candidate in this group");
-        picks[name] = id;
+        await pool.query(`UPDATE tiebreak_groups SET picks = picks || $2::jsonb, updated_at = now() WHERE score = $1 AND revealed = false`, [score, JSON.stringify({ [name]: id })]);
       }
       await seen(name);
-      await pool.query(`UPDATE tiebreak_groups SET picks = $2::jsonb, updated_at = now() WHERE score = $1`, [score, JSON.stringify(picks)]);
       break;
     }
     case "reveal": {
@@ -94,14 +90,14 @@ export async function POST(req: NextRequest) {
       break;
     }
     case "lock": {
-      const id = Number(body.coasterId);
-      if (!Number.isFinite(id)) return bad("coasterId required");
+      const id = idOf(body.coasterId); if (id === null) return bad("coasterId required");
+      const position = body.position == null ? null : idOf(body.position);
       const vals = Object.values(g.picks);
       const unanimous = vals.length >= 2 && vals.every(v => v === vals[0]) && vals[0] === id;
       const cavedBy = typeof body.cavedBy === "string" && body.cavedBy ? body.cavedBy.slice(0, 40) : null;
-      const { slot, auto } = await place(score, id, g.mode as Mode);
+      const { slot, auto } = await place(score, id, position);
       await newRound(score, { result: unanimous ? "match" : cavedBy ? "caved" : "lock", coasterId: id, cavedBy });
-      if (auto) await pool.query(`INSERT INTO tiebreak_log (score, round, mode, picks, result, coaster_id) VALUES ($1,$2,$3,'{}'::jsonb,'auto',$4)`, [score, g.round + 1, g.mode, auto]);
+      if (auto) await logAuto(score, auto);
       revalidateContent();
       return NextResponse.json({ ok: true, slot, auto, ...(await groupPayload(score)) }, NO_STORE);
     }
@@ -109,9 +105,14 @@ export async function POST(req: NextRequest) {
       await newRound(score, Object.keys(g.picks).length >= 2 ? { result: "split" } : null);
       break;
     }
+    case "move": {
+      const id = idOf(body.coasterId); if (id === null) return bad("coasterId required");
+      const moved = await move(score, id, Number(body.dir) < 0 ? -1 : 1);
+      if (moved) revalidateContent();
+      break;
+    }
     case "unplace": {
-      const id = Number(body.coasterId);
-      if (!Number.isFinite(id)) return bad("coasterId required");
+      const id = idOf(body.coasterId); if (id === null) return bad("coasterId required");
       await unplace(score, id);
       await pool.query(`UPDATE tiebreak_groups SET picks = '{}'::jsonb, revealed = false, updated_at = now() WHERE score = $1`, [score]);
       revalidateContent();
