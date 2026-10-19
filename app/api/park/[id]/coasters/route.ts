@@ -2,6 +2,7 @@ import { slugify } from "@/app/lib/slug";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { pool } from "@/app/lib/db";
+import { ensureTieRankColumn } from "@/app/lib/tiebreakStore";
 import { getParkName, logChange } from "@/app/lib/changelog";
 
 export async function GET(
@@ -20,7 +21,7 @@ export async function GET(
 
         const query = `
       SELECT 
-        rc.id, rc.name, rc.year, rc.manufacturer_id, m.name AS manufacturer_name, rc.model, rc.ride_model_id, rc.scale, rc.haveridden, rc.isbestcoaster, rc.rating, rc.ridecount, rc.slug, rc.park_id,
+        rc.id, rc.name, rc.year, rc.manufacturer_id, m.name AS manufacturer_name, rc.model, rc.ride_model_id, rc.scale, rc.haveridden, rc.isbestcoaster, rc.rating, rc.tie_rank, rc.ridecount, rc.slug, rc.park_id,
         rs.type, rs.classification, rs.length, rs.height, rs.drop, rs.speed, rs.inversions, rs.vertical_angle, rs.gforce, rs.duration_sec AS duration, rs.notes
       FROM rollercoasters rc
       LEFT JOIN manufacturers m ON rc.manufacturer_id = m.id
@@ -29,6 +30,7 @@ export async function GET(
       ORDER BY rc.name;
     `;
 
+        await ensureTieRankColumn();
         const result = await pool.query(query, [parkId]);
         const coasters = result.rows.map((row) => ({
             id: row.id,
@@ -44,6 +46,7 @@ export async function GET(
             rideCount: Number(row.ridecount) || 0,
             ridecount: Number(row.ridecount) || 0,
             rating: row.rating,
+            tieRank: row.tie_rank ?? null,
             parkId: row.park_id,
             slug: row.slug,
             specs: {

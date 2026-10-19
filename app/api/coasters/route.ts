@@ -1,9 +1,11 @@
 import { pool } from "@/app/lib/db";
+import { ensureTieRankColumn } from "@/app/lib/tiebreakStore";
 import { NextResponse } from "next/server";
 
 
 export async function GET() {
   try {
+    await ensureTieRankColumn();
     const query = `
       SELECT 
         rc.id,
@@ -18,6 +20,7 @@ export async function GET() {
         rc.isbestcoaster,
         rc.ridecount,
         rc.rating,
+        rc.tie_rank,
         rc.park_id,
         rc.slug,
         rs.type,
@@ -61,7 +64,7 @@ export async function GET() {
       LEFT JOIN visits r ON r.park_id = p.id
       GROUP BY 
         rc.id, rc.name, rc.year, rc.manufacturer_id, m.name, rc.ride_model_id, rc.model, rc.scale, rc.haveridden, 
-        rc.isbestcoaster, rc.ridecount, rc.rating, rc.park_id, rc.slug,
+        rc.isbestcoaster, rc.ridecount, rc.rating, rc.tie_rank, rc.park_id, rc.slug,
         rs.type, rs.classification, rs.length, rs.height, rs.drop, rs.speed,
         rs.inversions, rs.vertical_angle, rs.gforce, rs.duration_sec, rs.notes, img.path, rv.coaster_id, p.name, p.slug, p.country
       ORDER BY p.name, rc.name;
@@ -83,6 +86,7 @@ export async function GET() {
       isBestCoaster: row.isbestcoaster,
       rideCount: Number(row.ridecount) || 0,
       rating: row.rating,
+      tieRank: row.tie_rank ?? null,
       parkId: row.park_id,
       slug: row.slug,
       parkSlug: row.park_slug,

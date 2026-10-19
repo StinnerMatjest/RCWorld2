@@ -95,6 +95,7 @@ export interface RollerCoaster {
   isbestcoaster: boolean;
   ridecount: number;
   rating: number;
+  tieRank?: number | null;
   parkId: number;
   slug: string;
   parkSlug?: string;
@@ -215,6 +216,8 @@ export type ApiCoaster = {
   isBestCoaster: boolean;
   rideCount: number;
   rating: number | string | null;
+  // agreed position inside the score group (tiebreak tool), 1 = best; null = unsettled
+  tieRank?: number | null;
   parkId: number;
   parkName: string;
   country: string;

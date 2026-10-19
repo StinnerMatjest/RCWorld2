@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
+import { ensureTieRankColumn } from "@/app/lib/tiebreakStore";
 
 
 export async function GET(
@@ -33,6 +34,7 @@ export async function GET(
           rc.isbestcoaster,
           rc.ridecount,
           rc.rating,
+          rc.tie_rank,
           rc.park_id,
           rc.slug,
           p.slug AS park_slug,
@@ -70,6 +72,7 @@ export async function GET(
           rc.isbestcoaster,
           rc.ridecount,
           rc.rating,
+          rc.tie_rank,
           rc.park_id,
           rc.slug,
           p.slug AS park_slug,
@@ -94,6 +97,7 @@ export async function GET(
       values = [id];
     }
 
+    await ensureTieRankColumn();
     const coasterResult = await pool.query(coasterQuery, values);
     const row = coasterResult.rows[0];
 
@@ -128,6 +132,7 @@ export async function GET(
       isbestcoaster: row.isbestcoaster,
       ridecount: row.ridecount,
       rating: row.rating,
+      tieRank: row.tie_rank ?? null,
       parkId: row.park_id,
       slug: row.slug,
       parkSlug: row.park_slug,

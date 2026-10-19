@@ -6,6 +6,12 @@ const getRating = (c: any): number => {
   const r = typeof c.rating === 'string' ? parseFloat(c.rating) : c.rating;
   return r ?? 0;
 };
+// Agreed position inside a score group (1 = best), settled in the tiebreak tool
+// (app/tiebreak). Unsettled coasters sort after settled ones at the same score.
+const getTieRank = (c: any): number => {
+  const t = c.tieRank ?? c.tie_rank;
+  return t == null ? Number.POSITIVE_INFINITY : Number(t);
+};
 
 export const sortCoastersByRank = (coasters: (RollerCoaster | ApiCoaster)[]) => {
   return [...coasters]
@@ -15,6 +21,10 @@ export const sortCoastersByRank = (coasters: (RollerCoaster | ApiCoaster)[]) => 
       const ratingA = getRating(a);
       const ratingB = getRating(b);
       if (ratingA !== ratingB) return ratingB - ratingA;
+
+      // 1b. Agreed tiebreak order within the score (tiebreak tool)
+      const tieA = getTieRank(a), tieB = getTieRank(b);
+      if (tieA !== tieB) return tieA - tieB;
 
       // 2. Is Best Coaster (Tiebreaker ONLY if in the same park)
       if (a.parkId === b.parkId) {
@@ -49,6 +59,8 @@ export const computeCoasterRanks = (all: (RollerCoaster | ApiCoaster)[], coaster
       .sort((a: any, b: any) => {
         const ratingDiff = getRating(b) - getRating(a);
         if (ratingDiff !== 0) return ratingDiff;
+        const tieA = getTieRank(a), tieB = getTieRank(b);
+        if (tieA !== tieB) return tieA - tieB;
         const countA = getRideCount(a);
         const countB = getRideCount(b);
         if (countB !== countA) return countB - countA;

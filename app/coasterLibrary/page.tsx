@@ -28,7 +28,12 @@ export default async function Page() {
   const coasters = await getCoasters();
 
   const ranked = [...coasters]
-    .sort((a: any, b: any) => (Number(b.rating) ?? 0) - (Number(a.rating) ?? 0));
+    .sort((a: any, b: any) => {
+      const r = (Number(b.rating) ?? 0) - (Number(a.rating) ?? 0);
+      if (r !== 0) return r;
+      // agreed tiebreak order within the score (tiebreak tool), unsettled last
+      return (a.tieRank ?? Number.POSITIVE_INFINITY) - (b.tieRank ?? Number.POSITIVE_INFINITY);
+    });
 
   const jsonLd = {
     "@context": "https://schema.org",

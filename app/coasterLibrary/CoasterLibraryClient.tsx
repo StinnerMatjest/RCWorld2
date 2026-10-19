@@ -180,6 +180,9 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
         const d = sortDir === "asc" ? 1 : -1;
         const rDiff = ((a.rating ?? 0) - (b.rating ?? 0)) * d;
         if (rDiff !== 0) return rDiff;
+        // agreed tiebreak order within the score (1 = best), unsettled last
+        const tA = (a as any).tieRank ?? Number.POSITIVE_INFINITY, tB = (b as any).tieRank ?? Number.POSITIVE_INFINITY;
+        if (tA !== tB) return (tA - tB) * -d;
         const cDiff = ((a.rideCount ?? 0) - (b.rideCount ?? 0)) * d;
         if (cDiff !== 0) return cDiff;
         const aT = a.lastVisitDate ? new Date(a.lastVisitDate).getTime() : 0;

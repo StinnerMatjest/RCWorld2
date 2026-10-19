@@ -79,6 +79,11 @@ const CoasterList: React.FC<CoasterListProps> = ({
         const rB = typeof rb === "number" ? rb : -Infinity;
         if (rA !== rB) return rB - rA;
 
+        // agreed tiebreak order within the score (tiebreak tool), unsettled last
+        const tA = (a as any).tieRank ?? (a as any).tie_rank ?? Number.POSITIVE_INFINITY;
+        const tB = (b as any).tieRank ?? (b as any).tie_rank ?? Number.POSITIVE_INFINITY;
+        if (tA !== tB) return tA - tB;
+
         const ya = Number(a.year) || 0;
         const yb = Number(b.year) || 0;
         if (ya !== yb) return yb - ya;
