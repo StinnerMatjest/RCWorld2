@@ -108,18 +108,31 @@ export async function candidates(score: number) {
   return r.rows;
 }
 
-/** All score groups with more than one coaster: how many are in the draft list, and whether the draft is on the site. */
+/** All score groups with more than one coaster: size, how many are in the draft list, whether the draft is on the site, and a few photos. */
 export async function overview() {
-  const r = await pool.query(
-    `SELECT rc.rating AS score, COUNT(*)::int AS count, COUNT(rc.tie_rank)::int AS published,
-            COALESCE(jsonb_array_length(g.order_ids), 0)::int AS placed,
-            (SELECT COUNT(*)::int FROM rollercoasters x WHERE x.rating > rc.rating) AS above,
-            g.submitted_at
-     FROM rollercoasters rc LEFT JOIN tiebreak_groups g ON g.score = rc.rating
-     WHERE rc.rating IS NOT NULL
-     GROUP BY rc.rating, g.order_ids, g.submitted_at HAVING COUNT(*) > 1 ORDER BY rc.rating DESC`
+  const rows = await pool.query<{ id: number; rating: string; tie_rank: number | null; image: string | null }>(
+    `SELECT rc.id, rc.rating, rc.tie_rank, img.path AS image
+     FROM rollercoasters rc
+     LEFT JOIN LATERAL (SELECT cg.path FROM coastergallery cg WHERE cg.coaster_id = rc.id AND cg.path <> '' ORDER BY cg.is_header DESC, cg.id ASC LIMIT 1) img ON TRUE
+     WHERE rc.rating IS NOT NULL ORDER BY rc.rating DESC, rc.tie_rank NULLS LAST, rc.name`
   );
-  return r.rows;
+  const groups = await pool.query<{ score: string; order_ids: number[] | null; submitted_at: string | null }>(`SELECT score, order_ids, submitted_at FROM tiebreak_groups`);
+  const gmap = new Map(groups.rows.map(g => [Number(g.score), g]));
+  const by = new Map<number, typeof rows.rows>();
+  rows.rows.forEach(r => { const k = Number(r.rating); if (!by.has(k)) by.set(k, []); by.get(k)!.push(r); });
+  const scores = [...by.keys()].sort((a, b) => b - a);
+  let above = 0;
+  const out: any[] = [];
+  for (const s of scores) {
+    const list = by.get(s)!; const g = gmap.get(s);
+    if (list.length > 1) {
+      const ids = new Set(list.map(x => x.id));
+      const placed = g && g.order_ids ? g.order_ids.filter(id => ids.has(id)).length : list.filter(x => x.tie_rank != null).length;
+      out.push({ score: s, count: list.length, published: list.filter(x => x.tie_rank != null).length, placed, above, submitted_at: g ? g.submitted_at : null, thumbs: list.map(x => x.image).filter(Boolean).slice(0, 6) });
+    }
+    above += list.length;
+  }
+  return out;
 }
 
 export async function countAbove(score: number) {

@@ -1,6 +1,9 @@
 // Parkrating tiebreak: the phone app. Served by app/tiebreak/route.ts, talks to /api/tiebreak.
-// Two people, two phones, same room. Pick in secret, reveal together, put what you agree on into
+// Two people, two phones, same room. Pick in secret, reveal together, drag what you agree on into
 // one shared draft list, move things up or down, and submit the list to the site when it is right.
+//
+// Phases on the group screen:  pick (candidates shown)  ->  decide (reveal result, candidates hidden)
+//                              ->  place (the new coaster is a draggable row in the list)  ->  pick again
 (function () {
   const $ = (s, r) => (r || document).querySelector(s);
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -12,13 +15,17 @@
   const ft = v => v == null ? null : Math.round(v) + " ft";
   const mph = v => v == null ? null : Math.round(v) + " mph";
   const fmtScore = s => String(Number(s)).replace(/\.0$/, "");
+  const park = p => String(p || "").replace("Disneyland Paris - ", "DLP · ");
   const recent = d => (Date.now() - new Date(d).getTime()) / 1000 < 12;
   const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} };
   const when = d => { const t = new Date(d); return t.toLocaleDateString() + " " + t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); };
+  // the site's rating colours (app/utils/design.ts)
+  const col = s => { s = Number(s); return s >= 11 ? "#FCD34D" : s >= 10 ? "#F472B6" : s >= 9 ? "#C4B5FD" : s >= 8 ? "#60A5FA" : s >= 7 ? "#4ADE80" : s >= 6 ? "#BEF264" : s >= 5 ? "#FDE047" : s >= 4 ? "#FB923C" : s >= 3 ? "#F87171" : s >= 1.5 ? "#E64558" : "#9B7E83"; };
 
   let me = localStorage.getItem("tiebreak-name") || "";
   let state = null, score = null, timer = null, busy = false;
-  let placing = null;              // { id, cavedBy } while choosing where a coaster goes
+  let placing = null;              // { id, cavedBy } while dragging a coaster into the list
+  let dragging = false;            // no repaint while a finger is on a row
   let actionSeq = 0, lastActionDone = 0, lastKey = "";  // actions bump the sequence so stale polls are dropped; lastKey skips no-op re-renders
   const seenReveal = {};           // score -> "round:revealed" we last animated
 
@@ -78,16 +85,16 @@
   function renderHome() {
     const groups = state.groups || [];
     const open = groups.filter(g => g.placed < g.count), done = groups.filter(g => g.placed >= g.count);
-    const row = g => { const pct = Math.round(100 * g.placed / g.count); const lo = g.above + 1, hi = g.above + g.count;
-      const status = g.placed >= g.count ? (g.published === g.count && g.submitted_at ? "complete · on the site" : "complete · not submitted") : g.placed + " in the list · " + (g.count - g.placed) + " to go" + (g.published ? " · " + g.published + " on the site" : "");
-      return '<a class="grp ' + (g.placed >= g.count ? "done" : "") + '" href="#/g/' + fmtScore(g.score) + '"><div class="sc">' + fmtScore(g.score) + '</div><div class="nm"><b>' + g.count + ' coasters</b><small>' + status + ' · ranks ' + lo + '–' + hi + '</small><div class="bar"><i style="width:' + pct + '%"></i></div></div><div class="chev">›</div></a>'; };
-    const log = (state.log || []).slice(0, 8);
-    app.innerHTML = topbar('<span>Tiebreak</span> · tied scores', false) + '<div class="wrap">'
-      + '<p class="hint" style="text-align:left;margin:4px 0 14px">Pick a score. Each of you picks a coaster in secret, you reveal together, and the one you agree on goes into the shared list. Move things until the list is right, then submit it to the site.</p>'
-      + '<h2>To settle</h2><div>' + (open.map(row).join("") || '<div class="hint">Everything is settled.</div>') + '</div>'
-      + (done.length ? '<h2>Complete</h2><div>' + done.map(row).join("") + '</div>' : "")
-      + '<h2>Scoreboard</h2>' + statsHtml(stats(state.log || []))
-      + (log.length ? '<h2>Latest</h2><div class="log">' + log.map(logLine).join("") + '</div>' : "")
+    const row = g => { const pct = Math.round(100 * g.placed / g.count), c = col(g.score), left = g.count - g.placed, done = g.placed >= g.count;
+      const status = done ? (g.published === g.count && g.submitted_at ? "on the site" : "ready to submit") : (left === g.count ? "all " + left : left) + " to settle";
+      const thumbs = (g.thumbs || []).slice(0, 5).map(t => '<i style="background-image:url(\'' + thumb(t, 480) + '\')"></i>').join("") + (g.count > 5 ? '<i class="more">+' + (g.count - 5) + '</i>' : "");
+      return '<a class="grp ' + (done ? "done" : "") + '" href="#/g/' + fmtScore(g.score) + '"><div class="row"><div class="sc" style="color:' + c + '">' + fmtScore(g.score) + '</div><div class="nm"><b>' + g.count + ' coasters</b><small>' + status + '</small></div></div><div class="thumbs">' + thumbs + '</div><div class="bar"><i style="width:' + pct + '%;background:' + c + '"></i></div></a>'; };
+    const s = stats(state.log || []);
+    app.innerHTML = topbar('<span>Tiebreak</span>', false) + '<div class="wrap">'
+      + '<div class="hl"><small>Parkrating · admin</small>Tied scores</div>'
+      + '<div>' + (open.map(row).join("") || '<div class="hint" style="text-align:left">Nothing tied. Go ride something.</div>') + '</div>'
+      + (done.length ? '<h2>Settled</h2><div>' + done.map(row).join("") + '</div>' : "")
+      + (s.rounds ? '<h2>Scoreboard</h2>' + statsHtml(s) : "")
       + '</div>';
   }
   function stats(log) {
@@ -112,6 +119,7 @@
     return JSON.stringify([g.round, g.revealed, g.picks, g.order, g.submitted_at, state.candidates.map(c => c.id + ":" + c.tie_rank), (state.log || []).length, ps, placing && placing.id, me]);
   }
   function renderGroup() {
+    if (dragging) return;
     const rkey = renderKey(); if (rkey === lastKey) return; lastKey = rkey;
     const g = state.group, all = state.candidates, above = state.above;
     const byId = Object.fromEntries(all.map(c => [c.id, c]));
@@ -121,88 +129,117 @@
     const dirty = JSON.stringify(order) !== JSON.stringify(published);
     const picks = g.picks || {}, names = Object.keys(picks), mine = picks[me];
     const revealed = g.revealed;
+    if (placing && (!byId[placing.id] || order.includes(placing.id))) placing = null;   // the other phone listed it meanwhile
+    const phase = placing ? "place" : revealed && names.length >= 2 ? "decide" : "pick";
 
     // the reveal moment, once per round, on both phones
     const key = g.round + ":" + revealed;
     if (revealed && names.length >= 2 && seenReveal[score] !== key) { seenReveal[score] = key; drama(names, picks, byId); }
-    if (!revealed) { seenReveal[score] = key; if (placing) placing = null; }
+    if (!revealed) { seenReveal[score] = key; }
 
     const everyone = [...new Set([...NAMES, me, ...names])];
     const chips = everyone.map(nm => '<span class="chip ' + (picks[nm] != null ? "ok" : "wait") + '">' + esc(nm) + '</span>').join("");
 
-    // candidates still to list
-    const tag = c => {
-      if (!revealed) return c.id === mine ? '<span class="tick">YOUR PICK</span>' : "";
-      const who = names.filter(nm => picks[nm] === c.id); if (!who.length) return "";
-      return '<span class="tick ' + (who.length > 1 ? "rev-ab" : who[0] === me ? "rev-a" : "rev-b") + '">' + esc(who.join(" + ")) + '</span>';
-    };
+    // candidates still to list (pick phase only)
+    const stat = (v, unit, label) => v == null ? "" : '<div><b>' + esc(v) + (unit ? '<i>' + unit + '</i>' : "") + '</b><small>' + label + '</small></div>';
     const cand = c => '<div class="cand ' + (c.id === mine ? "mine" : "") + '" onclick="window.__tb.pick(' + c.id + ')">'
       + '<div class="th" style="background-image:url(\'' + thumb(c.image, 480) + '\')"></div>'
-      + '<div class="tx"><b>' + esc(c.name) + '</b><small>' + esc(c.park) + ' · ' + esc(c.country) + (c.year ? ' · ' + c.year : "") + '</small>'
-      + '<div class="st">' + [c.manufacturer, c.inversions != null ? c.inversions + " inv" : null, mph(c.speed), ft(c.height), c.ridecount ? c.ridecount + " rides" : null].filter(Boolean).map(esc).join(" · ") + '</div></div>'
-      + '<div class="info" onclick="event.stopPropagation();window.__tb.sheet(' + c.id + ')">i</div>' + tag(c) + '</div>';
+      + '<div class="tx"><div><b>' + esc(c.name) + '</b><small><em>' + esc(park(c.park)) + '</em> · ' + esc(c.country) + (c.manufacturer ? ' · ' + esc(c.manufacturer) : "") + (c.year ? ' ' + c.year : "") + '</small></div>'
+      + '<div class="specs4">' + stat(c.inversions, "", "inv") + stat(c.speed != null ? Math.round(c.speed) : null, "mph", "speed") + stat(c.height != null ? Math.round(c.height) : null, "ft", "height") + stat(c.ridecount || null, "", c.ridecount === 1 ? "ride" : "rides") + '</div></div>'
+      + '<div class="info" onclick="event.stopPropagation();window.__tb.sheet(' + c.id + ')">i</div>' + (c.id === mine ? '<span class="tick">YOUR PICK</span>' : "") + '</div>';
 
-    // the draft list
-    const pl = (c, i) => '<div class="pl"><div class="rk">' + (i + 1) + '</div><div class="nm">' + esc(c.name) + '<small>' + esc(c.park) + ' · #' + (above + i + 1) + ' overall' + (c.tie_rank === i + 1 ? "" : c.tie_rank == null ? " · not on the site yet" : " · site has #" + (above + c.tie_rank)) + '</small></div>'
-      + '<div class="mv"><button ' + (i === 0 ? "disabled" : "") + ' onclick="window.__tb.move(' + c.id + ',-1)" title="Up">▲</button><button ' + (i === placed.length - 1 ? "disabled" : "") + ' onclick="window.__tb.move(' + c.id + ',1)" title="Down">▼</button></div>'
-      + '<button class="x" title="Take it back out" onclick="window.__tb.unplace(' + c.id + ',\'' + esc(c.name).replace(/'/g, "\\'") + '\')">✕</button></div>';
-    const banner = dirty
-      ? '<div class="banner dirty"><div><b>Not on the site yet.</b> ' + (placed.length ? (open.length ? open.length + " not listed yet; they would rank below the list." : "The whole group is in order.") : "Submitting an empty list removes the order from the site.") + '</div><button onclick="window.__tb.submit()">Submit to site</button></div>'
-      : (placed.length ? '<div class="banner ok"><b>On the site</b>' + (g.submitted_at ? ' · submitted ' + when(g.submitted_at) : "") + '</div>' : "");
-    const listHtml = (placed.length ? '<div class="placed">' + placed.map(pl).join("") + '</div>' : '<div class="hint" style="text-align:left">Nothing listed yet. The first one you agree on starts the list.</div>') + banner;
+    // the draft list; while placing, the new coaster sits in it as a draggable row (at the bottom to start)
+    const rowOf = (c, i, total, extra) => '<div class="pl ' + (extra || "") + '" data-id="' + c.id + '"><div class="rk" style="color:' + (extra ? "#fff" : col(g.score)) + '">' + (i + 1) + '</div><div class="nm">' + esc(c.name) + '<small>' + esc(c.park) + ' · #' + (above + i + 1) + (extra ? "" : c.tie_rank === i + 1 ? "" : c.tie_rank == null ? " · new" : " · was #" + (above + c.tie_rank)) + '</small></div>'
+      + (extra ? '<div class="grip">⋮⋮</div>' : '<div class="mv"><button ' + (i === 0 ? "disabled" : "") + ' onclick="window.__tb.move(' + c.id + ',-1)" title="Up">▲</button><button ' + (i === total - 1 ? "disabled" : "") + ' onclick="window.__tb.move(' + c.id + ',1)" title="Down">▼</button></div>'
+      + '<button class="x" title="Take it back out" onclick="window.__tb.unplace(' + c.id + ',\'' + esc(c.name).replace(/'/g, "\\'") + '\')">✕</button>') + '</div>';
+    let listHtml;
+    if (phase === "place") {
+      const rows = placed.map((c, i) => rowOf(c, i, placed.length + 1, "")).join("") + rowOf(byId[placing.id], placed.length, placed.length + 1, "new");
+      listHtml = '<div class="placed" id="placed">' + rows + '</div>';
+    } else {
+      const banner = dirty
+        ? '<div class="banner dirty"><div>Not on the site yet</div><button onclick="window.__tb.submit()">Submit to site</button></div>'
+        : (placed.length ? '<div class="banner ok">On the site' + (g.submitted_at ? '<small>' + when(g.submitted_at) + '</small>' : "") + '</div>' : "");
+      listHtml = (placed.length ? '<div class="placed" id="placed">' + placed.map((c, i) => rowOf(c, i, placed.length, "")).join("") + '</div>' : "") + banner;
+    }
 
     // action bar
     let act = "";
-    if (placing) {
+    if (phase === "place") {
       const c = byId[placing.id];
-      const slot = (pos, label) => '<button class="slot" onclick="window.__tb.placeAt(' + pos + ')">' + label + '</button>';
-      act = '<div class="verdict place">Where does <b>' + esc(c ? c.name : "") + '</b> go?</div><div class="slots">' + slot(1, "At the top")
-        + placed.map((p, i) => slot(i + 2, "Below " + (i + 1) + ". " + esc(p.name))).join("") + '</div><div class="btns"><button class="sec" onclick="window.__tb.cancelPlace()">Back</button></div>';
+      act = '<div class="verdict place">Drag <b>' + esc(c.name) + '</b> into place</div><div class="btns"><button class="sec" onclick="window.__tb.cancelPlace()">Back</button><button onclick="window.__tb.placeDone()">Done</button></div>';
     } else if (!open.length) {
-      act = '<div class="verdict match">LIST COMPLETE</div>' + (dirty
-        ? '<div class="hint">All ' + n + ' in order. Submit to put ranks ' + (above + 1) + ' to ' + (above + n) + ' on the site.</div><div class="btns"><button onclick="window.__tb.submit()">Submit to site</button></div>'
-        : '<div class="hint">On the site as ranks ' + (above + 1) + ' to ' + (above + n) + '. Use the arrows above if something still looks wrong, then submit again.</div>')
+      act = '<div class="verdict match">LIST COMPLETE</div>' + (dirty ? '<div class="btns"><button onclick="window.__tb.submit()">Submit to site</button></div>' : "")
         + '<div class="btns"><button class="danger" onclick="window.__tb.reset()">Start this group over</button></div>';
-    } else if (!revealed) {
+    } else if (phase === "pick") {
       const can = names.length >= 2;
-      act = '<div class="hint">Round ' + g.round + ' · pick the coaster to list next</div>'
-        + '<div class="btns">' + (mine != null ? '<button class="sec" onclick="window.__tb.pick(null)">Clear my pick</button>' : "") + '<button ' + (can ? "" : "disabled") + ' onclick="window.__tb.reveal()">Reveal' + (can ? "" : " (waiting for " + (names.length ? "the other pick" : "both picks") + ")") + '</button></div>';
+      act = '<div class="verdict round">Round ' + g.round + '</div>'
+        + '<div class="btns">' + (mine != null ? '<button class="sec" onclick="window.__tb.pick(null)">Clear my pick</button>' : "") + '<button ' + (can ? "" : "disabled") + ' onclick="window.__tb.reveal()">Reveal</button></div>';
     } else {
       const vals = names.map(nm => picks[nm]); const unanimous = vals.every(v => v === vals[0]);
       const pk = names.map(nm => '<div class="pk ' + (nm === me ? "a" : "b") + '"><small>' + esc(nm) + '</small><b>' + esc(byId[picks[nm]] ? byId[picks[nm]].name : "?") + '</b></div>').join("");
       if (unanimous) act = '<div class="verdict match">MATCH</div><div class="picks">' + pk + '</div><div class="btns"><button class="sec" onclick="window.__tb.again()">Pick again</button><button onclick="window.__tb.startPlace(' + vals[0] + ',null)">List ' + esc(byId[vals[0]] ? byId[vals[0]].name : "") + '</button></div>';
       else {
         const uniq = [...new Set(vals)];
-        act = '<div class="verdict split">NO MATCH</div><div class="picks">' + pk + '</div><div class="hint">Who gives way? Pick the coaster to list now; the other one stays in the pool.</div><div class="slots">' + uniq.map(id => { const cavers = names.filter(nm => picks[nm] !== id);
+        act = '<div class="verdict split">NO MATCH</div><div class="picks">' + pk + '</div><div class="slots">' + uniq.map(id => { const cavers = names.filter(nm => picks[nm] !== id);
           return '<button class="slot" onclick="window.__tb.startPlace(' + id + ',\'' + esc(cavers.join(" + ")).replace(/'/g, "\\'") + '\')">Go with <b>' + esc(byId[id] ? byId[id].name : "?") + '</b><small>' + esc(cavers.join(" + ")) + ' caves</small></button>'; }).join("")
           + '</div><div class="btns"><button class="sec" onclick="window.__tb.again()">Argue, then pick again</button></div>';
       }
     }
 
-    app.innerHTML = topbar('<span>' + fmtScore(g.score) + '</span> · ' + n + ' coasters', true) + '<div class="wrap">'
-      + '<div class="hdr"><div class="sc">' + fmtScore(g.score) + '</div><div class="sub">' + placed.length + ' of ' + n + ' listed · ranks ' + (above + 1) + '–' + (above + n) + ' on the site</div></div>'
-      + '<h2 style="margin-top:6px">The list</h2>' + listHtml
-      + (open.length ? '<h2>Still to list</h2><div class="round"><b>Round ' + g.round + '</b>' + chips + '</div><div class="list">' + open.map(cand).join("") + '</div>' : "")
-      + '<h2>Scoreboard for ' + fmtScore(g.score) + '</h2>' + statsHtml(stats(state.log || []))
-      + ((state.log || []).length ? '<h2>Rounds</h2><div class="log">' + state.log.slice(0, 12).map(logLine).join("") + '</div>' : "")
+    const s = stats(state.log || []);
+    app.innerHTML = topbar('<span>Tiebreak</span>', true) + '<div class="wrap">'
+      + '<div class="ghead"><div class="sc" style="color:' + col(g.score) + '">' + fmtScore(g.score) + '</div><div class="hl"><small>' + n + ' coasters · ' + placed.length + ' listed · #' + (above + 1) + '–' + (above + n) + '</small>Tied at ' + fmtScore(g.score) + '</div></div>'
+      + (placed.length || phase === "place" ? '<h2 style="margin-top:0">The list</h2>' : "") + listHtml
+      + (phase === "pick" && open.length ? '<h2>Still to list</h2><div class="round"><b>Round ' + g.round + '</b>' + chips + '</div><div class="list">' + open.map(cand).join("") + '</div>' : "")
+      + (phase === "pick" && s.rounds ? '<h2>Scoreboard</h2>' + statsHtml(s) + '<h2>Rounds</h2><div class="log">' + state.log.filter(l => l.result !== "submit").slice(0, 10).map(logLine).join("") + '</div>' : "")
       + '</div><div class="act"><div class="in">' + act + '</div></div>';
+    if (phase === "place") { const row = $("#placed .pl.new"); if (row) { bindDrag(row); row.scrollIntoView({ block: "center" }); } }
   }
 
-  // ---- the reveal: a short, tense sequence on both phones; closes only on the Continue button
+  // ---- dragging the new row up and down the list (same feel as the park rank lane: the new one lifts, the others shift)
+  function bindDrag(row) {
+    const box = row.parentElement;
+    const renumber = () => [...box.querySelectorAll(".pl")].forEach((r, i) => { r.querySelector(".rk").textContent = i + 1; });
+    row.addEventListener("pointerdown", e => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      e.preventDefault(); row.setPointerCapture(e.pointerId);
+      dragging = true; row.classList.add("lift"); buzz(10);
+      const startY = e.clientY; let shift = 0;
+      const step = row.offsetHeight + 6;   // row + gap
+      const mv = ev => {
+        const dy = ev.clientY - startY;
+        row.style.transform = "translateY(" + (dy + shift) + "px) scale(1.03)";
+        const r = row.getBoundingClientRect(), mid = r.top + r.height / 2;
+        const prev = row.previousElementSibling, next = row.nextElementSibling;
+        if (prev && prev.classList.contains("pl")) { const pr = prev.getBoundingClientRect(); if (mid < pr.top + pr.height / 2) { box.insertBefore(row, prev); shift += step; row.style.transform = "translateY(" + (dy + shift) + "px) scale(1.03)"; renumber(); buzz(8); return; } }
+        if (next && next.classList.contains("pl")) { const nr = next.getBoundingClientRect(); if (mid > nr.top + nr.height / 2) { box.insertBefore(next, row); shift -= step; row.style.transform = "translateY(" + (dy + shift) + "px) scale(1.03)"; renumber(); buzz(8); } }
+      };
+      const up = () => { row.removeEventListener("pointermove", mv); row.removeEventListener("pointerup", up); row.removeEventListener("pointercancel", up);
+        row.style.transform = ""; row.classList.remove("lift"); dragging = false; renumber(); };
+      row.addEventListener("pointermove", mv); row.addEventListener("pointerup", up); row.addEventListener("pointercancel", up);
+    });
+  }
+  function dropIndex() { const rows = [...document.querySelectorAll("#placed .pl")]; const i = rows.findIndex(r => r.classList.contains("new")); return i < 0 ? rows.length : i; }
+
+  // ---- the reveal: a short, tense sequence on both phones; Skip jumps to the end, Continue closes
   function drama(names, picks, byId) {
     const ov = $("#overlay"); if (!ov) return;
     const vals = names.map(nm => picks[nm]); const match = vals.every(v => v === vals[0]);
     const card = (nm, cls) => '<div class="ov-card ' + cls + '"><small>' + esc(nm) + '</small><b>' + esc(byId[picks[nm]] ? byId[picks[nm]].name : "?") + '</b></div>';
-    ov.innerHTML = '<div class="ov-in"><div class="ov-t">Revealing<span class="dots"><i>.</i><i>.</i><i>.</i></span></div><div class="ov-cards">' + card(names[0], "hide") + card(names[1] || "", "hide") + '</div><div class="stamp hide ' + (match ? "match" : "split") + '">' + (match ? "MATCH" : "NO MATCH") + '</div><button class="ov-btn hide" id="ov-go">Continue</button></div>';
+    ov.innerHTML = '<button class="ov-skip" id="ov-skip">Skip</button><div class="ov-in"><div class="ov-t">Revealing<span class="dots"><i>.</i><i>.</i><i>.</i></span></div><div class="ov-cards">' + card(names[0], "hide") + card(names[1] || "", "hide") + '</div><div class="stamp hide ' + (match ? "match" : "split") + '">' + (match ? "MATCH" : "NO MATCH") + '</div><button class="ov-btn hide" id="ov-go">Continue</button></div>';
     ov.classList.add("on"); buzz(30);
-    const cards = ov.querySelectorAll(".ov-card"), stamp = ov.querySelector(".stamp"), go = ov.querySelector("#ov-go");
+    const cards = ov.querySelectorAll(".ov-card"), stamp = ov.querySelector(".stamp"), go = ov.querySelector("#ov-go"), skip = ov.querySelector("#ov-skip");
     const t = [];
     t.push(setTimeout(() => { cards[0].classList.remove("hide"); buzz(20); }, 1400));
     t.push(setTimeout(() => { cards[1] && cards[1].classList.remove("hide"); buzz(20); }, 2300));
     t.push(setTimeout(() => { stamp.classList.remove("hide"); buzz(match ? [60, 50, 60, 50, 120] : [250]); }, 3200));
-    t.push(setTimeout(() => { go.classList.remove("hide"); }, 4000));
-    const close = e => { if (e) { e.preventDefault(); e.stopPropagation(); } t.forEach(clearTimeout); ov.classList.remove("on"); ov.innerHTML = ""; };
+    t.push(setTimeout(() => { go.classList.remove("hide"); skip.classList.add("hide"); }, 4000));
+    const stop = e => { if (e) { e.preventDefault(); e.stopPropagation(); } t.forEach(clearTimeout); };
+    const showAll = e => { stop(e); ov.querySelectorAll(".hide").forEach(x => x.classList.remove("hide")); skip.classList.add("hide"); };
+    const close = e => { stop(e); ov.classList.remove("on"); ov.innerHTML = ""; };
     // preventDefault on touchend stops the follow-up click from landing on whatever is underneath
+    skip.addEventListener("touchend", showAll, { passive: false }); skip.addEventListener("click", showAll);
     go.addEventListener("touchend", close, { passive: false }); go.addEventListener("click", close);
     ov.addEventListener("touchend", e => e.preventDefault(), { passive: false });
     t.push(setTimeout(close, 12000));
@@ -226,7 +263,7 @@
       placing = { id, cavedBy: cavedBy || null }; renderGroup();
     },
     cancelPlace: () => { placing = null; renderGroup(); },
-    placeAt: pos => { const p = placing; placing = null; act({ action: "lock", coasterId: p.id, position: pos, cavedBy: p.cavedBy }).then(() => toast("Listed")); },
+    placeDone: () => { const p = placing; if (!p) return; const pos = dropIndex() + 1; placing = null; act({ action: "lock", coasterId: p.id, position: pos, cavedBy: p.cavedBy }).then(() => toast("Listed at " + pos)); },
     move: (id, dir) => act({ action: "move", coasterId: id, dir }),
     unplace: (id, name) => { if (confirm("Take " + name + " back out of the list?")) act({ action: "unplace", coasterId: id }); },
     submit: () => { if (confirm("Put this order on the site? Coaster pages and rankings update right away.")) act({ action: "submit" }).then(() => toast("On the site")); },
@@ -234,7 +271,7 @@
     sheet: id => openSheet(id),
   };
   window.__tb = A;
-  window.__tbDebug = () => ({ me, score, group: state && state.group });
+  window.__tbDebug = () => ({ me, score, group: state && state.group, placing });
 
   // ---- stats sheet for one coaster
   function closeSheet() { $("#sheet").classList.remove("open"); $("#sheet-bg").classList.remove("open"); }

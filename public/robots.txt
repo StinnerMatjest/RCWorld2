@@ -2,6 +2,7 @@ User-agent: *
 Disallow: /admin/
 Disallow: /api/
 Disallow: /carousel
+Disallow: /tiebreak
 Disallow: /games/zoomle/config
 Disallow: /lists/create
 
