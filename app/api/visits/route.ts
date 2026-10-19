@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
 
-// Every dated rating is a park visit — powers the /about timeline. Unpublished
-// ratings are included (the visit happened, the score exists) and the timeline
-// shows them as "review coming soon" instead of linking to the review.
 export async function GET() {
   try {
     const result = await pool.query(`

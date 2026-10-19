@@ -133,6 +133,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Rating not found" }, { status: 404 });
     }
 
+    // Explicitly delete related records to prevent Foreign Key constraint errors
+    await pool.query(`DELETE FROM parktexts WHERE visit_id = $1`, [ratingId]);
+    await pool.query(`DELETE FROM ratingwarning WHERE visit_id = $1`, [ratingId]);
+    await pool.query(`DELETE FROM visitgallery WHERE visit_id = $1`, [ratingId]);
+
     const deleteQuery = `DELETE FROM visits WHERE id = $1 RETURNING id`;
     const result = await pool.query(deleteQuery, [ratingId]);
 

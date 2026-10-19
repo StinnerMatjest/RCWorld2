@@ -141,9 +141,6 @@ export async function PATCH(
 
     revalidateTag("parks-leaderboard"); // Clears the Parks Leaderboard cache
 
-    // Card framing changed: cut the visible slice of each wide photo in the
-    // background (a few seconds per photo). Until it lands, cards fall back
-    // to the original, so the admin never waits and nothing breaks.
     if (body.imagepath || body.imageFocus !== undefined || body.cardImages !== undefined || body.cardImagepath !== undefined) {
       const row = result.rows[0];
       void regenerateParkCuts(row)
@@ -163,27 +160,52 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   revalidateContent();
+  const client = await pool.connect();
+
   try {
     const { id } = await context.params;
     const isNumeric = /^\d+$/.test(id);
+    const queryParam = isNumeric ? Number(id) : id;
 
-    // *Note: This assumes you have "ON DELETE CASCADE" set up on your foreign keys 
-    // (like coasters and checklists) in your database so they delete automatically with the park.
-    const query = isNumeric
-      ? `DELETE FROM parks WHERE id = $1 RETURNING *;`
-      : `DELETE FROM parks WHERE slug = $1 RETURNING *;`;
+    const getQuery = isNumeric
+      ? `SELECT * FROM parks WHERE id = $1;`
+      : `SELECT * FROM parks WHERE slug = $1;`;
 
-    const result = await pool.query(query, [isNumeric ? Number(id) : id]);
+    const result = await client.query(getQuery, [queryParam]);
 
     if (result.rowCount === 0) {
+      client.release();
       return NextResponse.json({ error: "Park not found" }, { status: 404 });
     }
 
     const deleted = result.rows[0];
+    const numericParkId = deleted.id;
+
+    await client.query('BEGIN');
+
+    // 1. Delete deeply nested visit data
+    await client.query(`DELETE FROM parktexts WHERE visit_id IN (SELECT id FROM visits WHERE park_id = $1);`, [numericParkId]);
+    await client.query(`DELETE FROM ratingwarning WHERE visit_id IN (SELECT id FROM visits WHERE park_id = $1);`, [numericParkId]);
+    await client.query(`DELETE FROM visitgallery WHERE visit_id IN (SELECT id FROM visits WHERE park_id = $1);`, [numericParkId]);
+
+    // 2. Delete deeply nested coaster data
+    await client.query(`DELETE FROM coastergallery WHERE coaster_id IN (SELECT id FROM rollercoasters WHERE park_id = $1);`, [numericParkId]);
+    await client.query(`DELETE FROM rollercoasterspecs WHERE coaster_id IN (SELECT id FROM rollercoasters WHERE park_id = $1);`, [numericParkId]);
+
+    // 3. Delete immediate children and linked social posts
+    await client.query(`DELETE FROM social_posts WHERE park_id = $1;`, [numericParkId]);
+    await client.query(`DELETE FROM visits WHERE park_id = $1;`, [numericParkId]);
+    await client.query(`DELETE FROM rollercoasters WHERE park_id = $1;`, [numericParkId]);
+
+    // 4. Delete the park itself
+    await client.query(`DELETE FROM parks WHERE id = $1;`, [numericParkId]);
+
+    await client.query('COMMIT');
+
     logChange({
-      parkId: deleted.id,
+      parkId: numericParkId,
       entityType: "park",
-      entityId: deleted.id,
+      entityId: numericParkId,
       label: deleted.name,
       action: "delete",
       summary: `Deleted park ${deleted.name}`,
@@ -191,9 +213,14 @@ export async function DELETE(
 
     revalidateTag("parks-leaderboard");
     revalidatePath("/", "layout");
-    return NextResponse.json(result.rows[0], { status: 200 });
+    client.release();
+    return NextResponse.json(deleted, { status: 200 });
+
   } catch (error: any) {
+    await client.query('ROLLBACK');
+    client.release();
+
     console.error("Database delete error:", error);
-    return NextResponse.json({ error: "Failed to delete park" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to delete park", detail: String(error) }, { status: 500 });
   }
 }
