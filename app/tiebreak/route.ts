@@ -158,6 +158,12 @@ const head = (title: string) => `<!DOCTYPE html>
   .verdict{text-align:center;font-weight:900;font-size:22px;letter-spacing:1px;padding:6px 0 2px}
   .verdict.match{color:var(--good)} .verdict.split{color:var(--accent-light)}
   .verdict.place{font-size:17px;letter-spacing:0;color:#fff} .verdict.place b{color:var(--blue)}
+  .verdict.wait{font-size:17px;letter-spacing:0;color:#fff;font-weight:700}
+  .verdict.wait b{color:var(--accent-light)}
+  .verdict.wait .dots i{display:inline-block;font-style:normal;animation:blink 1.2s infinite}
+  .verdict.wait .dots i:nth-child(2){animation-delay:.3s} .verdict.wait .dots i:nth-child(3){animation-delay:.6s}
+  .list.locked .cand{opacity:.35;pointer-events:none;transition:opacity .4s}
+  .list.locked .cand.mine{opacity:.85}
   .verdict.round{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:0}
   .slots{display:flex;flex-direction:column;gap:6px}
   .slot{text-align:left;background:var(--el);color:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-weight:700}
@@ -278,7 +284,7 @@ const appPage = head("Parkrating tiebreak") + `
 <div class="sheet-bg" id="sheet-bg" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet"></div>
 <div class="toast" id="toast"></div>
-<script src="/tiebreak.js?v=11"></script>
+<script src="/tiebreak.js?v=12"></script>
 </body></html>`;
 
 export async function GET(req: NextRequest) {

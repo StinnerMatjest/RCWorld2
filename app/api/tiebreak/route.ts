@@ -11,7 +11,7 @@ import { additions, candidates, coasterDetail, countAbove, ensureTiebreak, flags
 // POST /api/tiebreak  JSON { action, ... }  (admin cookie, enforced by middleware)
 //   hello   { name }                                   presence heartbeat
 //   flag    { coasterId, name, dir: high|low|null }    "this score feels wrong" (null removes the flag); listed on the home screen
-//   pick    { score, name, coasterId }                 your hidden pick (null clears it)
+//   pick    { score, name, coasterId }                 lock in your hidden pick (null takes it back); the second one reveals the round
 //   reveal  { score }                                  needs two picks
 //   lock    { score, name, coasterId, position?, cavedBy? }  put it into the DRAFT list (1 = top, default bottom),
 //                                                      log match / caved / lock, next round; name = who placed (the other one places the next match)
@@ -95,6 +95,8 @@ export async function POST(req: NextRequest) {
         const ok = await pool.query(`SELECT 1 FROM rollercoasters WHERE id = $1 AND rating = $2`, [id, score]);
         if (!ok.rowCount || g.order.includes(id)) return bad("Not a candidate in this group");
         await pool.query(`UPDATE tiebreak_groups SET picks = picks || $2::jsonb, updated_at = now() WHERE score = $1 AND revealed = false`, [score, JSON.stringify({ [name]: id })]);
+        // the second lock-in reveals by itself; nobody presses anything
+        await pool.query(`UPDATE tiebreak_groups SET revealed = true, updated_at = now() WHERE score = $1 AND revealed = false AND (SELECT COUNT(*) FROM jsonb_object_keys(picks)) >= 2`, [score]);
       }
       await seen(name);
       break;
