@@ -48,6 +48,16 @@ export function ensureTiebreak(): Promise<void> {
         name TEXT PRIMARY KEY,
         last_seen TIMESTAMPTZ DEFAULT now()
       )`);
+      // where each phone is (the big screen follows it), who placed last (the other one places the next match),
+      // and scores flagged as wrong during a session
+      await pool.query(`ALTER TABLE tiebreak_players ADD COLUMN IF NOT EXISTS score NUMERIC`);
+      await pool.query(`ALTER TABLE tiebreak_groups ADD COLUMN IF NOT EXISTS last_placer TEXT`);
+      await pool.query(`CREATE TABLE IF NOT EXISTS tiebreak_flags (
+        coaster_id INTEGER PRIMARY KEY,
+        dir TEXT NOT NULL,
+        by_name TEXT,
+        created_at TIMESTAMPTZ DEFAULT now()
+      )`);
     })().catch((err) => { ready = null; throw err; });
   }
   return ready;
@@ -71,14 +81,14 @@ export function ensureTieRankColumn(): Promise<void> {
 }
 
 export type Placing = { id: number; pos: number; by: string } | null;
-export type GroupRow = { score: string; round: number; picks: Record<string, number>; revealed: boolean; order: number[]; placing: Placing; submitted_at: string | null; updated_at: string };
+export type GroupRow = { score: string; round: number; picks: Record<string, number>; revealed: boolean; order: number[]; placing: Placing; submitted_at: string | null; last_placer: string | null; updated_at: string };
 
 /** The group row; the draft order is seeded from the published order the first time. */
 export async function getGroup(score: number): Promise<GroupRow> {
   const r = await pool.query(
     `INSERT INTO tiebreak_groups (score) VALUES ($1)
      ON CONFLICT (score) DO UPDATE SET score = EXCLUDED.score
-     RETURNING score, round, picks, revealed, order_ids, live_place AS placing, submitted_at, updated_at`,
+     RETURNING score, round, picks, revealed, order_ids, live_place AS placing, submitted_at, last_placer, updated_at`,
     [score]
   );
   const row = r.rows[0];
@@ -91,7 +101,7 @@ export async function getGroup(score: number): Promise<GroupRow> {
   } else {
     order = (row.order_ids as number[]).filter(id => inGroup.has(id)); // a coaster re-scored out of the group drops out
   }
-  return { score: row.score, round: row.round, picks: row.picks, revealed: row.revealed, order, placing: row.placing ?? null, submitted_at: row.submitted_at, updated_at: row.updated_at };
+  return { score: row.score, round: row.round, picks: row.picks, revealed: row.revealed, order, placing: row.placing ?? null, submitted_at: row.submitted_at, last_placer: row.last_placer ?? null, updated_at: row.updated_at };
 }
 
 async function saveOrder(score: number, order: number[]) {
@@ -103,12 +113,13 @@ export async function candidates(score: number) {
     `SELECT rc.id, rc.name, rc.slug, rc.year, rc.model, rc.scale, rc.rating, rc.ridecount, rc.tie_rank, rc.isbestcoaster,
             m.name AS manufacturer, p.id AS park_id, p.name AS park, p.country, p.slug AS park_slug,
             rs.type, rs.classification, rs.length, rs.height, rs.drop, rs.speed, rs.inversions, rs.gforce, rs.duration_sec AS duration, rs.notes,
-            img.path AS image,
+            img.path AS image, p.imagepath AS park_image, f.dir AS flag_dir, f.by_name AS flag_by,
             (SELECT MAX(v.date) FROM visits v WHERE v.park_id = p.id) AS last_visit
      FROM rollercoasters rc
      JOIN parks p ON p.id = rc.park_id
      LEFT JOIN manufacturers m ON m.id = rc.manufacturer_id
      LEFT JOIN rollercoasterspecs rs ON rs.coaster_id = rc.id
+     LEFT JOIN tiebreak_flags f ON f.coaster_id = rc.id
      LEFT JOIN LATERAL (SELECT cg.path FROM coastergallery cg WHERE cg.coaster_id = rc.id AND cg.path <> '' ORDER BY cg.is_header DESC, cg.id ASC LIMIT 1) img ON TRUE
      WHERE rc.rating = $1
      ORDER BY rc.name`,
@@ -260,12 +271,34 @@ export async function logFor(score: number | null) {
   return r.rows;
 }
 
-export async function seen(name: string) {
-  await pool.query(`INSERT INTO tiebreak_players (name, last_seen) VALUES ($1, now()) ON CONFLICT (name) DO UPDATE SET last_seen = now()`, [name]);
+/** Presence heartbeat; `score` is the group the phone is on (null on the home screen) so the big screen can follow. */
+export async function seen(name: string, score: number | null = null) {
+  await pool.query(`INSERT INTO tiebreak_players (name, last_seen, score) VALUES ($1, now(), $2) ON CONFLICT (name) DO UPDATE SET last_seen = now(), score = EXCLUDED.score`, [name, score]);
 }
 
 export async function players() {
-  const r = await pool.query(`SELECT name, last_seen FROM tiebreak_players ORDER BY last_seen DESC LIMIT 6`);
+  const r = await pool.query(`SELECT name, last_seen, score FROM tiebreak_players ORDER BY last_seen DESC LIMIT 6`);
+  return r.rows;
+}
+
+/** Whoever placed last: the other one gets to place the next match. */
+export async function setLastPlacer(score: number, name: string) {
+  await pool.query(`UPDATE tiebreak_groups SET last_placer = $2 WHERE score = $1`, [score, name]);
+}
+
+/** "This score feels wrong": dir is 'high' or 'low', null removes the flag. */
+export async function setFlag(coasterId: number, dir: string | null, by: string) {
+  if (!dir) await pool.query(`DELETE FROM tiebreak_flags WHERE coaster_id = $1`, [coasterId]);
+  else await pool.query(`INSERT INTO tiebreak_flags (coaster_id, dir, by_name) VALUES ($1, $2, $3) ON CONFLICT (coaster_id) DO UPDATE SET dir = EXCLUDED.dir, by_name = EXCLUDED.by_name, created_at = now()`, [coasterId, dir, by]);
+}
+
+/** The flagged coasters for the home screen, newest first. */
+export async function flags() {
+  const r = await pool.query(
+    `SELECT f.coaster_id AS id, f.dir, f.by_name AS by, f.created_at, rc.name, rc.slug, rc.rating, p.name AS park, img.path AS image
+     FROM tiebreak_flags f JOIN rollercoasters rc ON rc.id = f.coaster_id JOIN parks p ON p.id = rc.park_id
+     LEFT JOIN LATERAL (SELECT cg.path FROM coastergallery cg WHERE cg.coaster_id = rc.id AND cg.path <> '' ORDER BY cg.is_header DESC, cg.id ASC LIMIT 1) img ON TRUE
+     ORDER BY f.created_at DESC`);
   return r.rows;
 }
 

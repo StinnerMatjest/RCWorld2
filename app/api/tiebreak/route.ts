@@ -2,18 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
 import { isAdminRequest } from "@/app/lib/adminAuth";
 import { revalidateContent } from "@/app/lib/revalidate";
-import { additions, candidates, coasterDetail, countAbove, ensureTiebreak, getGroup, logAuto, logFor, move, newRound, overview, place, players, reorder, resetGroup, seen, setPlacing, submit, sweepStale, unplace } from "@/app/lib/tiebreakStore";
+import { additions, candidates, coasterDetail, countAbove, ensureTiebreak, flags, getGroup, logAuto, logFor, move, newRound, overview, place, players, reorder, resetGroup, seen, setFlag, setLastPlacer, setPlacing, submit, sweepStale, unplace } from "@/app/lib/tiebreakStore";
 
 // Live tiebreak tool (UI: app/tiebreak/route.ts + public/tiebreak.js).
 // GET  /api/tiebreak                 -> { groups, players, log }           (home)
 // GET  /api/tiebreak?score=7         -> { group (with draft order), candidates (with published tie_rank), above, players, log }
 // GET  /api/tiebreak?coaster=123      -> { highlights, texts, photos, parkRank, parkTotal, visits, lastVisit }   (the stats sheet)
 // POST /api/tiebreak  JSON { action, ... }  (admin cookie, enforced by middleware)
-//   hello   { name }                                   presence heartbeat
+//   hello   { name, score? }                           presence heartbeat; score = the group this phone is on (the big screen at #/tv follows it)
+//   flag    { coasterId, name, dir: high|low|null }    "this score feels wrong" (null removes the flag); listed on the home screen
 //   pick    { score, name, coasterId }                 your hidden pick (null clears it)
 //   reveal  { score }                                  needs two picks
-//   lock    { score, coasterId, position?, cavedBy? }  put it into the DRAFT list (1 = top, default bottom),
-//                                                      log match / caved / lock, next round
+//   lock    { score, name, coasterId, position?, cavedBy? }  put it into the DRAFT list (1 = top, default bottom),
+//                                                      log match / caved / lock, next round; name = who placed (the other one places the next match)
 //   again   { score }                                  split, nobody caves: log it, next round
 //   move    { score, coasterId, dir }                  one step up (-1) or down (+1) in the draft
 //   reorder { score, order: [ids] }                    the whole draft order after a drag
@@ -31,6 +32,7 @@ const bad = (m: string) => NextResponse.json({ error: m }, { status: 400 });
 const NO_STORE = { headers: { "Cache-Control": "no-store" } };
 
 function parseScore(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;   // a phone on the home screen sends score: null, which is not 0
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 && n <= 11 ? n : null;
 }
@@ -48,8 +50,8 @@ export async function GET(req: NextRequest) {
   const s = req.nextUrl.searchParams.get("score");
   if (s === null) {
     await sweepStale();
-    const [groups, ps, log, adds] = await Promise.all([overview(), players(), logFor(null), additions()]);
-    return NextResponse.json({ groups, players: ps, log, additions: adds }, NO_STORE);
+    const [groups, ps, log, adds, fl] = await Promise.all([overview(), players(), logFor(null), additions(), flags()]);
+    return NextResponse.json({ groups, players: ps, log, additions: adds, flags: fl }, NO_STORE);
   }
   const score = parseScore(s);
   if (score === null) return bad("Bad score");
@@ -66,8 +68,14 @@ export async function POST(req: NextRequest) {
 
   if (action === "hello") {
     if (!name) return bad("Name required");
-    await seen(name);
+    await seen(name, parseScore(body.score));
     return NextResponse.json({ ok: true }, NO_STORE);
+  }
+  if (action === "flag") {
+    const id = Number(body.coasterId); if (!Number.isFinite(id)) return bad("coasterId required");
+    const dir = body.dir === "high" || body.dir === "low" ? body.dir : null;
+    await setFlag(id, dir, name);
+    return NextResponse.json({ ok: true, flags: await flags() }, NO_STORE);
   }
 
   const score = parseScore(body.score);
@@ -106,6 +114,7 @@ export async function POST(req: NextRequest) {
       if (!already) {   // a second phone pressing Done for the same coaster changes nothing
         await newRound(score, { result: unanimous ? "match" : cavedBy ? "caved" : "lock", coasterId: id, cavedBy });
         if (auto) await logAuto(score, auto);
+        if (name) await setLastPlacer(score, name);
       }
       return NextResponse.json({ ok: true, slot, auto, already, ...(await groupPayload(score)) }, NO_STORE);
     }
