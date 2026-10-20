@@ -278,7 +278,7 @@ const appPage = head("Parkrating tiebreak") + `
 <div class="sheet-bg" id="sheet-bg" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet"></div>
 <div class="toast" id="toast"></div>
-<script src="/tiebreak.js?v=10"></script>
+<script src="/tiebreak.js?v=11"></script>
 </body></html>`;
 
 export async function GET(req: NextRequest) {

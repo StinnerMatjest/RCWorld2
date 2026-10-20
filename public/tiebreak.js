@@ -162,7 +162,7 @@
     const cand = c => '<div class="cand ' + (c.id === mine ? "mine" : "") + (c.image ? "" : " nophoto") + '" onclick="window.__tb.pick(' + c.id + ')">'
       + '<div class="ph"' + (c.image ? ' style="background-image:url(\'' + thumb(c.image, 1200) + '\')"' : "") + '><div class="tx"><b>' + esc(c.name) + flg(c) + '</b><span class="ln">' + esc(park(c.park)) + ' · ' + (c.manufacturer ? esc(c.manufacturer) : esc(c.country)) + (c.year ? ' ' + c.year : "") + '</span></div>'
       + '<div class="info" onclick="event.stopPropagation();window.__tb.sheet(' + c.id + ')">i</div>' + (c.id === mine ? '<span class="tick">YOUR PICK</span>' : g.submitted_at ? '<span class="tick new">NEW</span>' : "") + '</div>'
-      + '<div class="specs4">' + stat(c.inversions, "inv") + stat(c.speed != null ? Math.round(c.speed) : null, "mph") + stat(c.height != null ? Math.round(c.height) : null, "ft") + stat(c.ridecount, c.ridecount === 1 ? "ride" : "rides") + '</div></div>';
+      + '<div class="specs4">' + stat(c.inversions, "inv") + stat(c.speed != null ? Math.round(c.speed) + " mph" : null, "speed") + stat(c.height != null ? Math.round(c.height) + " ft" : null, "height") + stat(c.length != null ? Math.round(c.length).toLocaleString("en") + " ft" : null, "length") + '</div></div>';
 
     // the draft list
     const rowOf = (c, i, kind) => '<div class="pl ' + kind + '" data-id="' + c.id + '"><div class="rk" style="color:' + (kind ? "" : col(g.score)) + '">' + (i + 1) + '</div><div class="th" style="background-image:url(\'' + thumb(c.image, 480) + '\')"></div><div class="nm">' + esc(c.name) + '<small>' + (kind === "ghost" ? esc(live.by) + " is placing…" : esc(park(c.park))) + '</small></div>'
