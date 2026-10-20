@@ -26,8 +26,6 @@
   let state = null, score = null, timer = null, busy = false;
   let placing = null;              // { id, cavedBy } while this phone drags a coaster into the list
   let showSettled = false;
-  let tv = false;                  // #/tv: the big screen, read-only, follows whichever group the phones are on
-  let view = localStorage.getItem("tiebreak-view") || "photos";   // candidates as photo tiles or stat cards
   let dragging = false;            // no repaint while a finger is on a row
   let actionSeq = 0, lastActionDone = 0, lastKey = "";
   const seenReveal = {}, autoPlaced = {};   // per score: "round:revealed" animated / round auto-placed on a match
@@ -45,8 +43,6 @@
   function route() {
     const h = location.hash.replace(/^#\/?/, "");
     const mm = h.match(/^g\/([\d.]+)/);
-    tv = /^tv\b/.test(h);
-    document.body.classList.toggle("tv", tv);
     score = mm ? Number(mm[1]) : null; placing = null; lastKey = "";
     state = null; app.innerHTML = '<div class="wrap hint" style="padding-top:40px">Loading…</div>';
     tick();
@@ -56,7 +52,6 @@
   // ---- polling
   async function tick() {
     clearTimeout(timer);
-    if (tv) { await tickTv(); timer = setTimeout(tick, 1000); return; }
     if (!me) { renderName(); return; }
     try {
       const seq = actionSeq, started = Date.now();
@@ -66,7 +61,7 @@
     } catch (e) { /* keep the last render */ }
     timer = setTimeout(tick, score === null ? 4000 : 1000);
   }
-  setInterval(() => { if (me && !tv) api({ action: "hello", name: me, score }).catch(() => {}); }, 5000);
+  setInterval(() => { if (me) api({ action: "hello", name: me }).catch(() => {}); }, 5000);
 
   // ---- who are you
   function renderName() {
@@ -74,7 +69,7 @@
       + '<div class="names">' + NAMES.map(n => '<button onclick="window.__tb.setName(\'' + n + '\')">' + n + '</button>').join("") + '</div>'
       + '<details class="other"><summary>Someone else</summary><input id="nm" placeholder="Name"><button class="sec" style="width:100%;margin-top:8px" onclick="window.__tb.setName(document.getElementById(\'nm\').value)">Use this name</button></details></div></div>';
   }
-  function setName(v) { v = (v || "").trim(); if (!v) return; me = v.slice(0, 40); localStorage.setItem("tiebreak-name", me); api({ action: "hello", name: me, score }).catch(() => {}); tick(); }
+  function setName(v) { v = (v || "").trim(); if (!v) return; me = v.slice(0, 40); localStorage.setItem("tiebreak-name", me); api({ action: "hello", name: me }).catch(() => {}); tick(); }
   // switching person: drop the old name's unrevealed pick in the open group so it does not linger under the wrong name
   function changeName() {
     const old = me, g = state && state.group;
@@ -109,7 +104,6 @@
       + (done.length ? '<button class="sec sm settled-toggle" onclick="window.__tb.toggleSettled()">' + done.length + ' settled · ' + (showSettled ? "hide" : "show") + '</button>' + (showSettled ? '<div style="margin-top:10px">' + done.map(row).join("") + '</div>' : "") : "")
       + (fl.length ? '<h2>Scores to look at again</h2><div class="adds">' + fl.map(flagRow).join("") + '</div>' : "")
       + (s.rounds ? '<h2>Scoreboard</h2>' + statsHtml(s) : "")
-      + '<a class="sh-link" href="#/tv">Big screen ›</a>'
       + '</div>';
   }
   function stats(log) {
@@ -130,7 +124,7 @@
   // ---- one group
   function renderKey() {
     const g = state.group, ps = (state.players || []).map(p => p.name + ":" + (recent(p.last_seen) ? 1 : 0)).sort().join(",");
-    return JSON.stringify([g.round, g.revealed, g.picks, g.order, g.placing, g.submitted_at, g.last_placer, state.candidates.map(c => c.id + ":" + c.tie_rank + ":" + (c.flag_dir || "")), (state.log || []).length, ps, placing && placing.id, placing && placing.pos, me, view]);
+    return JSON.stringify([g.round, g.revealed, g.picks, g.order, g.placing, g.submitted_at, g.last_placer, state.candidates.map(c => c.id + ":" + c.tie_rank + ":" + (c.flag_dir || "")), (state.log || []).length, ps, placing && placing.id, placing && placing.pos, me]);
   }
   function renderGroup() {
     if (dragging) return;
@@ -164,13 +158,11 @@
     // candidates still to list (pick phase only)
     const stat = (v, label) => '<div><b>' + (v == null ? "–" : esc(v)) + '</b><span class="lb">' + label + '</span></div>';
     const flg = c => c.flag_dir ? '<span class="flg" title="Score flagged too ' + c.flag_dir + '">⚑</span>' : "";
-    const tile = c => '<div class="tile ' + (c.id === mine ? "mine" : "") + (c.image ? "" : " park") + '" style="background-image:url(\'' + thumb(c.image || c.park_image, 1200) + '\')" onclick="window.__tb.pick(' + c.id + ')"><b>' + esc(c.name) + flg(c) + '</b>'
-      + '<div class="info" onclick="event.stopPropagation();window.__tb.sheet(' + c.id + ')">i</div>' + (c.id === mine ? '<span class="tick">YOUR PICK</span>' : g.submitted_at ? '<span class="tick new">NEW</span>' : "") + '</div>';
-    const cand = c => '<div class="cand ' + (c.id === mine ? "mine" : "") + '" onclick="window.__tb.pick(' + c.id + ')">'
-      + '<div class="hd"><div class="th" style="background-image:url(\'' + thumb(c.image, 480) + '\')"></div>'
-      + '<div class="tx"><b>' + esc(c.name) + flg(c) + '</b><span class="ln"><em>' + esc(park(c.park)) + '</em> · ' + (c.manufacturer ? esc(c.manufacturer) : esc(c.country)) + (c.year ? ' ' + c.year : "") + '</span></div></div>'
-      + '<div class="specs4">' + stat(c.inversions, "inv") + stat(c.speed != null ? Math.round(c.speed) : null, "mph") + stat(c.height != null ? Math.round(c.height) : null, "ft") + stat(c.ridecount, c.ridecount === 1 ? "ride" : "rides") + '</div>'
-      + '<div class="info" onclick="event.stopPropagation();window.__tb.sheet(' + c.id + ')">i</div>' + (c.id === mine ? '<span class="tick">YOUR PICK</span>' : g.submitted_at ? '<span class="tick new">NEW</span>' : "") + '</div>';
+    // a candidate: the photo is the card (name and park on it), the four numbers under it; no photo = a short dark header
+    const cand = c => '<div class="cand ' + (c.id === mine ? "mine" : "") + (c.image ? "" : " nophoto") + '" onclick="window.__tb.pick(' + c.id + ')">'
+      + '<div class="ph"' + (c.image ? ' style="background-image:url(\'' + thumb(c.image, 1200) + '\')"' : "") + '><div class="tx"><b>' + esc(c.name) + flg(c) + '</b><span class="ln">' + esc(park(c.park)) + ' · ' + (c.manufacturer ? esc(c.manufacturer) : esc(c.country)) + (c.year ? ' ' + c.year : "") + '</span></div>'
+      + '<div class="info" onclick="event.stopPropagation();window.__tb.sheet(' + c.id + ')">i</div>' + (c.id === mine ? '<span class="tick">YOUR PICK</span>' : g.submitted_at ? '<span class="tick new">NEW</span>' : "") + '</div>'
+      + '<div class="specs4">' + stat(c.inversions, "inv") + stat(c.speed != null ? Math.round(c.speed) : null, "mph") + stat(c.height != null ? Math.round(c.height) : null, "ft") + stat(c.ridecount, c.ridecount === 1 ? "ride" : "rides") + '</div></div>';
 
     // the draft list
     const rowOf = (c, i, kind) => '<div class="pl ' + kind + '" data-id="' + c.id + '"><div class="rk" style="color:' + (kind ? "" : col(g.score)) + '">' + (i + 1) + '</div><div class="th" style="background-image:url(\'' + thumb(c.image, 480) + '\')"></div><div class="nm">' + esc(c.name) + '<small>' + (kind === "ghost" ? esc(live.by) + " is placing…" : esc(park(c.park))) + '</small></div>'
@@ -208,67 +200,11 @@
     app.innerHTML = topbar(true) + '<div class="wrap">'
       + '<div class="ghead"><div class="sc" style="color:' + col(g.score) + '">' + fmtScore(g.score) + '</div><div class="hl">Tied at ' + fmtScore(g.score) + '</div></div>'
       + (rows.length ? '<h2 style="margin-top:0">' + (complete ? "The final list" : "The list") + '</h2>' : "") + listHtml
-      + (phase === "pick" && open.length ? '<h2 class="h2row">Still to list<span class="vw"><i class="' + (view === "photos" ? "on" : "") + '" onclick="window.__tb.setView(\'photos\')">Photos</i><i class="' + (view === "stats" ? "on" : "") + '" onclick="window.__tb.setView(\'stats\')">Stats</i></span></h2><div class="round"><b>Round ' + g.round + '</b>' + chips + '</div>' + (view === "photos" ? '<div class="tiles">' + open.map(tile).join("") + '</div>' : '<div class="list">' + open.map(cand).join("") + '</div>') : "")
+      + (phase === "pick" && open.length ? '<h2>Still to list</h2><div class="round"><b>Round ' + g.round + '</b>' + chips + '</div><div class="list">' + open.map(cand).join("") + '</div>' : "")
       + (phase === "pick" && s.rounds ? '<h2>Scoreboard</h2>' + statsHtml(s) + '<h2>Rounds</h2><div class="log">' + state.log.filter(l => l.result !== "submit").slice(0, 10).map(logLine).join("") + '</div>' : "")
       + '</div><div class="act"><div class="in">' + act + '</div></div>';
     if (phase === "place") { const row = $("#placed .pl.new"); if (row) { bindDrag(row, row, () => { if (placing) placing.pos = dropIndex() + 1; sendPlacing(); }); row.scrollIntoView({ block: "center" }); } }
     else if (phase === "pick" || complete) document.querySelectorAll("#placed .pl").forEach(r => { const grip = r.querySelector(".grip"); if (grip) bindDrag(r, grip, () => A.reorder()); });
-  }
-
-  // ---- the big screen (#/tv): follows the group the phones are on, shows the list, the round and the candidates; never acts
-  let tvScore = null;
-  const followScore = ps => { const p = (ps || []).filter(x => recent(x.last_seen) && x.score != null).sort((a, b) => new Date(b.last_seen) - new Date(a.last_seen))[0]; return p ? Number(p.score) : null; };
-  async function tickTv() {
-    try {
-      if (tvScore === null) { const d = await get(); if (!d) return; const f = followScore(d.players); if (f !== null) { tvScore = f; return tickTv(); } state = d; renderTvHome(); return; }
-      const d = await get("?score=" + tvScore); if (!d) return;
-      const f = followScore(d.players); if (f !== null && f !== tvScore) { tvScore = f; return tickTv(); }
-      state = d; renderTv();
-    } catch (e) { /* keep the last render */ }
-  }
-  function tvTop() {
-    const ps = (state && state.players) || [];
-    const who = [...new Set([...NAMES, ...ps.map(p => p.name)])].slice(0, 4).map(n => { const p = ps.find(x => x.name === n); return '<span class="other"><span class="dot ' + (p && recent(p.last_seen) ? "on" : "") + '"></span>' + esc(n) + '</span>'; }).join("");
-    return '<div class="tvtop"><div class="ttl"><span>Parkrating</span> tiebreak</div>' + who + '</div>';
-  }
-  function renderTvHome() {
-    const open = (state.groups || []).filter(g => g.placed < g.count);
-    const card = g => '<div class="grp"><div class="strip">' + (g.thumbs || []).slice(0, 4).map(t => '<i style="background-image:url(\'' + thumb(t, 480) + '\')"></i>').join("") + '</div><div class="shade"></div><div class="row"><div class="sc" style="color:' + col(g.score) + '">' + fmtScore(g.score) + '</div><div class="nm"><b>' + g.count + ' coasters</b><small>' + (g.count - g.placed) + ' to settle</small></div></div></div>';
-    app.innerHTML = tvTop() + '<div class="tvhome"><div class="hl">Tied scores</div><p class="hint">Open a group on a phone and it shows up here.</p><div class="grid">' + open.map(card).join("") + '</div></div>';
-  }
-  function renderTv() {
-    const g = state.group, all = state.candidates;
-    const key = JSON.stringify([tvScore, g.round, g.revealed, g.picks, g.order, g.placing, g.submitted_at, all.map(c => c.id + ":" + c.tie_rank), (state.players || []).map(p => p.name + ":" + (recent(p.last_seen) ? 1 : 0)).sort()]);
-    const byId = Object.fromEntries(all.map(c => [c.id, c]));
-    const order = (g.order || []).filter(id => byId[id]);
-    const placed = order.map(id => byId[id]), open = all.filter(c => !order.includes(c.id)).sort((a, b) => a.name.localeCompare(b.name));
-    const published = all.filter(c => c.tie_rank != null).sort((a, b) => a.tie_rank - b.tie_rank).map(c => c.id);
-    const dirty = JSON.stringify(order) !== JSON.stringify(published);
-    const picks = g.picks || {}, names = Object.keys(picks), vals = names.map(nm => picks[nm]);
-    const revealed = g.revealed && names.length >= 2, unanimous = revealed && vals.every(v => v === vals[0]);
-    const live = g.placing && byId[g.placing.id] && !order.includes(g.placing.id) ? g.placing : null;
-    const rk = g.round + ":" + g.revealed;
-    if (revealed && seenReveal["tv" + tvScore] !== rk) { seenReveal["tv" + tvScore] = rk; drama(names, picks, byId); }
-    if (!g.revealed) seenReveal["tv" + tvScore] = rk;
-    if (key === lastKey) return; lastKey = key;
-    const row = (c, i, kind) => '<div class="pl ' + kind + '"><div class="rk" style="color:' + (kind ? "" : col(g.score)) + '">' + (i + 1) + '</div><div class="th" style="background-image:url(\'' + thumb(c.image, 480) + '\')"></div><div class="nm">' + esc(c.name) + '<small>' + (kind === "ghost" ? esc(live.by) + " is placing…" : esc(park(c.park)) + (c.manufacturer ? " · " + esc(c.manufacturer) : "")) + '</small></div></div>';
-    let rows = placed.map((c, i) => row(c, i, ""));
-    if (live) rows.splice(Math.min(live.pos - 1, rows.length), 0, row(byId[live.id], 0, "ghost"));
-    rows = rows.map((h, i) => h.replace(/<div class="rk"([^>]*)>\d+<\/div>/, '<div class="rk"$1>' + (i + 1) + '</div>'));
-    const complete = !open.length;
-    let status;
-    if (live) status = '<small>Placing</small><b>' + esc(live.by) + '</b> is dragging ' + esc(byId[live.id].name) + ' into place';
-    else if (complete) status = '<small>Done</small>' + (dirty ? "The list is complete" : "On the site");
-    else if (revealed) status = '<small>Round ' + g.round + '</small><span class="' + (unanimous ? "match" : "split") + '">' + (unanimous ? "MATCH" : "NO MATCH") + '</span><div class="picks" style="margin-top:12px">' + names.map((nm, i) => '<div class="pk ' + (i ? "b" : "a") + '"><small>' + esc(nm) + '</small><b>' + esc(byId[picks[nm]] ? byId[picks[nm]].name : "?") + '</b></div>').join("") + '</div>';
-    else { const everyone = [...new Set([...NAMES, ...names])]; status = '<small>Round ' + g.round + '</small>' + everyone.map(nm => picks[nm] != null ? '<span class="ok">' + esc(nm) + ' ✓</span>' : '<span class="wait">' + esc(nm) + '…</span>').join('<span class="wait"> · </span>'); }
-    app.innerHTML = tvTop() + '<div class="tvw"><div class="tvl">'
-      + '<div class="ghead"><div class="sc" style="color:' + col(g.score) + '">' + fmtScore(g.score) + '</div><div class="hl">Tied at ' + fmtScore(g.score) + '</div></div>'
-      + (rows.length ? '<h2 style="margin-top:0">' + (complete ? "The final list" : "The list") + '</h2><div class="placed">' + rows.join("") + '</div>' : '<p class="hint" style="text-align:left">Nothing listed yet.</p>')
-      + (complete ? '<div class="verdict ' + (dirty ? "match" : "onsite") + '">' + (dirty ? "LIST COMPLETE" : "ON THE SITE" + (g.submitted_at ? '<small>' + when(g.submitted_at) + '</small>' : "")) + '</div>' : "")
-      + '</div><div class="tvr">'
-      + '<div class="tvst">' + status + '</div>'
-      + (open.length ? '<h2>Still to list</h2><div class="tiles">' + open.map(c => '<div class="tile' + (c.image ? "" : " park") + '" style="background-image:url(\'' + thumb(c.image || c.park_image, 1200) + '\')"><b>' + esc(c.name) + '</b></div>').join("") + '</div>' : "")
-      + '</div></div>';
   }
 
   // ---- dragging a row up and down the list: the row lifts, the others shift (same feel as the park rank lane)
@@ -319,7 +255,7 @@
     skip.addEventListener("touchend", showAll, { passive: false }); skip.addEventListener("click", showAll);
     go.addEventListener("touchend", close, { passive: false }); go.addEventListener("click", close);
     ov.addEventListener("touchend", e => e.preventDefault(), { passive: false });
-    t.push(setTimeout(close, tv ? 7000 : 12000));
+    t.push(setTimeout(close, 12000));
   }
 
   // ---- actions
@@ -345,7 +281,6 @@
     },
     cancelPlace: () => { const p = placing; placing = null; lastKey = ""; act({ action: "placing", name: me, coasterId: null }); if (!p) renderGroup(); },
     placeDone: () => { const p = placing; if (!p) return; const pos = dropIndex() + 1; placing = null; act({ action: "lock", name: me, coasterId: p.id, position: pos, cavedBy: p.cavedBy }).then(() => toast("Listed at " + pos)); },
-    setView: v => { view = v; localStorage.setItem("tiebreak-view", v); lastKey = ""; renderGroup(); },
     flag: async (id, dir) => {
       try { const d = await api({ action: "flag", coasterId: id, dir, name: me }); if (state) { state = { ...state, flags: d.flags }; (state.candidates || []).forEach(c => { if (c.id === id) { c.flag_dir = dir; c.flag_by = dir ? me : null; } }); } } catch (e) { return; }
       toast(dir ? "Flagged" : "Flag removed"); lastKey = "";

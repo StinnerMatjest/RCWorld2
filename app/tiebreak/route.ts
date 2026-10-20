@@ -87,36 +87,22 @@ const head = (title: string) => `<!DOCTYPE html>
   .chip.ok{border-color:rgba(34,197,94,.5)}
   .chip.ok::before{content:'✓';color:var(--good);font-weight:900}
   .chip.wait::before{content:'…';color:var(--muted)}
-  .list{display:flex;flex-direction:column;gap:10px}
-  .cand{padding:10px 12px 12px;background:var(--el);border:2px solid transparent;border-radius:16px;cursor:pointer;user-select:none;position:relative}
-  .cand.mine{border-color:var(--accent);background:var(--el2)}
-  .cand .hd{display:flex;align-items:center;gap:12px;padding-right:36px}
-  .cand .th{width:64px;height:64px;border-radius:12px;background:#0b1222 center/cover no-repeat;flex:0 0 auto}
-  .cand .tx{flex:1;min-width:0}
-  .cand .tx b{display:block;color:#fff;font-size:18px;font-weight:900;letter-spacing:-.3px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .cand .tx .ln{display:block;color:var(--muted);font-size:12px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .cand .tx .ln em{font-style:normal;color:rgba(255,255,255,.8)}
-  .specs4{display:flex;justify-content:space-between;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+  .list{display:flex;flex-direction:column;gap:12px}
+  .cand{background:var(--el);border:2px solid transparent;background-clip:padding-box;border-radius:18px;cursor:pointer;user-select:none;position:relative;overflow:hidden}
+  .cand.mine{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 8px 24px rgba(233,130,14,.2)}
+  .cand .ph{position:relative;height:210px;background:#0b1222 center/cover no-repeat}
+  .cand.nophoto .ph{height:104px;background:linear-gradient(135deg,#1f2d4d,#0b1222)}
+  .cand .ph::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,8,16,.3) 0%,rgba(5,8,16,0) 30%,rgba(5,8,16,0) 45%,rgba(5,8,16,.92) 100%)}
+  .cand .tx{position:absolute;left:14px;right:14px;bottom:12px;z-index:1}
+  .cand .tx b{display:block;color:#fff;font-size:24px;font-weight:900;letter-spacing:-.5px;line-height:1.05;text-shadow:0 2px 12px rgba(0,0,0,.8)}
+  .cand .tx .ln{display:block;color:rgba(255,255,255,.78);font-size:12px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 6px rgba(0,0,0,.8)}
+  .specs4{display:flex;justify-content:space-between;gap:8px;padding:12px 14px 13px}
   .specs4 div{flex:1;min-width:0;text-align:center}
-  .specs4 b{display:block;font-size:18px;font-weight:900;color:#fff;letter-spacing:-.5px;line-height:1;white-space:nowrap}
+  .specs4 b{display:block;font-size:19px;font-weight:900;color:#fff;letter-spacing:-.5px;line-height:1;white-space:nowrap}
   .specs4 .lb{display:block;font-size:9px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-top:4px;white-space:nowrap}
-  .cand .info{position:absolute;right:10px;top:10px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.08);color:#fff;font:700 14px Roboto,serif;display:flex;align-items:center;justify-content:center}
-  .cand .tick{position:absolute;left:-2px;top:-2px;background:var(--accent);color:#0c0c0c;font:900 10px Roboto,sans-serif;letter-spacing:1px;padding:3px 8px;border-radius:14px 0 10px 0}
+  .cand .info{position:absolute;right:10px;top:10px;z-index:2;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);color:#fff;font:700 14px Roboto,serif;display:flex;align-items:center;justify-content:center}
+  .cand .tick{position:absolute;left:0;top:0;z-index:2;background:var(--accent);color:#0c0c0c;font:900 10px Roboto,sans-serif;letter-spacing:1px;padding:4px 9px;border-radius:0 0 10px 0}
   .cand .tick.new{background:var(--good);color:#06260f}
-  /* candidates as photo tiles (the default while picking); the h2 carries the Photos / Stats switch */
-  .h2row{display:flex;justify-content:space-between;align-items:baseline}
-  .vw i{font-style:normal;cursor:pointer;color:rgba(255,255,255,.35);margin-left:14px;letter-spacing:1.8px}
-  .vw i.on{color:#fff}
-  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .tile{position:relative;aspect-ratio:4/5;border-radius:16px;overflow:hidden;background:#0b1222 center/cover no-repeat;border:2px solid transparent;cursor:pointer;user-select:none}
-  .tile::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,8,16,.25) 0%,rgba(5,8,16,0) 30%,rgba(5,8,16,0) 50%,rgba(5,8,16,.9) 100%)}
-  .tile.park{filter:saturate(.55)}   /* no photo of the coaster itself: the park's photo, toned down */
-  .tile.park::before{content:'park photo';position:absolute;left:12px;top:10px;z-index:1;font-size:9px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,.6)}
-  .tile.mine{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 8px 24px rgba(233,130,14,.25)}
-  .tile b{position:absolute;left:12px;right:12px;bottom:12px;z-index:1;color:#fff;font-size:19px;font-weight:900;letter-spacing:-.4px;line-height:1.05;text-shadow:0 2px 10px rgba(0,0,0,.8)}
-  .tile .info{position:absolute;right:8px;top:8px;z-index:2;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;font:700 14px Roboto,serif;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
-  .tile .tick{position:absolute;left:0;top:0;z-index:2;background:var(--accent);color:#0c0c0c;font:900 10px Roboto,sans-serif;letter-spacing:1px;padding:4px 9px;border-radius:14px 0 10px 0}
-  .tile .tick.new{background:var(--good);color:#06260f}
   .flg{color:var(--accent);font-weight:400;margin-left:5px;font-size:.85em}
   /* the sheet's "score feels wrong" row and the home list of flags */
   .sh-flag{display:flex;align-items:center;gap:18px;border-top:1px solid var(--line);padding:12px 0 2px;font-size:14px}
@@ -266,36 +252,6 @@ const head = (title: string) => `<!DOCTYPE html>
   .who .other{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
   .who .me{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(255,255,255,.18);border-radius:100px;padding:5px 10px 5px 11px;color:#fff;font:700 12px Roboto,sans-serif;white-space:nowrap}
   .who .me span{color:var(--accent);font-weight:700;font-size:10px;letter-spacing:1px;text-transform:uppercase}
-  /* big screen (#/tv): a read-only third client on a laptop or TV, follows the phones */
-  body.tv{padding-bottom:0;font-size:18px;overflow-x:hidden}
-  .tvtop{display:flex;align-items:center;gap:18px;padding:22px 48px 0;color:var(--muted);font-size:16px}
-  .tvtop .ttl{font-weight:900;font-size:20px;letter-spacing:.5px;color:#fff} .tvtop .ttl span{color:var(--accent)}
-  .tvtop .other{display:inline-flex;align-items:center;gap:8px}
-  .tvtop .dot{width:11px;height:11px}
-  .tvw{display:grid;grid-template-columns:5fr 6fr;gap:56px;padding:18px 48px 48px;min-height:calc(100vh - 60px);max-width:1700px;margin:0 auto}
-  .tvl .ghead{margin-bottom:28px} .tvl .ghead .sc{font-size:110px;letter-spacing:-6px} .tvl .ghead .hl{font-size:40px}
-  .tvl .placed{gap:10px}
-  .tvl .pl{padding:10px 14px 10px 14px;border-radius:18px;gap:16px}
-  .tvl .pl .rk{width:44px;font-size:34px;letter-spacing:-1.5px}
-  .tvl .pl .th{width:74px;height:74px;border-radius:14px}
-  .tvl .pl .nm{font-size:24px} .tvl .pl .nm small{font-size:14px;margin-top:2px}
-  .tvl .verdict{text-align:left;font-size:26px;margin-top:22px}
-  .tvl .verdict.onsite small{font-size:13px}
-  .tvr h2{font-size:14px;margin:0 0 14px}
-  .tvst{font-size:24px;font-weight:900;color:#fff;letter-spacing:-.3px;line-height:1.2;min-height:64px;margin-bottom:22px}
-  .tvst small{display:block;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
-  .tvst .ok{color:var(--good)} .tvst .wait{color:var(--muted);font-weight:500} .tvst .match{color:var(--good)} .tvst .split{color:var(--accent-light)}
-  .tvr .tiles{grid-template-columns:repeat(3,1fr);gap:14px}
-  .tvr .tile{aspect-ratio:4/5;border-radius:20px;cursor:default}
-  .tvr .tile b{font-size:26px;left:16px;right:16px;bottom:16px}
-  .tvr .pk{padding:14px 18px} .tvr .pk small{font-size:13px} .tvr .pk b{font-size:24px}
-  .tvhome{padding:40px 48px}
-  .tvhome .hint{text-align:left;font-size:20px;margin:0 0 28px}
-  .tvhome .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-  .tvhome .grp{height:150px}
-  body.tv #overlay .ov-in{width:min(700px,100%);gap:26px}
-  body.tv .ov-t{font-size:22px} body.tv .ov-card b{font-size:40px} body.tv .ov-card small{font-size:15px} body.tv .stamp{font-size:96px} body.tv .stamp.split{font-size:80px}
-  body.tv .ov-skip,body.tv .ov-btn{display:none}
   .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#fff;color:#0c0c0c;font-weight:700;padding:10px 16px;border-radius:100px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
   .toast.on{opacity:1}
   .log{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
@@ -322,7 +278,7 @@ const appPage = head("Parkrating tiebreak") + `
 <div class="sheet-bg" id="sheet-bg" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet"></div>
 <div class="toast" id="toast"></div>
-<script src="/tiebreak.js?v=9"></script>
+<script src="/tiebreak.js?v=10"></script>
 </body></html>`;
 
 export async function GET(req: NextRequest) {

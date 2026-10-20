@@ -9,7 +9,7 @@ import { additions, candidates, coasterDetail, countAbove, ensureTiebreak, flags
 // GET  /api/tiebreak?score=7         -> { group (with draft order), candidates (with published tie_rank), above, players, log }
 // GET  /api/tiebreak?coaster=123      -> { highlights, texts, photos, parkRank, parkTotal, visits, lastVisit }   (the stats sheet)
 // POST /api/tiebreak  JSON { action, ... }  (admin cookie, enforced by middleware)
-//   hello   { name, score? }                           presence heartbeat; score = the group this phone is on (the big screen at #/tv follows it)
+//   hello   { name }                                   presence heartbeat
 //   flag    { coasterId, name, dir: high|low|null }    "this score feels wrong" (null removes the flag); listed on the home screen
 //   pick    { score, name, coasterId }                 your hidden pick (null clears it)
 //   reveal  { score }                                  needs two picks
@@ -32,7 +32,7 @@ const bad = (m: string) => NextResponse.json({ error: m }, { status: 400 });
 const NO_STORE = { headers: { "Cache-Control": "no-store" } };
 
 function parseScore(v: unknown): number | null {
-  if (v === null || v === undefined || v === "") return null;   // a phone on the home screen sends score: null, which is not 0
+  if (v === null || v === undefined || v === "") return null;   // null is "no score", not 0
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 && n <= 11 ? n : null;
 }
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
   if (action === "hello") {
     if (!name) return bad("Name required");
-    await seen(name, parseScore(body.score));
+    await seen(name);
     return NextResponse.json({ ok: true }, NO_STORE);
   }
   if (action === "flag") {

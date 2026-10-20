@@ -48,9 +48,7 @@ export function ensureTiebreak(): Promise<void> {
         name TEXT PRIMARY KEY,
         last_seen TIMESTAMPTZ DEFAULT now()
       )`);
-      // where each phone is (the big screen follows it), who placed last (the other one places the next match),
-      // and scores flagged as wrong during a session
-      await pool.query(`ALTER TABLE tiebreak_players ADD COLUMN IF NOT EXISTS score NUMERIC`);
+      // who placed last (the other one places the next match) and scores flagged as wrong during a session
       await pool.query(`ALTER TABLE tiebreak_groups ADD COLUMN IF NOT EXISTS last_placer TEXT`);
       await pool.query(`CREATE TABLE IF NOT EXISTS tiebreak_flags (
         coaster_id INTEGER PRIMARY KEY,
@@ -113,7 +111,7 @@ export async function candidates(score: number) {
     `SELECT rc.id, rc.name, rc.slug, rc.year, rc.model, rc.scale, rc.rating, rc.ridecount, rc.tie_rank, rc.isbestcoaster,
             m.name AS manufacturer, p.id AS park_id, p.name AS park, p.country, p.slug AS park_slug,
             rs.type, rs.classification, rs.length, rs.height, rs.drop, rs.speed, rs.inversions, rs.gforce, rs.duration_sec AS duration, rs.notes,
-            img.path AS image, p.imagepath AS park_image, f.dir AS flag_dir, f.by_name AS flag_by,
+            img.path AS image, f.dir AS flag_dir, f.by_name AS flag_by,
             (SELECT MAX(v.date) FROM visits v WHERE v.park_id = p.id) AS last_visit
      FROM rollercoasters rc
      JOIN parks p ON p.id = rc.park_id
@@ -271,13 +269,12 @@ export async function logFor(score: number | null) {
   return r.rows;
 }
 
-/** Presence heartbeat; `score` is the group the phone is on (null on the home screen) so the big screen can follow. */
-export async function seen(name: string, score: number | null = null) {
-  await pool.query(`INSERT INTO tiebreak_players (name, last_seen, score) VALUES ($1, now(), $2) ON CONFLICT (name) DO UPDATE SET last_seen = now(), score = EXCLUDED.score`, [name, score]);
+export async function seen(name: string) {
+  await pool.query(`INSERT INTO tiebreak_players (name, last_seen) VALUES ($1, now()) ON CONFLICT (name) DO UPDATE SET last_seen = now()`, [name]);
 }
 
 export async function players() {
-  const r = await pool.query(`SELECT name, last_seen, score FROM tiebreak_players ORDER BY last_seen DESC LIMIT 6`);
+  const r = await pool.query(`SELECT name, last_seen FROM tiebreak_players ORDER BY last_seen DESC LIMIT 6`);
   return r.rows;
 }
 
