@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
 import { isAdminRequest } from "@/app/lib/adminAuth";
 import { revalidateContent } from "@/app/lib/revalidate";
-import { additions, candidates, countAbove, ensureTiebreak, getGroup, logAuto, logFor, move, newRound, overview, place, players, reorder, resetGroup, seen, setPlacing, submit, sweepStale, unplace } from "@/app/lib/tiebreakStore";
+import { additions, candidates, coasterDetail, countAbove, ensureTiebreak, getGroup, logAuto, logFor, move, newRound, overview, place, players, reorder, resetGroup, seen, setPlacing, submit, sweepStale, unplace } from "@/app/lib/tiebreakStore";
 
 // Live tiebreak tool (UI: app/tiebreak/route.ts + public/tiebreak.js).
 // GET  /api/tiebreak                 -> { groups, players, log }           (home)
 // GET  /api/tiebreak?score=7         -> { group (with draft order), candidates (with published tie_rank), above, players, log }
+// GET  /api/tiebreak?coaster=123      -> { highlights, texts, photos, parkRank, parkTotal, visits, lastVisit }   (the stats sheet)
 // POST /api/tiebreak  JSON { action, ... }  (admin cookie, enforced by middleware)
 //   hello   { name }                                   presence heartbeat
 //   pick    { score, name, coasterId }                 your hidden pick (null clears it)
@@ -42,6 +43,8 @@ async function groupPayload(score: number) {
 export async function GET(req: NextRequest) {
   if (!(await isAdminRequest(req))) return unauthorized();
   await ensureTiebreak();
+  const c = Number(req.nextUrl.searchParams.get("coaster"));
+  if (c) return NextResponse.json(await coasterDetail(c), NO_STORE);
   const s = req.nextUrl.searchParams.get("score");
   if (s === null) {
     await sweepStale();

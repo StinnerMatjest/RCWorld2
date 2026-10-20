@@ -70,14 +70,19 @@
       + '<details class="other"><summary>Someone else</summary><input id="nm" placeholder="Name"><button class="sec" style="width:100%;margin-top:8px" onclick="window.__tb.setName(document.getElementById(\'nm\').value)">Use this name</button></details></div></div>';
   }
   function setName(v) { v = (v || "").trim(); if (!v) return; me = v.slice(0, 40); localStorage.setItem("tiebreak-name", me); api({ action: "hello", name: me }).catch(() => {}); tick(); }
-  function changeName() { localStorage.removeItem("tiebreak-name"); me = ""; renderName(); }
+  // switching person: drop the old name's unrevealed pick in the open group so it does not linger under the wrong name
+  function changeName() {
+    const old = me, g = state && state.group;
+    if (old && g && score !== null && g.picks && g.picks[old] != null && !g.revealed) api({ action: "pick", score, name: old, coasterId: null }).catch(() => {});
+    localStorage.removeItem("tiebreak-name"); me = ""; lastKey = ""; renderName();
+  }
 
   function topbar(back) {
     const ps = (state && state.players) || [];
     const others = [...new Set([...NAMES.filter(n => n !== me), ...ps.filter(p => recent(p.last_seen) && !NAMES.includes(p.name)).map(p => p.name).filter(n => n !== me)])].slice(0, 3);
     const seen = Object.fromEntries(ps.map(p => [p.name, p.last_seen]));
-    const dots = others.map(n => '<span class="chip"><span class="dot ' + (seen[n] && recent(seen[n]) ? "on" : "") + '"></span>' + esc(n) + '</span>').join("");
-    return '<div class="top">' + (back ? '<a class="back" href="#/">‹</a>' : "") + '<div class="ttl"><span>Tiebreak</span></div><div class="who">' + dots + '<span class="me" onclick="window.__tb.changeName()" title="Change name">' + esc(me) + '</span></div></div>';
+    const dots = others.map(n => '<span class="other"><span class="dot ' + (seen[n] && recent(seen[n]) ? "on" : "") + '"></span>' + esc(n) + '</span>').join("");
+    return '<div class="top">' + (back ? '<a class="back" href="#/">‹</a>' : "") + '<div class="ttl"><span>Tiebreak</span></div><div class="who">' + dots + '<button class="me" onclick="window.__tb.changeName()" title="Not you? Switch">' + esc(me) + '<span>switch</span></button></div></div>';
   }
 
   // ---- home: the tied scores
@@ -280,32 +285,93 @@
   window.__tb = A;
   window.__tbDebug = () => ({ me, score, group: state && state.group, placing });
 
-  // ---- stats sheet for one coaster
-  function closeSheet() { $("#sheet").classList.remove("open"); $("#sheet-bg").classList.remove("open"); }
+  // ---- the sheet: one coaster, everything you need to argue about it, and Previous / Next to flick between candidates
+  const detailCache = {};
+  let sheetId = null;
+  function closeSheet() { sheetId = null; $("#sheet").classList.remove("open"); $("#sheet-bg").classList.remove("open"); }
   window.closeSheet = closeSheet;
   (function swipeToClose() {
     const sh = $("#sheet"); let y0 = null;
     sh.addEventListener("touchstart", e => { y0 = sh.scrollTop <= 0 ? e.touches[0].clientY : null; }, { passive: true });
     sh.addEventListener("touchmove", e => { if (y0 !== null && e.touches[0].clientY - y0 > 70) { y0 = null; closeSheet(); } }, { passive: true });
     document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+    // the slim name bar appears once the hero has scrolled away
+    sh.addEventListener("scroll", () => { const t = $("#sh-top"); if (t) t.classList.toggle("on", sh.scrollTop > 250); }, { passive: true });
   })();
-  async function openSheet(id) {
+  // review text: paragraphs on blank lines; ||inline spoilers|| are a solid bar until tapped, like the site
+  const spoilText = t => esc(t).split("||").map((s, i) => i % 2 ? '<span class="sp-in" onclick="event.stopPropagation();this.classList.add(\'show\')">' + s + '</span>' : s).join("");
+  const paras = t => String(t || "").split(/\n{2,}/).map(x => '<p>' + spoilText(x).replace(/\n/g, "<br>") + '</p>').join("");
+  const fmtN = (v, d) => v == null || v === "" ? null : Number(v).toLocaleString("en-GB", { maximumFractionDigits: d || 0 });
+  const dur = s => s >= 60 ? Math.floor(s / 60) + ":" + String(Math.round(s % 60)).padStart(2, "0") + " min" : Math.round(s) + " sec";
+  const month = d => new Date(d).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+  const weight = s => ({ "very positive": 2, positive: 1, neutral: 0, negative: -1, "very negative": -2 })[String(s || "").toLowerCase()] || 0;
+  // the coaster page's marks: two chevrons for a big high or low, one for a small one, a dash for neither
+  const mark = w => { const o = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="';
+    return w >= 2 ? o + 'up"><path d="M5 9l5-5 5 5M5 15l5-5 5 5"/></svg>' : w === 1 ? o + 'up"><path d="M5 12l5-5 5 5"/></svg>' : w === -1 ? o + 'dn"><path d="M5 8l5 5 5-5"/></svg>' : w <= -2 ? o + 'dn"><path d="M5 5l5 5 5-5M5 11l5 5 5-5"/></svg>' : o + 'fl"><path d="M5 10h10"/></svg>'; };
+  // the candidates you can flick through: the ones still to list while picking, else the draft list
+  function sheetList() {
+    const all = state.candidates || [], order = (state.group && state.group.order) || [];
+    const open = all.filter(c => !order.includes(c.id)).sort((a, b) => a.name.localeCompare(b.name));
+    return open.length ? open : order.map(id => all.find(c => c.id === id)).filter(Boolean);
+  }
+  async function fetchDetail(id) {
+    try { const r = await fetch("/api/tiebreak?coaster=" + id, { cache: "no-store" }); detailCache[id] = await r.json(); } catch (e) { detailCache[id] = { error: true }; }
+    if (sheetId === id) openSheet(id, true);
+  }
+  function openSheet(id, keep) {
     const c = (state.candidates || []).find(x => x.id === id); if (!c) return;
-    const sh = $("#sheet");
-    const ft = v => v == null ? null : Math.round(v) + " ft", mph = v => v == null ? null : Math.round(v) + " mph";
-    const spec = (v, l) => v == null || v === "" ? "" : '<div class="spec"><b>' + esc(v) + '</b><small>' + l + '</small></div>';
-    sh.innerHTML = '<div class="grab"></div><button class="close" onclick="closeSheet()" aria-label="Close">✕</button>'
-      + (c.image ? '<div class="ph" style="background-image:url(\'' + thumb(c.image, 1200) + '\')"></div><div class="sc">' + fmtScore(c.rating) + '</div>' : '<div class="ph" style="height:70px;background:var(--el)"></div><div class="sc" style="top:30px">' + fmtScore(c.rating) + '</div>')
-      + '<div class="bd"><h3>' + esc(c.name) + '</h3><div class="sub">' + esc(park(c.park)) + ' · ' + esc(c.country) + (c.year ? ' · opened ' + c.year : "") + '</div>'
-      + '<div class="specs">' + spec(c.manufacturer, "make") + spec(c.model, "model") + spec(c.type, "type") + spec(ft(c.height), "height") + spec(mph(c.speed), "speed") + spec(c.length != null ? Math.round(c.length).toLocaleString("en") + " ft" : null, "length") + spec(c.inversions, "inversions") + spec(c.gforce ? c.gforce + " g" : null, "g-force") + spec(c.duration ? Math.round(c.duration) + " s" : null, "duration") + spec(c.ridecount, "our rides") + spec(c.last_visit ? new Date(c.last_visit).getFullYear() : null, "last visit") + spec(c.isbestcoaster ? "yes" : null, "park's best") + '</div>'
-      + (c.notes ? '<p class="hint" style="text-align:left">' + esc(c.notes) + '</p>' : "")
-      + '<div class="rev" id="rev">Loading our review…</div>'
-      + '<div class="links"><a href="/coasters/' + esc(c.slug) + '" target="_blank"><button class="sec sm">Open coaster page</button></a><button class="sm" onclick="closeSheet()">Close</button></div></div>';
-    sh.classList.add("open"); $("#sheet-bg").classList.add("open"); sh.scrollTop = 0;
-    try {
-      const r = await fetch("/api/coasters/" + c.id + "/text"); const j = await r.json(); const texts = (j.texts || []);
-      $("#rev").innerHTML = texts.length ? texts.map(t => '<h4>' + esc(t.headline || "") + '</h4><p class="' + (t.isSpoiler ? "spoil" : "") + '" onclick="this.classList.add(\'show\')">' + esc(t.text || "") + '</p>').join("") : '<p class="hint" style="text-align:left">No written review yet.</p>';
-    } catch (e) { $("#rev").innerHTML = ""; }
+    sheetId = id;
+    const sh = $("#sheet"), st = sh.scrollTop;
+    const d = detailCache[id];
+    const list = sheetList(), i = list.findIndex(x => x.id === id), prev = i > 0 ? list[i - 1] : null, next = i >= 0 && i < list.length - 1 ? list[i + 1] : null;
+    const n = (state.candidates || []).length, lo = (state.above || 0) + 1, hi = (state.above || 0) + n;
+
+    const sub = [park(c.park), c.manufacturer, c.model, c.year].filter(Boolean).map(esc).join(" · ");
+    const hero = '<div class="sh-hero' + (c.image ? "" : " none") + '"' + (c.image ? ' style="background-image:url(\'' + thumb(c.image, 1200) + '\')"' : "") + '><div class="ti"><b>' + esc(c.name) + '</b><small>' + sub + '</small></div><div class="sc" style="color:' + col(c.rating) + '">' + fmtScore(c.rating) + '</div></div>';
+
+    const big = (v, unit, label) => '<div><b>' + (v == null ? "–" : v) + (v != null && unit ? '<i>' + unit + '</i>' : "") + '</b><small>' + label + '</small></div>';
+    const nums = '<div class="sh-lb">The numbers</div><div class="sh-nums">' + big(fmtN(c.speed), "mph", "top speed") + big(fmtN(c.height), "ft", "height") + big(fmtN(c.length), "ft", "length") + big(c.inversions, "", c.inversions === 1 ? "inversion" : "inversions") + '</div>';
+    const kind = [c.type, ...String(c.classification || "").split("|").map(t => t.trim()).filter(Boolean)].filter(Boolean).join(" · ");
+    const row = (l, v) => v == null || v === "" ? "" : '<div><span>' + l + '</span><span>' + v + '</span></div>';
+    const extra = row("Type", kind ? esc(kind) : null) + row("Ride time", c.duration ? dur(Number(c.duration)) : null) + row("Drop", c.drop ? fmtN(c.drop) + " ft" : null) + row("Max G-force", c.gforce ? fmtN(c.gforce, 1) + " G" : null) + row("Scale", c.scale && c.scale !== "Unknown" ? esc(c.scale) : null);
+    const specs = nums + (extra ? '<div class="sh-rows">' + extra + '</div>' : "") + (c.notes ? '<p class="sh-notes">' + esc(c.notes) + '</p>' : "");
+
+    let hl = "";
+    if (d && d.highlights && d.highlights.length) {
+      const hs = d.highlights.filter(h => weight(h.severity) > 0).sort((a, b) => weight(b.severity) - weight(a.severity));
+      const ls = d.highlights.filter(h => weight(h.severity) < 0).sort((a, b) => weight(a.severity) - weight(b.severity));
+      const fl = d.highlights.filter(h => weight(h.severity) === 0);
+      const grp = (t, xs) => xs.length ? '<p>' + t + '</p><ul>' + xs.map(h => '<li>' + mark(weight(h.severity)) + '<span>' + esc(h.category) + '</span></li>').join("") + '</ul>' : "";
+      hl = '<div class="sh-lb">Highs and lows</div><div class="sh-hl">' + grp("Highs", hs) + grp("Lows", ls) + grp("Neither here nor there", fl) + '</div>';
+    }
+
+    const rides = c.ridecount || 0;
+    const us = '<div class="sh-lb">Us and it</div><div class="sh-rows" style="margin-top:0">'
+      + row("Ridden", rides ? rides + (rides === 1 ? " time" : " times") : "never")
+      + row("Last visit", c.last_visit ? month(c.last_visit) : null)
+      + (d && !d.error ? row("Visits to " + esc(park(c.park)), d.visits ? String(d.visits) : null) + row("In the park", d.parkRank ? "#" + d.parkRank + " of " + d.parkTotal + (c.isbestcoaster ? ' · <em>park\'s best</em>' : "") : null) : "")
+      + row("Worldwide", "#" + lo + (n > 1 ? "–#" + hi : "") + ' <span class="sh-dim">· this tie</span>')
+      + '</div>';
+
+    const photos = d && d.photos && d.photos.length > 1 ? '<div class="sh-lb">Photos</div><div class="sh-photos">' + d.photos.map(p => '<i style="background-image:url(\'' + thumb(p, 480) + '\')"></i>').join("") + '</div>' : "";
+
+    let rev = '<div class="sh-lb">Our review</div><div class="sh-rev">';
+    if (!d) rev += '<p class="sh-dim">Loading…</p>';
+    else if (d.error) rev += '<p class="sh-dim">Could not load the review.</p>';
+    else if (!d.texts || !d.texts.length) rev += '<p class="sh-dim">No written review yet.</p>';
+    else rev += d.texts.map(t => (t.headline ? '<h4>' + esc(t.headline) + '</h4>' : "") + (t.isSpoiler ? '<div class="sp-block" onclick="this.classList.add(\'show\')">' + paras(t.text) + '<span class="sp-tag">Contains ride spoilers · tap to show</span></div>' : paras(t.text))).join("");
+    rev += '</div>';
+
+    const nav = '<div class="sh-nav"><button ' + (prev ? 'onclick="window.__tb.sheet(' + prev.id + ')"' : "disabled") + '><span>‹</span> ' + (prev ? esc(prev.name) : "") + '</button>'
+      + (i >= 0 ? '<small>' + (i + 1) + ' / ' + list.length + '</small>' : "")
+      + '<button ' + (next ? 'onclick="window.__tb.sheet(' + next.id + ')"' : "disabled") + '>' + (next ? esc(next.name) : "") + ' <span>›</span></button></div>';
+
+    const top = '<div class="sh-top' + (keep && st > 250 ? " on" : "") + '" id="sh-top"><b>' + esc(c.name) + '</b><span style="color:' + col(c.rating) + '">' + fmtScore(c.rating) + '</span><button onclick="closeSheet()" aria-label="Close">✕</button></div>';
+    sh.innerHTML = top + '<div class="grab"></div><button class="close" onclick="closeSheet()" aria-label="Close">✕</button>' + hero
+      + '<div class="sh-bd">' + specs + hl + us + photos + rev + '<a class="sh-link" href="/coasters/' + esc(c.slug) + '" target="_blank">Open coaster page ›</a></div>' + nav;
+    sh.classList.add("open"); $("#sheet-bg").classList.add("open");
+    sh.scrollTop = keep ? st : 0;
+    if (!d) fetchDetail(id);
   }
 
   route();

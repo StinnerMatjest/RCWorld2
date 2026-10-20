@@ -268,3 +268,29 @@ export async function players() {
   const r = await pool.query(`SELECT name, last_seen FROM tiebreak_players ORDER BY last_seen DESC LIMIT 6`);
   return r.rows;
 }
+
+/**
+ * Everything the stats sheet shows for one coaster beyond the candidate row: the highs and lows,
+ * the review sections, the featured photos, where it sits in its park, and how often we were there.
+ */
+export async function coasterDetail(id: number) {
+  const [hl, tx, ph, pk, vs] = await Promise.all([
+    pool.query(`SELECT category, severity FROM rollercoasterhighlights WHERE coaster_id = $1 ORDER BY id`, [id]),
+    pool.query(`SELECT headline, text, is_spoiler AS "isSpoiler" FROM coastertext WHERE coaster_id = $1 ORDER BY "order", id`, [id]),
+    pool.query(`SELECT path, featured, is_header FROM coastergallery WHERE coaster_id = $1 AND path <> '' ORDER BY is_header DESC, featured DESC, sort_order ASC, id ASC LIMIT 8`, [id]),
+    pool.query(
+      `SELECT rc2.id FROM rollercoasters rc JOIN rollercoasters rc2 ON rc2.park_id = rc.park_id AND rc2.rating IS NOT NULL
+       WHERE rc.id = $1 ORDER BY rc2.rating DESC, rc2.tie_rank NULLS LAST, rc2.name`, [id]),
+    pool.query(`SELECT COUNT(*)::int AS n, MAX(v.date) AS last FROM visits v JOIN rollercoasters rc ON rc.park_id = v.park_id WHERE rc.id = $1`, [id]),
+  ]);
+  const parkIds = pk.rows.map(r => r.id);
+  return {
+    highlights: hl.rows,
+    texts: tx.rows,
+    photos: ph.rows.map(r => r.path),
+    parkRank: parkIds.indexOf(id) + 1 || null,
+    parkTotal: parkIds.length,
+    visits: vs.rows[0].n as number,
+    lastVisit: vs.rows[0].last as string | null,
+  };
+}
