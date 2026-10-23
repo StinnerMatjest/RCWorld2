@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback, useId } from "react";
+import React, { useState, useRef, useEffect, useId } from "react";
 import { useRouter } from "next/navigation";
 import { getRatingColor } from "../utils/design";
 
-type SPark = { id: number; name: string; country: string; slug: string; overall?: number };
-type SCoaster = { id: number; name: string; parkName: string; slug: string; rating?: number };
-// Fixed: Removed slug properties from Manufacturers and Models
-type SManufacturer = { id: number; name: string };
-type SModel = { id: number; name: string; manufacturerName?: string; manufacturerId?: number };
+export type SPark = { id: number; name: string; country: string; slug: string; overall?: number };
+export type SCoaster = { id: number; name: string; parkName: string; slug: string; rating?: number };
+export type SManufacturer = { id: number; name: string };
+export type SModel = { id: number; name: string; manufacturerName?: string; manufacturerId?: number };
 
 // Lower-case and strip accents and special letters so plain typing matches
 function fold(s: string): string {
@@ -18,66 +17,62 @@ function fold(s: string): string {
     .replace(/ß/g, "ss").replace(/ł/g, "l").replace(/đ/g, "d");
 }
 
+export type SearchIndex = { parks: SPark[]; coasters: SCoaster[]; manufacturers: SManufacturer[]; models: SModel[]; loaded: boolean };
+const EMPTY: SearchIndex = { parks: [], coasters: [], manufacturers: [], models: [], loaded: false };
+let indexPromise: Promise<Partial<SearchIndex>> | null = null;   // one download per page, shared by every search box
+
+/** The site's search index (parks, coasters, manufacturers, models), fetched once. */
+export function useSearchIndex(): SearchIndex {
+  const [idx, setIdx] = useState<SearchIndex>(EMPTY);
+  useEffect(() => {
+    if (!indexPromise) indexPromise = fetch("/api/search-index").then(r => (r.ok ? r.json() : {})).catch(err => { console.error("Failed to load search index", err); return {}; });
+    let alive = true;
+    indexPromise.then(d => { if (alive) setIdx({ parks: d.parks || [], coasters: d.coasters || [], manufacturers: d.manufacturers || [], models: d.models || [], loaded: true }); });
+    return () => { alive = false; };
+  }, []);
+  return idx;
+}
+
+/**
+ * Every word of the query must appear in the name (plus country for parks, park for
+ * coasters, maker for models). A country query also lists the best coasters in that
+ * country's parks, so "germany" gives the German parks and their top rides.
+ */
+export function matchSearch(q: string, idx: SearchIndex) {
+  const words = fold(q.trim()).split(/\s+/).filter(Boolean);
+  if (!words.length) return { parks: [] as SPark[], coasters: [] as SCoaster[], manufacturers: [] as SManufacturer[], models: [] as SModel[], country: null as string | null };
+  const hits = (...fields: string[]) => { const hay = fold(fields.join(" ")); return words.every(w => hay.includes(w)); };
+  const countryParks = idx.parks.filter(p => words.every(w => fold(p.country).includes(w)));
+  const country = countryParks.length ? countryParks[0].country : null;
+  const inCountry = new Set(countryParks.map(p => p.name));
+  const parks = idx.parks.filter(p => hits(p.name, p.country)).sort((a, b) => (b.overall ?? 0) - (a.overall ?? 0)).slice(0, country ? 6 : 4);
+  const coasters = idx.coasters.filter(c => hits(c.name, c.parkName) || inCountry.has(c.parkName)).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 5);
+  const manufacturers = idx.manufacturers.filter(m => hits(m.name)).slice(0, 3);
+  const models = idx.models.filter(m => hits(m.name, m.manufacturerName || "")).slice(0, 3);
+  return { parks, coasters, manufacturers, models, country };
+}
+
+export function searchHref(type: "park" | "coaster" | "manufacturer" | "model", item: any): string {
+  if (type === "park") return `/park/${item.slug}`;
+  if (type === "coaster") return `/coasters/${item.slug}`;
+  if (type === "manufacturer") return `/manufacturers/directory?mfg=${item.id}`;
+  return `/manufacturers/directory?mfg=${item.manufacturerId}&model=${item.id}`;
+}
+
 const SearchBar = ({ collapsible = false }: { collapsible?: boolean }) => {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(!collapsible);
   const [val, setVal] = useState("");
 
-  const [parks, setParks] = useState<SPark[]>([]);
-  const [coasters, setCoasters] = useState<SCoaster[]>([]);
-  const [manufacturers, setManufacturers] = useState<SManufacturer[]>([]);
-  const [models, setModels] = useState<SModel[]>([]);
-
-  const [loaded, setLoaded] = useState(false);
+  const idx = useSearchIndex();
+  const loaded = idx.loaded;
   const [activeIdx, setActiveIdx] = useState(-1);
   const router = useRouter();
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const res = await fetch("/api/search-index");
-        if (res.ok) {
-          const d = await res.json();
-          setParks(d.parks || []);
-          setCoasters(d.coasters || []);
-          setManufacturers(d.manufacturers || []);
-          setModels(d.models || []);
-        }
-      } catch (err) {
-        console.error("Failed to load search index", err);
-      } finally {
-        setLoaded(true);
-      }
-    };
-    loadData();
-  }, []);
-
   const q = val.trim().toLowerCase();
-  const words = fold(q).split(/\s+/).filter(Boolean);
-  const hits = (...fields: string[]) => {
-    const hay = fold(fields.join(" "));
-    return words.every(w => hay.includes(w));
-  };
-
-  const matchedParks = q.length < 1 ? [] : parks
-    .filter(p => hits(p.name, p.country))
-    .slice(0, 4);
-
-  const matchedCoasters = q.length < 1 ? [] : coasters
-    .filter(c => hits(c.name, c.parkName))
-    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
-    .slice(0, 5);
-
-  const matchedManufacturers = q.length < 1 ? [] : manufacturers
-    .filter(m => hits(m.name))
-    .slice(0, 3);
-
-  const matchedModels = q.length < 1 ? [] : models
-    .filter(m => hits(m.name, m.manufacturerName || ""))
-    .slice(0, 3);
+  const { parks: matchedParks, coasters: matchedCoasters, manufacturers: matchedManufacturers, models: matchedModels } = matchSearch(val, idx);
 
   const pLen = matchedParks.length;
   const cLen = matchedCoasters.length;
@@ -89,10 +84,7 @@ const SearchBar = ({ collapsible = false }: { collapsible?: boolean }) => {
   const showDrop = open && q.length > 0;
 
   function navigate(type: "park" | "coaster" | "manufacturer" | "model", item: any) {
-    if (type === "park") router.push(`/park/${item.slug}`);
-    else if (type === "coaster") router.push(`/coasters/${item.slug}`);
-    else if (type === "manufacturer") router.push(`/manufacturers/directory?mfg=${item.id}`);
-    else if (type === "model") router.push(`/manufacturers/directory?mfg=${item.manufacturerId}&model=${item.id}`);
+    router.push(searchHref(type, item));
 
     setVal("");
     setOpen(false);

@@ -1,13 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import SearchBar from "./SearchBar";
+import MobileSearch from "./MobileSearch";
 import { useAdminMode } from "../context/AdminModeContext";
 
 const Navbar: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
   const [adminDropOpen, setAdminDropOpen] = useState(false);
   const pathname = usePathname();
   const mobileRef = useRef<HTMLDivElement>(null);
@@ -96,7 +99,16 @@ const Navbar: React.FC = () => {
       </div>
 
       {/* ── Mobile ── */}
-      <div className="relative md:hidden" ref={mobileRef}>
+      <div className="relative md:hidden flex items-center" ref={mobileRef}>
+        <button
+          type="button"
+          onClick={() => { setMobileOpen(false); setSearchOpen(true); }}
+          aria-label="Search"
+          className="inline-flex items-center justify-center w-11 h-11 text-slate-300 hover:text-white focus:outline-none transition cursor-pointer"
+        >
+          <svg className="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="20" y1="20" x2="16.5" y2="16.5" /></svg>
+        </button>
+        <MobileSearch open={searchOpen} onClose={closeSearch} />
         <button
           onClick={() => setMobileOpen(v => !v)}
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
@@ -110,9 +122,6 @@ const Navbar: React.FC = () => {
         {mobileOpen && <button onClick={() => setMobileOpen(false)} aria-label="Close menu" className="fixed inset-0 z-[9998]" />}
 
         <div className={`fixed top-14 right-4 w-64 z-[9999] rounded-2xl border border-slate-800 bg-slate-900 shadow-black/40 transition-all duration-200 ${mobileOpen ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-2 pointer-events-none"}`}>
-          <div className="p-3 border-b border-slate-800">
-            <SearchBar />
-          </div>
           <ul className="py-1.5 rounded-b-2xl overflow-hidden">
             {[
               { href: "/about", label: "About" },

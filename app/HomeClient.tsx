@@ -133,7 +133,6 @@ import LoadingSpinner from "./components/LoadingSpinner";
 import { getParkFlag, getRatingColor } from "@/app/utils/design";
 import { FocusedImage, parseFocusStr } from "./components/FocusedImage";
 
-const DOTS_OFFSET = 10;
 
 // Entrance: cards render fully composed (image already under its readability
 // overlay) inside a grid that holds at opacity 0 until the first-row images
@@ -998,6 +997,22 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
     if (scrollRafRef.current != null) cancelAnimationFrame(scrollRafRef.current);
   }, []);
 
+  // Once per session, after the strip has faded in: slide it a little and back, so it
+  // visibly moves. Skipped if the visitor has already scrolled it themselves.
+  useEffect(() => {
+    if (!isMobileLayout || !revealed || displayItems.length < 2) return;
+    try { if (sessionStorage.getItem("pr-strip-nudged")) return; } catch { return; }
+    const el = carouselRef.current;
+    if (!el) return;
+    const t1 = setTimeout(() => {
+      if (el.scrollLeft > 2) return;
+      try { sessionStorage.setItem("pr-strip-nudged", "1"); } catch { /* private mode */ }
+      el.scrollTo({ left: 28, behavior: "smooth" });
+      setTimeout(() => el.scrollTo({ left: 0, behavior: "smooth" }), 420);
+    }, 900);
+    return () => clearTimeout(t1);
+  }, [isMobileLayout, revealed, displayItems.length]);
+
   // Swiping is handled entirely by native CSS scroll-snap (snap-x snap-mandatory
   // on the container, snap-center on cards). A JS velocity/fling layer used to
   // force-scroll N cards on touchend, but it fought the native momentum snap and
@@ -1027,11 +1042,12 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
       {isMobileLayout ? (
       /* Mobile: horizontal swipe carousel. The whole strip fades in as one
          composite once the gate opens — see the reveal gate above. */
-      <div className={`md:hidden px-4 py-3 relative transition-opacity duration-500 ${revealed ? "opacity-100" : "opacity-0"}`}>
+      <div className={`md:hidden pt-1 relative transition-opacity duration-500 ${revealed ? "opacity-100" : "opacity-0"}`}>
+        <p className="text-center text-sm font-semibold text-white/80 pb-1">Swipe and explore our visits</p>
         <div
           ref={carouselRef}
           onScroll={handleScroll}
-          className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory no-scrollbar overscroll-x-contain px-[11vw]"
+          className="flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar overscroll-x-contain px-[13vw] min-[480px]:px-[16vw] min-[560px]:px-[18vw]"
           style={{ touchAction: "pan-x" }}
         >
           {displayItems.map((item, index) => {
@@ -1039,7 +1055,7 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
             return (
               <div
                 key={item.id}
-                className={`snap-center shrink-0 transition-all duration-200 ease-in-out ${active ? "scale-100 opacity-100" : "scale-95 opacity-80"} w-[78vw] min-[400px]:w-[72vw] min-[480px]:w-[68vw] min-[560px]:w-[64vw] max-w-sm`}
+                className={`snap-center shrink-0 transition-all duration-200 ease-in-out ${active ? "scale-100 opacity-100" : "scale-[.96] opacity-[.92]"} w-[74vw] min-[480px]:w-[68vw] min-[560px]:w-[64vw] max-w-sm`}
               >
                 {item.type === "pending" ? (
                   <PendingParkCard park={item.park} />
@@ -1053,18 +1069,10 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
           })}
         </div>
 
-        <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-[#0f172a] to-transparent" />
-        <div
-          className="pointer-events-none absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full px-2 py-1 bg-white/10 backdrop-blur-sm"
-          style={{ bottom: `calc(env(safe-area-inset-bottom, 0px) + ${DOTS_OFFSET}px)` }}
-        >
-          {displayItems.map((_, i) => (
-            <span
-              key={i}
-              className={`h-2 rounded-full transition-all duration-300 ease-in-out ${i === currentIndex ? "w-5 bg-brand" : "w-2 bg-gray-600"}`}
-            />
-          ))}
-        </div>
+        {/* where you are in the strip; the next card peeking at the edge does the rest */}
+        <p className="text-center text-xs font-medium text-slate-400 tabular-nums -mt-1">
+          <span className="text-white/85">{currentIndex + 1}</span> of {displayItems.length}
+        </p>
       </div>
 
       ) : (
