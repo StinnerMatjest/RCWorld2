@@ -217,7 +217,7 @@ const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager 
         />}
 
         {/* Top: park name */}
-        <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent px-4 pt-4 pb-14">
+        <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent px-2.5 md:px-4 pt-4 pb-14">
           <div className="flex items-center gap-2">
             <Image src={getParkFlag(park.country)} alt="" width={20} height={14} className="rounded-sm shrink-0" unoptimized />
             <h2 className="text-white font-bold text-xl leading-tight drop-shadow-md">{park.name}</h2>
@@ -711,7 +711,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img ref={slotBRef} alt="" loading="lazy" className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
 
-          <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent px-4 pt-4 pb-16 pointer-events-none">
+          <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent px-2.5 md:px-4 pt-4 pb-16 pointer-events-none">
             <div className="flex items-center gap-2">
               <Image src={getParkFlag(park.country)} alt="" width={20} height={14} className="rounded-sm shrink-0" unoptimized />
               <h2 className="text-white font-bold text-xl leading-tight drop-shadow-md">{park.name}</h2>
@@ -1044,10 +1044,11 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
          composite once the gate opens — see the reveal gate above. */
       <div className={`md:hidden pt-1 relative transition-opacity duration-500 ${revealed ? "opacity-100" : "opacity-0"}`}>
         <p className="text-center text-sm font-semibold text-white/80 pb-1">Swipe and explore our visits</p>
+        <div className="relative">
         <div
           ref={carouselRef}
           onScroll={handleScroll}
-          className="flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar overscroll-x-contain px-[13vw] min-[480px]:px-[16vw] min-[560px]:px-[18vw]"
+          className="flex gap-2 overflow-x-auto snap-x snap-mandatory no-scrollbar overscroll-x-contain px-[11vw] min-[400px]:px-[14vw] min-[480px]:px-[16vw] min-[560px]:px-[18vw]"
           style={{ touchAction: "pan-x" }}
         >
           {displayItems.map((item, index) => {
@@ -1055,7 +1056,7 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
             return (
               <div
                 key={item.id}
-                className={`snap-center shrink-0 transition-all duration-200 ease-in-out ${active ? "scale-100 opacity-100" : "scale-[.96] opacity-[.92]"} w-[74vw] min-[480px]:w-[68vw] min-[560px]:w-[64vw] max-w-sm`}
+                className={`snap-center shrink-0 transition-all duration-200 ease-in-out ${active ? "opacity-100" : "opacity-90"} w-[78vw] min-[400px]:w-[72vw] min-[480px]:w-[68vw] min-[560px]:w-[64vw] max-w-sm`}
               >
                 {item.type === "pending" ? (
                   <PendingParkCard park={item.park} />
@@ -1067,6 +1068,10 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
               </div>
             );
           })}
+        </div>
+
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-2.5 bg-gradient-to-r from-[#0f172a] to-transparent" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-2.5 bg-gradient-to-l from-[#0f172a] to-transparent" />
         </div>
 
         {/* where you are in the strip; the next card peeking at the edge does the rest */}
