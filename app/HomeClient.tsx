@@ -1056,7 +1056,7 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
             return (
               <div
                 key={item.id}
-                className={`snap-center shrink-0 transition-all duration-200 ease-in-out ${active ? "opacity-100" : index > currentIndex ? "scale-[.92] origin-left opacity-90" : "scale-[.92] origin-right opacity-90"} w-[78vw] min-[400px]:w-[72vw] min-[480px]:w-[68vw] min-[560px]:w-[64vw] max-w-sm`}
+                className={`snap-center shrink-0 transition-all duration-200 ease-in-out ${active ? "opacity-100" : "opacity-90"} w-[78vw] min-[400px]:w-[72vw] min-[480px]:w-[68vw] min-[560px]:w-[64vw] max-w-sm`}
               >
                 {item.type === "pending" ? (
                   <PendingParkCard park={item.park} />
