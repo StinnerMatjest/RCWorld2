@@ -90,11 +90,12 @@
   // ---- home: the tied scores
   function renderHome() {
     const groups = state.groups || [];
-    const open = groups.filter(g => g.placed < g.count), done = groups.filter(g => g.placed >= g.count);
+    const settled = g => g.placed >= g.count && (g.on_site != null ? g.on_site : g.published === g.count && !!g.submitted_at);
+    const open = groups.filter(g => !settled(g)), done = groups.filter(settled);
     const row = g => { const pct = Math.round(100 * g.placed / g.count), c = col(g.score), left = g.count - g.placed, isDone = g.placed >= g.count;
-      const status = isDone ? (g.published === g.count && g.submitted_at ? "on the site" : "ready to submit") : g.submitted_at ? left + " new to place" : (left === g.count ? "all " + left : left) + " to settle";
+      const status = isDone ? (settled(g) ? "on the site" : "ready to submit") : g.submitted_at ? left + " new to place" : (left === g.count ? "all " + left : left) + " to settle";
       const strip = (g.thumbs || []).slice(0, 6).map(t => '<i style="background-image:url(\'' + thumb(t, 480) + '\')"></i>').join("");
-      return '<a class="grp ' + (isDone ? "done" : g.submitted_at ? "fresh" : "") + '" href="#/g/' + fmtScore(g.score) + '"><div class="strip">' + strip + '</div><div class="shade"></div><div class="row"><div class="sc" style="color:' + c + '">' + fmtScore(g.score) + '</div><div class="nm"><b>' + (isDone ? g.count : left) + ((isDone ? g.count : left) === 1 ? ' coaster' : ' coasters') + '</b>' + (isDone ? '<small>' + status + '</small>' : "") + '</div></div><div class="bar"><i style="width:' + pct + '%;background:' + c + '"></i></div></a>'; };
+      return '<a class="grp ' + (settled(g) ? "done" : g.submitted_at ? "fresh" : "") + '" href="#/g/' + fmtScore(g.score) + '"><div class="strip">' + strip + '</div><div class="shade"></div><div class="row"><div class="sc" style="color:' + c + '">' + fmtScore(g.score) + '</div><div class="nm"><b>' + (isDone ? g.count : left) + ((isDone ? g.count : left) === 1 ? ' coaster' : ' coasters') + '</b>' + (isDone ? '<small>' + status + '</small>' : "") + '</div></div><div class="bar"><i style="width:' + pct + '%;background:' + c + '"></i></div></a>'; };
     const s = stats(state.log || []);
     const adds = state.additions || [], mv = state.moves || [];
     const moveRow = m => '<div class="add flag"><a class="th" href="#/g/' + fmtScore(m.to_score) + '" style="background-image:url(\'' + thumb(m.image, 480) + '\')"></a><div class="tx"><b>' + esc(m.name) + '</b><small>' + esc(park(m.park)) + ' · ' + esc(m.by || "") + ' · on submit</small></div><div class="chg"><span class="from">' + fmtScore(m.from_score) + '</span> → <span style="color:' + col(m.to_score) + '">' + fmtScore(m.to_score) + '</span></div><button class="x" onclick="window.__tb.rescore(' + m.id + ',null)" title="Undo the move">✕</button></div>';

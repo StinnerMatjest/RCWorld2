@@ -162,7 +162,10 @@ export async function overview() {
     if (list.length > 1) {
       const ids = new Set(list.map(x => x.id));
       const placed = g && g.order_ids ? g.order_ids.filter(id => ids.has(id)).length : list.filter(x => x.tie_rank != null).length;
-      out.push({ score: s, count: list.length, published: list.filter(x => x.tie_rank != null).length, placed, above, submitted_at: g ? g.submitted_at : null, thumbs: list.map(x => x.image).filter(Boolean).slice(0, 6) });
+      const draft = g && g.order_ids ? g.order_ids.filter(id => ids.has(id)) : [];
+      const pub = list.filter(x => x.tie_rank != null).sort((a, b) => a.tie_rank! - b.tie_rank!).map(x => x.id);
+      const on_site = pub.length === list.length && draft.length === list.length && draft.every((id, i) => id === pub[i]);
+      out.push({ score: s, count: list.length, published: list.filter(x => x.tie_rank != null).length, placed, on_site, above, submitted_at: g ? g.submitted_at : null, thumbs: list.map(x => x.image).filter(Boolean).slice(0, 6) });
     }
     above += list.length;
   }
