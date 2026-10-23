@@ -210,7 +210,7 @@ export async function place(score: number, coasterId: number, position: number |
   const all = await pool.query<{ id: number }>(`SELECT rc.id FROM rollercoasters rc WHERE ${inGroup(1)}`, [score]);
   const rest = all.rows.map(x => x.id).filter(id => !order.includes(id));
   let auto: number | null = null;
-  if (rest.length === 1) { auto = rest[0]; order.push(auto); }
+  if (rest.length === 1 && !g.submitted_at) { auto = rest[0]; order.push(auto); }   // last one standing goes last by itself, except newcomers to a list that was on the site
   await saveOrder(score, order);
   await setPlacing(score, null);
   return { slot: k + 1, auto, already: false };
@@ -247,14 +247,15 @@ export async function unplace(score: number, coasterId: number) {
 
 /**
  * Publish the draft: tie_rank 1..k for the listed coasters, NULL for the rest of the group.
- * Tentative moves touching this group become real: the coaster's rating changes (logged in the
- * site changelog), then it is ranked per the order if it moved in, or left unranked where it went.
+ * Tentative moves INTO this group become real here: the coaster's rating changes (logged in the site
+ * changelog) and it is ranked per the order. A move away stays tentative (the coaster is simply left out
+ * of this order, unranked at its old score) until the group it is moving to is submitted.
  */
 export async function submit(score: number) {
   const g = await getGroup(score);
   await pool.query(`UPDATE rollercoasters SET tie_rank = NULL WHERE rating = $1`, [score]);
   const mv = await pool.query<{ coaster_id: number; from_score: string; to_score: string; name: string; park_id: number }>(
-    `SELECT m.coaster_id, m.from_score, m.to_score, rc.name, rc.park_id FROM tiebreak_moves m JOIN rollercoasters rc ON rc.id = m.coaster_id WHERE m.to_score = $1 OR m.from_score = $1`, [score]);
+    `SELECT m.coaster_id, m.from_score, m.to_score, rc.name, rc.park_id FROM tiebreak_moves m JOIN rollercoasters rc ON rc.id = m.coaster_id WHERE m.to_score = $1`, [score]);
   for (const m of mv.rows) {
     await pool.query(`UPDATE rollercoasters SET rating = $2, tie_rank = NULL WHERE id = $1`, [m.coaster_id, m.to_score]);
     await pool.query(`DELETE FROM tiebreak_moves WHERE coaster_id = $1`, [m.coaster_id]);

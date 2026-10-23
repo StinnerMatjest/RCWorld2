@@ -142,6 +142,8 @@
     if (chosen && (chosen.score !== score || chosen.round !== g.round)) chosen = null;
     const sel = locked ? mine : chosen ? chosen.id : null;
     const revealed = g.revealed && names.length >= 2;
+    // a list that is on the site gets newcomers placed directly: no picking, no reveal
+    const newcomer = !!g.submitted_at && open.length > 0 && !revealed;
     const vals = names.map(nm => picks[nm]), unanimous = revealed && vals.every(v => v === vals[0]);
     if (placing && (!byId[placing.id] || order.includes(placing.id))) placing = null;        // listed meanwhile
     const live = g.placing && byId[g.placing.id] && !order.includes(g.placing.id) ? g.placing : null;  // someone is dragging
@@ -167,7 +169,7 @@
     // candidates still to list (pick phase only)
     const stat = (v, label) => '<div><b>' + (v == null ? "–" : esc(v)) + '</b><span class="lb">' + label + '</span></div>';
     // a candidate: the photo is the card (name and park on it), the four numbers under it; no photo = a short dark header
-    const cand = c => '<div class="cand ' + (c.id === sel ? "mine" : "") + (c.image ? "" : " nophoto") + '" onclick="window.__tb.pick(' + c.id + ')">'
+    const cand = c => '<div class="cand ' + (c.id === sel ? "mine" : "") + (c.image ? "" : " nophoto") + '" onclick="window.__tb.' + (newcomer ? "startPlace(" + c.id + ",null)" : "pick(" + c.id + ")") + '">'
       + '<div class="ph"' + (c.image ? ' style="background-image:url(\'' + thumb(c.image, 1200) + '\')"' : "") + '><div class="tx"><b>' + esc(c.name) + '</b><span class="ln">' + esc(park(c.park)) + ' · ' + (c.manufacturer ? esc(c.manufacturer) : esc(c.country)) + (c.year ? ' ' + c.year : "") + '</span></div>'
       + '<div class="info" onclick="event.stopPropagation();window.__tb.sheet(' + c.id + ')">i</div>' + (c.id === sel ? '<span class="tick">' + (locked ? "LOCKED IN" : "YOUR PICK") + '</span>' : c.move_to != null && Number(c.move_to) === score ? '<span class="tick new">FROM ' + fmtScore(c.move_from) + '</span>' : g.submitted_at ? '<span class="tick new">NEW</span>' : "") + '</div>'
       + '<div class="specs4">' + stat(c.inversions, "inv") + stat(c.speed != null ? Math.round(c.speed) + " mph" : null, "speed") + stat(c.height != null ? Math.round(c.height) + " ft" : null, "height") + stat(c.length != null ? Math.round(c.length).toLocaleString("en") + " ft" : null, "length") + '</div></div>';
@@ -190,7 +192,9 @@
     else if (phase === "watch") act = '<div class="verdict place"><b>' + esc(live.by) + '</b> is placing ' + esc(byId[live.id].name) + '</div>';
     else if (complete) act = '<div class="verdict ' + (dirty ? "match" : "onsite") + '">' + (dirty ? "LIST COMPLETE" : "ON THE SITE" + (g.submitted_at ? '<small>' + when(g.submitted_at) + '</small>' : "")) + '</div><div class="btns">' + (dirty ? '<button onclick="window.__tb.submit()">Submit to site</button>' : "") + '<button class="danger" onclick="window.__tb.reset()">Start over</button></div>';
     else if (phase === "pick") {
-      if (follow) {
+      if (newcomer && !follow) {
+        act = '<div class="verdict place">' + open.length + (open.length === 1 ? " new coaster" : " new coasters") + '<span class="turn">Tap one to drag it into the list</span></div>';
+      } else if (follow) {
         const fy = esc(byId[follow.id].name).replace(/'/g, "\\'");
         act = '<div class="verdict place">Next: <b>' + esc(byId[follow.id].name) + '</b><span class="turn">' + (myTurn ? "you place it" : esc(everyone.find(nm => nm !== me) || "the other one") + " places it") + '</span></div>'
           + '<div class="btns"><button class="sec" onclick="window.__tb.skipFollow()">Don\'t place ' + fy + '</button><button onclick="window.__tb.startPlace(' + follow.id + ',null)">' + (myTurn ? "Place it" : "I\'ll place it") + '</button></div>';
@@ -217,7 +221,7 @@
     app.innerHTML = topbar(true) + '<div class="wrap">'
       + '<div class="ghead"><div class="sc" style="color:' + col(g.score) + '">' + fmtScore(g.score) + '</div><div class="hl">Tied at ' + fmtScore(g.score) + '</div></div>'
       + (rows.length ? '<h2 style="margin-top:0">' + (complete ? "The final list" : "The list") + '</h2>' : "") + listHtml
-      + (phase === "pick" && open.length ? '<h2>Still to list</h2><div class="round"><b>Round ' + g.round + '</b>' + chips + '</div><div class="list' + (locked || follow ? " locked" : "") + '">' + open.map(cand).join("") + '</div>' : "")
+      + (phase === "pick" && open.length ? '<h2>' + (newcomer ? "New to place" : "Still to list") + '</h2>' + (newcomer ? "" : '<div class="round"><b>Round ' + g.round + '</b>' + chips + '</div>') + '<div class="list' + (locked || follow ? " locked" : "") + '">' + open.map(cand).join("") + '</div>' : "")
       + (phase === "pick" && s.rounds ? '<h2>Scoreboard</h2>' + statsHtml(s) + '<h2>Rounds</h2><div class="log">' + state.log.filter(l => l.result !== "submit").slice(0, 10).map(logLine).join("") + '</div>' : "")
       + '</div><div class="act"><div class="in">' + act + '</div></div>';
     fitBar();
