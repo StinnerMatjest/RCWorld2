@@ -54,6 +54,7 @@
   async function tick() {
     clearTimeout(timer);
     if (!me) { renderName(); return; }
+    if (dragging) { timer = setTimeout(tick, 400); return; }   // nothing may rebuild the list under a finger
     try {
       const seq = actionSeq, started = Date.now();
       const fresh = () => seq === actionSeq && started > lastActionDone && !busy;
@@ -126,10 +127,11 @@
   // ---- one group
   function renderKey() {
     const g = state.group, ps = (state.players || []).map(p => p.name + ":" + (recent(p.last_seen) ? 1 : 0)).sort().join(",");
-    return JSON.stringify([g.round, g.revealed, g.picks, g.order, g.placing, g.submitted_at, g.last_placer, g.follow_up, state.candidates.map(c => c.id + ":" + c.tie_rank + ":" + (c.move_to || "")), (state.log || []).length, ps, placing && placing.id, placing && placing.pos, me, chosen && chosen.id]);
+    return JSON.stringify([g.round, g.revealed, g.picks, g.order, placing ? null : g.placing, g.submitted_at, g.last_placer, g.follow_up, state.candidates.map(c => c.id + ":" + c.tie_rank + ":" + (c.move_to || "")), (state.log || []).length, ps, placing && placing.id, placing && placing.pos, me, chosen && chosen.id]);
   }
   function renderGroup() {
-    if (dragging) return;
+    if (dragging) { renderPending = true; return; }
+    renderPending = false;
     const g = state.group, all = state.candidates, above = state.above;
     const byId = Object.fromEntries(all.map(c => [c.id, c]));
     const order = (g.order || []).filter(id => byId[id]);
@@ -169,20 +171,26 @@
     // candidates still to list (pick phase only)
     const stat = (v, label) => '<div><b>' + (v == null ? "–" : esc(v)) + '</b><span class="lb">' + label + '</span></div>';
     // a candidate: the photo is the card (name and park on it), the four numbers under it; no photo = a short dark header
-    const cand = c => '<div class="cand ' + (c.id === sel ? "mine" : "") + (c.image ? "" : " nophoto") + '" onclick="window.__tb.' + (newcomer ? "startPlace(" + c.id + ",null)" : "pick(" + c.id + ")") + '">'
+    const cand = c => '<div class="cand ' + (c.id === sel ? "mine" : "") + (c.image ? "" : " nophoto") + '" data-k="c' + c.id + '" onclick="window.__tb.' + (newcomer ? "startPlace(" + c.id + ",null)" : "pick(" + c.id + ")") + '">'
       + '<div class="ph"' + (c.image ? ' style="background-image:url(\'' + thumb(c.image, 1200) + '\')"' : "") + '><div class="tx"><b>' + esc(c.name) + '</b><span class="ln">' + esc(park(c.park)) + ' · ' + (c.manufacturer ? esc(c.manufacturer) : esc(c.country)) + (c.year ? ' ' + c.year : "") + '</span></div>'
       + '<div class="info" onclick="event.stopPropagation();window.__tb.sheet(' + c.id + ')">i</div>' + (c.id === sel ? '<span class="tick">' + (locked ? "LOCKED IN" : "YOUR PICK") + '</span>' : c.move_to != null && Number(c.move_to) === score ? '<span class="tick new">FROM ' + fmtScore(c.move_from) + '</span>' : g.submitted_at ? '<span class="tick new">NEW</span>' : "") + '</div>'
       + '<div class="specs4">' + stat(c.inversions, "inv") + stat(c.speed != null ? Math.round(c.speed) + " mph" : null, "speed") + stat(c.height != null ? Math.round(c.height) + " ft" : null, "height") + stat(c.length != null ? Math.round(c.length).toLocaleString("en") + " ft" : null, "length") + '</div></div>';
 
     // the draft list
-    const rowOf = (c, i, kind) => '<div class="pl ' + kind + '" data-id="' + c.id + '"><div class="rk" style="color:' + (kind ? "" : col(g.score)) + '">' + (i + 1) + '</div><div class="th" style="background-image:url(\'' + thumb(c.image, 480) + '\')"></div><div class="nm">' + esc(c.name) + '<small>' + (kind === "ghost" ? esc(live.by) + " is placing…" : esc(park(c.park))) + '</small></div>'
+    const rowOf = (c, i, kind) => '<div class="pl ' + kind + '" data-id="' + c.id + '" data-k="r' + c.id + kind + '"><div class="rk" style="color:' + (kind ? "" : col(g.score)) + '">' + (i + 1) + '</div><div class="th" style="background-image:url(\'' + thumb(c.image, 480) + '\')"></div><div class="nm">' + esc(c.name) + '<small>' + (kind === "ghost" ? esc(live.by) + " is placing…" : esc(park(c.park))) + '</small></div>'
       + (kind === "new" ? '<div class="grip">⠿</div>' : kind === "ghost" ? "" : '<div class="grip">⠿</div><button class="x" title="Take it back out" onclick="window.__tb.unplace(' + c.id + ',\'' + esc(c.name).replace(/'/g, "\\'") + '\')">✕</button>') + '</div>';
     const complete = !open.length;
-    const bigOf = (c, i) => '<div class="pl bc" data-id="' + c.id + '"><div class="img" style="background-image:url(\'' + thumb(c.image, 1200) + '\')"></div><div class="rk" style="color:' + col(g.score) + '">' + (i + 1) + '</div><div class="grip">⠿</div><div class="bot"><b>' + esc(c.name) + '</b><small>' + esc(park(c.park)) + (c.manufacturer ? ' · ' + esc(c.manufacturer) : "") + '</small></div><button class="x" title="Take it back out" onclick="window.__tb.unplace(' + c.id + ',\'' + esc(c.name).replace(/'/g, "\\'") + '\')">✕</button></div>';
+    const bigOf = (c, i) => '<div class="pl bc" data-id="' + c.id + '" data-k="b' + c.id + '"><div class="img" style="background-image:url(\'' + thumb(c.image, 1200) + '\')"></div><div class="rk" style="color:' + col(g.score) + '">' + (i + 1) + '</div><div class="grip">⠿</div><div class="bot"><b>' + esc(c.name) + '</b><small>' + esc(park(c.park)) + (c.manufacturer ? ' · ' + esc(c.manufacturer) : "") + '</small></div><button class="x" title="Take it back out" onclick="window.__tb.unplace(' + c.id + ',\'' + esc(c.name).replace(/'/g, "\\'") + '\')">✕</button></div>';
     let rows = placed.map((c, i) => complete && !placing ? bigOf(c, i) : rowOf(c, i, ""));
     if (phase === "place") rows.splice(Math.min(Math.max((placing.pos || rows.length + 1) - 1, 0), rows.length), 0, rowOf(byId[placing.id], 0, "new"));
     if (phase === "watch") rows.splice(Math.min(live.pos - 1, rows.length), 0, rowOf(byId[live.id], 0, "ghost"));
     rows = rows.map((h, i) => h.replace(/<div class="rk"([^>]*)>\d+<\/div>/, '<div class="rk"$1>' + (i + 1) + '</div>'));
+    const candsHtml = open.map(cand);
+    // what each keyed node looks like (rank numbers left out: they are patched in place); the phase is part of it so
+    // a node is never carried into a phase where it should behave differently
+    const sigs = {}, kOf = h => (h.match(/data-k="([^"]+)"/) || [])[1];
+    rows.forEach(h => { sigs[kOf(h)] = phase + "|" + h.replace(/<div class="rk"([^>]*)>\d+<\/div>/, '<div class="rk"$1>#</div>'); });
+    candsHtml.forEach(h => { sigs[kOf(h)] = phase + "|" + h; });
     const listHtml = (rows.length ? '<div class="placed' + (complete && !placing ? " big" : "") + '" id="placed">' + rows.join("") + '</div>' : "")
       + (complete && dirty ? '<div class="btns" style="margin-top:14px"><button style="width:100%;padding:16px;font-size:16px" onclick="window.__tb.submit()">Submit to site</button></div>' : "");
 
@@ -218,56 +226,117 @@
     }
 
     const s = stats(state.log || []);
+    const oldNodes = new Map(); app.querySelectorAll("[data-k]").forEach(el => oldNodes.set(el.dataset.k, el));
     app.innerHTML = topbar(true) + '<div class="wrap">'
       + '<div class="ghead"><div class="sc" style="color:' + col(g.score) + '">' + fmtScore(g.score) + '</div><div class="hl">Tied at ' + fmtScore(g.score) + '</div></div>'
       + (rows.length ? '<h2 style="margin-top:0">' + (complete ? "The final list" : "The list") + '</h2>' : "") + listHtml
-      + (phase === "pick" && open.length ? '<h2>' + (newcomer ? "New to place" : "Still to list") + '</h2>' + (newcomer ? "" : '<div class="round"><b>Round ' + g.round + '</b>' + chips + '</div>') + '<div class="list' + (locked || follow ? " locked" : "") + '">' + open.map(cand).join("") + '</div>' : "")
+      + (phase === "pick" && open.length ? '<h2>' + (newcomer ? "New to place" : "Still to list") + '</h2>' + (newcomer ? "" : '<div class="round"><b>Round ' + g.round + '</b>' + chips + '</div>') + '<div class="list' + (locked || follow ? " locked" : "") + '">' + candsHtml.join("") + '</div>' : "")
       + (phase === "pick" && s.rounds ? '<h2>Scoreboard</h2>' + statsHtml(s) + '<h2>Rounds</h2><div class="log">' + state.log.filter(l => l.result !== "submit").slice(0, 10).map(logLine).join("") + '</div>' : "")
       + '</div><div class="act"><div class="in">' + act + '</div></div>';
+    adopt(oldNodes, sigs);
     fitBar();
-    if (phase === "place") { const row = $("#placed .pl.new"); if (row) { bindDrag(row, row, () => { if (placing) placing.pos = dropIndex() + 1; sendPlacing(); }); row.scrollIntoView({ block: "center" }); } }
-    else if (phase === "pick" || complete) document.querySelectorAll("#placed .pl").forEach(r => { const grip = r.querySelector(".grip"); if (grip) bindDrag(r, grip, () => A.reorder()); });
+    if (phase === "place") {
+      const row = $("#placed .pl.new");
+      if (row && !row.__tb) bindDrag(row, row, to => { if (placing) { placing.pos = to + 1; sendPlacing(to + 1); } }, to => sendPlacing(to + 1));
+      if (row && !placing.shown) { placing.shown = true; row.scrollIntoView({ block: "center" }); }   // once, when placing starts; never while dragging
+    }
+    else if (phase === "pick" || complete) document.querySelectorAll("#placed .pl").forEach(r => { const grip = r.querySelector(".grip"); if (grip && !r.__tb) bindDrag(r, grip, () => A.reorder()); });
   }
 
   function fitBar() { const bar = $(".act"); document.body.style.paddingBottom = bar ? (bar.offsetHeight + 28) + "px" : ""; }
 
   // ---- dragging a row up and down the list: the row lifts, the others shift (same feel as the park rank lane)
-  function bindDrag(row, handle, onDrop) {
-    const box = row.parentElement;
-    const renumber = () => [...box.querySelectorAll(".pl")].forEach((r, i) => { r.querySelector(".rk").textContent = i + 1; });
+  // Put back the old node for every row or card whose markup did not change: no new element, no photo reload,
+  // listeners kept. Rank numbers are patched in place.
+  function adopt(oldNodes, sigs) {
+    app.querySelectorAll("[data-k]").forEach(nu => {
+      const k = nu.dataset.k, o = oldNodes.get(k);
+      if (o && o.__sig === sigs[k]) {
+        const r1 = nu.querySelector(".rk"), r0 = o.querySelector(".rk");
+        if (r1 && r0 && r0.textContent !== r1.textContent) r0.textContent = r1.textContent;
+        nu.replaceWith(o);
+      } else nu.__sig = sigs[k];
+    });
+  }
+
+  // ---- dragging a row up and down the list
+  // One layout read when the finger lands. While moving, only transforms change: the row follows the finger and
+  // the rows it passes slide aside, at most once per frame. The page is reordered once, on release, and the row
+  // glides into its slot. The page never scrolls by itself.
+  let renderPending = false;
+  function bindDrag(row, handle, onDrop, onMove) {
+    row.__tb = 1;
+    handle.addEventListener("contextmenu", e => e.preventDefault());   // an Android long-press must not cancel the drag
     handle.addEventListener("pointerdown", e => {
-      if (e.pointerType === "mouse" && e.button !== 0) return;
-      e.preventDefault(); handle.setPointerCapture(e.pointerId);
-      dragging = true; row.classList.add("lift"); buzz(10);
+      if (dragging || (e.pointerType === "mouse" && e.button !== 0)) return;
+      const box = row.parentElement;
+      const rows = box ? [...box.children].filter(r => r.classList.contains("pl")) : [];
+      const from = rows.indexOf(row);
+      if (from < 0) return;
+      e.preventDefault();
+      try { handle.setPointerCapture(e.pointerId); } catch (err) { /* capture is a nicety */ }
+      const tops = rows.map(r => r.offsetTop), hs = rows.map(r => r.offsetHeight);
+      const centers = rows.map((r, i) => tops[i] + hs[i] / 2);
+      const span = hs[from] + (parseFloat(getComputedStyle(box).rowGap) || 6);
+      const rks = rows.map(r => r.querySelector(".rk"));
       const startY = e.clientY, startScroll = window.scrollY;
-      let shift = 0, moved = false, lastY = startY, edge = 0, raf = 0;
-      const step = row.offsetHeight + (parseFloat(getComputedStyle(box).rowGap) || 6);
-      const place = () => { row.style.transform = "translateY(" + (lastY - startY + (window.scrollY - startScroll) + shift) + "px) scale(1.02)"; };
-      const swap = () => {
-        const r = row.getBoundingClientRect(), mid = r.top + r.height / 2;
-        const prev = row.previousElementSibling, next = row.nextElementSibling;
-        if (prev && prev.classList.contains("pl")) { const pr = prev.getBoundingClientRect(); if (mid < pr.top + pr.height / 2) { box.insertBefore(row, prev); shift += step; place(); renumber(); moved = true; buzz(8); if (onDrop) onDrop(true); return; } }
-        if (next && next.classList.contains("pl")) { const nr = next.getBoundingClientRect(); if (mid > nr.top + nr.height / 2) { box.insertBefore(next, row); shift -= step; place(); renumber(); moved = true; buzz(8); if (onDrop) onDrop(true); } }
+      let y = startY, to = from, raf = 0, ended = false;
+      dragging = true; renderPending = false;
+      row.classList.add("lift"); buzz(10);
+      rows.forEach((r, i) => { r.style.willChange = "transform"; r.style.transition = i === from ? "none" : "transform 180ms cubic-bezier(.2,.8,.2,1)"; });
+      const dy = () => y - startY + (window.scrollY - startScroll);
+      const frame = () => {
+        raf = 0;
+        const d = dy();
+        row.style.transform = "translate3d(0," + d + "px,0) scale(1.02)";
+        const c = centers[from] + d;
+        let k = 0; for (let i = 0; i < rows.length; i++) if (i !== from && centers[i] < c) k++;
+        if (k === to) return;
+        to = k; buzz(6);
+        for (let i = 0; i < rows.length; i++) {
+          if (i === from) continue;
+          const s = from < i && i <= to ? -span : to <= i && i < from ? span : 0;
+          const t = s ? "translate3d(0," + s + "px,0)" : "";
+          if (rows[i].style.transform !== t) rows[i].style.transform = t;
+        }
+        const seq = rows.map((_, i) => i).filter(i => i !== from); seq.splice(to, 0, from);
+        seq.forEach((ri, p) => { const el = rks[ri], t = String(p + 1); if (el && el.textContent !== t) el.textContent = t; });
+        if (onMove) onMove(to);
       };
-      // near the top of the screen or the action bar: scroll the page a little every frame
-      const loop = () => { if (!dragging) return; if (edge) { window.scrollBy(0, edge); place(); swap(); } raf = requestAnimationFrame(loop); };
-      const mv = ev => {
-        lastY = ev.clientY;
-        const bar = document.querySelector(".act"), barTop = bar ? bar.getBoundingClientRect().top : window.innerHeight, top = 110;
-        edge = lastY < top ? -Math.min(14, Math.ceil((top - lastY) / 6)) : lastY > barTop - 80 ? Math.min(14, Math.ceil((lastY - (barTop - 80)) / 6)) : 0;
-        place(); swap();
+      const move = ev => { y = ev.clientY; if (!raf) raf = requestAnimationFrame(frame); };
+      const end = () => {
+        if (ended) return; ended = true;
+        handle.removeEventListener("pointermove", move); handle.removeEventListener("pointerup", end); handle.removeEventListener("pointercancel", end);
+        if (raf) { cancelAnimationFrame(raf); raf = 0; }
+        frame();
+        const visual = tops[from] + dy();
+        rows.forEach(r => { r.style.transition = "none"; r.style.transform = ""; });
+        if (to !== from) { const others = rows.filter((_, i) => i !== from); box.insertBefore(row, others[to] || null); }
+        const off = visual - row.offsetTop;
+        row.style.transform = "translate3d(0," + off + "px,0) scale(1.02)";
+        void row.offsetWidth;
+        row.style.transition = "transform 170ms cubic-bezier(.2,.8,.2,1)";
+        row.style.transform = "";
+        if (to !== from && onDrop) onDrop(to);
+        setTimeout(() => {
+          row.classList.remove("lift");
+          rows.forEach(r => { r.style.willChange = ""; r.style.transition = ""; r.style.transform = ""; });
+          dragging = false;
+          if (renderPending) renderGroup();
+        }, 190);
       };
-      const up = () => { handle.removeEventListener("pointermove", mv); handle.removeEventListener("pointerup", up); handle.removeEventListener("pointercancel", up);
-        cancelAnimationFrame(raf); edge = 0; row.style.transform = ""; row.classList.remove("lift"); dragging = false; renumber(); if (moved && onDrop) onDrop(false); };
-      handle.addEventListener("pointermove", mv); handle.addEventListener("pointerup", up); handle.addEventListener("pointercancel", up);
-      raf = requestAnimationFrame(loop);
+      handle.addEventListener("pointermove", move); handle.addEventListener("pointerup", end); handle.addEventListener("pointercancel", end);
     });
   }
   const listIds = () => [...document.querySelectorAll("#placed .pl")].map(r => Number(r.dataset.id));
   function dropIndex() { const rows = [...document.querySelectorAll("#placed .pl")]; const i = rows.findIndex(r => r.classList.contains("new")); return i < 0 ? rows.length : i; }
   // tell the other phone where the new row is now (throttled; fire and forget)
-  let placingT = null;
-  function sendPlacing() { if (!placing) return; clearTimeout(placingT); placingT = setTimeout(() => { if (placing) api({ action: "placing", score, name: me, coasterId: placing.id, position: dropIndex() + 1 }).catch(() => {}); }, 120); }
+  let placingT = null, placingNext = 1, placingLast = 0;
+  function sendPlacing(pos) {
+    if (!placing) return; placingNext = pos;
+    if (placingT) return;
+    placingT = setTimeout(() => { placingT = null; placingLast = Date.now(); if (placing) api({ action: "placing", score, name: me, coasterId: placing.id, position: placingNext }).catch(() => {}); }, Math.max(0, 200 - (Date.now() - placingLast)));
+  }
 
   // ---- the reveal: a short, tense sequence on both phones; Skip jumps to the end, Continue closes
   function drama(names, picks, byId) {
@@ -315,6 +384,25 @@
     },
     cancelPlace: () => { const p = placing; placing = null; lastKey = ""; act({ action: "placing", name: me, coasterId: null }); if (!p) renderGroup(); },
     placeDone: () => { const p = placing; if (!p) return; const pos = dropIndex() + 1; placing = null; act({ action: "lock", name: me, coasterId: p.id, position: pos, cavedBy: p.cavedBy }).then(() => toast("Listed at " + pos)); },
+    reorder: async () => {
+      const order = listIds();
+      actionSeq++;
+      state = { ...state, group: { ...state.group, order } };
+      renderGroup();   // runs once the row has settled: the Submit button may appear
+      try { const d = await api({ score, action: "reorder", order }); if (d && d.group && JSON.stringify(d.group.order) === JSON.stringify(order)) state = { ...state, ...d }; } catch (e) { /* the next poll shows the server's order */ }
+      lastActionDone = Date.now();
+    },
+    unplace: (id, name) => { if (confirm("Take " + name + " back out of the list?")) act({ action: "unplace", coasterId: id }); },
+    submit: () => {
+      const moving = (state.candidates || []).filter(c => c.move_to != null && Number(c.move_to) === score);
+      const msg = "Put this order on the site?" + (moving.length ? "\n\nRating changes: " + moving.map(c => c.name + " " + fmtScore(c.move_from) + " → " + fmtScore(c.move_to)).join(", ") : "");
+      if (confirm(msg)) act({ action: "submit" }).then(() => toast("On the site"));
+    },
+    rescore: async (id, to) => {
+      try { const d = await api({ action: "rescore", coasterId: id, to, name: me }); if (state) state = { ...state, moves: d.moves }; } catch (e) { return; }
+      toast(to == null ? "Move undone" : "Moves to " + fmtScore(to) + " on submit"); closeSheet(); lastKey = ""; tick();
+    },
+    reset: () => { if (confirm("Clear this group's list, its order on the site and its history, and start over?")) act({ action: "reset" }); },
     sheet: id => openSheet(id),
   };
   window.__tb = A;

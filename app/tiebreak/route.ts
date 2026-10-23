@@ -29,7 +29,7 @@ const head = (title: string) => `<!DOCTYPE html>
   button.sm{padding:7px 12px;font-size:12px}
   input{width:100%;font:16px Roboto,sans-serif;padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:var(--el);color:#fff}
   /* top bar */
-  .top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;background:rgba(10,15,26,.96);border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
+  .top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;background:#0a0f1a;border-bottom:1px solid var(--line);}
   .top .back{font-size:22px;line-height:1;padding:2px 6px;color:#fff;text-decoration:none}
   .top .ttl{font-weight:900;font-size:15px;letter-spacing:.5px;color:#fff;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .top .ttl span{color:var(--accent)}
@@ -100,7 +100,7 @@ const head = (title: string) => `<!DOCTYPE html>
   .specs4 div{flex:1;min-width:0;text-align:center}
   .specs4 b{display:block;font-size:19px;font-weight:900;color:#fff;letter-spacing:-.5px;line-height:1;white-space:nowrap}
   .specs4 .lb{display:block;font-size:9px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-top:4px;white-space:nowrap}
-  .cand .info{position:absolute;right:10px;top:10px;z-index:2;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);color:#fff;font:700 14px Roboto,serif;display:flex;align-items:center;justify-content:center}
+  .cand .info{position:absolute;right:10px;top:10px;z-index:2;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;font:700 14px Roboto,serif;display:flex;align-items:center;justify-content:center}
   .cand .tick{position:absolute;left:0;top:0;z-index:2;background:var(--accent);color:#0c0c0c;font:900 10px Roboto,sans-serif;letter-spacing:1px;padding:4px 9px;border-radius:0 0 10px 0}
   .cand .tick.new{background:var(--good);color:#06260f}
   /* the sheet's "score feels wrong" row and the home list of flags */
@@ -118,16 +118,16 @@ const head = (title: string) => `<!DOCTYPE html>
   .verdict .turn{display:block;font-size:13px;letter-spacing:0;color:var(--muted);font-weight:500;margin-top:4px}
   /* the draft list */
   .placed{display:flex;flex-direction:column;gap:6px}
-  .pl{display:flex;align-items:center;gap:10px;padding:7px 6px 7px 10px;background:var(--el);border:1px solid transparent;border-radius:14px;user-select:none;position:relative;transition:transform .12s}
+  .pl{display:flex;align-items:center;gap:10px;padding:7px 6px 7px 10px;background:var(--el);border:1px solid transparent;border-radius:14px;user-select:none;position:relative}
   .pl .rk{width:26px;font-weight:900;font-size:20px;text-align:right;flex:0 0 auto;letter-spacing:-.8px}
   .pl .th{width:46px;height:46px;border-radius:10px;background:#0b1222 center/cover no-repeat;flex:0 0 auto}
   .pl .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;font-weight:900;font-size:15px;letter-spacing:-.2px}
   .pl .nm small{display:block;color:var(--muted);font-weight:400;font-size:11px;letter-spacing:0}
-  .pl .grip{font-size:20px;color:rgba(255,255,255,.4);padding:6px 12px 6px 6px;touch-action:none;cursor:grab}
+  .pl .grip{font-size:20px;color:rgba(255,255,255,.4);min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;padding:0 4px;touch-action:none;cursor:grab;-webkit-touch-callout:none}
   .pl .x{background:transparent;border:0;color:var(--muted);font-size:18px;padding:6px 8px}
   .pl.lift{transition:none;z-index:5;background:var(--el2);box-shadow:0 10px 30px rgba(0,0,0,.55);cursor:grabbing}
   /* the coaster being placed: a lifted, draggable row (like the park rank lane) */
-  .pl.new{background:rgba(37,99,235,.9);border-color:#60a5fa;color:#fff;touch-action:none;cursor:grab;z-index:5}
+  .pl.new{background:rgba(37,99,235,.9);border-color:#60a5fa;color:#fff;touch-action:none;cursor:grab;z-index:5;-webkit-touch-callout:none}
   .pl.new .rk{color:#fff} .pl.new .nm small{color:rgba(255,255,255,.75)} .pl.new .grip{color:rgba(255,255,255,.9)}
   .pl.new.lift{box-shadow:0 0 14px rgba(96,165,250,.7),0 10px 30px rgba(0,0,0,.5)}
   /* the final list: full cards, the photo is the card */
@@ -152,7 +152,7 @@ const head = (title: string) => `<!DOCTYPE html>
   .banner.ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);color:var(--good)}
   .banner.ok small{font-weight:400;color:var(--muted);margin-left:auto;font-size:12px}
   /* sticky action bar */
-  .act{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:rgba(10,15,26,.97);border-top:1px solid var(--line);backdrop-filter:blur(8px);max-height:70vh;overflow:auto}
+  .act{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:#0a0f1a;border-top:1px solid var(--line);max-height:70vh;overflow:auto}
   .act .in{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
   .act .btns{display:flex;gap:8px}
   .act .btns button{flex:1}
@@ -202,8 +202,8 @@ const head = (title: string) => `<!DOCTYPE html>
   .sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;max-height:92vh;overflow:auto;overscroll-behavior:contain;background:#0b1222;border-radius:20px 20px 0 0;transform:translateY(100%);transition:transform .25s}
   .sheet.open{transform:none} .sheet-bg.open{display:block}
   .sheet .grab{position:absolute;left:50%;top:8px;width:44px;height:5px;margin-left:-22px;border-radius:3px;background:rgba(255,255,255,.5);z-index:3}
-  .sheet .close{position:absolute;right:12px;top:12px;z-index:3;width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;font-size:18px;padding:0;border:1px solid rgba(255,255,255,.25);backdrop-filter:blur(6px)}
-  .sh-top{position:sticky;top:0;z-index:4;height:52px;margin-bottom:-52px;display:flex;align-items:center;gap:12px;padding:0 10px 0 18px;background:rgba(11,18,34,.96);border-bottom:1px solid var(--line);backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity .15s}
+  .sheet .close{position:absolute;right:12px;top:12px;z-index:3;width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;font-size:18px;padding:0;border:1px solid rgba(255,255,255,.25);}
+  .sh-top{position:sticky;top:0;z-index:4;height:52px;margin-bottom:-52px;display:flex;align-items:center;gap:12px;padding:0 10px 0 18px;background:rgba(11,18,34,.96);border-bottom:1px solid var(--line);opacity:0;pointer-events:none;transition:opacity .15s}
   .sh-top.on{opacity:1;pointer-events:auto}
   .sh-top b{flex:1;min-width:0;color:#fff;font-size:16px;font-weight:900;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .sh-top span{font-size:22px;font-weight:900;letter-spacing:-1px}
@@ -248,7 +248,7 @@ const head = (title: string) => `<!DOCTYPE html>
   .sh-rev p{margin:0 0 8px;color:rgba(255,255,255,.85);font-size:14px;line-height:1.55}
   .sh-dim{color:var(--muted);font-size:13px}
   .sh-link{display:inline-block;margin:22px 0 4px;font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);text-decoration:none}
-  .sh-nav{position:sticky;bottom:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;padding:10px 18px calc(12px + env(safe-area-inset-bottom));background:rgba(11,18,34,.96);border-top:1px solid var(--line);backdrop-filter:blur(8px)}
+  .sh-nav{position:sticky;bottom:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;padding:10px 18px calc(12px + env(safe-area-inset-bottom));background:rgba(11,18,34,.96);border-top:1px solid var(--line);}
   .sh-nav button{flex:1;min-width:0;background:transparent;border:0;color:#fff;font:700 14px Roboto,sans-serif;padding:8px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;border-radius:0}
   .sh-nav button:last-child{text-align:right}
   .sh-nav button:disabled{opacity:.25}
@@ -285,7 +285,7 @@ const appPage = head("Parkrating tiebreak") + `
 <div class="sheet-bg" id="sheet-bg" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet"></div>
 <div class="toast" id="toast"></div>
-<script src="/tiebreak.js?v=16"></script>
+<script src="/tiebreak.js?v=17"></script>
 </body></html>`;
 
 export async function GET(req: NextRequest) {
