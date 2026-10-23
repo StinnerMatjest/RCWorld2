@@ -18,6 +18,7 @@ import { additions, candidates, coasterDetail, countAbove, ensureTiebreak, flags
 //   lock    { score, name, coasterId, position?, cavedBy? }  put it into the DRAFT list (1 = top, default bottom),
 //                                                      log match / caved / lock, next round; name = who placed (the other one places the next match)
 //   again   { score }                                  split, nobody caves: log it, next round
+//   skipfollow { score }                               after "settle for X": do not place the other pick after all
 //   move    { score, coasterId, dir }                  one step up (-1) or down (+1) in the draft
 //   reorder { score, order: [ids] }                    the whole draft order after a drag
 //   placing { score, name, coasterId|null, position }  live marker: "name is dragging coasterId to position" (null clears)
@@ -134,6 +135,10 @@ export async function POST(req: NextRequest) {
         else if (g.follow_up && (g.follow_up.id === id || after.order.includes(g.follow_up.id))) await setFollowUp(score, null);
       }
       return NextResponse.json({ ok: true, slot, auto, already, ...(await groupPayload(score)) }, NO_STORE);
+    }
+    case "skipfollow": {   // "don't place the 2nd": drop the follow-up, back to picking
+      await setFollowUp(score, null);
+      break;
     }
     case "again": {
       await newRound(score, Object.keys(g.picks).length >= 2 ? { result: "split" } : null);

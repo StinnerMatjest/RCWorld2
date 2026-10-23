@@ -193,7 +193,9 @@
     else if (complete) act = '<div class="verdict ' + (dirty ? "match" : "onsite") + '">' + (dirty ? "LIST COMPLETE" : "ON THE SITE" + (g.submitted_at ? '<small>' + when(g.submitted_at) + '</small>' : "")) + '</div><div class="btns">' + (dirty ? '<button onclick="window.__tb.submit()">Submit to site</button>' : "") + '<button class="danger" onclick="window.__tb.reset()">Start over</button></div>';
     else if (phase === "pick") {
       if (follow) {
-        act = '<div class="verdict place">Next: <b>' + esc(byId[follow.id].name) + '</b><span class="turn">' + (myTurn ? "you place it" : esc(everyone.find(nm => nm !== me) || "the other one") + " places it") + '</span></div>' + (myTurn ? "" : '<div class="btns"><button class="sec" onclick="window.__tb.startPlace(' + follow.id + ',null)">I\'ll place it</button></div>');
+        const fy = esc(byId[follow.id].name).replace(/'/g, "\\'");
+        act = '<div class="verdict place">Next: <b>' + esc(byId[follow.id].name) + '</b><span class="turn">' + (myTurn ? "you place it" : esc(everyone.find(nm => nm !== me) || "the other one") + " places it") + '</span></div>'
+          + '<div class="btns"><button class="sec" onclick="window.__tb.skipFollow()">Don\'t place ' + fy + '</button><button onclick="window.__tb.startPlace(' + follow.id + ',null)">' + (myTurn ? "Place it" : "I\'ll place it") + '</button></div>';
       } else if (locked) {
         const other = everyone.find(nm => nm !== me && picks[nm] == null) || NAMES.find(nm => nm !== me) || "the other one";
         act = '<div class="verdict wait">Waiting for <b>' + esc(other) + '</b> to lock in a coaster<span class="dots"><i>.</i><i>.</i><i>.</i></span><span class="turn">Round ' + g.round + ' · you locked in ' + esc(byId[mine] ? byId[mine].name : "?") + '</span></div><div class="btns"><button class="sec" onclick="window.__tb.unlock()">Change my pick</button></div>';
@@ -289,6 +291,7 @@
     lockIn: () => { if (!chosen || state.group.revealed) return; const id = chosen.id; buzz(15); act({ action: "pick", name: me, coasterId: id }); },
     unlock: () => { if (state.group.revealed) return; chosen = { score, round: state.group.round, id: state.group.picks[me] }; act({ action: "pick", name: me, coasterId: null }); },
     again: () => act({ action: "again" }),
+    skipFollow: () => { autoPlaced[score] = null; act({ action: "skipfollow" }); },
     startPlace: async (id, cavedBy) => {
       const order = state.group.order || [];
       if (!order.length) { act({ action: "lock", name: me, coasterId: id, position: 1, cavedBy: cavedBy || null }).then(() => toast("Listed")); return; }
