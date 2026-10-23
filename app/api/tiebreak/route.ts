@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
 import { isAdminRequest } from "@/app/lib/adminAuth";
 import { revalidateContent } from "@/app/lib/revalidate";
-import { additions, candidates, coasterDetail, countAbove, ensureTiebreak, flags, getGroup, inGroup, logAuto, logFor, move, moves, newRound, overview, place, players, reorder, rescore, resetGroup, seen, setFlag, setFollowUp, setLastPlacer, setPlacing, submit, sweepStale, unplace } from "@/app/lib/tiebreakStore";
+import { additions, candidates, coasterDetail, countAbove, ensureTiebreak, getGroup, inGroup, logAuto, logFor, move, moves, newRound, overview, place, players, reorder, rescore, resetGroup, seen, setFollowUp, setLastPlacer, setPlacing, submit, sweepStale, unplace } from "@/app/lib/tiebreakStore";
 
 // Live tiebreak tool (UI: app/tiebreak/route.ts + public/tiebreak.js).
 // GET  /api/tiebreak                 -> { groups, players, log }           (home)
@@ -10,7 +10,6 @@ import { additions, candidates, coasterDetail, countAbove, ensureTiebreak, flags
 // GET  /api/tiebreak?coaster=123      -> { highlights, texts, photos, parkRank, parkTotal, visits, lastVisit }   (the stats sheet)
 // POST /api/tiebreak  JSON { action, ... }  (admin cookie, enforced by middleware)
 //   hello   { name }                                   presence heartbeat
-//   flag    { coasterId, name, dir: high|low|null }    "this score feels wrong" (null removes the flag); listed on the home screen
 //   rescore { coasterId, name, to: score|null }        tentatively move a coaster to another score group (null undoes); the rating
 //                                                      changes for real when either group is submitted
 //   pick    { score, name, coasterId }                 lock in your hidden pick (null takes it back); the second one reveals the round
@@ -53,8 +52,8 @@ export async function GET(req: NextRequest) {
   const s = req.nextUrl.searchParams.get("score");
   if (s === null) {
     await sweepStale();
-    const [groups, ps, log, adds, fl, mv] = await Promise.all([overview(), players(), logFor(null), additions(), flags(), moves()]);
-    return NextResponse.json({ groups, players: ps, log, additions: adds, flags: fl, moves: mv }, NO_STORE);
+    const [groups, ps, log, adds, mv] = await Promise.all([overview(), players(), logFor(null), additions(), moves()]);
+    return NextResponse.json({ groups, players: ps, log, additions: adds, moves: mv }, NO_STORE);
   }
   const score = parseScore(s);
   if (score === null) return bad("Bad score");
@@ -73,12 +72,6 @@ export async function POST(req: NextRequest) {
     if (!name) return bad("Name required");
     await seen(name);
     return NextResponse.json({ ok: true }, NO_STORE);
-  }
-  if (action === "flag") {
-    const id = Number(body.coasterId); if (!Number.isFinite(id)) return bad("coasterId required");
-    const dir = body.dir === "high" || body.dir === "low" ? body.dir : null;
-    await setFlag(id, dir, name);
-    return NextResponse.json({ ok: true, flags: await flags() }, NO_STORE);
   }
   if (action === "rescore") {
     const id = Number(body.coasterId); if (!Number.isFinite(id)) return bad("coasterId required");

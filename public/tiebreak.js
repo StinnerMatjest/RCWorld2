@@ -95,17 +95,16 @@
       const strip = (g.thumbs || []).slice(0, 6).map(t => '<i style="background-image:url(\'' + thumb(t, 480) + '\')"></i>').join("");
       return '<a class="grp ' + (isDone ? "done" : g.submitted_at ? "fresh" : "") + '" href="#/g/' + fmtScore(g.score) + '"><div class="strip">' + strip + '</div><div class="shade"></div><div class="row"><div class="sc" style="color:' + c + '">' + fmtScore(g.score) + '</div><div class="nm"><b>' + (isDone ? g.count : left) + ((isDone ? g.count : left) === 1 ? ' coaster' : ' coasters') + '</b>' + (isDone ? '<small>' + status + '</small>' : "") + '</div></div><div class="bar"><i style="width:' + pct + '%;background:' + c + '"></i></div></a>'; };
     const s = stats(state.log || []);
-    const adds = state.additions || [], fl = state.flags || [], mv = state.moves || [];
+    const adds = state.additions || [], mv = state.moves || [];
     const moveRow = m => '<div class="add flag"><a class="th" href="#/g/' + fmtScore(m.to_score) + '" style="background-image:url(\'' + thumb(m.image, 480) + '\')"></a><div class="tx"><b>' + esc(m.name) + '</b><small>' + esc(park(m.park)) + ' · ' + esc(m.by || "") + ' · on submit</small></div><div class="chg"><span class="from">' + fmtScore(m.from_score) + '</span> → <span style="color:' + col(m.to_score) + '">' + fmtScore(m.to_score) + '</span></div><button class="x" onclick="window.__tb.rescore(' + m.id + ',null)" title="Undo the move">✕</button></div>';
-    const flagRow = f => '<div class="add flag"><a class="th" href="/coasters/' + esc(f.slug) + '" target="_blank" style="background-image:url(\'' + thumb(f.image, 480) + '\')"></a><div class="tx"><b>' + esc(f.name) + '</b><small>' + esc(park(f.park)) + ' · ' + esc(f.by || "") + '</small></div><div class="chg"><span style="color:' + col(f.rating) + '">' + fmtScore(f.rating) + '</span><span class="dir ' + f.dir + '">too ' + f.dir + '</span></div><button class="x" onclick="window.__tb.flag(' + f.id + ',null)" title="Remove the flag">✕</button></div>';
     const add = a => '<a class="add" href="#/g/' + fmtScore(a.score) + '"><div class="th" style="background-image:url(\'' + thumb(a.image, 480) + '\')"></div><div class="tx"><b>' + esc(a.name) + '</b><small>' + esc(park(a.park)) + '</small></div><div class="chg">' + (a.from != null ? '<span class="from">' + fmtScore(a.from) + '</span> → <span style="color:' + col(a.score) + '">' + fmtScore(a.score) + '</span>' : 'new at <span style="color:' + col(a.score) + '">' + fmtScore(a.score) + '</span>') + '</div></a>';
+    document.body.style.paddingBottom = "";
     app.innerHTML = topbar(false) + '<div class="wrap">'
       + '<div class="hl"><small>Parkrating · admin</small>Tied scores</div>'
       + (adds.length ? '<h2 style="margin-top:0">New additions</h2><div class="adds">' + adds.map(add).join("") + '</div><h2>To settle</h2>' : "")
       + '<div>' + (open.map(row).join("") || '<div class="hint" style="text-align:left">Nothing to settle.</div>') + '</div>'
       + (done.length ? '<button class="sec sm settled-toggle" onclick="window.__tb.toggleSettled()">' + done.length + ' settled · ' + (showSettled ? "hide" : "show") + '</button>' + (showSettled ? '<div style="margin-top:10px">' + done.map(row).join("") + '</div>' : "") : "")
       + (mv.length ? '<h2>Moving to another score</h2><div class="adds">' + mv.map(moveRow).join("") + '</div>' : "")
-      + (fl.length ? '<h2>Scores to look at again</h2><div class="adds">' + fl.map(flagRow).join("") + '</div>' : "")
       + (s.rounds ? '<h2>Scoreboard</h2>' + statsHtml(s) : "")
       + '</div>';
   }
@@ -127,7 +126,7 @@
   // ---- one group
   function renderKey() {
     const g = state.group, ps = (state.players || []).map(p => p.name + ":" + (recent(p.last_seen) ? 1 : 0)).sort().join(",");
-    return JSON.stringify([g.round, g.revealed, g.picks, g.order, g.placing, g.submitted_at, g.last_placer, g.follow_up, state.candidates.map(c => c.id + ":" + c.tie_rank + ":" + (c.flag_dir || "") + ":" + (c.move_to || "")), (state.log || []).length, ps, placing && placing.id, placing && placing.pos, me, chosen && chosen.id]);
+    return JSON.stringify([g.round, g.revealed, g.picks, g.order, g.placing, g.submitted_at, g.last_placer, g.follow_up, state.candidates.map(c => c.id + ":" + c.tie_rank + ":" + (c.move_to || "")), (state.log || []).length, ps, placing && placing.id, placing && placing.pos, me, chosen && chosen.id]);
   }
   function renderGroup() {
     if (dragging) return;
@@ -167,10 +166,9 @@
 
     // candidates still to list (pick phase only)
     const stat = (v, label) => '<div><b>' + (v == null ? "–" : esc(v)) + '</b><span class="lb">' + label + '</span></div>';
-    const flg = c => c.flag_dir ? '<span class="flg" title="Score flagged too ' + c.flag_dir + '">⚑</span>' : "";
     // a candidate: the photo is the card (name and park on it), the four numbers under it; no photo = a short dark header
     const cand = c => '<div class="cand ' + (c.id === sel ? "mine" : "") + (c.image ? "" : " nophoto") + '" onclick="window.__tb.pick(' + c.id + ')">'
-      + '<div class="ph"' + (c.image ? ' style="background-image:url(\'' + thumb(c.image, 1200) + '\')"' : "") + '><div class="tx"><b>' + esc(c.name) + flg(c) + '</b><span class="ln">' + esc(park(c.park)) + ' · ' + (c.manufacturer ? esc(c.manufacturer) : esc(c.country)) + (c.year ? ' ' + c.year : "") + '</span></div>'
+      + '<div class="ph"' + (c.image ? ' style="background-image:url(\'' + thumb(c.image, 1200) + '\')"' : "") + '><div class="tx"><b>' + esc(c.name) + '</b><span class="ln">' + esc(park(c.park)) + ' · ' + (c.manufacturer ? esc(c.manufacturer) : esc(c.country)) + (c.year ? ' ' + c.year : "") + '</span></div>'
       + '<div class="info" onclick="event.stopPropagation();window.__tb.sheet(' + c.id + ')">i</div>' + (c.id === sel ? '<span class="tick">' + (locked ? "LOCKED IN" : "YOUR PICK") + '</span>' : c.move_to != null && Number(c.move_to) === score ? '<span class="tick new">FROM ' + fmtScore(c.move_from) + '</span>' : g.submitted_at ? '<span class="tick new">NEW</span>' : "") + '</div>'
       + '<div class="specs4">' + stat(c.inversions, "inv") + stat(c.speed != null ? Math.round(c.speed) + " mph" : null, "speed") + stat(c.height != null ? Math.round(c.height) + " ft" : null, "height") + stat(c.length != null ? Math.round(c.length).toLocaleString("en") + " ft" : null, "length") + '</div></div>';
 
@@ -222,9 +220,12 @@
       + (phase === "pick" && open.length ? '<h2>Still to list</h2><div class="round"><b>Round ' + g.round + '</b>' + chips + '</div><div class="list' + (locked || follow ? " locked" : "") + '">' + open.map(cand).join("") + '</div>' : "")
       + (phase === "pick" && s.rounds ? '<h2>Scoreboard</h2>' + statsHtml(s) + '<h2>Rounds</h2><div class="log">' + state.log.filter(l => l.result !== "submit").slice(0, 10).map(logLine).join("") + '</div>' : "")
       + '</div><div class="act"><div class="in">' + act + '</div></div>';
+    fitBar();
     if (phase === "place") { const row = $("#placed .pl.new"); if (row) { bindDrag(row, row, () => { if (placing) placing.pos = dropIndex() + 1; sendPlacing(); }); row.scrollIntoView({ block: "center" }); } }
     else if (phase === "pick" || complete) document.querySelectorAll("#placed .pl").forEach(r => { const grip = r.querySelector(".grip"); if (grip) bindDrag(r, grip, () => A.reorder()); });
   }
+
+  function fitBar() { const bar = $(".act"); document.body.style.paddingBottom = bar ? (bar.offsetHeight + 28) + "px" : ""; }
 
   // ---- dragging a row up and down the list: the row lifts, the others shift (same feel as the park rank lane)
   function bindDrag(row, handle, onDrop) {
@@ -234,19 +235,28 @@
       if (e.pointerType === "mouse" && e.button !== 0) return;
       e.preventDefault(); handle.setPointerCapture(e.pointerId);
       dragging = true; row.classList.add("lift"); buzz(10);
-      const startY = e.clientY; let shift = 0, moved = false;
+      const startY = e.clientY, startScroll = window.scrollY;
+      let shift = 0, moved = false, lastY = startY, edge = 0, raf = 0;
       const step = row.offsetHeight + (parseFloat(getComputedStyle(box).rowGap) || 6);
-      const place = dy => { row.style.transform = "translateY(" + (dy + shift) + "px) scale(1.02)"; };
-      const mv = ev => {
-        const dy = ev.clientY - startY; place(dy);
+      const place = () => { row.style.transform = "translateY(" + (lastY - startY + (window.scrollY - startScroll) + shift) + "px) scale(1.02)"; };
+      const swap = () => {
         const r = row.getBoundingClientRect(), mid = r.top + r.height / 2;
         const prev = row.previousElementSibling, next = row.nextElementSibling;
-        if (prev && prev.classList.contains("pl")) { const pr = prev.getBoundingClientRect(); if (mid < pr.top + pr.height / 2) { box.insertBefore(row, prev); shift += step; place(dy); renumber(); moved = true; buzz(8); if (onDrop) onDrop(true); return; } }
-        if (next && next.classList.contains("pl")) { const nr = next.getBoundingClientRect(); if (mid > nr.top + nr.height / 2) { box.insertBefore(next, row); shift -= step; place(dy); renumber(); moved = true; buzz(8); if (onDrop) onDrop(true); } }
+        if (prev && prev.classList.contains("pl")) { const pr = prev.getBoundingClientRect(); if (mid < pr.top + pr.height / 2) { box.insertBefore(row, prev); shift += step; place(); renumber(); moved = true; buzz(8); if (onDrop) onDrop(true); return; } }
+        if (next && next.classList.contains("pl")) { const nr = next.getBoundingClientRect(); if (mid > nr.top + nr.height / 2) { box.insertBefore(next, row); shift -= step; place(); renumber(); moved = true; buzz(8); if (onDrop) onDrop(true); } }
+      };
+      // near the top of the screen or the action bar: scroll the page a little every frame
+      const loop = () => { if (!dragging) return; if (edge) { window.scrollBy(0, edge); place(); swap(); } raf = requestAnimationFrame(loop); };
+      const mv = ev => {
+        lastY = ev.clientY;
+        const bar = document.querySelector(".act"), barTop = bar ? bar.getBoundingClientRect().top : window.innerHeight, top = 110;
+        edge = lastY < top ? -Math.min(14, Math.ceil((top - lastY) / 6)) : lastY > barTop - 80 ? Math.min(14, Math.ceil((lastY - (barTop - 80)) / 6)) : 0;
+        place(); swap();
       };
       const up = () => { handle.removeEventListener("pointermove", mv); handle.removeEventListener("pointerup", up); handle.removeEventListener("pointercancel", up);
-        row.style.transform = ""; row.classList.remove("lift"); dragging = false; renumber(); if (moved && onDrop) onDrop(false); };
+        cancelAnimationFrame(raf); edge = 0; row.style.transform = ""; row.classList.remove("lift"); dragging = false; renumber(); if (moved && onDrop) onDrop(false); };
       handle.addEventListener("pointermove", mv); handle.addEventListener("pointerup", up); handle.addEventListener("pointercancel", up);
+      raf = requestAnimationFrame(loop);
     });
   }
   const listIds = () => [...document.querySelectorAll("#placed .pl")].map(r => Number(r.dataset.id));
@@ -301,23 +311,6 @@
     },
     cancelPlace: () => { const p = placing; placing = null; lastKey = ""; act({ action: "placing", name: me, coasterId: null }); if (!p) renderGroup(); },
     placeDone: () => { const p = placing; if (!p) return; const pos = dropIndex() + 1; placing = null; act({ action: "lock", name: me, coasterId: p.id, position: pos, cavedBy: p.cavedBy }).then(() => toast("Listed at " + pos)); },
-    flag: async (id, dir) => {
-      try { const d = await api({ action: "flag", coasterId: id, dir, name: me }); if (state) { state = { ...state, flags: d.flags }; (state.candidates || []).forEach(c => { if (c.id === id) { c.flag_dir = dir; c.flag_by = dir ? me : null; } }); } } catch (e) { return; }
-      toast(dir ? "Flagged" : "Flag removed"); lastKey = "";
-      if (sheetId === id) openSheet(id, true); else if (score === null) renderHome(); else renderGroup();
-    },
-    reorder: () => act({ action: "reorder", order: listIds() }),
-    unplace: (id, name) => { if (confirm("Take " + name + " back out of the list?")) act({ action: "unplace", coasterId: id }); },
-    submit: () => {
-      const moving = (state.candidates || []).filter(c => c.move_to != null && Number(c.move_to) === score);
-      const msg = "Put this order on the site?" + (moving.length ? "\n\nRating changes: " + moving.map(c => c.name + " " + fmtScore(c.move_from) + " → " + fmtScore(c.move_to)).join(", ") : "");
-      if (confirm(msg)) act({ action: "submit" }).then(() => toast("On the site"));
-    },
-    rescore: async (id, to) => {
-      try { const d = await api({ action: "rescore", coasterId: id, to, name: me }); if (state) state = { ...state, moves: d.moves }; } catch (e) { return; }
-      toast(to == null ? "Move undone" : "Moves to " + fmtScore(to) + " on submit"); closeSheet(); lastKey = ""; tick();
-    },
-    reset: () => { if (confirm("Clear this group's list, its order on the site and its history, and start over?")) act({ action: "reset" }); },
     sheet: id => openSheet(id),
   };
   window.__tb = A;
@@ -401,13 +394,9 @@
     rev += '</div>';
 
     const r0 = Number(c.rating), up = Math.min(11, r0 + 0.5), down = Math.max(0, r0 - 0.5);
-    const moveRow = '<div class="sh-lb">Belongs in another group?</div><div class="sh-flag">'
+    const moveRow = '<div class="sh-lb">Belongs in another group?</div><div class="sh-flag top">'
       + (c.move_to != null ? '<span>Moving ' + fmtScore(c.move_from) + ' → <em>' + fmtScore(c.move_to) + '</em>' + (c.move_by ? " by " + esc(c.move_by) : "") + ', applied on submit</span><button class="rm" onclick="window.__tb.rescore(' + c.id + ',null)">Undo</button>'
         : '<span>Move it tentatively</span>' + (up > r0 ? '<button onclick="window.__tb.rescore(' + c.id + ',' + up + ')">Up to ' + fmtScore(up) + ' ▲</button>' : "") + (down < r0 ? '<button onclick="window.__tb.rescore(' + c.id + ',' + down + ')">Down to ' + fmtScore(down) + ' ▼</button>' : ""))
-      + '</div>';
-    const flagRow = '<div class="sh-lb">Score feels wrong?</div><div class="sh-flag">'
-      + (c.flag_dir ? '<span>Flagged too ' + c.flag_dir + (c.flag_by ? " by " + esc(c.flag_by) : "") + '</span><button class="rm" onclick="window.__tb.flag(' + c.id + ',null)">Remove</button>'
-        : '<span>Flag it for a second look</span><button onclick="window.__tb.flag(' + c.id + ',\'low\')">Too low ▲</button><button onclick="window.__tb.flag(' + c.id + ',\'high\')">Too high ▼</button>')
       + '</div>';
     const nav = '<div class="sh-nav"><button ' + (prev ? 'onclick="window.__tb.sheet(' + prev.id + ')"' : "disabled") + '><span>‹</span> ' + (prev ? esc(prev.name) : "") + '</button>'
       + (i >= 0 ? '<small>' + (i + 1) + ' / ' + list.length + '</small>' : "")
@@ -415,7 +404,7 @@
 
     const top = '<div class="sh-top' + (keep && st > 250 ? " on" : "") + '" id="sh-top"><b>' + esc(c.name) + '</b><span style="color:' + col(c.rating) + '">' + fmtScore(c.rating) + '</span><button onclick="closeSheet()" aria-label="Close">✕</button></div>';
     sh.innerHTML = top + '<div class="grab"></div><button class="close" onclick="closeSheet()" aria-label="Close">✕</button>' + hero
-      + '<div class="sh-bd">' + specs + hl + us + photos + rev + moveRow + flagRow + '<a class="sh-link" href="/coasters/' + esc(c.slug) + '" target="_blank">Open coaster page ›</a></div>' + nav;
+      + '<div class="sh-bd">' + moveRow + specs + hl + us + photos + rev + '<a class="sh-link" href="/coasters/' + esc(c.slug) + '" target="_blank">Open coaster page ›</a></div>' + nav;
     sh.classList.add("open"); $("#sheet-bg").classList.add("open");
     sh.scrollTop = keep ? st : 0;
     if (!d) fetchDetail(id);

@@ -103,13 +103,13 @@ const head = (title: string) => `<!DOCTYPE html>
   .cand .info{position:absolute;right:10px;top:10px;z-index:2;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);color:#fff;font:700 14px Roboto,serif;display:flex;align-items:center;justify-content:center}
   .cand .tick{position:absolute;left:0;top:0;z-index:2;background:var(--accent);color:#0c0c0c;font:900 10px Roboto,sans-serif;letter-spacing:1px;padding:4px 9px;border-radius:0 0 10px 0}
   .cand .tick.new{background:var(--good);color:#06260f}
-  .flg{color:var(--accent);font-weight:400;margin-left:5px;font-size:.85em}
   /* the sheet's "score feels wrong" row and the home list of flags */
   .sh-flag{display:flex;align-items:center;gap:18px;border-top:1px solid var(--line);padding:12px 0 2px;font-size:14px}
   .sh-flag span{color:var(--muted);flex:1}
   .sh-flag button{background:transparent;border:0;padding:6px 0;color:#fff;font:700 13px Roboto,sans-serif;letter-spacing:.3px;border-radius:0}
   .sh-flag button.on{color:var(--accent)}
   .sh-flag button.rm{color:var(--muted);font-weight:500}
+  .sh-flag.top{border-top:0;padding-top:4px;border-bottom:1px solid var(--line);padding-bottom:12px}
   .sh-flag span em{font-style:normal;color:var(--accent-light);font-weight:700}
   .add.flag{border-color:rgba(255,255,255,.12)}
   .add .chg .dir{display:block;font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--accent-light)}
@@ -285,7 +285,7 @@ const appPage = head("Parkrating tiebreak") + `
 <div class="sheet-bg" id="sheet-bg" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet"></div>
 <div class="toast" id="toast"></div>
-<script src="/tiebreak.js?v=14"></script>
+<script src="/tiebreak.js?v=15"></script>
 </body></html>`;
 
 export async function GET(req: NextRequest) {
