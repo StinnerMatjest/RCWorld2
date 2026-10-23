@@ -95,7 +95,8 @@
       const strip = (g.thumbs || []).slice(0, 6).map(t => '<i style="background-image:url(\'' + thumb(t, 480) + '\')"></i>').join("");
       return '<a class="grp ' + (isDone ? "done" : g.submitted_at ? "fresh" : "") + '" href="#/g/' + fmtScore(g.score) + '"><div class="strip">' + strip + '</div><div class="shade"></div><div class="row"><div class="sc" style="color:' + c + '">' + fmtScore(g.score) + '</div><div class="nm"><b>' + (isDone ? g.count : left) + ((isDone ? g.count : left) === 1 ? ' coaster' : ' coasters') + '</b>' + (isDone ? '<small>' + status + '</small>' : "") + '</div></div><div class="bar"><i style="width:' + pct + '%;background:' + c + '"></i></div></a>'; };
     const s = stats(state.log || []);
-    const adds = state.additions || [], fl = state.flags || [];
+    const adds = state.additions || [], fl = state.flags || [], mv = state.moves || [];
+    const moveRow = m => '<div class="add flag"><a class="th" href="#/g/' + fmtScore(m.to_score) + '" style="background-image:url(\'' + thumb(m.image, 480) + '\')"></a><div class="tx"><b>' + esc(m.name) + '</b><small>' + esc(park(m.park)) + ' · ' + esc(m.by || "") + ' · on submit</small></div><div class="chg"><span class="from">' + fmtScore(m.from_score) + '</span> → <span style="color:' + col(m.to_score) + '">' + fmtScore(m.to_score) + '</span></div><button class="x" onclick="window.__tb.rescore(' + m.id + ',null)" title="Undo the move">✕</button></div>';
     const flagRow = f => '<div class="add flag"><a class="th" href="/coasters/' + esc(f.slug) + '" target="_blank" style="background-image:url(\'' + thumb(f.image, 480) + '\')"></a><div class="tx"><b>' + esc(f.name) + '</b><small>' + esc(park(f.park)) + ' · ' + esc(f.by || "") + '</small></div><div class="chg"><span style="color:' + col(f.rating) + '">' + fmtScore(f.rating) + '</span><span class="dir ' + f.dir + '">too ' + f.dir + '</span></div><button class="x" onclick="window.__tb.flag(' + f.id + ',null)" title="Remove the flag">✕</button></div>';
     const add = a => '<a class="add" href="#/g/' + fmtScore(a.score) + '"><div class="th" style="background-image:url(\'' + thumb(a.image, 480) + '\')"></div><div class="tx"><b>' + esc(a.name) + '</b><small>' + esc(park(a.park)) + '</small></div><div class="chg">' + (a.from != null ? '<span class="from">' + fmtScore(a.from) + '</span> → <span style="color:' + col(a.score) + '">' + fmtScore(a.score) + '</span>' : 'new at <span style="color:' + col(a.score) + '">' + fmtScore(a.score) + '</span>') + '</div></a>';
     app.innerHTML = topbar(false) + '<div class="wrap">'
@@ -103,6 +104,7 @@
       + (adds.length ? '<h2 style="margin-top:0">New additions</h2><div class="adds">' + adds.map(add).join("") + '</div><h2>To settle</h2>' : "")
       + '<div>' + (open.map(row).join("") || '<div class="hint" style="text-align:left">Nothing to settle.</div>') + '</div>'
       + (done.length ? '<button class="sec sm settled-toggle" onclick="window.__tb.toggleSettled()">' + done.length + ' settled · ' + (showSettled ? "hide" : "show") + '</button>' + (showSettled ? '<div style="margin-top:10px">' + done.map(row).join("") + '</div>' : "") : "")
+      + (mv.length ? '<h2>Moving to another score</h2><div class="adds">' + mv.map(moveRow).join("") + '</div>' : "")
       + (fl.length ? '<h2>Scores to look at again</h2><div class="adds">' + fl.map(flagRow).join("") + '</div>' : "")
       + (s.rounds ? '<h2>Scoreboard</h2>' + statsHtml(s) : "")
       + '</div>';
@@ -125,7 +127,7 @@
   // ---- one group
   function renderKey() {
     const g = state.group, ps = (state.players || []).map(p => p.name + ":" + (recent(p.last_seen) ? 1 : 0)).sort().join(",");
-    return JSON.stringify([g.round, g.revealed, g.picks, g.order, g.placing, g.submitted_at, g.last_placer, state.candidates.map(c => c.id + ":" + c.tie_rank + ":" + (c.flag_dir || "")), (state.log || []).length, ps, placing && placing.id, placing && placing.pos, me, chosen && chosen.id]);
+    return JSON.stringify([g.round, g.revealed, g.picks, g.order, g.placing, g.submitted_at, g.last_placer, g.follow_up, state.candidates.map(c => c.id + ":" + c.tie_rank + ":" + (c.flag_dir || "") + ":" + (c.move_to || "")), (state.log || []).length, ps, placing && placing.id, placing && placing.pos, me, chosen && chosen.id]);
   }
   function renderGroup() {
     if (dragging) return;
@@ -154,6 +156,9 @@
     // a match needs no button: whoever did not place last time drags it in (the first time: the first phone to ask)
     const myTurn = !g.last_placer || g.last_placer !== me;
     if (unanimous && phase === "decide" && myTurn && !busy && autoPlaced[score] !== g.round) { autoPlaced[score] = g.round; A.startPlace(vals[0], null); }   // not while an action is in flight: it would be dropped
+    // after "settle for X", the other pick is placed too: whoever did not place X drags it in
+    const follow = g.follow_up && byId[g.follow_up.id] && !order.includes(g.follow_up.id) ? g.follow_up : null;
+    if (follow && phase === "pick" && myTurn && !busy && autoPlaced[score] !== "f" + follow.id) { autoPlaced[score] = "f" + follow.id; A.startPlace(follow.id, null); }
 
     const rkey = renderKey(); if (rkey === lastKey) return; lastKey = rkey;
 
@@ -166,7 +171,7 @@
     // a candidate: the photo is the card (name and park on it), the four numbers under it; no photo = a short dark header
     const cand = c => '<div class="cand ' + (c.id === sel ? "mine" : "") + (c.image ? "" : " nophoto") + '" onclick="window.__tb.pick(' + c.id + ')">'
       + '<div class="ph"' + (c.image ? ' style="background-image:url(\'' + thumb(c.image, 1200) + '\')"' : "") + '><div class="tx"><b>' + esc(c.name) + flg(c) + '</b><span class="ln">' + esc(park(c.park)) + ' · ' + (c.manufacturer ? esc(c.manufacturer) : esc(c.country)) + (c.year ? ' ' + c.year : "") + '</span></div>'
-      + '<div class="info" onclick="event.stopPropagation();window.__tb.sheet(' + c.id + ')">i</div>' + (c.id === sel ? '<span class="tick">' + (locked ? "LOCKED IN" : "YOUR PICK") + '</span>' : g.submitted_at ? '<span class="tick new">NEW</span>' : "") + '</div>'
+      + '<div class="info" onclick="event.stopPropagation();window.__tb.sheet(' + c.id + ')">i</div>' + (c.id === sel ? '<span class="tick">' + (locked ? "LOCKED IN" : "YOUR PICK") + '</span>' : c.move_to != null && Number(c.move_to) === score ? '<span class="tick new">FROM ' + fmtScore(c.move_from) + '</span>' : g.submitted_at ? '<span class="tick new">NEW</span>' : "") + '</div>'
       + '<div class="specs4">' + stat(c.inversions, "inv") + stat(c.speed != null ? Math.round(c.speed) + " mph" : null, "speed") + stat(c.height != null ? Math.round(c.height) + " ft" : null, "height") + stat(c.length != null ? Math.round(c.length).toLocaleString("en") + " ft" : null, "length") + '</div></div>';
 
     // the draft list
@@ -187,7 +192,9 @@
     else if (phase === "watch") act = '<div class="verdict place"><b>' + esc(live.by) + '</b> is placing ' + esc(byId[live.id].name) + '</div>';
     else if (complete) act = '<div class="verdict ' + (dirty ? "match" : "onsite") + '">' + (dirty ? "LIST COMPLETE" : "ON THE SITE" + (g.submitted_at ? '<small>' + when(g.submitted_at) + '</small>' : "")) + '</div><div class="btns">' + (dirty ? '<button onclick="window.__tb.submit()">Submit to site</button>' : "") + '<button class="danger" onclick="window.__tb.reset()">Start over</button></div>';
     else if (phase === "pick") {
-      if (locked) {
+      if (follow) {
+        act = '<div class="verdict place">Next: <b>' + esc(byId[follow.id].name) + '</b><span class="turn">' + (myTurn ? "you place it" : esc(everyone.find(nm => nm !== me) || "the other one") + " places it") + '</span></div>' + (myTurn ? "" : '<div class="btns"><button class="sec" onclick="window.__tb.startPlace(' + follow.id + ',null)">I\'ll place it</button></div>');
+      } else if (locked) {
         const other = everyone.find(nm => nm !== me && picks[nm] == null) || NAMES.find(nm => nm !== me) || "the other one";
         act = '<div class="verdict wait">Waiting for <b>' + esc(other) + '</b> to lock in a coaster<span class="dots"><i>.</i><i>.</i><i>.</i></span><span class="turn">Round ' + g.round + ' · you locked in ' + esc(byId[mine] ? byId[mine].name : "?") + '</span></div><div class="btns"><button class="sec" onclick="window.__tb.unlock()">Change my pick</button></div>';
       } else {
@@ -200,7 +207,8 @@
       else {
         const uniq = [...new Set(vals)];
         act = '<div class="verdict split">NO MATCH</div><div class="picks">' + pk + '</div><div class="slots">' + uniq.map(id => { const cavers = names.filter(nm => picks[nm] !== id);
-          return '<button class="slot" onclick="window.__tb.startPlace(' + id + ',\'' + esc(cavers.join(" + ")).replace(/'/g, "\\'") + '\')">Go with <b>' + esc(byId[id] ? byId[id].name : "?") + '</b><small>' + esc(cavers.join(" + ")) + ' caves</small></button>'; }).join("")
+          const other = byId[picks[cavers[0]]];
+          return '<button class="slot" onclick="window.__tb.startPlace(' + id + ',\'' + esc(cavers.join(" + ")).replace(/'/g, "\\'") + '\')">Settle for <b>' + esc(byId[id] ? byId[id].name : "?") + '</b><small>' + esc(cavers.join(" + ")) + ' caves · then ' + esc(other ? other.name : "the other one") + ' gets placed too</small></button>'; }).join("")
           + '</div><div class="btns"><button class="sec" onclick="window.__tb.again()">Argue, then pick again</button></div>';
       }
     }
@@ -209,7 +217,7 @@
     app.innerHTML = topbar(true) + '<div class="wrap">'
       + '<div class="ghead"><div class="sc" style="color:' + col(g.score) + '">' + fmtScore(g.score) + '</div><div class="hl">Tied at ' + fmtScore(g.score) + '</div></div>'
       + (rows.length ? '<h2 style="margin-top:0">' + (complete ? "The final list" : "The list") + '</h2>' : "") + listHtml
-      + (phase === "pick" && open.length ? '<h2>Still to list</h2><div class="round"><b>Round ' + g.round + '</b>' + chips + '</div><div class="list' + (locked ? " locked" : "") + '">' + open.map(cand).join("") + '</div>' : "")
+      + (phase === "pick" && open.length ? '<h2>Still to list</h2><div class="round"><b>Round ' + g.round + '</b>' + chips + '</div><div class="list' + (locked || follow ? " locked" : "") + '">' + open.map(cand).join("") + '</div>' : "")
       + (phase === "pick" && s.rounds ? '<h2>Scoreboard</h2>' + statsHtml(s) + '<h2>Rounds</h2><div class="log">' + state.log.filter(l => l.result !== "submit").slice(0, 10).map(logLine).join("") + '</div>' : "")
       + '</div><div class="act"><div class="in">' + act + '</div></div>';
     if (phase === "place") { const row = $("#placed .pl.new"); if (row) { bindDrag(row, row, () => { if (placing) placing.pos = dropIndex() + 1; sendPlacing(); }); row.scrollIntoView({ block: "center" }); } }
@@ -274,7 +282,7 @@
     toggleSettled: () => { showSettled = !showSettled; renderHome(); },
     // tap = choose on this phone only; Lock in = send it (the server reveals by itself once both are in)
     pick: id => {
-      if (state.group.revealed || state.group.picks[me] != null) return;
+      if (state.group.revealed || state.group.picks[me] != null || state.group.follow_up) return;
       chosen = id == null || (chosen && chosen.id === id) ? null : { score, round: state.group.round, id };
       lastKey = ""; renderGroup();
     },
@@ -297,7 +305,15 @@
     },
     reorder: () => act({ action: "reorder", order: listIds() }),
     unplace: (id, name) => { if (confirm("Take " + name + " back out of the list?")) act({ action: "unplace", coasterId: id }); },
-    submit: () => { if (confirm("Put this order on the site?")) act({ action: "submit" }).then(() => toast("On the site")); },
+    submit: () => {
+      const moving = (state.candidates || []).filter(c => c.move_to != null && Number(c.move_to) === score);
+      const msg = "Put this order on the site?" + (moving.length ? "\n\nRating changes: " + moving.map(c => c.name + " " + fmtScore(c.move_from) + " → " + fmtScore(c.move_to)).join(", ") : "");
+      if (confirm(msg)) act({ action: "submit" }).then(() => toast("On the site"));
+    },
+    rescore: async (id, to) => {
+      try { const d = await api({ action: "rescore", coasterId: id, to, name: me }); if (state) state = { ...state, moves: d.moves }; } catch (e) { return; }
+      toast(to == null ? "Move undone" : "Moves to " + fmtScore(to) + " on submit"); closeSheet(); lastKey = ""; tick();
+    },
     reset: () => { if (confirm("Clear this group's list, its order on the site and its history, and start over?")) act({ action: "reset" }); },
     sheet: id => openSheet(id),
   };
@@ -381,6 +397,11 @@
     else rev += d.texts.map(t => (t.headline ? '<h4>' + esc(t.headline) + '</h4>' : "") + (t.isSpoiler ? '<div class="sp-block" onclick="this.classList.add(\'show\')">' + paras(t.text) + '<span class="sp-tag">Contains ride spoilers · tap to show</span></div>' : paras(t.text))).join("");
     rev += '</div>';
 
+    const r0 = Number(c.rating), up = Math.min(11, r0 + 0.5), down = Math.max(0, r0 - 0.5);
+    const moveRow = '<div class="sh-lb">Belongs in another group?</div><div class="sh-flag">'
+      + (c.move_to != null ? '<span>Moving ' + fmtScore(c.move_from) + ' → <em>' + fmtScore(c.move_to) + '</em>' + (c.move_by ? " by " + esc(c.move_by) : "") + ', applied on submit</span><button class="rm" onclick="window.__tb.rescore(' + c.id + ',null)">Undo</button>'
+        : '<span>Move it tentatively</span>' + (up > r0 ? '<button onclick="window.__tb.rescore(' + c.id + ',' + up + ')">Up to ' + fmtScore(up) + ' ▲</button>' : "") + (down < r0 ? '<button onclick="window.__tb.rescore(' + c.id + ',' + down + ')">Down to ' + fmtScore(down) + ' ▼</button>' : ""))
+      + '</div>';
     const flagRow = '<div class="sh-lb">Score feels wrong?</div><div class="sh-flag">'
       + (c.flag_dir ? '<span>Flagged too ' + c.flag_dir + (c.flag_by ? " by " + esc(c.flag_by) : "") + '</span><button class="rm" onclick="window.__tb.flag(' + c.id + ',null)">Remove</button>'
         : '<span>Flag it for a second look</span><button onclick="window.__tb.flag(' + c.id + ',\'low\')">Too low ▲</button><button onclick="window.__tb.flag(' + c.id + ',\'high\')">Too high ▼</button>')
@@ -391,7 +412,7 @@
 
     const top = '<div class="sh-top' + (keep && st > 250 ? " on" : "") + '" id="sh-top"><b>' + esc(c.name) + '</b><span style="color:' + col(c.rating) + '">' + fmtScore(c.rating) + '</span><button onclick="closeSheet()" aria-label="Close">✕</button></div>';
     sh.innerHTML = top + '<div class="grab"></div><button class="close" onclick="closeSheet()" aria-label="Close">✕</button>' + hero
-      + '<div class="sh-bd">' + specs + hl + us + photos + rev + flagRow + '<a class="sh-link" href="/coasters/' + esc(c.slug) + '" target="_blank">Open coaster page ›</a></div>' + nav;
+      + '<div class="sh-bd">' + specs + hl + us + photos + rev + moveRow + flagRow + '<a class="sh-link" href="/coasters/' + esc(c.slug) + '" target="_blank">Open coaster page ›</a></div>' + nav;
     sh.classList.add("open"); $("#sheet-bg").classList.add("open");
     sh.scrollTop = keep ? st : 0;
     if (!d) fetchDetail(id);

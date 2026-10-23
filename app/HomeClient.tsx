@@ -217,7 +217,7 @@ const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager 
         />}
 
         {/* Top: park name */}
-        <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent px-2.5 md:px-4 pt-4 pb-14">
+        <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent px-4 pt-4 pb-14">
           <div className="flex items-center gap-2">
             <Image src={getParkFlag(park.country)} alt="" width={20} height={14} className="rounded-sm shrink-0" unoptimized />
             <h2 className="text-white font-bold text-xl leading-tight drop-shadow-md">{park.name}</h2>
@@ -711,7 +711,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img ref={slotBRef} alt="" loading="lazy" className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
 
-          <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent px-2.5 md:px-4 pt-4 pb-16 pointer-events-none">
+          <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent px-4 pt-4 pb-16 pointer-events-none">
             <div className="flex items-center gap-2">
               <Image src={getParkFlag(park.country)} alt="" width={20} height={14} className="rounded-sm shrink-0" unoptimized />
               <h2 className="text-white font-bold text-xl leading-tight drop-shadow-md">{park.name}</h2>
@@ -997,22 +997,6 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
     if (scrollRafRef.current != null) cancelAnimationFrame(scrollRafRef.current);
   }, []);
 
-  // Once per session, after the strip has faded in: slide it a little and back, so it
-  // visibly moves. Skipped if the visitor has already scrolled it themselves.
-  useEffect(() => {
-    if (!isMobileLayout || !revealed || displayItems.length < 2) return;
-    try { if (sessionStorage.getItem("pr-strip-nudged")) return; } catch { return; }
-    const el = carouselRef.current;
-    if (!el) return;
-    const t1 = setTimeout(() => {
-      if (el.scrollLeft > 2) return;
-      try { sessionStorage.setItem("pr-strip-nudged", "1"); } catch { /* private mode */ }
-      el.scrollTo({ left: 28, behavior: "smooth" });
-      setTimeout(() => el.scrollTo({ left: 0, behavior: "smooth" }), 420);
-    }, 900);
-    return () => clearTimeout(t1);
-  }, [isMobileLayout, revealed, displayItems.length]);
-
   // Swiping is handled entirely by native CSS scroll-snap (snap-x snap-mandatory
   // on the container, snap-center on cards). A JS velocity/fling layer used to
   // force-scroll N cards on touchend, but it fought the native momentum snap and
@@ -1056,7 +1040,7 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
             return (
               <div
                 key={item.id}
-                className={`snap-center shrink-0 transition-all duration-200 ease-in-out ${active ? "opacity-100" : "opacity-90"} w-[78vw] min-[400px]:w-[72vw] min-[480px]:w-[68vw] min-[560px]:w-[64vw] max-w-sm`}
+                className={`snap-center shrink-0 transition-all duration-200 ease-in-out ${active ? "scale-100 opacity-100" : "scale-95 opacity-85"} w-[78vw] min-[400px]:w-[72vw] min-[480px]:w-[68vw] min-[560px]:w-[64vw] max-w-sm`}
               >
                 {item.type === "pending" ? (
                   <PendingParkCard park={item.park} />

@@ -110,6 +110,7 @@ const head = (title: string) => `<!DOCTYPE html>
   .sh-flag button{background:transparent;border:0;padding:6px 0;color:#fff;font:700 13px Roboto,sans-serif;letter-spacing:.3px;border-radius:0}
   .sh-flag button.on{color:var(--accent)}
   .sh-flag button.rm{color:var(--muted);font-weight:500}
+  .sh-flag span em{font-style:normal;color:var(--accent-light);font-weight:700}
   .add.flag{border-color:rgba(255,255,255,.12)}
   .add .chg .dir{display:block;font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--accent-light)}
   .add .chg .dir.low{color:var(--blue)}
@@ -284,7 +285,7 @@ const appPage = head("Parkrating tiebreak") + `
 <div class="sheet-bg" id="sheet-bg" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet"></div>
 <div class="toast" id="toast"></div>
-<script src="/tiebreak.js?v=12"></script>
+<script src="/tiebreak.js?v=13"></script>
 </body></html>`;
 
 export async function GET(req: NextRequest) {

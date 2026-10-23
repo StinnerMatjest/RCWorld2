@@ -1,4 +1,13 @@
 import { pool } from "@/app/lib/db";
+import { logChange } from "@/app/lib/changelog";
+
+/**
+ * Who belongs to a score group, as SQL on an alias `rc` with the score in parameter $n:
+ * everyone rated that score, minus coasters tentatively moved away in the tool, plus
+ * coasters tentatively moved in (tiebreak_moves). The move only becomes a real rating on submit.
+ */
+export const inGroup = (n: number) =>
+  `((rc.rating = $${n} AND NOT EXISTS (SELECT 1 FROM tiebreak_moves m WHERE m.coaster_id = rc.id)) OR EXISTS (SELECT 1 FROM tiebreak_moves m WHERE m.coaster_id = rc.id AND m.to_score = $${n}))`;
 
 // Tiebreak: the two admins settle the order of coasters that share a score,
 // live, each on their own phone (app/tiebreak, app/api/tiebreak).
@@ -56,6 +65,15 @@ export function ensureTiebreak(): Promise<void> {
         by_name TEXT,
         created_at TIMESTAMPTZ DEFAULT now()
       )`);
+      // "settle for X": the other pick is placed next (follow_up {id}); tentative up/down moves between score groups
+      await pool.query(`ALTER TABLE tiebreak_groups ADD COLUMN IF NOT EXISTS follow_up JSONB`);
+      await pool.query(`CREATE TABLE IF NOT EXISTS tiebreak_moves (
+        coaster_id INTEGER PRIMARY KEY,
+        from_score NUMERIC NOT NULL,
+        to_score NUMERIC NOT NULL,
+        by_name TEXT,
+        created_at TIMESTAMPTZ DEFAULT now()
+      )`);
     })().catch((err) => { ready = null; throw err; });
   }
   return ready;
@@ -79,27 +97,27 @@ export function ensureTieRankColumn(): Promise<void> {
 }
 
 export type Placing = { id: number; pos: number; by: string } | null;
-export type GroupRow = { score: string; round: number; picks: Record<string, number>; revealed: boolean; order: number[]; placing: Placing; submitted_at: string | null; last_placer: string | null; updated_at: string };
+export type GroupRow = { score: string; round: number; picks: Record<string, number>; revealed: boolean; order: number[]; placing: Placing; submitted_at: string | null; last_placer: string | null; follow_up: { id: number } | null; updated_at: string };
 
 /** The group row; the draft order is seeded from the published order the first time. */
 export async function getGroup(score: number): Promise<GroupRow> {
   const r = await pool.query(
     `INSERT INTO tiebreak_groups (score) VALUES ($1)
      ON CONFLICT (score) DO UPDATE SET score = EXCLUDED.score
-     RETURNING score, round, picks, revealed, order_ids, live_place AS placing, submitted_at, last_placer, updated_at`,
+     RETURNING score, round, picks, revealed, order_ids, live_place AS placing, submitted_at, last_placer, follow_up, updated_at`,
     [score]
   );
   const row = r.rows[0];
-  const ids = await pool.query<{ id: number; tie_rank: number | null }>(`SELECT id, tie_rank FROM rollercoasters WHERE rating = $1`, [score]);
-  const inGroup = new Set(ids.rows.map(x => x.id));
+  const ids = await pool.query<{ id: number; tie_rank: number | null }>(`SELECT rc.id, rc.tie_rank FROM rollercoasters rc WHERE ${inGroup(1)}`, [score]);
+  const members = new Set(ids.rows.map(x => x.id));
   let order: number[];
   if (row.order_ids == null) {
     order = ids.rows.filter(x => x.tie_rank != null).sort((a, b) => a.tie_rank! - b.tie_rank!).map(x => x.id);
     await pool.query(`UPDATE tiebreak_groups SET order_ids = $2::jsonb WHERE score = $1`, [score, JSON.stringify(order)]);
   } else {
-    order = (row.order_ids as number[]).filter(id => inGroup.has(id)); // a coaster re-scored out of the group drops out
+    order = (row.order_ids as number[]).filter(id => members.has(id)); // a coaster re-scored out of the group drops out
   }
-  return { score: row.score, round: row.round, picks: row.picks, revealed: row.revealed, order, placing: row.placing ?? null, submitted_at: row.submitted_at, last_placer: row.last_placer ?? null, updated_at: row.updated_at };
+  return { score: row.score, round: row.round, picks: row.picks, revealed: row.revealed, order, placing: row.placing ?? null, submitted_at: row.submitted_at, last_placer: row.last_placer ?? null, follow_up: row.follow_up ?? null, updated_at: row.updated_at };
 }
 
 async function saveOrder(score: number, order: number[]) {
@@ -111,15 +129,16 @@ export async function candidates(score: number) {
     `SELECT rc.id, rc.name, rc.slug, rc.year, rc.model, rc.scale, rc.rating, rc.ridecount, rc.tie_rank, rc.isbestcoaster,
             m.name AS manufacturer, p.id AS park_id, p.name AS park, p.country, p.slug AS park_slug,
             rs.type, rs.classification, rs.length, rs.height, rs.drop, rs.speed, rs.inversions, rs.gforce, rs.duration_sec AS duration, rs.notes,
-            img.path AS image, f.dir AS flag_dir, f.by_name AS flag_by,
+            img.path AS image, f.dir AS flag_dir, f.by_name AS flag_by, mv.from_score AS move_from, mv.to_score AS move_to, mv.by_name AS move_by,
             (SELECT MAX(v.date) FROM visits v WHERE v.park_id = p.id) AS last_visit
      FROM rollercoasters rc
      JOIN parks p ON p.id = rc.park_id
      LEFT JOIN manufacturers m ON m.id = rc.manufacturer_id
      LEFT JOIN rollercoasterspecs rs ON rs.coaster_id = rc.id
      LEFT JOIN tiebreak_flags f ON f.coaster_id = rc.id
+     LEFT JOIN tiebreak_moves mv ON mv.coaster_id = rc.id
      LEFT JOIN LATERAL (SELECT cg.path FROM coastergallery cg WHERE cg.coaster_id = rc.id AND cg.path <> '' ORDER BY cg.is_header DESC, cg.id ASC LIMIT 1) img ON TRUE
-     WHERE rc.rating = $1
+     WHERE ${inGroup(1)}
      ORDER BY rc.name`,
     [score]
   );
@@ -134,6 +153,10 @@ export async function overview() {
      LEFT JOIN LATERAL (SELECT cg.path FROM coastergallery cg WHERE cg.coaster_id = rc.id AND cg.path <> '' ORDER BY cg.is_header DESC, cg.id ASC LIMIT 1) img ON TRUE
      WHERE rc.rating IS NOT NULL ORDER BY rc.rating DESC, rc.tie_rank NULLS LAST, rc.name`
   );
+  // tentative moves count in their target group already
+  const mvs = await pool.query<{ coaster_id: number; to_score: string }>(`SELECT coaster_id, to_score FROM tiebreak_moves`);
+  const moved = new Map(mvs.rows.map(m => [m.coaster_id, String(Number(m.to_score))]));
+  rows.rows.forEach(r => { if (moved.has(r.id)) r.rating = moved.get(r.id)!; });
   const groups = await pool.query<{ score: string; order_ids: number[] | null; submitted_at: string | null }>(`SELECT score, order_ids, submitted_at FROM tiebreak_groups`);
   const gmap = new Map(groups.rows.map(g => [Number(g.score), g]));
   const by = new Map<number, typeof rows.rows>();
@@ -191,7 +214,7 @@ export async function place(score: number, coasterId: number, position: number |
   const order = [...g.order];
   const k = position == null ? order.length : Math.min(Math.max(position, 1), order.length + 1) - 1;
   order.splice(k, 0, coasterId);
-  const all = await pool.query<{ id: number }>(`SELECT id FROM rollercoasters WHERE rating = $1`, [score]);
+  const all = await pool.query<{ id: number }>(`SELECT rc.id FROM rollercoasters rc WHERE ${inGroup(1)}`, [score]);
   const rest = all.rows.map(x => x.id).filter(id => !order.includes(id));
   let auto: number | null = null;
   if (rest.length === 1) { auto = rest[0]; order.push(auto); }
@@ -207,7 +230,7 @@ export async function setPlacing(score: number, p: Placing) {
 
 /** Replace the whole draft order (drag reorder). Only ids of this group, no duplicates; missing ones stay out. */
 export async function reorder(score: number, ids: number[]) {
-  const all = await pool.query<{ id: number }>(`SELECT id FROM rollercoasters WHERE rating = $1`, [score]);
+  const all = await pool.query<{ id: number }>(`SELECT rc.id FROM rollercoasters rc WHERE ${inGroup(1)}`, [score]);
   const ok = new Set(all.rows.map(x => x.id));
   const clean = [...new Set(ids.map(Number))].filter(id => ok.has(id));
   await saveOrder(score, clean);
@@ -229,10 +252,22 @@ export async function unplace(score: number, coasterId: number) {
   await saveOrder(score, g.order.filter(id => id !== coasterId));
 }
 
-/** Publish the draft: tie_rank 1..k for the listed coasters, NULL for the rest of the group. */
+/**
+ * Publish the draft: tie_rank 1..k for the listed coasters, NULL for the rest of the group.
+ * Tentative moves touching this group become real: the coaster's rating changes (logged in the
+ * site changelog), then it is ranked per the order if it moved in, or left unranked where it went.
+ */
 export async function submit(score: number) {
   const g = await getGroup(score);
   await pool.query(`UPDATE rollercoasters SET tie_rank = NULL WHERE rating = $1`, [score]);
+  const mv = await pool.query<{ coaster_id: number; from_score: string; to_score: string; name: string; park_id: number }>(
+    `SELECT m.coaster_id, m.from_score, m.to_score, rc.name, rc.park_id FROM tiebreak_moves m JOIN rollercoasters rc ON rc.id = m.coaster_id WHERE m.to_score = $1 OR m.from_score = $1`, [score]);
+  for (const m of mv.rows) {
+    await pool.query(`UPDATE rollercoasters SET rating = $2, tie_rank = NULL WHERE id = $1`, [m.coaster_id, m.to_score]);
+    await pool.query(`DELETE FROM tiebreak_moves WHERE coaster_id = $1`, [m.coaster_id]);
+    const fmt = (v: string) => String(Number(v));
+    logChange({ parkId: m.park_id, entityType: "coaster", entityId: m.coaster_id, label: m.name, action: "update", summary: `Rating ${fmt(m.from_score)} → ${fmt(m.to_score)} (tiebreak)`, details: { rating: { old: Number(m.from_score), new: Number(m.to_score) } } });
+  }
   for (let i = 0; i < g.order.length; i++) {
     await pool.query(`UPDATE rollercoasters SET tie_rank = $1 WHERE id = $2 AND rating = $3`, [i + 1, g.order[i], score]);
   }
@@ -244,7 +279,7 @@ export async function submit(score: number) {
 /** "Start this group over": draft, published order, round and the group's history on the scoreboard. */
 export async function resetGroup(score: number) {
   await pool.query(`UPDATE rollercoasters SET tie_rank = NULL WHERE rating = $1`, [score]);
-  await pool.query(`UPDATE tiebreak_groups SET picks = '{}'::jsonb, revealed = false, round = 1, order_ids = '[]'::jsonb, live_place = NULL, submitted_at = NULL, updated_at = now() WHERE score = $1`, [score]);
+  await pool.query(`UPDATE tiebreak_groups SET picks = '{}'::jsonb, revealed = false, round = 1, order_ids = '[]'::jsonb, live_place = NULL, follow_up = NULL, submitted_at = NULL, updated_at = now() WHERE score = $1`, [score]);
   await pool.query(`DELETE FROM tiebreak_log WHERE score = $1`, [score]);
 }
 
@@ -287,6 +322,34 @@ export async function setLastPlacer(score: number, name: string) {
 export async function setFlag(coasterId: number, dir: string | null, by: string) {
   if (!dir) await pool.query(`DELETE FROM tiebreak_flags WHERE coaster_id = $1`, [coasterId]);
   else await pool.query(`INSERT INTO tiebreak_flags (coaster_id, dir, by_name) VALUES ($1, $2, $3) ON CONFLICT (coaster_id) DO UPDATE SET dir = EXCLUDED.dir, by_name = EXCLUDED.by_name, created_at = now()`, [coasterId, dir, by]);
+}
+
+/** "Settle for X": the other pick is placed next; null clears it. */
+export async function setFollowUp(score: number, fu: { id: number } | null) {
+  await pool.query(`UPDATE tiebreak_groups SET follow_up = $2::jsonb, updated_at = now() WHERE score = $1`, [score, fu ? JSON.stringify(fu) : null]);
+}
+
+/** Tentatively move a coaster to another score (applied on submit); null undoes it. */
+export async function rescore(coasterId: number, to: number | null, by: string) {
+  if (to == null) { await pool.query(`DELETE FROM tiebreak_moves WHERE coaster_id = $1`, [coasterId]); return; }
+  const r = await pool.query<{ rating: string }>(`SELECT rating FROM rollercoasters WHERE id = $1`, [coasterId]);
+  if (!r.rowCount) throw new Error("No such coaster");
+  const from = Number(r.rows[0].rating);
+  if (to === from) { await pool.query(`DELETE FROM tiebreak_moves WHERE coaster_id = $1`, [coasterId]); return; }
+  await pool.query(`INSERT INTO tiebreak_moves (coaster_id, from_score, to_score, by_name) VALUES ($1, $2, $3, $4)
+     ON CONFLICT (coaster_id) DO UPDATE SET to_score = EXCLUDED.to_score, by_name = EXCLUDED.by_name, created_at = now()`, [coasterId, from, to, by]);
+  // it leaves any draft it was in
+  await pool.query(`UPDATE tiebreak_groups SET order_ids = (SELECT COALESCE(jsonb_agg(e), '[]'::jsonb) FROM jsonb_array_elements(order_ids) e WHERE e <> to_jsonb($1::int)) WHERE order_ids @> to_jsonb($1::int)`, [coasterId]);
+}
+
+/** Pending moves for the home screen, newest first. */
+export async function moves() {
+  const r = await pool.query(
+    `SELECT m.coaster_id AS id, m.from_score, m.to_score, m.by_name AS by, m.created_at, rc.name, rc.slug, p.name AS park, img.path AS image
+     FROM tiebreak_moves m JOIN rollercoasters rc ON rc.id = m.coaster_id JOIN parks p ON p.id = rc.park_id
+     LEFT JOIN LATERAL (SELECT cg.path FROM coastergallery cg WHERE cg.coaster_id = rc.id AND cg.path <> '' ORDER BY cg.is_header DESC, cg.id ASC LIMIT 1) img ON TRUE
+     ORDER BY m.created_at DESC`);
+  return r.rows;
 }
 
 /** The flagged coasters for the home screen, newest first. */
