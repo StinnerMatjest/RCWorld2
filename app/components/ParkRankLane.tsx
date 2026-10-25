@@ -42,6 +42,8 @@ interface LaneItem {
   slug?: string;
   value: number;
   coaster?: CoasterInfo;
+  /** A specific visit of the park (the previous visit under the entry); its texts are shown, not the latest. */
+  visitId?: number;
 }
 
 interface Props {
@@ -64,7 +66,7 @@ interface Props {
 }
 
 /** The park's previous visit, shown attached to the entry so the two sit side by side. */
-type PrevVisit = { value: number; date: string | null };
+type PrevVisit = { visitId: number; value: number; date: string | null; slug?: string };
 const prevVisitCache = new Map<string, PrevVisit | null>();
 
 const MAX_REGULAR = 10;   // highest normal score
@@ -293,6 +295,20 @@ const ParkRankLane: React.FC<Props> = ({
     return data;
   }
 
+  async function loadVisitReview(parkId: number, visitId: number, date: string | null) {
+    const key = -visitId; // separate cache slot from the park's latest review
+    const cached = reviewPeekCache.get(key);
+    if (cached) return cached;
+    const texts: Record<string, string> = {};
+    const tRes = await fetch(`/api/park/${parkId}/parkTexts?visitId=${visitId}`);
+    if (tRes.ok) {
+      for (const row of (await tRes.json()) ?? []) texts[row.category] = row.text;
+    }
+    const data = { date, texts };
+    reviewPeekCache.set(key, data);
+    return data;
+  }
+
   async function loadParkCoasters(parkId: number) {
     const cached = parkCoastersCache.get(parkId);
     if (cached) return cached;
@@ -320,12 +336,13 @@ const ParkRankLane: React.FC<Props> = ({
 
     setPeekLoading(true);
     try {
+      const review = p.visitId != null ? loadVisitReview(p.id, p.visitId, prevVisit?.date ?? null) : loadReview(p);
       if (isDepthLane) {
-        const [coasters, review] = await Promise.all([loadParkCoasters(p.id), loadReview(p)]);
+        const [coasters, texts] = await Promise.all([loadParkCoasters(p.id), review]);
         setPeekCoasters(coasters);
-        setPeekData(review);
+        setPeekData(texts);
       } else {
-        setPeekData(await loadReview(p));
+        setPeekData(await review);
       }
     } catch {
       setPeekData({ date: null, texts: {} });
@@ -371,7 +388,8 @@ const ParkRankLane: React.FC<Props> = ({
           .filter((x) => x.parkId === excludeParkId && x.id !== editingVisitId && toNum(x[category]) > 0)
           // The published review first; a half-finished draft only if there is nothing else.
           .sort((a, b) => Number(!!b.published) - Number(!!a.published) || new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-        const companion = prev ? { value: toNum(prev[category]), date: prev.date ?? null } : null;
+        const ownPark = (parksJson.parks as any[]).find((x) => x.id === excludeParkId);
+        const companion = prev ? { visitId: prev.id, value: toNum(prev[category]), date: prev.date ?? null, slug: ownPark?.slug } : null;
         prevVisitCache.set(category, companion);
         setPrevVisit(companion);
       }
@@ -692,7 +710,7 @@ const ParkRankLane: React.FC<Props> = ({
 
   const peekHref = peekItem?.coaster
     ? (peekItem.slug ? `/coasters/${peekItem.slug}` : null)
-    : (peekItem?.slug ? `/park/${peekItem.slug}` : null);
+    : (peekItem?.slug ? `/park/${peekItem.slug}${peekItem.visitId != null ? `?visit=${peekItem.visitId}` : ""}` : null);
 
   return (
     <div ref={laneRef} className="relative flex flex-col items-center py-6 w-full">
@@ -837,12 +855,24 @@ const ParkRankLane: React.FC<Props> = ({
             </div>
             </div>
             {p.id === NEW_PARK_ID && prevVisit && !isCoasterLane && (
-              <div className="mt-1.5 flex items-center justify-between gap-3 border-t border-blue-300/30 pt-1.5 text-[11px] text-blue-100/80">
+              <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openPeek({ id: excludeParkId ?? NEW_PARK_ID, name: entryName, slug: prevVisit.slug, value: prevVisit.value, visitId: prevVisit.visitId });
+                }}
+                title={`Read the ${label} review from the previous visit`}
+                className="group/prev mt-1.5 flex w-full items-center justify-between gap-3 border-t border-blue-300/30 pt-1.5 text-[11px] text-blue-100/80 hover:text-white cursor-pointer"
+              >
                 <span className="truncate">
                   Previous visit{prevVisit.date ? ` · ${new Date(prevVisit.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}` : ""}
                 </span>
-                <span className="font-bold tabular-nums">{displayValue(prevVisit.value)}</span>
-              </div>
+                <span className="flex items-center gap-2">
+                  <span className="text-[10px] opacity-0 transition-opacity group-hover/prev:opacity-100" aria-hidden>📖</span>
+                  <span className="font-bold tabular-nums">{displayValue(prevVisit.value)}</span>
+                </span>
+              </button>
             )}
 
           </Reorder.Item>
@@ -900,7 +930,7 @@ const ParkRankLane: React.FC<Props> = ({
                     )}
                     {!peekItem.coaster && peekData?.date && (
                       <p className="text-xs text-slate-500">
-                        Latest visit · {new Date(peekData.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                        {peekItem.visitId != null ? "Previous visit" : "Latest visit"} · {new Date(peekData.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}
                       </p>
                     )}
                   </div>
