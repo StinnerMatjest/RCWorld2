@@ -17,6 +17,8 @@ export interface ParkHeaderModalProps {
   parkId: number;
   parkName: string;
   parkCountry?: string;
+  parkCity?: string;
+  parkContinent?: string;
   /** The visit whose header is edited. Its photos open first in the picker. */
   visitId?: number | null;
   visitDate?: string | null;
@@ -323,21 +325,29 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, onChange, edi
 
 // ─── Faces: what the page draws over the photo ────────────────────────────────
 
-function HeaderOverlay({ parkName }: { parkName: string }) {
-  return <>
-    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-    <span className="absolute bottom-3 left-5 text-white font-bold text-xl drop-shadow">{parkName}</span>
-    <div className="absolute bottom-3 right-3 text-white/30 text-[9px] font-bold uppercase tracking-widest">
-      Drag · scroll to zoom
-    </div>
-  </>;
-}
-
-/** The phone park header's text, at its real size (see ParkHeader). */
-function PhoneHeroFace({ parkName }: { parkName: string }) {
+/**
+ * What the park page draws over the header photo (see ParkHeader), at its
+ * real size: the title, the place line and the gradient. Drawn inside a
+ * ScaledLayer sized like the real page frame, so the text falls on the same
+ * part of the photo as on the page, which is how a crop is judged.
+ */
+function HeaderFace({ parkName, city, country, continent, phone, hint }: {
+  parkName: string; city?: string; country?: string; continent?: string; phone: boolean; hint?: boolean;
+}) {
   return <>
     <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-60" />
-    <span className="absolute bottom-10 left-6 text-4xl font-bold text-white drop-shadow-lg">{parkName}</span>
+    <h1 className={`absolute left-6 font-bold text-white drop-shadow-lg ${phone ? "bottom-10 text-4xl" : "bottom-12 text-5xl"}`}>{parkName}</h1>
+    <p className="absolute bottom-4 left-6 flex items-center gap-2 text-base font-medium text-white/90 drop-shadow-md">
+      {city && <span>{city}</span>}
+      {city && country && <span className="opacity-40">·</span>}
+      {country && <span>{country}</span>}
+      {continent && <><span className="opacity-40">·</span><span>{continent}</span></>}
+    </p>
+    {hint && (
+      <div className="absolute top-3 right-3 text-white/30 text-[9px] font-bold uppercase tracking-widest">
+        Drag · scroll to zoom
+      </div>
+    )}
   </>;
 }
 
@@ -570,7 +580,7 @@ function GalleryView({
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
 const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
-  parkId, parkName, parkCountry,
+  parkId, parkName, parkCountry, parkCity, parkContinent,
   visitId, visitDate, visitCount = 1,
   currentImagePath, currentHeaderFocus, parkImagePath,
   currentCardImagepath, currentFocus, cardRating,
@@ -627,11 +637,26 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   // Card frame: the home card exactly as this screen draws it, shrunk only if
   // the modal is too short to show it at its real size.
   const [cardW, setCardW] = useState(360);
+  // The page header is the full viewport width, 16:8 on phones and 16:4 above.
+  const [pageW, setPageW] = useState(1920);
+  const headerWrapRef = useRef<HTMLDivElement>(null);
+  const [headerFrameW, setHeaderFrameW] = useState(0);
+  // Follow the frame's real width: on phones it widens once the phone layout kicks in.
+  useLayoutEffect(() => {
+    const el = headerWrapRef.current;
+    if (!el) return;
+    const update = () => setHeaderFrameW(el.clientWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [mode, galleryOpen]);
   const cardAreaRef = useRef<HTMLDivElement>(null);
   const [cardScale, setCardScale] = useState(1);
   useLayoutEffect(() => {
     const measure = () => {
       setCardW(homeCardWidth());
+      setPageW(window.innerWidth);
       const el = cardAreaRef.current;
       if (!el) return;
       const room = el.clientHeight - 140; // caption + buttons + padding
@@ -797,22 +822,29 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                   {visitCount > 1 && dateLabel && (
                     <p className="text-xs text-slate-400">Header for the {dateLabel} visit</p>
                   )}
-                  <CropEditor
-                    key={`h-${headerPath}-${isMobile}`}
-                    editorRef={headerEditorRef}
-                    src={headerPath}
-                    aspectRatio={isMobile ? "16/8" : "16/4"}
-                    focusStr={headerFocus}
-                    onCommit={setHeaderFocus}
-                    onChange={live(setLiveHeaderFocus)}
-                    className="w-full rounded-2xl"
-                  >
-                    <HeaderOverlay parkName={parkName} />
-                  </CropEditor>
+                  {/* On phones the frame runs edge to edge like the page itself. */}
+                  <div ref={headerWrapRef} className={isMobile ? "-mx-6" : ""}>
+                    <CropEditor
+                      key={`h-${headerPath}-${isMobile}`}
+                      editorRef={headerEditorRef}
+                      src={headerPath}
+                      aspectRatio={isMobile ? "16/8" : "16/4"}
+                      focusStr={headerFocus}
+                      onCommit={setHeaderFocus}
+                      onChange={live(setLiveHeaderFocus)}
+                      className={isMobile ? "w-full" : "w-full rounded-2xl"}
+                    >
+                      {headerFrameW > 0 && (
+                        <ScaledLayer w={pageW} h={isMobile ? pageW / 2 : pageW / 4} scale={headerFrameW / pageW}>
+                          <HeaderFace parkName={parkName} city={parkCity} country={parkCountry} continent={parkContinent} phone={isMobile} hint />
+                        </ScaledLayer>
+                      )}
+                    </CropEditor>
+                  </div>
                   {!isMobile && (
                     <figure className="flex flex-col gap-1.5">
                       <LiveFrame src={headerPath} focus={liveHeaderFocus} w={PHONE_HERO.w} h={PHONE_HERO.h} scale={1} className="rounded-xl">
-                        <PhoneHeroFace parkName={parkName} />
+                        <HeaderFace parkName={parkName} city={parkCity} country={parkCountry} continent={parkContinent} phone />
                       </LiveFrame>
                       <figcaption className="text-xs text-slate-500">Phone</figcaption>
                     </figure>
