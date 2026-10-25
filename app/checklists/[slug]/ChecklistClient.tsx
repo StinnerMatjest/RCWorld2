@@ -44,7 +44,9 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
   const { view, status, pending, actions } = useChecklistSync(checklist);
   const { items, notes, sessions } = view;
   const visitFinished = view.is_finished;
-  const [showCelebration, setShowCelebration] = useState(checklist.is_finished || false);
+  // Only when the visit is completed in this session: reopening a finished
+  // checklist (to add notes during the review) should not celebrate again.
+  const [showCelebration, setShowCelebration] = useState(false);
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
   const [openNote, setOpenNote] = useState<string | null>(null);
   const [showLogin, setShowLogin] = useState(false);

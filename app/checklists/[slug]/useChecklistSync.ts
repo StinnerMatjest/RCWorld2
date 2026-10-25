@@ -276,6 +276,17 @@ export function useChecklistSync(checklist: Checklist) {
       if (noteTimerRef.current) { clearTimeout(noteTimerRef.current); noteTimerRef.current = null; }
       void flush();
     },
+    /** Send everything waiting and resolve once the server has it (or after `maxMs`). */
+    async flushAndWait(maxMs = 4000) {
+      if (noteTimerRef.current) { clearTimeout(noteTimerRef.current); noteTimerRef.current = null; }
+      const t0 = Date.now();
+      await flush();
+      while (outboxRef.current.length > 0 && Date.now() - t0 < maxMs) {
+        await new Promise((r) => setTimeout(r, 150));
+        if (!flushingRef.current) await flush();
+      }
+      return outboxRef.current.length === 0;
+    },
     retryAfterLogin() {
       unauthorizedRef.current = false;
       setStatus(outboxRef.current.length > 0 ? "saving" : "saved");

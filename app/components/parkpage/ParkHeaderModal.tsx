@@ -706,8 +706,8 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
               method: "PATCH", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 imagepath: headerPath, headerFocus: hFocus,
-                // A card without its own photo keeps the one it shows today.
-                ...(!doCard && cardPath === null && headerPath !== parkHeader ? { cardImagepath: parkHeader } : {}),
+                // A card without its own photo follows the header; the old crop was for the old photo.
+                ...(!doCard && cardPath === null && headerPath !== parkHeader ? { imageFocus: "0.5 0.5 1" } : {}),
               }),
             });
         if (!res.ok) throw new Error(`Header not saved (${res.status})`);

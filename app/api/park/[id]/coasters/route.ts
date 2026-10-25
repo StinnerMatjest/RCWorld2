@@ -195,7 +195,13 @@ export async function PATCH(
             return NextResponse.json({ error: "Invalid park ID" }, { status: 400 });
         }
 
-        if (!Array.isArray(body.updates) && !Array.isArray(body.ratings)) {
+        // The coaster the review picked as the park's best; the flag moves to it.
+        const bestCoasterId = body.bestCoasterId === undefined ? null : Number(body.bestCoasterId);
+        if (bestCoasterId !== null && (!Number.isInteger(bestCoasterId) || bestCoasterId <= 0)) {
+            return NextResponse.json({ error: "Invalid best coaster" }, { status: 400 });
+        }
+
+        if (!Array.isArray(body.updates) && !Array.isArray(body.ratings) && bestCoasterId === null) {
             return NextResponse.json({ error: "Invalid updates array" }, { status: 400 });
         }
 
@@ -213,6 +219,7 @@ export async function PATCH(
         }
 
         const rated: { id: number; name: string; old: number; new: number }[] = [];
+        let bestChange: { from: string | null; to: string } | null = null;
         // Outside the transaction: adding the column would wait on its own row locks.
         if (ratings.length > 0) await ensureTieRankColumn();
         const client = await pool.connect();
@@ -252,12 +259,44 @@ export async function PATCH(
                 }
             }
 
+            if (bestCoasterId !== null) {
+                const cur = await client.query<{ id: number; name: string; isbestcoaster: boolean }>(
+                    "SELECT id, name, isbestcoaster FROM rollercoasters WHERE park_id = $1 AND (id = $2 OR isbestcoaster) FOR UPDATE",
+                    [parkId, bestCoasterId]
+                );
+                const target = cur.rows.find((r) => r.id === bestCoasterId);
+                if (!target) {
+                    await client.query("ROLLBACK");
+                    return NextResponse.json({ error: "Best coaster is not in this park" }, { status: 400 });
+                }
+                const wasBest = cur.rows.filter((r) => r.isbestcoaster);
+                if (!(wasBest.length === 1 && wasBest[0].id === bestCoasterId)) {
+                    await client.query(
+                        "UPDATE rollercoasters SET isbestcoaster = (id = $1) WHERE park_id = $2 AND isbestcoaster IS DISTINCT FROM (id = $1)",
+                        [bestCoasterId, parkId]
+                    );
+                    bestChange = { from: wasBest.map((r) => r.name).join(", ") || null, to: target.name };
+                }
+            }
+
             await client.query("COMMIT");
         } catch (e) {
             await client.query("ROLLBACK");
             throw e;
         } finally {
             client.release();
+        }
+
+        if (bestChange) {
+            logChange({
+                parkId,
+                entityType: "coaster",
+                entityId: bestCoasterId,
+                label: bestChange.to,
+                action: "update",
+                summary: bestChange.from ? `Best coaster: ${bestChange.from} → ${bestChange.to}` : `Best coaster: ${bestChange.to}`,
+                details: { isbestcoaster: { old: bestChange.from, new: bestChange.to } },
+            });
         }
 
         for (const r of rated) {
@@ -286,7 +325,7 @@ export async function PATCH(
             });
         }
 
-        return NextResponse.json({ success: true, rated: rated.length }, { status: 200 });
+        return NextResponse.json({ success: true, rated: rated.length, bestChanged: !!bestChange }, { status: 200 });
     } catch (error) {
         console.error("Failed to sync coasters:", error);
         return NextResponse.json({ error: "Sync failed" }, { status: 500 });

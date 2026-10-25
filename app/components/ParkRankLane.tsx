@@ -15,6 +15,7 @@ interface CoasterInfo {
   slug?: string;
   rating: number;
   haveRidden: boolean;
+  isBest: boolean;
   parkId: number;
   parkName?: string;
   image?: string | null;
@@ -57,8 +58,14 @@ interface Props {
   coaster?: { id: number; name: string } | null;
   /** Scores given to coasters earlier in this session; they replace the stored ones in the lane. */
   coasterOverrides?: Record<number, number>;
+  /** Visit being edited, so a revisit's lane can show the park's other visit next to the entry. */
+  editingVisitId?: number | null;
   onSetRating: (rating: number) => void;
 }
+
+/** The park's previous visit, shown attached to the entry so the two sit side by side. */
+type PrevVisit = { value: number; date: string | null };
+const prevVisitCache = new Map<string, PrevVisit | null>();
 
 const MAX_REGULAR = 10;   // highest normal score
 const GOAT = 11;          // special "G" score, only reachable by tying with / topping a GOAT
@@ -115,6 +122,7 @@ export function clearRankLaneCaches() {
   ratingCache.clear();
   reviewPeekCache.clear();
   parkCoastersCache.clear();
+  prevVisitCache.clear();
   allCoastersList = null;
   allCoastersPromise = null;
 }
@@ -171,6 +179,7 @@ const normalizeCoaster = (c: any): CoasterInfo => ({
   slug: c.slug,
   rating: toNum(c.rating),
   haveRidden: Boolean(c.haveRidden ?? c.haveridden),
+  isBest: Boolean(c.isBest ?? c.isbestcoaster),
   parkId: c.parkId,
   parkName: c.parkName,
   image: typeof c.image === "string" && c.image ? c.image : null,
@@ -216,6 +225,7 @@ const ParkRankLane: React.FC<Props> = ({
   excludeParkId = null,
   coaster = null,
   coasterOverrides,
+  editingVisitId = null,
   onSetRating,
 }) => {
   const isSingleCoaster = !!coaster;
@@ -255,6 +265,7 @@ const ParkRankLane: React.FC<Props> = ({
     (ratingCache.get(category) ?? startVal) > 0 ? String(ratingCache.get(category) ?? startVal) : ""
   );
   const [savedToast, setSavedToast] = useState(false);
+  const [prevVisit, setPrevVisit] = useState<PrevVisit | null>(() => prevVisitCache.get(category) ?? null);
   const [loadError, setLoadError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
@@ -353,7 +364,20 @@ const ParkRankLane: React.FC<Props> = ({
       const parksJson = await parksRes.json();
       const ratingsJson = await ratingsRes.json();
 
+      // A revisit: the park's own previous visit is not something to rank
+      // against, so it leaves the list and rides along under the entry instead.
+      if (excludeParkId != null) {
+        const prev = (ratingsJson.ratings as any[])
+          .filter((x) => x.parkId === excludeParkId && x.id !== editingVisitId && toNum(x[category]) > 0)
+          // The published review first; a half-finished draft only if there is nothing else.
+          .sort((a, b) => Number(!!b.published) - Number(!!a.published) || new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+        const companion = prev ? { value: toNum(prev[category]), date: prev.date ?? null } : null;
+        prevVisitCache.set(category, companion);
+        setPrevVisit(companion);
+      }
+
       return parksJson.parks
+        .filter((p: any) => p.id !== excludeParkId)
         .map((p: any) => {
           const r = ratingsJson.ratings.find((x: any) => x.parkId === p.id);
           return {
@@ -440,7 +464,7 @@ const ParkRankLane: React.FC<Props> = ({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, startVal, newParkName, isCoasterLane, excludeParkId, retryKey, overridesKey]);
+  }, [category, startVal, newParkName, isCoasterLane, excludeParkId, editingVisitId, retryKey, overridesKey]);
 
   /**
    * Score implied by where the dragged entry sits:
@@ -555,11 +579,6 @@ const ParkRankLane: React.FC<Props> = ({
 
   // ---- Peek sheet body variants ----
 
-  const ratedPeekCoasters = (peekCoasters ?? []).filter((c) => c.rating > 0);
-  const peekAverage = ratedPeekCoasters.length
-    ? ratedPeekCoasters.reduce((sum, c) => sum + c.rating, 0) / ratedPeekCoasters.length
-    : null;
-
   const renderCoasterStats = (c: CoasterInfo) => {
     const facts = coasterFacts(c, true);
     const photo = c.image ? (
@@ -586,13 +605,19 @@ const ParkRankLane: React.FC<Props> = ({
     if (peekCoasters.length === 0) {
       return <p className="text-sm italic text-slate-500">No coasters recorded for this park.</p>;
     }
-    const ridden = peekCoasters.filter((c) => c.haveRidden).length;
+    // Coaster Depth is about everything but the best coaster: leave it out
+    // (the flagged one, else the highest scored) and average what is left.
+    const best = peekCoasters.find((c) => c.isBest) ?? [...peekCoasters].sort((a, b) => b.rating - a.rating)[0];
+    const rest = peekCoasters.filter((c) => c.id !== best.id);
+    const restRated = rest.filter((c) => c.rating > 0);
+    const restAverage = restRated.length ? restRated.reduce((sum, c) => sum + c.rating, 0) / restRated.length : null;
+    const ridden = rest.filter((c) => c.haveRidden).length;
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-xl bg-slate-800/60 px-3 py-2 text-center">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Coasters</p>
-            <p className="text-lg font-black text-white">{peekCoasters.length}</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Other coasters</p>
+            <p className="text-lg font-black text-white">{rest.length}</p>
           </div>
           <div className="rounded-xl bg-slate-800/60 px-3 py-2 text-center">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Ridden</p>
@@ -600,14 +625,20 @@ const ParkRankLane: React.FC<Props> = ({
           </div>
           <div className="rounded-xl bg-slate-800/60 px-3 py-2 text-center">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Average</p>
-            <p className={`text-lg font-black tabular-nums ${peekAverage != null ? getRatingColor(peekAverage) : "text-slate-500"}`}>
-              {peekAverage != null ? peekAverage.toFixed(1) : "–"}
+            <p className={`text-lg font-black tabular-nums ${restAverage != null ? getRatingColor(restAverage) : "text-slate-500"}`}>
+              {restAverage != null ? restAverage.toFixed(2) : "–"}
             </p>
           </div>
         </div>
+        <p className="text-xs text-slate-500">
+          {best.name} left out as the best coaster{best.rating > 0 ? ` (${best.rating.toFixed(1)})` : ""}.
+        </p>
 
+        {rest.length === 0 ? (
+          <p className="text-sm italic text-slate-500">No other coasters.</p>
+        ) : (
         <ul className="divide-y divide-slate-800 rounded-xl border border-slate-800 bg-slate-950/40">
-          {peekCoasters.map((c) => {
+          {rest.map((c) => {
             const summary = coasterSummary(c);
             return (
               <li key={c.id} className="flex items-center gap-3 px-3 py-2.5">
@@ -625,6 +656,7 @@ const ParkRankLane: React.FC<Props> = ({
             );
           })}
         </ul>
+        )}
 
         {peekData?.texts[category]?.trim() && (
           <div className="border-t border-slate-800 pt-4">
@@ -725,13 +757,14 @@ const ParkRankLane: React.FC<Props> = ({
             transition={{ type: "spring", stiffness: 480, damping: 34 }}
             onClick={p.id !== NEW_PARK_ID ? () => openPeek(p) : undefined}
             title={rowTitle(p)}
-            className={`group flex items-center justify-between px-3 py-2 lg:px-4 lg:py-3 rounded-lg shadow-md border select-none ${p.id === NEW_PARK_ID
+            className={`group flex flex-col px-3 py-2 lg:px-4 lg:py-3 rounded-lg shadow-md border select-none ${p.id === NEW_PARK_ID
               ? "bg-blue-600/90 text-white border-blue-400"
               : "bg-slate-800/70 border-slate-700 text-slate-200 hover:border-slate-500 hover:bg-slate-800 transition-colors"
               }`}
 
             style={{ cursor: p.id === NEW_PARK_ID ? "grab" : "pointer", willChange: "transform" }}
           >
+            <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-3 min-w-0">
               {p.id !== NEW_PARK_ID && p.imagePath && p.coaster && (
                 <R2Image
@@ -802,6 +835,15 @@ const ParkRankLane: React.FC<Props> = ({
                 {displayValue(p.id === NEW_PARK_ID ? currentRating : p.value)}
               </motion.span>
             </div>
+            </div>
+            {p.id === NEW_PARK_ID && prevVisit && !isCoasterLane && (
+              <div className="mt-1.5 flex items-center justify-between gap-3 border-t border-blue-300/30 pt-1.5 text-[11px] text-blue-100/80">
+                <span className="truncate">
+                  Previous visit{prevVisit.date ? ` · ${new Date(prevVisit.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}` : ""}
+                </span>
+                <span className="font-bold tabular-nums">{displayValue(prevVisit.value)}</span>
+              </div>
+            )}
 
           </Reorder.Item>
         ))}

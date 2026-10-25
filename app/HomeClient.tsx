@@ -317,7 +317,6 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
   // The card always shows its own photo. Hovering or tapping a category only
   // highlights its score and shows its warnings; the photo never changes.
   const slotARef = useRef<HTMLImageElement>(null);
-  const [activeLabel, setActiveLabel] = useState<string | null>(null);
   // Drives the shimmer placeholder: true once the header image is showing.
   const [imgReady, setImgReady] = useState(false);
   // Reports image readiness to the page-level reveal gate without re-running
@@ -432,41 +431,10 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     return () => ro.disconnect();
   }, [applyFocusToImg]);
 
-  // Mouse: hovering a category highlights it after a short pause, so sweeping
-  // across the row doesn't flash every warning. Touch: a tap toggles it.
-  const hoveredCatRef = useRef<string | null>(null);
-  const catHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (catHoverTimerRef.current) clearTimeout(catHoverTimerRef.current); }, []);
-
-  // A phone card swiped out of the centre drops its highlight.
-  useEffect(() => { if (!isActive) setActiveLabel(null); }, [isActive]);
-
-  const handleCatLeave = useCallback(() => {
-    hoveredCatRef.current = null;
-    if (catHoverTimerRef.current) { clearTimeout(catHoverTimerRef.current); catHoverTimerRef.current = null; }
-    setActiveLabel(null);
-  }, []);
-
-  const handleCatEnter = useCallback((label: string) => {
-    hoveredCatRef.current = label;
-    if (catHoverTimerRef.current) clearTimeout(catHoverTimerRef.current);
-    catHoverTimerRef.current = setTimeout(() => {
-      catHoverTimerRef.current = null;
-      if (hoveredCatRef.current === label) setActiveLabel(label);
-    }, 500);
-  }, []);
-
-  const handleCatTap = useCallback((e: React.MouseEvent, label: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setActiveLabel((prev) => (prev === label ? null : label));
-  }, []);
-
   return (
     <Link href={`/park/${park.slug}`}>
       <div
         className="mx-auto w-full max-w-[400px] py-3 md:py-4 [@media(hover:hover)]:hover:scale-105 transition-transform duration-300 ease-in-out will-change-transform"
-        onPointerLeave={(e) => { if (e.pointerType === "mouse") handleCatLeave(); }}
       >
         <div ref={imageContainerRef} className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
           {/* Shimmer placeholder while the header image is still on its way */}
@@ -511,41 +479,22 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
               {rating.overall.toFixed(2)}
             </span>
             <div className="w-full grid grid-cols-5 gap-1 mt-1">
-              {FULL_BLEED_GROUPS.map((g, index) => {
-                const highlighted = activeLabel === g.label;
-
-                // Find any warnings mapped to this specific group
-                const warningsForGroup = rating.warnings?.filter((w: RatingWarningType) => {
+              {FULL_BLEED_GROUPS.map((g) => {
+                // A group with a rating warning gets a small red dot; the warning itself is on the park page.
+                const hasWarning = (rating.warnings ?? []).some((w: RatingWarningType) => {
                   const normalizedWarningCat = w.category.toLowerCase().replace(/\s+/g, '');
                   return g.keys.some(k => k.toLowerCase().replace(/\s+/g, '') === normalizedWarningCat);
-                }) ?? [];
+                });
 
                 return (
-                  <div key={g.label} className="relative flex flex-col items-center gap-0.5 cursor-pointer"
-                    onPointerEnter={(e) => { if (e.pointerType === "mouse") handleCatEnter(g.label); }}
-                    onPointerLeave={(e) => { if (e.pointerType === "mouse") handleCatLeave(); }}
-                    onClick={(e) => handleCatTap(e, g.label)}
-                  >
-                    {warningsForGroup.length > 0 && (
-                      <RatingWarning
-                        warning={warningsForGroup}
-                        coasters={[]}
-                        tooltipDirection="up"
-                        align={index < 2 ? "left" : index === 2 ? "center" : "right"}
-                        trigger="manual"
-                        show={highlighted}
-                      />
-                    )}
-
-                    <span className={`transition-transform duration-300 leading-none ${highlighted ? "scale-125" : "text-base"}`}>{g.emoji}</span>
+                  <div key={g.label} className="relative flex flex-col items-center gap-0.5 pointer-events-none">
+                    <span className="text-base leading-none">{g.emoji}</span>
                     <span className={`text-xs font-bold tabular-nums ${getRatingColor(parseFloat(g.getValue(rating)))}`}>
                       {g.getValue(rating)}
                     </span>
-                    <div className={`flex items-center gap-[3px] text-[9px] uppercase tracking-wide transition-all duration-300 ${highlighted ? "text-white/90 border-b border-white/60 pb-px" : "text-white/40"}`}>
+                    <div className="flex items-center gap-[3px] text-[9px] uppercase tracking-wide text-white/40">
                       <span>{g.label}</span>
-                      {warningsForGroup.length > 0 && !highlighted && (
-                        <span className="w-[3px] h-[3px] rounded-full bg-red-400/50 mb-[1px]" />
-                      )}
+                      {hasWarning && <span className="w-[3px] h-[3px] rounded-full bg-red-400/50 mb-[1px]" />}
                     </div>
                   </div>
                 );

@@ -11,6 +11,8 @@ import { useSyncExternalStore } from "react";
 import { ratingsStore, type Ratings } from "@/app/utils/ratingStoreManager";
 import { getRatingColor } from "@/app/utils/design";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
+import { useChecklistSync } from "@/app/checklists/[slug]/useChecklistSync";
+import type { Checklist } from "@/app/types";
 
 interface ModalProps {
   closeModal: () => void;
@@ -191,12 +193,24 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
   // The park's coasters and the scores given to them in this review.
   const [parkCoasters, setParkCoasters] = useState<ParkCoaster[]>([]);
   const [coasterRatings, setCoasterRatings] = useState<Record<number, number>>({});
-  // Coasters ridden this visit first, then best first, then by name.
-  const orderedCoasters = useMemo(() => [...parkCoasters].sort((a, b) =>
-    Number((b.ridesThisVisit ?? 0) > 0) - Number((a.ridesThisVisit ?? 0) > 0) ||
-    b.rating - a.rating ||
-    a.name.localeCompare(b.name)
-  ), [parkCoasters]);
+  // The coaster picked as the park's best on the Best Coaster step. Its score
+  // is the Best Coaster score; it gets no step of its own.
+  const [bestCoasterId, setBestCoasterId] = useState<number | null>(null);
+  const bestCoaster = useMemo(() => parkCoasters.find((c) => c.id === bestCoasterId) ?? null, [parkCoasters, bestCoasterId]);
+  const scoreOf = (c: ParkCoaster) => coasterRatings[c.id] ?? c.rating;
+  const pickBestCoaster = (id: number) => {
+    setBestCoasterId(id);
+    const c = parkCoasters.find((x) => x.id === id);
+    if (c) ratingsStore.set("bestCoaster", scoreOf(c));
+  };
+  // Coasters ridden this visit first, then best first, then by name; the best coaster is rated on its own step.
+  const orderedCoasters = useMemo(() => [...parkCoasters]
+    .filter((c) => c.id !== bestCoasterId)
+    .sort((a, b) =>
+      Number((b.ridesThisVisit ?? 0) > 0) - Number((a.ridesThisVisit ?? 0) > 0) ||
+      b.rating - a.rating ||
+      a.name.localeCompare(b.name)
+    ), [parkCoasters, bestCoasterId]);
   // Categories in order, with one step per coaster between Best Coaster and Coaster Depth.
   const slots = useMemo<Slot[]>(() => {
     const out: Slot[] = [];
@@ -212,24 +226,12 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
   const slot: Slot = slots[Math.min(slotIndex, slots.length - 1)];
   const category: Category | null = slot.kind === "category" ? slot.cat : null;
 
-  // Coaster Depth works from the line-up minus the best coaster, with this review's scores.
-  const depthLineup = useMemo(() => {
-    const scored = parkCoasters.map((c) => ({ ...c, score: coasterRatings[c.id] ?? c.rating }));
-    const best = [...scored]
-      .filter((c) => c.score > 0)
-      .sort((a, b) => b.score - a.score || Number(b.isBest) - Number(a.isBest) || a.name.localeCompare(b.name))[0] ?? null;
-    const rest = scored
-      .filter((c) => c.id !== best?.id)
-      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
-    const rated = rest.filter((c) => c.score > 0);
-    const average = rated.length ? rated.reduce((sum, c) => sum + c.score, 0) / rated.length : null;
-    return { best, rest, average };
-  }, [parkCoasters, coasterRatings]);
 
   const [pendingGalleryImages, setPendingGalleryImages] = useState<{ title: string; url: string }[]>([]);
   const [pendingCoasterStats, setPendingCoasterStats] = useState<{ id: number | null; count: number; name: string }[]>([]);
-  // Per-category notes written in the checklist during the visit
-  const [checklistNotes, setChecklistNotes] = useState<Record<string, string>>({});
+  // The visit's checklist, whose per-category notes are edited live during the review
+  const [liveChecklist, setLiveChecklist] = useState<Checklist | null>(null);
+  const notesApiRef = useRef<{ flushAndWait: () => Promise<boolean> } | null>(null);
   // Slug of the checklist the notes came from; the server copies its notes into the review sections.
   const [checklistSlug, setChecklistSlug] = useState<string | null>(null);
 
@@ -434,7 +436,6 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
 
         // Sync checklist images and coasters
         if (cl) {
-          if (cl.notes && typeof cl.notes === "object") setChecklistNotes(cl.notes);
           setChecklistSlug(typeof cl.slug === "string" ? cl.slug : null);
           const imagesToSync = (cl.items || [])
             .filter((item: any) => item.imageUrl && !item.skipped)
@@ -465,8 +466,11 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
           setPendingCoasterStats(coastersToSync);
         }
 
+        setLiveChecklist(cl && typeof cl.slug === "string" ? (cl as Checklist) : null);
+
         // The park's coasters for the coaster-by-coaster step
         setCoasterRatings({});
+        setBestCoasterId(null);
         if (fetchedParkData?.id) {
           try {
             const cRes = await fetch(`/api/park/${fetchedParkData.id}/coasters`, { cache: "no-store" });
@@ -476,13 +480,20 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
               const m = typeof item?.id === "string" ? item.id.match(/^pic-coaster-(\d+)$/) : null;
               if (m && item.isCoaster && !item.skipped) ridesById.set(Number(m[1]), Number(item.rideCount) || 0);
             }
-            setParkCoasters((Array.isArray(cJson) ? cJson : []).map((c: any) => ({
+            const list: ParkCoaster[] = (Array.isArray(cJson) ? cJson : []).map((c: any) => ({
               id: Number(c.id),
               name: String(c.name),
               rating: Number(c.rating) || 0,
               isBest: Boolean(c.isbestcoaster),
               ridesThisVisit: cl ? (ridesById.get(Number(c.id)) ?? 0) : null,
-            })));
+            }));
+            setParkCoasters(list);
+            // Start from the coaster flagged as best, else the highest scored.
+            const best = list.find((c) => c.isBest) ?? [...list].sort((a, b) => b.rating - a.rating)[0] ?? null;
+            if (best) {
+              setBestCoasterId(best.id);
+              if (best.rating > 0) ratingsStore.set("bestCoaster", best.rating);
+            }
           } catch (e) {
             console.error("Could not load the park's coasters", e);
             setParkCoasters([]);
@@ -560,6 +571,9 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
   const submitData = async () => {
     setLoading(true);
     try {
+      // Notes typed during the review become the draft text; make sure they are on the server first.
+      await notesApiRef.current?.flushAndWait();
+
       let imagePath = parkInfo.existingImagePath || parkHeaderPath || "/images/Error.PNG";
 
       if (parkInfo.image) {
@@ -636,17 +650,24 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
       } else {
         // A header chosen for a visit of an existing park belongs to that
         // visit (the park header follows only when it is the newest visit).
-        if (parkInfo.image && editingParkId && !isDraftPark) {
-          const savedRating = await ratingResponse.clone().json().catch(() => null);
-          const visitId = isRatingUpdate ? existingRatingId : savedRating?.ratingId;
-          if (visitId) {
-            const headerRes = await fetch(`/api/visits/${visitId}/header`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ imagepath: imagePath }),
-            });
-            if (!headerRes.ok) alert("The review was saved, but its header photo was not. Set it from the park page.");
-          }
+        const savedRating = await ratingResponse.clone().json().catch(() => null);
+        const savedVisitId: number | null = isRatingUpdate ? existingRatingId : (savedRating?.ratingId ?? null);
+        if (parkInfo.image && editingParkId && !isDraftPark && savedVisitId) {
+          // The new photo is the visit's header and the home card's photo.
+          const headerRes = await fetch(`/api/visits/${savedVisitId}/header`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imagepath: imagePath, card: "follow" }),
+          });
+          if (!headerRes.ok) alert("The review was saved, but its header photo was not. Set it from the park page.");
+        }
+        // A freshly uploaded header also goes into the visit's gallery.
+        if (parkInfo.image && savedVisitId && imagePath.startsWith("https://")) {
+          fetch(`/api/visits/${savedVisitId}/gallery`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: `${parkInfo.name} - Header - HEADER`, path: imagePath, description: "Header" }),
+          }).catch(() => {});
         }
         try {
           const syncPromises = [];
@@ -717,11 +738,17 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
           const coasterScores = parkCoasters
             .filter((c) => coasterRatings[c.id] !== undefined && coasterRatings[c.id] !== c.rating)
             .map((c) => ({ id: c.id, rating: coasterRatings[c.id] }));
-          if (coastersToPatch.length > 0 || coasterScores.length > 0) {
+          // The best coaster's score is the Best Coaster score, even if its lane was never touched.
+          const bestScore = ratingsStore.get("bestCoaster");
+          if (bestCoaster && typeof bestScore === "number" && bestScore !== bestCoaster.rating && !coasterScores.some((c) => c.id === bestCoaster.id)) {
+            coasterScores.push({ id: bestCoaster.id, rating: bestScore });
+          }
+          const bestChanged = !!bestCoaster && parkCoasters.some((c) => c.isBest !== (c.id === bestCoaster.id));
+          if (coastersToPatch.length > 0 || coasterScores.length > 0 || bestChanged) {
             const coasterSync = fetch(`/api/park/${finalParkId}/coasters`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ updates: coastersToPatch, ratings: coasterScores }),
+              body: JSON.stringify({ updates: coastersToPatch, ratings: coasterScores, ...(bestChanged ? { bestCoasterId: bestCoaster!.id } : {}) }),
             }).then((res) => {
               if (!res.ok) throw new Error(`coaster sync ${res.status}`);
             });
@@ -999,6 +1026,13 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                           </button>
                         </div>
                       </div>
+                      {liveChecklist && (
+                        <LiveNotes
+                          checklist={liveChecklist}
+                          category={slot.kind === "category" ? slot.cat : null}
+                          apiRef={notesApiRef}
+                        />
+                      )}
                       {slot.kind === "coaster" ? (
                         <div className="px-4 sm:px-8 pt-6">
                           <p className="text-center text-xs text-gray-400">
@@ -1023,50 +1057,50 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                             onSetRating={(v) => setCoasterRatings((r) => ({ ...r, [slot.coaster.id]: v }))}
                           />
                         </div>
+                      ) : category === "bestCoaster" && bestCoaster ? (
+                        <div className="px-4 sm:px-8 pt-6">
+                          <div className="mb-5">
+                            <p className="mb-2 text-xs font-semibold text-gray-400">Which coaster is the park&apos;s best?</p>
+                            <ul className="divide-y divide-gray-800 rounded-xl border border-gray-800">
+                              {[...parkCoasters].sort((a, b) => scoreOf(b) - scoreOf(a) || a.name.localeCompare(b.name)).map((c) => {
+                                const picked = c.id === bestCoaster.id;
+                                const score = scoreOf(c);
+                                return (
+                                  <li key={c.id}>
+                                    <button
+                                      type="button"
+                                      onClick={() => pickBestCoaster(c.id)}
+                                      className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors cursor-pointer ${picked ? "bg-blue-600/15 text-white" : "text-gray-300 hover:bg-gray-800/60"}`}
+                                    >
+                                      <span className={`h-2 w-2 shrink-0 rounded-full ${picked ? "bg-blue-400" : "bg-gray-700"}`} />
+                                      <span className="min-w-0 flex-1 truncate">
+                                        {c.name}
+                                        {c.isBest && !picked && <span className="ml-2 text-[11px] text-gray-500">was best</span>}
+                                        {picked && <span className="ml-2 text-[11px] font-semibold text-blue-300">Best coaster</span>}
+                                      </span>
+                                      <span className={`font-bold tabular-nums ${score > 0 ? getRatingColor(score) : "text-gray-600"}`}>{score > 0 ? score.toFixed(1) : "–"}</span>
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                          <ParkRankLane
+                            key={`coaster:${bestCoaster.id}`}
+                            category={`coaster:${bestCoaster.id}`}
+                            coaster={{ id: bestCoaster.id, name: bestCoaster.name }}
+                            coasterOverrides={coasterRatings}
+                            newParkName={parkInfo.name || "New Park"}
+                            initialRating={bestCoaster.rating}
+                            onSetRating={(v) => {
+                              setCoasterRatings((r) => ({ ...r, [bestCoaster.id]: v }));
+                              ratingsStore.set("bestCoaster", v);
+                            }}
+                          />
+                        </div>
                       ) : category && (
                         <div className="px-4 sm:px-8 pt-6">
-                          {(checklistNotes[category]?.trim() || (category === "coasterDepth" && depthLineup.rest.length > 0)) && (
-                            <div className="mb-4 rounded-xl border border-emerald-900/50 bg-emerald-950/30 p-3.5">
-                              {checklistNotes[category]?.trim() && (
-                                <>
-                                  <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                                    📝 Your note from the visit
-                                  </p>
-                                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-200">
-                                    {checklistNotes[category]}
-                                  </p>
-                                </>
-                              )}
-                              {category === "coasterDepth" && depthLineup.rest.length > 0 && (
-                                <div className={checklistNotes[category]?.trim() ? "mt-3 border-t border-emerald-900/50 pt-3" : ""}>
-                                  <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                                    🎢 Coaster scores
-                                  </p>
-                                  <ul className="space-y-1">
-                                    {depthLineup.rest.map((c) => (
-                                      <li key={c.id} className="flex items-baseline justify-between gap-3 text-sm">
-                                        <span className="truncate text-slate-200">{c.name}</span>
-                                        {c.score > 0 ? (
-                                          <span className={`font-bold tabular-nums ${getRatingColor(c.score)}`}>{c.score.toFixed(1)}</span>
-                                        ) : (
-                                          <span className="text-xs text-slate-500">not rated</span>
-                                        )}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                  <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-emerald-900/40 pt-2 text-xs text-slate-400">
-                                    <span>{depthLineup.best ? `${depthLineup.best.name} left out as the best coaster` : "Best coaster left out"}</span>
-                                    {depthLineup.average !== null && (
-                                      <span>
-                                        Average <span className={`font-bold tabular-nums ${getRatingColor(depthLineup.average)}`}>{depthLineup.average.toFixed(2)}</span>
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          <ParkRankLane key={category} category={category} newParkName={parkInfo.name || "New Park"} initialRating={ratingsStore.get(category)} newParkImageUrl={imagePreview ?? undefined} excludeParkId={editingParkId ? Number(editingParkId) : null} onSetRating={(v) => ratingsStore.set(category, v)} />
+                          <ParkRankLane key={category} category={category} newParkName={parkInfo.name || "New Park"} initialRating={ratingsStore.get(category)} newParkImageUrl={imagePreview ?? undefined} excludeParkId={editingParkId ? Number(editingParkId) : null} editingVisitId={existingRatingId} onSetRating={(v) => ratingsStore.set(category, v)} />
                         </div>
                       )}
                     </motion.div>
@@ -1090,21 +1124,22 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                         {visitDetails.durationMinutes > 0 && <div><strong>Time:</strong> {formatDuration(visitDetails.durationMinutes * 60)}</div>}
                       </div>
                       <SummaryList categories={CATEGORIES} onEditCategory={(cat) => jumpToCategory(cat)} />
-                      {orderedCoasters.length > 0 && (
+                      {parkCoasters.length > 0 && (
                         <div className="border-t border-gray-700 pt-3 space-y-1">
                           <p className="text-xs font-semibold text-gray-400">Coasters</p>
-                          {orderedCoasters.map((c) => {
+                          {[...(bestCoaster ? [bestCoaster] : []), ...orderedCoasters].map((c) => {
                             const score = coasterRatings[c.id] ?? c.rating;
+                            const isPickedBest = c.id === bestCoasterId;
                             const changed = coasterRatings[c.id] !== undefined && coasterRatings[c.id] !== c.rating;
                             return (
                               <div key={c.id} className="flex items-center justify-between gap-3">
-                                <span className="truncate">{c.name}</span>
+                                <span className="truncate">{c.name}{isPickedBest && <span className="ml-2 text-[11px] font-semibold text-blue-300">Best coaster</span>}</span>
                                 <div className="flex items-center gap-2">
                                   {changed && <span className="text-xs text-gray-500 tabular-nums">{c.rating > 0 ? c.rating.toFixed(1) : "–"} →</span>}
                                   <span className={`font-semibold ${score > 0 ? getRatingColor(score) : "text-gray-500"}`}>{score > 0 ? score.toFixed(1) : "–"}</span>
                                   <button
                                     type="button"
-                                    onClick={() => jumpToCoaster(c.id)}
+                                    onClick={() => isPickedBest ? jumpToCategory("bestCoaster") : jumpToCoaster(c.id)}
                                     className="p-1 rounded hover:bg-gray-700"
                                     aria-label={`Edit ${c.name}`}
                                     title="Edit"
@@ -1131,5 +1166,47 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
     </Suspense>
   );
 };
+
+/**
+ * The checklist's note for the section being rated, editable right here. It
+ * saves through the same per-change sync as the checklist page, so whoever
+ * holds the other phone can keep typing there and both see each other's
+ * words within seconds. At submit the notes become the section drafts.
+ */
+function LiveNotes({ checklist, category, apiRef }: {
+  checklist: Checklist;
+  category: Category | null;
+  apiRef: React.MutableRefObject<{ flushAndWait: () => Promise<boolean> } | null>;
+}) {
+  const { view, status, actions } = useChecklistSync(checklist);
+  useEffect(() => {
+    apiRef.current = { flushAndWait: () => actions.flushAndWait() };
+    return () => { apiRef.current = null; };
+  }, [actions, apiRef]);
+  if (!category) return null;
+  const value = view.notes[category] ?? "";
+  const line = status === "unauthorized" ? "Not logged in: notes are not reaching the site"
+    : status === "offline" ? "No connection: notes are kept on this device until it is back"
+    : status === "saving" ? "Saving…"
+    : "Shared with the checklist · becomes this section's draft text";
+  return (
+    <div className="px-4 sm:px-8 pt-6">
+      <div className="rounded-xl border border-emerald-900/50 bg-emerald-950/30 p-3.5">
+        <label className="mb-1.5 flex items-baseline justify-between gap-3">
+          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">📝 Notes from the visit</span>
+          <span className={`text-[11px] ${status === "offline" || status === "unauthorized" ? "text-amber-300" : "text-emerald-400/60"}`}>{line}</span>
+        </label>
+        <textarea
+          value={value}
+          onChange={(e) => actions.setNote(category, e.target.value)}
+          onBlur={() => actions.flushNow()}
+          rows={Math.min(10, Math.max(3, value.split("\n").length + 1))}
+          placeholder={`Notes on ${toTitleCaseFromCamel(category).toLowerCase()}…`}
+          className="w-full resize-y rounded-lg border border-emerald-900/50 bg-slate-900/60 p-2.5 text-sm leading-relaxed text-slate-100 placeholder-slate-600 focus:border-emerald-500 focus:outline-none"
+        />
+      </div>
+    </div>
+  );
+}
 
 export default RatingModal;

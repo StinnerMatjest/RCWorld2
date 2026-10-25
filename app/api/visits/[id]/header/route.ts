@@ -25,7 +25,7 @@ export async function PATCH(
   if (!Number.isInteger(visitId) || visitId <= 0) {
     return NextResponse.json({ error: "Invalid visit id" }, { status: 400 });
   }
-  let body: { imagepath?: unknown; focus?: unknown };
+  let body: { imagepath?: unknown; focus?: unknown; card?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -34,6 +34,9 @@ export async function PATCH(
   const imagepath = body.imagepath === null ? null : validImage(body.imagepath) ? body.imagepath : undefined;
   if (imagepath === undefined) return NextResponse.json({ error: "Invalid image" }, { status: 400 });
   const focus = typeof body.focus === "string" && body.focus.length <= 60 ? body.focus : null;
+  // The home card shows the header unless it has a photo of its own. "follow"
+  // drops that own photo too, so the new header is used for both.
+  const cardFollows = body.card === "follow";
 
   await ensureVisitHeaderColumns();
   const db = await pool.connect();
@@ -70,12 +73,15 @@ export async function PATCH(
          WHERE park_id = $3 AND id <> $4 AND header_imagepath IS NULL`,
         [row.park_imagepath, row.park_header_focus, parkId, visitId]
       );
-      // The home card used to follow the header when it had no photo of its
-      // own; keep it on the photo it shows today (same rule as the header editor).
-      const keepCard = !row.card_imagepath && imagepath !== row.park_imagepath ? row.park_imagepath : row.card_imagepath;
+      // A card without its own photo follows the header; its crop was made
+      // for the old photo, so it starts centred on the new one.
+      const newPhoto = imagepath !== row.park_imagepath;
+      const cardPath = cardFollows ? null : row.card_imagepath;
       const p = await db.query(
-        `UPDATE parks SET imagepath = $1, header_focus = $2, card_imagepath = $3 WHERE id = $4 RETURNING *`,
-        [imagepath, focus, keepCard, parkId]
+        `UPDATE parks SET imagepath = $1, header_focus = $2, card_imagepath = $3,
+                image_focus = CASE WHEN $5::boolean AND $3::text IS NULL THEN '0.5 0.5 1' ELSE image_focus END
+         WHERE id = $4 RETURNING *`,
+        [imagepath, focus, cardPath, parkId, newPhoto]
       );
       parkAfter = p.rows[0];
       syncedPark = true;
