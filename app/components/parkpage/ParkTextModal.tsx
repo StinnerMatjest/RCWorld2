@@ -238,7 +238,23 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   // Captions saved from this editor, layered over the gallery data until the page re-fetches.
   const [captionEdits, setCaptionEdits] = useState<Record<string, string>>({});
   const [captionEditor, setCaptionEditor] = useState<{ path: string; text: string; saving: boolean; error?: string } | null>(null);
-  const captions = useMemo(() => ({ ...mediaCaptions(galleryImages), ...captionEdits }), [galleryImages, captionEdits]);
+  // The picker opens on this visit's photos; the park's other visits are one tap away.
+  const [pickerScope, setPickerScope] = useState<"this" | "others">("this");
+  const [otherVisitImages, setOtherVisitImages] = useState<(VisitGalleryImage & { visit_date?: string })[]>([]);
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/park/${parkId}/gallery`)
+      .then(r => (r.ok ? r.json() : { gallery: [] }))
+      .then(d => { if (alive) setOtherVisitImages((d.gallery ?? []).filter((g: { visit_id?: number }) => g.visit_id !== ratingId)); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [parkId, ratingId]);
+  const othersLabel = otherVisitImages.every(g => !g.visit_date || Date.parse(g.visit_date) < Date.parse(rating.date))
+    ? "Earlier visits" : "Other visits";
+  const captions = useMemo(
+    () => ({ ...mediaCaptions(otherVisitImages), ...mediaCaptions(galleryImages), ...captionEdits }),
+    [otherVisitImages, galleryImages, captionEdits]
+  );
 
   const openCaptionEditor = useCallback((path: string) => {
     setSlotMenu(null);
@@ -247,7 +263,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
   const saveCaption = useCallback(async () => {
     if (!captionEditor || captionEditor.saving) return;
-    const img = galleryImages.find(g => g.path === captionEditor.path);
+    const img = galleryImages.find(g => g.path === captionEditor.path) ?? otherVisitImages.find(g => g.path === captionEditor.path);
     if (!img) { setCaptionEditor(e => e && { ...e, error: "This file is not in the gallery." }); return; }
     const description = captionEditor.text.trim();
     // Same title convention as the gallery lightbox editor.
@@ -844,8 +860,21 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
                 </div>
 
+                {otherVisitImages.length > 0 && (
+                  <div className="flex items-center bg-slate-800 rounded-lg p-0.5 text-xs font-bold self-start w-fit">
+                    {([
+                      { id: "this" as const, label: "This visit", n: galleryImages.length },
+                      { id: "others" as const, label: othersLabel, n: otherVisitImages.length },
+                    ]).map(t => (
+                      <button key={t.id} onClick={() => setPickerScope(t.id)}
+                        className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${pickerScope === t.id ? "bg-slate-700 text-white" : "text-slate-500 hover:text-slate-300"}`}>
+                        {t.label} <span className={pickerScope === t.id ? "text-slate-400" : "text-slate-600"}>{t.n}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <ImagePickerGrid
-                  galleryImages={galleryImages}
+                  galleryImages={pickerScope === "this" ? galleryImages : otherVisitImages}
                   selected={cur.images}
                   onSelect={handlePick}
                   maxSelection={cur.imageCount}

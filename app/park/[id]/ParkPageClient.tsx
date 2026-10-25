@@ -363,8 +363,11 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
     <div className="w-full">
       <ParkHeader
         park={park}
+        visit={selectedRating ?? visibleRatings[0] ?? null}
+        visitCount={ratings.length}
+        cardRating={ratings.find((r) => r.published) ?? ratings[0] ?? null}
         isAdminMode={isAdminMode}
-        onUpdate={fetchParkData}
+        onUpdate={() => { fetchParkData(); refreshRatings(); }}
       />
       <div className="grid grid-cols-1 md:grid-cols-[1.4fr_5.5fr_3.5fr] [@media(min-width:2560px)]:grid-cols-[1.8fr_6fr_3.5fr] gap-6 w-full py-10 px-6 md:px-20 bg-[#0f172a]">
         <div className="self-start md:sticky md:top-6 min-w-0 space-y-4">
@@ -529,6 +532,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
             parkName={park.name}
             initialImages={galleryImages}
             refreshImages={refreshGallery}
+            onHeaderChanged={() => { refreshRatings(); fetchParkData(); }}
             loading={loadingGallery}
           />
         </div>

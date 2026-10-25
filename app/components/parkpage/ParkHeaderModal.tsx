@@ -1,70 +1,118 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import { getParkFlag, getRatingColor } from "@/app/utils/design";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
+import { parseFocusStr } from "@/app/components/FocusedImage";
+import type { Visit } from "@/app/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface GalleryImage { id: number; title: string; path: string; }
-type CardCatKey = "coasters" | "rides" | "park" | "food" | "mgmt";
-type CardImageEntry = { src: string; focus: string };
-type CardImagesMap = Partial<Record<CardCatKey, CardImageEntry>>;
-type Mode = "header" | "card" | "categories";
-
-const CARD_CATS: { key: CardCatKey; emoji: string; label: string }[] = [
-  { key: "coasters", emoji: "🎢", label: "Coasters" },
-  { key: "rides", emoji: "🎡", label: "Rides" },
-  { key: "park", emoji: "🏞️", label: "Park" },
-  { key: "food", emoji: "🍔", label: "Food" },
-  { key: "mgmt", emoji: "📋", label: "Mgmt" },
-];
-
-const CARD_PREVIEW_GROUPS = [
-  { emoji: "🎢", label: "Coasters", value: "8.5" },
-  { emoji: "🎡", label: "Rides", value: "7.3" },
-  { emoji: "🏞️", label: "Park", value: "9.0" },
-  { emoji: "🍔", label: "Food", value: "7.8" },
-  { emoji: "📋", label: "Mgmt", value: "8.3" },
-];
+interface GalleryImage { id: number; title: string; path: string; visit_id?: number; visit_date?: string; }
+type Mode = "header" | "card";
 
 export interface ParkHeaderModalProps {
   parkId: number;
   parkName: string;
   parkCountry?: string;
+  /** The visit whose header is edited. Its photos open first in the picker. */
+  visitId?: number | null;
+  visitDate?: string | null;
+  /** How many visits the park has; the visit line is only shown when there are several. */
+  visitCount?: number;
+  /** Header shown for that visit today: its own, or the park's. */
   currentImagePath: string | null;
+  currentHeaderFocus?: string;
+  /** The park's own header, which the home card falls back to. */
+  parkImagePath?: string | null;
   currentCardImagepath?: string | null;
   currentFocus?: string;
-  currentHeaderFocus?: string;
-  currentCardImages?: CardImagesMap;
-  overall?: number;
+  /** Visit whose scores the home card shows, so the preview carries the real numbers. */
+  cardRating?: Visit | null;
   onClose: () => void;
   onSuccess: () => void;
 }
 
+// ─── Home card geometry (mirrors app/HomeClient.tsx) ──────────────────────────
+
+/** Home cards are 500 CSS px tall on every screen (min-h-[500px]). */
+const CARD_H = 500;
+/** Widest home card anywhere (grid cards stop at max-w-[400px]). */
+const CARD_MAX_ASPECT = 400 / CARD_H;
+/** Phone strip card width (HomeClient: w-[78vw] min-[400px]:w-[72vw] min-[480px]:w-[68vw] min-[560px]:w-[64vw] max-w-sm). */
+function phoneCardWidth(vw: number): number {
+  const f = vw < 400 ? 0.78 : vw < 480 ? 0.72 : vw < 560 ? 0.68 : 0.64;
+  return Math.min(384, vw * f);
+}
+/** Our phones are 384 CSS px wide: a 299.5 px card. */
+const PHONE_CARD_W = phoneCardWidth(384);
+/** Phone park header: full width at 16:8. */
+const PHONE_HERO = { w: 384, h: 192 };
+
+function scrollbarWidth(): number {
+  const probe = document.createElement("div");
+  probe.style.cssText = "position:absolute;top:-9999px;width:100px;height:100px;overflow:scroll";
+  document.body.appendChild(probe);
+  const w = probe.offsetWidth - probe.clientWidth;
+  probe.remove();
+  return w;
+}
+
+/**
+ * Width of a home card on this screen. The home grid is px-6 with gap-4 and
+ * 2/3/4/5 columns at md/lg/xl/2xl; the page always scrolls, so its scrollbar
+ * takes its share of the width. Phones get the strip card.
+ */
+function homeCardWidth(): number {
+  if (window.innerWidth < 768) return phoneCardWidth(window.innerWidth);
+  const vw = window.innerWidth - scrollbarWidth();
+  const cols = window.innerWidth >= 1536 ? 5 : window.innerWidth >= 1280 ? 4 : window.innerWidth >= 1024 ? 3 : 2;
+  const col = (vw - 48 - 16 * (cols - 1)) / cols;
+  return Math.min(400, col);
+}
+
+function visitDateLabel(iso?: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
 // ─── CropEditor ───────────────────────────────────────────────────────────────
+
+export type CropEditorHandle = { getFocus: () => string; touched?: () => boolean };
 
 export interface CropEditorProps {
   src: string;
   aspectRatio?: string;
   focusStr: string;
   onCommit: (f: string) => void;
-  editorRef?: React.MutableRefObject<{ getFocus: () => string } | null>;
+  /** Called with the framing on every move (drag, pinch, wheel) and once the photo is placed. */
+  onChange?: (f: string) => void;
+  editorRef?: React.MutableRefObject<CropEditorHandle | null>;
   className?: string;
+  style?: React.CSSProperties;
   children?: React.ReactNode;
   maxZoom?: number;
+  /**
+   * Keep the photo covering a frame this wide (width / height) even when the
+   * editor itself is narrower, so a crop made on one screen never shows an
+   * empty edge on a wider one.
+   */
+  clampAspect?: number;
 }
 
-export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, className = "", children, maxZoom = 4 }: CropEditorProps) {
+export function CropEditor({ src, aspectRatio, focusStr, onCommit, onChange, editorRef, className = "", style, children, maxZoom = 4, clampAspect }: CropEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const commitRef = useRef(onCommit);
-  useEffect(() => { commitRef.current = onCommit; });
+  const changeRef = useRef(onChange);
+  const touchedRef = useRef(false);
+  useEffect(() => { commitRef.current = onCommit; changeRef.current = onChange; });
 
   useEffect(() => {
-    if (editorRef) editorRef.current = { getFocus: () => toFocusStr() };
+    if (editorRef) editorRef.current = { getFocus: () => toFocusStr(), touched: () => touchedRef.current };
     return () => { if (editorRef) editorRef.current = null; };
   }); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -85,7 +133,8 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, cl
   function clampTxy(dtx: number, dty: number, s = totalScale()) {
     const c = containerRef.current;
     if (!c) return { tx: dtx, ty: dty };
-    const mx = Math.max(0, (nw.current * s - c.clientWidth) / 2);
+    const frameW = clampAspect ? Math.max(c.clientWidth, c.clientHeight * clampAspect) : c.clientWidth;
+    const mx = Math.max(0, (nw.current * s - frameW) / 2);
     const my = Math.max(0, (nh.current * s - c.clientHeight) / 2);
     return { tx: clamp(dtx, -mx, mx), ty: clamp(dty, -my, my) };
   }
@@ -115,23 +164,16 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, cl
     const c = containerRef.current;
     if (!c) { tx.current = 0; ty.current = 0; return; }
     const ts = coverScale() * zoom.current;
-    let cx: number, cy: number;
-    if (parts[0]?.includes("%")) {
-      const xPct = parseFloat(parts[0]) || 50;
-      const yPct = parseFloat(parts[1]) || 50;
-      const cs = coverScale();
-      const ex1w = Math.max(0, nw.current * cs - c.clientWidth);
-      const ex1h = Math.max(0, nh.current * cs - c.clientHeight);
-      const oldTx = (0.5 - xPct / 100) * ex1w * zoom.current;
-      const oldTy = (0.5 - yPct / 100) * ex1h * zoom.current;
-      cx = nw.current * ts > 0 ? clamp(0.5 - oldTx / (nw.current * ts), 0, 1) : 0.5;
-      cy = nh.current * ts > 0 ? clamp(0.5 - oldTy / (nh.current * ts), 0, 1) : 0.5;
-    } else {
+    // Old "X% Y%" framings are drawn centred everywhere on the site (see
+    // parseFocusStr); showing them offset here made the editor disagree with
+    // the page it previews.
+    let cx = 0.5, cy = 0.5;
+    if (!parts[0]?.includes("%")) {
       cx = parseFloat(parts[0]); if (isNaN(cx)) cx = 0.5;
       cy = parseFloat(parts[1]); if (isNaN(cy)) cy = 0.5;
     }
-    tx.current = (0.5 - cx) * nw.current * ts;
-    ty.current = (0.5 - cy) * nh.current * ts;
+    tx.current = (0.5 - clamp(cx, 0, 1)) * nw.current * ts;
+    ty.current = (0.5 - clamp(cy, 0, 1)) * nh.current * ts;
   }
 
   useEffect(() => {
@@ -145,6 +187,7 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, cl
       zoom.current = Math.max(1, parseFloat(parts[2] || "1") || 1);
       fromFocusStr(focusStr);
       applyDOM();
+      changeRef.current?.(toFocusStr());
     }
     const tmp = new window.Image();
     tmp.onload = () => init(tmp);
@@ -204,6 +247,8 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, cl
         tx.current = ntx;
         ty.current = nty;
         applyDOM();
+        touchedRef.current = true;
+        changeRef.current?.(toFocusStr());
       } else if (drag && ptrs.size === 1) {
         const { tx: ntx, ty: nty } = clampTxy(
           drag.tx0 + e.clientX - drag.x0,
@@ -212,6 +257,8 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, cl
         tx.current = ntx;
         ty.current = nty;
         applyDOM();
+        touchedRef.current = true;
+        changeRef.current?.(toFocusStr());
       }
       e.preventDefault();
     }
@@ -235,6 +282,8 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, cl
       const { tx: ntx, ty: nty } = clampTxy(tx.current, ty.current);
       tx.current = ntx; ty.current = nty;
       applyDOM();
+      touchedRef.current = true;
+      changeRef.current?.(toFocusStr());
       clearTimeout(wheelTimer);
       wheelTimer = window.setTimeout(() => commitRef.current(toFocusStr()), 250);
     }
@@ -258,7 +307,7 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, cl
     <div
       ref={containerRef}
       className={`relative overflow-hidden bg-slate-900 cursor-grab active:cursor-grabbing select-none touch-none ${className}`}
-      style={aspectRatio ? { aspectRatio } : { flex: 1, minHeight: 0 }}
+      style={style ?? (aspectRatio ? { aspectRatio } : { flex: 1, minHeight: 0 })}
     >
       {src && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -272,7 +321,7 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, editorRef, cl
   );
 }
 
-// ─── Overlays ─────────────────────────────────────────────────────────────────
+// ─── Faces: what the page draws over the photo ────────────────────────────────
 
 function HeaderOverlay({ parkName }: { parkName: string }) {
   return <>
@@ -284,50 +333,167 @@ function HeaderOverlay({ parkName }: { parkName: string }) {
   </>;
 }
 
-function CardOverlay({ parkName, parkCountry, overall }: { parkName: string; parkCountry?: string; overall: number }) {
+/** The phone park header's text, at its real size (see ParkHeader). */
+function PhoneHeroFace({ parkName }: { parkName: string }) {
   return <>
-    <div className="absolute top-0 inset-x-0 bg-gradient-to-b from-black/80 to-transparent px-3 pt-3 pb-12">
-      <div className="flex items-center gap-1.5">
-        {parkCountry && <img src={getParkFlag(parkCountry)} alt="" width={16} height={11} className="rounded-sm" />}
-        <span className="text-white font-bold text-sm truncate">{parkName}</span>
+    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-60" />
+    <span className="absolute bottom-10 left-6 text-4xl font-bold text-white drop-shadow-lg">{parkName}</span>
+  </>;
+}
+
+const avg2 = (a: number, b: number) => (Number(a) + Number(b)) / 2;
+
+/** The home card's text and gradients, copied from FullBleedRatingCard at real size. */
+function CardFace({ parkName, parkCountry, rating }: { parkName: string; parkCountry?: string; rating?: Visit | null }) {
+  const overall = rating ? Number(rating.overall) : 8.5;
+  const groups = rating
+    ? [
+        { emoji: "🎢", label: "Coasters", value: avg2(rating.bestCoaster, rating.coasterDepth) },
+        { emoji: "🎡", label: "Rides", value: avg2(rating.waterRides, rating.flatridesAndDarkrides) },
+        { emoji: "🏞️", label: "Park", value: avg2(rating.parkAppearance, rating.parkPracticality) },
+        { emoji: "🍔", label: "Food", value: avg2(rating.food, rating.snacksAndDrinks) },
+        { emoji: "📋", label: "Mgmt", value: avg2(rating.rideOperations, rating.parkManagement) },
+      ]
+    : [
+        { emoji: "🎢", label: "Coasters", value: 8.5 },
+        { emoji: "🎡", label: "Rides", value: 7.3 },
+        { emoji: "🏞️", label: "Park", value: 9.0 },
+        { emoji: "🍔", label: "Food", value: 7.8 },
+        { emoji: "📋", label: "Mgmt", value: 8.3 },
+      ];
+  const date = rating?.date ? new Date(rating.date).toLocaleDateString("en-GB", { timeZone: "UTC" }) : null;
+  return <>
+    <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent px-4 pt-4 pb-16">
+      <div className="flex items-center gap-2">
+        {parkCountry && <Image src={getParkFlag(parkCountry)} alt="" width={20} height={14} className="rounded-sm shrink-0" unoptimized />}
+        <span className="text-white font-bold text-xl leading-tight drop-shadow-md">{parkName}</span>
       </div>
+      {date && <p className="text-white/50 text-xs mt-1">{date}</p>}
     </div>
-    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/95 to-transparent px-3 pb-3 pt-12">
-      <div className={`text-3xl font-black tabular-nums text-center leading-none mb-2 ${getRatingColor(overall)}`}>
-        {overall.toFixed(1)}
-      </div>
-      <div className="grid grid-cols-5 gap-0.5">
-        {CARD_PREVIEW_GROUPS.map(g => (
-          <div key={g.label} className="flex flex-col items-center">
-            <span className="text-[10px]">{g.emoji}</span>
-            <span className="text-[10px] font-bold text-green-400 tabular-nums">{g.value}</span>
+    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent px-5 pt-16 pb-4 flex flex-col items-center gap-3">
+      <span className={`text-[4rem] font-black tabular-nums leading-none drop-shadow-xl ${getRatingColor(overall)}`}>
+        {overall.toFixed(2)}
+      </span>
+      <div className="w-full grid grid-cols-5 gap-1 mt-1">
+        {groups.map(g => (
+          <div key={g.label} className="flex flex-col items-center gap-0.5">
+            <span className="text-base leading-none">{g.emoji}</span>
+            <span className={`text-xs font-bold tabular-nums ${getRatingColor(g.value)}`}>{g.value.toFixed(2)}</span>
+            <span className="text-[9px] uppercase tracking-wide text-white/40">{g.label}</span>
           </div>
         ))}
       </div>
     </div>
-    <div className="absolute top-2 right-2 text-white/25 text-[9px] font-bold uppercase tracking-widest">
-      Drag · pinch to zoom
-    </div>
   </>;
+}
+
+/** Draws children at their real size (w × h CSS px), shrunk to fit a frame scaled by `scale`. */
+function ScaledLayer({ w, h, scale, children }: { w: number; h: number; scale: number; children: React.ReactNode }) {
+  return (
+    <div className="absolute left-0 top-0" style={{ width: w, height: h, transform: `scale(${scale})`, transformOrigin: "top left" }}>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Read-only frame that places the photo with exactly the page's math (cover
+ * the frame, times the zoom, focus point at the centre), at the page's real
+ * frame size, then shrinks the whole thing by `scale` for display.
+ */
+function LiveFrame({ src, focus, w, h, scale, className = "", children }: {
+  src: string; focus: string; w: number; h: number; scale: number; className?: string; children?: React.ReactNode;
+}) {
+  const [nat, setNat] = useState<{ src: string; w: number; h: number } | null>(null);
+  useEffect(() => {
+    if (!src) return;
+    let off = false;
+    const im = new window.Image();
+    const done = () => { if (!off && im.naturalWidth) setNat({ src, w: im.naturalWidth, h: im.naturalHeight }); };
+    im.onload = done;
+    im.src = src;
+    if (im.complete) done();
+    return () => { off = true; im.onload = null; };
+  }, [src]);
+
+  let imgStyle: React.CSSProperties = { visibility: "hidden" };
+  if (nat && nat.src === src) {
+    const { cx, cy, zoom } = parseFocusStr(focus);
+    const cs = Math.max(w / nat.w, h / nat.h);
+    const dw = nat.w * cs * zoom, dh = nat.h * cs * zoom;
+    imgStyle = { width: dw, height: dh, left: w / 2 - cx * dw, top: h / 2 - cy * dh };
+  }
+  return (
+    <div className={`relative shrink-0 overflow-hidden bg-slate-900 ${className}`} style={{ width: w * scale, height: h * scale }}>
+      <ScaledLayer w={w} h={h} scale={scale}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {src && <img src={src} alt="" draggable={false} className="absolute max-w-none select-none" style={imgStyle} />}
+        {children}
+      </ScaledLayer>
+    </div>
+  );
 }
 
 // ─── Gallery view ────────────────────────────────────────────────────────────
 
 function GalleryView({
-  images, loading, isSelected, onClick, onBack,
+  images, loading, visitId, visitDate, isSelected, onClick, onBack,
   onUpload, uploadProgress,
 }: {
   images: GalleryImage[];
   loading: boolean;
+  visitId?: number | null;
+  visitDate?: string | null;
   isSelected: (img: GalleryImage) => boolean;
   onClick: (img: GalleryImage) => void;
   onBack: () => void;
   onUpload?: (f: File) => void;
   uploadProgress: number | null;
 }) {
+  // This visit's photos first; the park's other visits are one tap away.
+  const own = useMemo(() => (visitId == null ? images : images.filter(i => i.visit_id === visitId)), [images, visitId]);
+  const otherGroups = useMemo(() => {
+    if (visitId == null) return [];
+    const groups: { visitId: number; date?: string; images: GalleryImage[] }[] = [];
+    for (const img of images) {
+      if (img.visit_id === visitId || img.visit_id == null) continue;
+      let g = groups.find(x => x.visitId === img.visit_id);
+      if (!g) { g = { visitId: img.visit_id, date: img.visit_date, images: [] }; groups.push(g); }
+      g.images.push(img);
+    }
+    return groups;
+  }, [images, visitId]);
+  const othersCount = otherGroups.reduce((n, g) => n + g.images.length, 0);
+  const allEarlier = !!visitDate && otherGroups.every(g => !g.date || Date.parse(g.date) < Date.parse(visitDate));
+  const othersLabel = allEarlier ? "Earlier visits" : "Other visits";
+  const [scope, setScope] = useState<"this" | "others">("this");
+
+  const grid = (list: GalleryImage[]) => (
+    <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+      {list.map(img => {
+        const sel = isSelected(img);
+        return (
+          <div key={img.id} onClick={() => onClick(img)}
+            className={`relative aspect-video rounded-xl overflow-hidden cursor-pointer border-2 transition-all group ${sel ? "border-blue-500 ring-2 ring-blue-500/20" : "border-transparent hover:border-blue-400"
+              }`}>
+            <Image src={img.path} alt="" fill sizes="(max-width: 768px) 33vw, 320px" quality={60} className="object-cover" />
+            {sel && <div className="absolute inset-0 bg-blue-600/25 flex items-center justify-center">
+              <div className="w-7 h-7 rounded-full bg-blue-600 shadow flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>}
+            {!sel && <div className="absolute inset-0 group-hover:bg-black/15 transition-colors" />}
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="flex-1 min-h-0 flex flex-col p-4 gap-3">
-      <div className="flex items-center justify-between flex-shrink-0">
+      <div className="flex items-center gap-3 flex-shrink-0">
         <button onClick={onBack}
           className="flex items-center gap-1.5 text-sm font-bold text-slate-400 hover:text-white transition-colors cursor-pointer">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -335,8 +501,24 @@ function GalleryView({
           </svg>
           Back to editor
         </button>
+        {othersCount > 0 && (
+          <div className="flex bg-slate-800 rounded-xl p-1 gap-0.5">
+            {([
+              { id: "this" as const, label: "This visit", n: own.length },
+              { id: "others" as const, label: othersLabel, n: othersCount },
+            ]).map(t => (
+              <button key={t.id} onClick={() => setScope(t.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${scope === t.id
+                  ? "bg-slate-700 text-blue-400 shadow-sm"
+                  : "text-slate-400 hover:text-slate-200"
+                  }`}>
+                {t.label} <span className={scope === t.id ? "text-blue-300/60" : "text-slate-500"}>{t.n}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {onUpload && (
-          <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border cursor-pointer text-xs font-bold transition-all relative overflow-hidden ${uploadProgress !== null
+          <label className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg border cursor-pointer text-xs font-bold transition-all relative overflow-hidden ${uploadProgress !== null
               ? "border-blue-400 text-blue-400"
               : "border-slate-700 text-slate-400 hover:border-blue-400 hover:text-blue-400"
             }`}>
@@ -357,26 +539,28 @@ function GalleryView({
         <div className="flex-1 flex items-center justify-center"><LoadingSpinner /></div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-            {images.map(img => {
-              const sel = isSelected(img);
-              return (
-                <div key={img.id} onClick={() => onClick(img)}
-                  className={`relative aspect-video rounded-xl overflow-hidden cursor-pointer border-2 transition-all group ${sel ? "border-blue-500 ring-2 ring-blue-500/20" : "border-transparent hover:border-blue-400"
-                    }`}>
-                  <Image src={img.path} alt="" fill sizes="(max-width: 768px) 33vw, 320px" quality={60} className="object-cover" />
-                  {sel && <div className="absolute inset-0 bg-blue-600/25 flex items-center justify-center">
-                    <div className="w-7 h-7 rounded-full bg-blue-600 shadow flex items-center justify-center">
-                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  </div>}
-                  {!sel && <div className="absolute inset-0 group-hover:bg-black/15 transition-colors" />}
-                </div>
-              );
-            })}
-          </div>
+          {scope === "this" ? (
+            own.length > 0 ? grid(own) : (
+              <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+                <p className="text-sm text-slate-400">No photos from this visit yet.</p>
+                {othersCount > 0 && (
+                  <button onClick={() => setScope("others")}
+                    className="text-sm font-bold text-blue-400 hover:text-blue-300 cursor-pointer">
+                    Show {othersLabel.toLowerCase()}
+                  </button>
+                )}
+              </div>
+            )
+          ) : (
+            <div className="space-y-5">
+              {otherGroups.map(g => (
+                <section key={g.visitId}>
+                  <p className="mb-2 text-xs font-semibold text-slate-400">{visitDateLabel(g.date) ?? "Visit"}</p>
+                  {grid(g.images)}
+                </section>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -387,9 +571,10 @@ function GalleryView({
 
 const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   parkId, parkName, parkCountry,
-  currentImagePath, currentCardImagepath,
-  currentFocus, currentHeaderFocus, currentCardImages,
-  overall, onClose, onSuccess,
+  visitId, visitDate, visitCount = 1,
+  currentImagePath, currentHeaderFocus, parkImagePath,
+  currentCardImagepath, currentFocus, cardRating,
+  onClose, onSuccess,
 }) => {
   useScrollLock();
   const [mode, setMode] = useState<Mode>("header");
@@ -401,52 +586,81 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
-  const headerEditorRef = useRef<{ getFocus: () => string } | null>(null);
-  const cardEditorRef = useRef<{ getFocus: () => string } | null>(null);
-  const catEditorRef = useRef<{ getFocus: () => string } | null>(null);
+  const headerEditorRef = useRef<CropEditorHandle | null>(null);
+  const cardEditorRef = useRef<CropEditorHandle | null>(null);
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
-  const [headerPath, setHeaderPath] = useState(currentImagePath ?? "");
-  const [headerFocus, setHeaderFocus] = useState(currentHeaderFocus ?? "50% 50%");
-  const [cardPath, setCardPath] = useState<string | null>(currentCardImagepath ?? null);
-  const [cardFocus, setCardFocus] = useState(currentFocus ?? "50% 50%");
-  const [cardEntries, setCardEntries] = useState<CardImagesMap>({
-    coasters: { src: currentImagePath ?? "", focus: currentFocus ?? "50% 50%" },
-    ...currentCardImages,
-  });
-  const [activeCatKey, setActiveCatKey] = useState<CardCatKey>("coasters");
+  // What is stored now; a tab is "changed" when its values differ from this.
+  const initial = useRef({
+    headerPath: currentImagePath ?? "",
+    headerFocus: currentHeaderFocus ?? "0.5 0.5 1",
+    cardPath: currentCardImagepath ?? null,
+    cardFocus: currentFocus ?? "0.5 0.5 1",
+  }).current;
+  const [headerPath, setHeaderPath] = useState(initial.headerPath);
+  const [headerFocus, setHeaderFocus] = useState(initial.headerFocus);
+  const [cardPath, setCardPath] = useState<string | null>(initial.cardPath);
+  const [cardFocus, setCardFocus] = useState(initial.cardFocus);
+  // Follow the drag live in the phone previews.
+  const [liveHeaderFocus, setLiveHeaderFocus] = useState(initial.headerFocus);
+  const [liveCardFocus, setLiveCardFocus] = useState(initial.cardFocus);
+  const rafRef = useRef(0);
+  const live = (set: (f: string) => void) => (f: string) => {
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => set(f));
+  };
+  useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
 
-  const effectiveCardPath = cardPath ?? headerPath;
-  const activeEntry = cardEntries[activeCatKey] ?? { src: "", focus: "50% 50%" };
-  const displayOverall = overall ?? 8.5;
+  // The home card shows its own photo, or else the park header.
+  const parkHeader = parkImagePath ?? initial.headerPath;
+  const effectiveCardPath = cardPath ?? parkHeader;
+
+  const focusNow = (ref: React.MutableRefObject<CropEditorHandle | null>, committed: string) =>
+    ref.current?.touched?.() ? ref.current.getFocus() : committed;
+  const headerChanged = headerPath !== initial.headerPath || headerFocus !== initial.headerFocus;
+  const cardChanged = cardPath !== initial.cardPath || cardFocus !== initial.cardFocus;
+
+  // Card frame: the home card exactly as this screen draws it, shrunk only if
+  // the modal is too short to show it at its real size.
+  const [cardW, setCardW] = useState(360);
+  const cardAreaRef = useRef<HTMLDivElement>(null);
+  const [cardScale, setCardScale] = useState(1);
+  useLayoutEffect(() => {
+    const measure = () => {
+      setCardW(homeCardWidth());
+      const el = cardAreaRef.current;
+      if (!el) return;
+      const room = el.clientHeight - 140; // caption + buttons + padding
+      setCardScale(Math.max(0.4, Math.min(1, room / CARD_H)));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [mode, galleryOpen]);
 
   useEffect(() => {
     fetch(`/api/park/${parkId}/gallery`)
       .then(r => r.json())
-      .then(d => { setImages(d.gallery || []); setLoading(false); });
+      .then(d => { setImages(d.gallery || []); setLoading(false); })
+      .catch(() => setLoading(false));
   }, [parkId]);
 
   function handleGalleryClick(img: GalleryImage) {
     if (mode === "header") {
       setHeaderPath(img.path);
-    } else if (mode === "card") {
-      setCardPath(img.path === headerPath ? null : img.path);
     } else {
-      setCardEntries(prev => ({
-        ...prev,
-        [activeCatKey]: { src: img.path, focus: prev[activeCatKey]?.focus ?? "50% 50%" },
-      }));
+      setCardPath(img.path === parkHeader ? null : img.path);
     }
     setGalleryOpen(false);
   }
 
   function isSelected(img: GalleryImage) {
     if (mode === "header") return img.path === headerPath;
-    if (mode === "card") return img.path === effectiveCardPath;
-    return img.path === (cardEntries[activeCatKey]?.src ?? "");
+    return img.path === effectiveCardPath;
   }
 
   function handleUpload(file: File) {
@@ -462,7 +676,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
       if (xhr.status >= 200 && xhr.status < 300) {
         const { imagePath } = JSON.parse(xhr.responseText);
         setHeaderPath(imagePath);
-        setImages(prev => [{ id: Date.now(), title: `${parkName}-header`, path: imagePath }, ...prev]);
+        setImages(prev => [{ id: Date.now(), title: `${parkName}-header`, path: imagePath, visit_id: visitId ?? undefined, visit_date: visitDate ?? undefined }, ...prev]);
         setGalleryOpen(false);
       } else alert("Upload failed.");
       setUploadProgress(null);
@@ -471,37 +685,65 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
     xhr.send(fd);
   }
 
+  // One save for everything changed, whichever tab is open: switching tabs
+  // used to drop the other tab's unsaved photo.
   async function save() {
+    const hFocus = focusNow(headerEditorRef, headerFocus);
+    const cFocus = focusNow(cardEditorRef, cardFocus);
+    const doHeader = headerPath !== initial.headerPath || hFocus !== initial.headerFocus;
+    const doCard = cardPath !== initial.cardPath || cFocus !== initial.cardFocus;
+    if (!doHeader && !doCard) { onClose(); return; }
     setSaving(true);
+    setSaveError(null);
     try {
-      const body: Record<string, unknown> = {};
-      if (mode === "header") {
-        body.imagepath = headerPath;
-        body.headerFocus = headerEditorRef.current?.getFocus() ?? headerFocus;
-        if (cardPath === null && currentCardImagepath == null && headerPath !== currentImagePath) {
-          body.cardImagepath = currentImagePath;
-        }
-      } else if (mode === "card") {
-        body.cardImagepath = cardPath;
-        body.imageFocus = cardEditorRef.current?.getFocus() ?? cardFocus;
-      } else {
-        const latestFocus = catEditorRef.current?.getFocus();
-        body.cardImages = latestFocus
-          ? { ...cardEntries, [activeCatKey]: { ...cardEntries[activeCatKey] ?? { src: "" }, focus: latestFocus } }
-          : cardEntries;
+      if (doHeader) {
+        const res = visitId
+          ? await fetch(`/api/visits/${visitId}/header`, {
+              method: "PATCH", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ imagepath: headerPath, focus: hFocus }),
+            })
+          : await fetch(`/api/park/${parkId}`, {
+              method: "PATCH", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                imagepath: headerPath, headerFocus: hFocus,
+                // A card without its own photo keeps the one it shows today.
+                ...(!doCard && cardPath === null && headerPath !== parkHeader ? { cardImagepath: parkHeader } : {}),
+              }),
+            });
+        if (!res.ok) throw new Error(`Header not saved (${res.status})`);
       }
-      const res = await fetch(`/api/park/${parkId}`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        alert(`Save failed (${res.status}): ${JSON.stringify(err)}`);
-        return;
+      if (doCard) {
+        const res = await fetch(`/api/park/${parkId}`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cardImagepath: cardPath, imageFocus: cFocus }),
+        });
+        if (!res.ok) throw new Error(`Card not saved (${res.status})`);
       }
-      onSuccess(); onClose();
-    } finally { setSaving(false); }
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
   }
+
+  const dateLabel = visitDateLabel(visitDate);
+  const changedDot = <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-blue-400 align-middle" />;
+  const saveRow = (extra?: React.ReactNode) => (
+    <div className="flex flex-wrap items-center gap-3 w-full">
+      <button onClick={() => setGalleryOpen(true)}
+        className="px-5 py-2.5 rounded-xl text-sm font-bold border border-slate-700 text-slate-300 hover:border-blue-400 hover:text-blue-400 transition-all cursor-pointer">
+        Change image
+      </button>
+      {extra}
+      <button onClick={save} disabled={saving || (!headerChanged && !cardChanged && !headerEditorRef.current?.touched?.() && !cardEditorRef.current?.touched?.())}
+        className="flex-1 min-w-[10rem] py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors cursor-pointer disabled:cursor-default">
+        {saving ? "Saving…" : headerChanged && cardChanged ? "Save header and card" : "Save changes"}
+      </button>
+      {saveError && <p className="basis-full text-xs text-red-400">{saveError}</p>}
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 z-[100] flex items-start md:items-center justify-center bg-black/80 backdrop-blur-sm pt-3 md:pt-0 md:p-4">
@@ -516,15 +758,14 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
               <span className="font-bold text-sm text-white truncate hidden sm:block">{parkName}</span>
               <div className="flex bg-slate-800 rounded-xl p-1 gap-0.5">
                 {([
-                  { id: "header" as Mode, label: "🏔️ Header" },
-                  { id: "card" as Mode, label: "📍 Card" },
-                  { id: "categories" as Mode, label: "🖼️ Categories" },
+                  { id: "header" as Mode, label: "🏔️ Header", changed: headerChanged },
+                  { id: "card" as Mode, label: "📍 Card", changed: cardChanged },
                 ] as const).map(m => (
                   <button key={m.id} onClick={() => { setMode(m.id); setGalleryOpen(false); }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${mode === m.id
                         ? "bg-slate-700 text-blue-400 shadow-sm"
                         : "text-slate-400 hover:text-slate-200"
-                      }`}>{m.label}</button>
+                      }`}>{m.label}{m.changed && changedDot}</button>
                 ))}
               </div>
             </>
@@ -541,6 +782,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
         {galleryOpen ? (
           <GalleryView
             images={images} loading={loading}
+            visitId={visitId} visitDate={visitDate}
             isSelected={isSelected} onClick={handleGalleryClick}
             onBack={() => setGalleryOpen(false)}
             onUpload={mode === "header" ? handleUpload : undefined}
@@ -550,153 +792,79 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
           <>
             {/* ── HEADER ── */}
             {mode === "header" && (
-              <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4 p-6">
-                <CropEditor
-                  key={`h-${headerPath}-${isMobile}`}
-                  editorRef={headerEditorRef}
-                  src={headerPath}
-                  aspectRatio={isMobile ? "16/8" : "16/4"}
-                  focusStr={headerFocus}
-                  onCommit={setHeaderFocus}
-                  className="w-full rounded-2xl"
-                >
-                  <HeaderOverlay parkName={parkName} />
-                </CropEditor>
-                <div className="flex gap-3 w-full">
-                  <button onClick={() => setGalleryOpen(true)}
-                    className="px-5 py-2.5 rounded-xl text-sm font-bold border border-slate-700 text-slate-300 hover:border-blue-400 hover:text-blue-400 transition-all cursor-pointer">
-                    Change image
-                  </button>
-                  <button onClick={save} disabled={saving}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors cursor-pointer">
-                    {saving ? "Saving…" : "Save changes"}
-                  </button>
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <div className="min-h-full flex flex-col justify-center gap-4 p-6">
+                  {visitCount > 1 && dateLabel && (
+                    <p className="text-xs text-slate-400">Header for the {dateLabel} visit</p>
+                  )}
+                  <CropEditor
+                    key={`h-${headerPath}-${isMobile}`}
+                    editorRef={headerEditorRef}
+                    src={headerPath}
+                    aspectRatio={isMobile ? "16/8" : "16/4"}
+                    focusStr={headerFocus}
+                    onCommit={setHeaderFocus}
+                    onChange={live(setLiveHeaderFocus)}
+                    className="w-full rounded-2xl"
+                  >
+                    <HeaderOverlay parkName={parkName} />
+                  </CropEditor>
+                  {!isMobile && (
+                    <figure className="flex flex-col gap-1.5">
+                      <LiveFrame src={headerPath} focus={liveHeaderFocus} w={PHONE_HERO.w} h={PHONE_HERO.h} scale={1} className="rounded-xl">
+                        <PhoneHeroFace parkName={parkName} />
+                      </LiveFrame>
+                      <figcaption className="text-xs text-slate-500">Phone</figcaption>
+                    </figure>
+                  )}
+                  {saveRow()}
                 </div>
               </div>
             )}
 
             {/* ── CARD ── */}
             {mode === "card" && (
-              <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4 p-6">
-                <div className="min-h-0 flex-1 flex items-center" style={{ aspectRatio: "3/4", maxHeight: "100%" }}>
-                  <CropEditor
-                    key={`c-${effectiveCardPath}`}
-                    editorRef={cardEditorRef}
-                    src={effectiveCardPath}
-                    aspectRatio="3/4"
-                    focusStr={cardFocus}
-                    onCommit={setCardFocus}
-                    className="rounded-2xl h-full w-auto"
-                  >
-                    <CardOverlay parkName={parkName} parkCountry={parkCountry} overall={displayOverall} />
-                  </CropEditor>
-                </div>
-                <div className="flex gap-3 flex-shrink-0">
-                  <button onClick={() => setGalleryOpen(true)}
-                    className="px-5 py-2.5 rounded-xl text-sm font-bold border border-slate-700 text-slate-300 hover:border-blue-400 hover:text-blue-400 transition-all cursor-pointer">
-                    Change image
-                  </button>
-                  {cardPath && (
-                    <button onClick={() => setCardPath(null)}
-                      className="px-4 py-2.5 rounded-xl text-sm font-bold border border-red-400/40 text-red-400 hover:border-red-400 transition-all cursor-pointer">
-                      Reset to header
-                    </button>
-                  )}
-                  <button onClick={save} disabled={saving}
-                    className="px-8 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors cursor-pointer">
-                    {saving ? "Saving…" : "Save changes"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ── CATEGORIES ── */}
-            {mode === "categories" && (
-              <div className="flex-1 min-h-0 flex flex-col items-center gap-4 p-6">
-
-                {activeEntry.src ? (
-                  <>
-                    <div className="min-h-0 flex-1 flex items-center" style={{ aspectRatio: "3/4", maxHeight: "100%" }}>
+              <div ref={cardAreaRef} className="flex-1 min-h-0 overflow-y-auto">
+                <div className="min-h-full flex flex-col items-center justify-center gap-5 p-6">
+                  <div className="flex items-end justify-center gap-8">
+                    <figure className="flex flex-col items-center gap-2">
                       <CropEditor
-                        key={`cat-${activeCatKey}-${activeEntry.src}`}
-                        editorRef={catEditorRef}
-                        src={activeEntry.src}
-                        aspectRatio="3/4"
-                        focusStr={activeEntry.focus}
-                        onCommit={f => setCardEntries(prev => ({
-                          ...prev,
-                          [activeCatKey]: { ...prev[activeCatKey] ?? { src: "" }, focus: f },
-                        }))}
-                        className="rounded-2xl h-full w-auto"
+                        key={`c-${effectiveCardPath}-${Math.round(cardW)}`}
+                        editorRef={cardEditorRef}
+                        src={effectiveCardPath}
+                        focusStr={cardFocus}
+                        onCommit={setCardFocus}
+                        onChange={live(setLiveCardFocus)}
+                        clampAspect={CARD_MAX_ASPECT}
+                        className="rounded-2xl shadow-md"
+                        style={{ width: cardW * cardScale, height: CARD_H * cardScale }}
                       >
-                        <CardOverlay parkName={parkName} parkCountry={parkCountry} overall={displayOverall} />
+                        <ScaledLayer w={cardW} h={CARD_H} scale={cardScale}>
+                          <CardFace parkName={parkName} parkCountry={parkCountry} rating={cardRating} />
+                        </ScaledLayer>
                       </CropEditor>
-                    </div>
-                    {/* Pills + action buttons in one row */}
-                    <div className="flex flex-col gap-2 flex-shrink-0 w-full">
-                      <div className="flex gap-1.5 flex-wrap">
-                        {CARD_CATS.map(cat => {
-                          const has = !!(cardEntries[cat.key]?.src);
-                          return (
-                            <button key={cat.key} onClick={() => setActiveCatKey(cat.key)}
-                              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${activeCatKey === cat.key
-                                  ? "bg-blue-600 border-blue-600 text-white"
-                                  : has
-                                    ? "border-green-500 text-green-400 bg-green-900/20"
-                                    : "border-slate-700 text-slate-500 hover:bg-slate-800"
-                                }`}>
-                              {cat.emoji} {cat.label}
-                              {has && activeCatKey !== cat.key && <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50 ml-0.5" />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div className="flex gap-3">
-                        <button onClick={() => setGalleryOpen(true)}
-                          className="px-5 py-2.5 rounded-xl text-sm font-bold border border-slate-700 text-slate-300 hover:border-blue-400 hover:text-blue-400 transition-all cursor-pointer">
-                          Change image
-                        </button>
-                        <button onClick={() => setCardEntries(prev => { const n = { ...prev }; delete n[activeCatKey]; return n; })}
-                          className="px-4 py-2.5 rounded-xl text-sm font-bold border border-red-400/40 text-red-400 hover:border-red-400 transition-all cursor-pointer">
-                          Remove
-                        </button>
-                        <button onClick={save} disabled={saving}
-                          className="px-8 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors cursor-pointer">
-                          {saving ? "Saving…" : "Save changes"}
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center gap-4">
-                    {/* Pills shown above the empty state too */}
-                    <div className="flex gap-1.5 flex-wrap self-start">
-                      {CARD_CATS.map(cat => {
-                        const has = !!(cardEntries[cat.key]?.src);
-                        return (
-                          <button key={cat.key} onClick={() => setActiveCatKey(cat.key)}
-                            className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${activeCatKey === cat.key
-                                ? "bg-blue-600 border-blue-600 text-white"
-                                : has
-                                  ? "border-green-500 text-green-400 bg-green-900/20"
-                                  : "border-slate-700 text-slate-500 hover:bg-slate-800"
-                              }`}>
-                            {cat.emoji} {cat.label}
-                            {has && activeCatKey !== cat.key && <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50 ml-0.5" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <div className="w-32 h-32 rounded-2xl border-2 border-dashed border-slate-700 flex items-center justify-center">
-                      <span className="text-slate-600 text-3xl">{CARD_CATS.find(c => c.key === activeCatKey)?.emoji}</span>
-                    </div>
-                    <p className="text-sm text-slate-400">No image for <strong className="text-slate-300">{CARD_CATS.find(c => c.key === activeCatKey)?.label}</strong></p>
-                    <button onClick={() => setGalleryOpen(true)}
-                      className="px-5 py-2.5 rounded-xl text-sm font-bold border border-slate-700 text-slate-300 hover:border-blue-400 hover:text-blue-400 transition-all cursor-pointer">
-                      Browse gallery
-                    </button>
+                      <figcaption className="text-xs text-slate-500">
+                        {isMobile ? "Phone" : "Home page on this screen"}
+                      </figcaption>
+                    </figure>
+                    {!isMobile && (
+                      <figure className="flex flex-col items-center gap-2">
+                        <LiveFrame src={effectiveCardPath} focus={liveCardFocus} w={PHONE_CARD_W} h={CARD_H} scale={cardScale} className="rounded-2xl shadow-md">
+                          <CardFace parkName={parkName} parkCountry={parkCountry} rating={cardRating} />
+                        </LiveFrame>
+                        <figcaption className="text-xs text-slate-500">Phone</figcaption>
+                      </figure>
+                    )}
                   </div>
-                )}
+                  <div className="w-full max-w-2xl">
+                    {saveRow(cardPath && (
+                      <button onClick={() => setCardPath(null)}
+                        className="px-4 py-2.5 rounded-xl text-sm font-bold border border-red-400/40 text-red-400 hover:border-red-400 transition-all cursor-pointer">
+                        Reset to header
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </>

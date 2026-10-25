@@ -4,6 +4,8 @@ import { getParkName, logChange } from "@/app/lib/changelog";
 import { NextResponse } from "next/server";
 import { Visit, RatingWarningType } from "@/app/types";
 import { revalidateTag } from "next/cache";
+import { ensureVisitHeaderColumns } from "@/app/lib/visitHeader";
+import { getImageSizes } from "@/app/lib/imageDims";
 
 export async function GET(
   request: Request,
@@ -35,6 +37,8 @@ export async function GET(
         visits.parkManagement AS "parkmanagement",
         visits.overall,
         visits.published,
+        visits.header_imagepath,
+        visits.header_focus,
         visits.park_id,
         parks.id AS park_id,
         parks.name AS park_name,
@@ -60,7 +64,9 @@ export async function GET(
       ORDER BY visits.date DESC;
     `;
 
+    await ensureVisitHeaderColumns();
     const result = await pool.query(query, [parkId]);
+    const headerSizes = await getImageSizes(result.rows.map((row) => row.header_imagepath));
 
     const ratings: import("@/app/types").Visit[] = result.rows.map((row) => ({
       id: row.rating_id,
@@ -82,6 +88,9 @@ export async function GET(
       overall: row.overall,
       published: row.published,
       imagePath: row.park_image,
+      headerImagepath: row.header_imagepath ?? null,
+      headerFocus: row.header_focus ?? null,
+      headerImageSize: row.header_imagepath ? headerSizes[row.header_imagepath] : undefined,
       parkId: row.park_id,
       warnings: row.warnings as import("@/app/types").RatingWarningType[],
     }));

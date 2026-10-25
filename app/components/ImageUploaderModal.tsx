@@ -8,6 +8,8 @@ type ImageUploaderModalProps = {
   parkName: string;
   onCloseAction: () => void;
   onUploadSuccessAction?: () => void;
+  /** Called after a photo marked "Header image" became this visit's header. */
+  onHeaderSetAction?: () => void;
 };
 
 export default function ImageUploaderModal({
@@ -15,6 +17,7 @@ export default function ImageUploaderModal({
   parkName,
   onCloseAction,
   onUploadSuccessAction,
+  onHeaderSetAction,
 }: ImageUploaderModalProps) {
   useScrollLock();
   const [files, setFiles] = useState<File[]>([]);
@@ -39,6 +42,7 @@ export default function ImageUploaderModal({
     const isBulk = files.length > 1;
     const finalDescription = isBulk ? "" : description;
     const finalIsHeader = isBulk ? false : isHeader;
+    let headerSet = false;
 
     try {
       await Promise.all(
@@ -81,12 +85,25 @@ export default function ImageUploaderModal({
             throw new Error(`Failed to save gallery image ${file.name}: ` + errorText);
           }
 
+          // "Header image" used to only add " - HEADER" to the title. It now
+          // makes the photo this visit's header (and the park's, for the newest visit).
+          if (finalIsHeader) {
+            const headerResponse = await fetch(`/api/visits/${visitId}/header`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ imagepath: imagePath }),
+            });
+            if (!headerResponse.ok) throw new Error("The photo was added, but could not be set as the header.");
+            headerSet = true;
+          }
+
           // Increment progress safely for concurrent promises
           setUploadProgress((prev) => prev + 1);
         })
       );
 
       if (onUploadSuccessAction) onUploadSuccessAction();
+      if (headerSet) onHeaderSetAction?.();
       onCloseAction();
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message || "Something went wrong.");
@@ -189,7 +206,7 @@ export default function ImageUploaderModal({
                   htmlFor="isHeader"
                   className={`text-sm ${files.length > 1 ? " text-gray-500" : " text-gray-300"}`}
                 >
-                  Header image {files.length > 1 && "(Disabled for bulk uploads)"}
+                  Use as this visit&apos;s header {files.length > 1 && "(Disabled for bulk uploads)"}
                 </label>
               </div>
 

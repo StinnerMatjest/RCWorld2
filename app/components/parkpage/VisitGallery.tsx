@@ -20,6 +20,8 @@ interface GalleryProps {
   parkName: string;
   initialImages: VisitGalleryImage[];
   refreshImages: () => void;
+  /** A new upload became the visit's header; the page reloads its header. */
+  onHeaderChanged?: () => void;
   loading?: boolean;
 }
 
@@ -121,7 +123,7 @@ const DescriptionEditor = ({
   );
 };
 
-const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages, refreshImages, loading = false }) => {
+const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages, refreshImages, onHeaderChanged, loading = false }) => {
   const { isAdminMode } = useAdminMode();
 
   const [images, setImages] = useState<VisitGalleryImage[]>(initialImages);
@@ -730,6 +732,7 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
           parkName={parkName}
           onCloseAction={() => setShowModal(false)}
           onUploadSuccessAction={refreshImages}
+          onHeaderSetAction={onHeaderChanged}
         />
       )}
     </div>

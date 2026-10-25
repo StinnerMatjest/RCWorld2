@@ -157,6 +157,9 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
 
   const [isLocked, setIsLocked] = useState(false);
   const [isDraftPark, setIsDraftPark] = useState(false);
+  // A revisit (or an edit) of a park that already has a header: the header
+  // chosen here belongs to this visit only, and choosing one is optional.
+  const [parkHeaderPath, setParkHeaderPath] = useState<string | null>(null);
   const [editingParkId, setEditingParkId] = useState<string | null>(null);
   const [existingRatingId, setExistingRatingId] = useState<number | null>(null);
 
@@ -272,12 +275,17 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
             fallbackName = cl.title.replace(/\s\d{4}\sVisit$/i, "").trim();
           }
 
+          const parkHeader = draft || fetchedParkData.imagepath === "/images/error.PNG" || fetchedParkData.imagepath === "/images/Error.PNG" ? "" : (fetchedParkData.imagepath || "");
+          setParkHeaderPath(parkHeader || null);
           setParkInfo({
             name: fallbackName || "",
             continent: draft ? "" : (fetchedParkData.continent || ""),
             country: draft ? "" : (fetchedParkData.country || ""),
             city: draft || fetchedParkData.city === "Unknown" ? "" : (fetchedParkData.city || ""),
-            existingImagePath: draft || fetchedParkData.imagepath === "/images/error.PNG" || fetchedParkData.imagepath === "/images/Error.PNG" ? "" : (fetchedParkData.imagepath || ""),
+            // A park with a header already: a new visit starts without one
+            // (the previous visit's photo is not this visit's), an edited
+            // visit starts from its own header (or the park's, if it has none).
+            existingImagePath: parkHeader && !editRatingId ? "" : parkHeader,
             image: null,
           });
 
@@ -297,6 +305,9 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
 
               // ONLY lock in the ID if we are explicitly editing. 
               setExistingRatingId(editRatingId ? baseRating.id : null);
+              if (editRatingId && baseRating.headerImagepath) {
+                setParkInfo((p) => ({ ...p, existingImagePath: baseRating.headerImagepath }));
+              }
               if (editRatingId) {
                 existingVisit = {
                   date: baseRating.date ?? null,
@@ -318,6 +329,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
           setEditingParkId(null);
           setIsDraftPark(false);
           setIsLocked(false);
+          setParkHeaderPath(null);
 
           let fallbackName = "";
           if (cl?.title) fallbackName = cl.title.replace(/\s\d{4}\sVisit$/i, "").trim();
@@ -436,7 +448,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
     Boolean(parkInfo.continent) &&
     Boolean(parkInfo.country) &&
     Boolean(parkInfo.city) &&
-    (Boolean(parkInfo.image) || Boolean(parkInfo.existingImagePath)) &&
+    (Boolean(parkInfo.image) || Boolean(parkInfo.existingImagePath) || Boolean(parkHeaderPath)) &&
     selectedDate !== null;
 
   const handleDeleteDraft = async () => {
@@ -467,7 +479,7 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
   const submitData = async () => {
     setLoading(true);
     try {
-      let imagePath = parkInfo.existingImagePath || "/images/Error.PNG";
+      let imagePath = parkInfo.existingImagePath || parkHeaderPath || "/images/Error.PNG";
 
       if (parkInfo.image) {
         const formData = new FormData();
@@ -541,6 +553,20 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
       if (!ratingResponse.ok) {
         alert("Failed to save rating");
       } else {
+        // A header chosen for a visit of an existing park belongs to that
+        // visit (the park header follows only when it is the newest visit).
+        if (parkInfo.image && editingParkId && !isDraftPark) {
+          const savedRating = await ratingResponse.clone().json().catch(() => null);
+          const visitId = isRatingUpdate ? existingRatingId : savedRating?.ratingId;
+          if (visitId) {
+            const headerRes = await fetch(`/api/visits/${visitId}/header`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ imagepath: imagePath }),
+            });
+            if (!headerRes.ok) alert("The review was saved, but its header photo was not. Set it from the park page.");
+          }
+        }
         try {
           const syncPromises = [];
 
@@ -816,6 +842,11 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                           </div>
                         )}
                       </div>
+                      {parkHeaderPath && !parkInfo.image && !parkInfo.existingImagePath && (
+                        <p className="text-xs text-gray-500">
+                          Optional. Until this visit has its own header, its page shows the park&apos;s current one. You can also pick it later from this visit&apos;s photos on the park page.
+                        </p>
+                      )}
 
                       <div className="flex gap-3 mt-6">
                         {isDraftPark && editingParkId && (

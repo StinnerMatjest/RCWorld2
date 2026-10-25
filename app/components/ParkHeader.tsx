@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
-import type { Park } from "@/app/types";
+import type { Park, Visit } from "@/app/types";
 import ParkHeaderModal from "./parkpage/ParkHeaderModal";
 import { FocusedImage, parseFocusStr } from "./FocusedImage";
 import { isR2Image, variantKey, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
@@ -39,12 +39,21 @@ function heroPlacement(size: { w: number; h: number }, focusStr?: string): React
 
 interface ParkHeaderProps {
   park: Park;
+  /** The visit on screen. Its own header wins; without one the park's header shows. */
+  visit?: Visit | null;
+  visitCount?: number;
+  /** Visit whose scores the home card shows (for the card preview in the editor). */
+  cardRating?: Visit | null;
   isAdminMode?: boolean;
   onUpdate?: () => void;
 }
 
-const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) => {
-  const placed = !!park.imageSize;
+const ParkHeader: React.FC<ParkHeaderProps> = ({ park, visit, visitCount, cardRating, isAdminMode, onUpdate }) => {
+  const ownHeader = visit?.headerImagepath || null;
+  const headerSrc = ownHeader ?? park.imagepath;
+  const headerFocus = (ownHeader ? visit?.headerFocus : park.headerFocus) ?? undefined;
+  const headerSize = ownHeader ? visit?.headerImageSize : park.imageSize;
+  const placed = !!headerSize;
   const [imageLoaded, setImageLoaded] = useState(placed);
   const frameRef = useRef<HTMLDivElement>(null);
 
@@ -88,14 +97,15 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
         {/* LAYER 1: The Clickable Background Image */}
         <div
           className="absolute inset-0 cursor-pointer group"
-          onClick={() => park.imagepath && window.open(park.imagepath, '_blank')}
+          onClick={() => headerSrc && window.open(headerSrc, '_blank')}
         >
           <FocusedImage
-            src={park.imagepath}
+            key={headerSrc}
+            src={headerSrc}
             alt={park.name}
-            focusStr={park.headerFocus}
-            placement={park.imageSize ? heroPlacement(park.imageSize, park.headerFocus) : undefined}
-            {...(park.imageSize ? heroSources(park.imagepath, park.imageSize) : {})}
+            focusStr={headerFocus}
+            placement={headerSize ? heroPlacement(headerSize, headerFocus) : undefined}
+            {...(headerSize ? heroSources(headerSrc, headerSize) : {})}
             className="absolute inset-0"
             imgClassName={`transition-opacity duration-700 ease-out ${imageLoaded ? "opacity-100" : "opacity-0"}`}
             priority
@@ -143,14 +153,21 @@ const ParkHeader: React.FC<ParkHeaderProps> = ({ park, isAdminMode, onUpdate }) 
       {/* MODAL MOUNT */}
       {showModal && (
         <ParkHeaderModal
+          // Admin mode loads draft visits a moment after the page; if the visit
+          // on screen changes while the editor is open, start over on that visit.
+          key={visit?.id ?? "park"}
           parkId={park.id}
           parkName={park.name}
           parkCountry={park.country}
-          currentImagePath={park.imagepath}
+          visitId={visit?.id ?? null}
+          visitDate={visit?.date ?? null}
+          visitCount={visitCount}
+          currentImagePath={headerSrc}
+          currentHeaderFocus={headerFocus}
+          parkImagePath={park.imagepath}
           currentCardImagepath={park.cardImagepath}
           currentFocus={park.imageFocus}
-          currentHeaderFocus={park.headerFocus}
-          currentCardImages={park.cardImages}
+          cardRating={cardRating}
           onClose={() => setShowModal(false)}
           onSuccess={handleSuccess}
         />
