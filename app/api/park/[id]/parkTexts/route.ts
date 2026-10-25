@@ -24,7 +24,9 @@ export async function GET(
 ) {
   const { id } = await context.params;
   const url = new URL(req.url);
-  const visitId = url.searchParams.get("visitId");
+  // "ratingId" is the pre-rename name; accept it so an old caller can't get
+  // every visit's texts back mixed together.
+  const visitId = url.searchParams.get("visitId") ?? url.searchParams.get("ratingId");
 
   try {
     // Join through visits because parktexts doesn't have a park_id column
@@ -48,6 +50,7 @@ export async function GET(
       params.push(visitId);
     }
 
+    query += ` ORDER BY pt.visit_id, pt.id`;
     const result = await pool.query(query, params);
 
     const parkTexts = result.rows.map((row) => ({

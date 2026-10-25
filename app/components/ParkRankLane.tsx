@@ -192,7 +192,7 @@ const ParkRankLane: React.FC<Props> = ({
     const latest = rJson.ratings?.[0];
     const texts: Record<string, string> = {};
     if (latest?.id) {
-      const tRes = await fetch(`/api/park/${p.id}/parkTexts?ratingId=${latest.id}`);
+      const tRes = await fetch(`/api/park/${p.id}/parkTexts?visitId=${latest.id}`);
       if (tRes.ok) {
         for (const row of (await tRes.json()) ?? []) texts[row.category] = row.text;
       }

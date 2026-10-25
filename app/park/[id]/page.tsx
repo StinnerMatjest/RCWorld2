@@ -122,7 +122,7 @@ async function getVisitGallery(ratingId: number): Promise<any[] | undefined> {
 async function getParkTexts(numericId: number, ratingId: number) {
   const empty = { explanations: {}, sectionImages: {}, sectionLayouts: {}, sectionSpoilers: {} };
   try {
-    const res = await fetch(`${BASE}api/park/${numericId}/parkTexts?ratingId=${ratingId}`, { cache: "force-cache", next: { tags: ["content"] } });
+    const res = await fetch(`${BASE}api/park/${numericId}/parkTexts?visitId=${ratingId}`, { cache: "force-cache", next: { tags: ["content"] } });
     if (!res.ok) return empty;
     const rows = await res.json();
     if (!Array.isArray(rows)) return empty;
@@ -130,8 +130,10 @@ async function getParkTexts(numericId: number, ratingId: number) {
     const sectionImages: Record<string, string> = {};
     const sectionLayouts: Record<string, string> = {};
     const sectionSpoilers: Record<string, boolean> = {};
+    // Only this visit's sections. Rows from other visits of the same park share
+    // category names, and letting them through showed an older visit's text.
     for (const item of rows) {
-      if (!item.ratingId || item.ratingId === ratingId) {
+      if (Number(item.visitId) === ratingId) {
         explanations[item.category] = item.text;
         if (item.imageUrl) sectionImages[item.category] = item.imageUrl;
         if (item.imageLayout) sectionLayouts[item.category] = item.imageLayout;
