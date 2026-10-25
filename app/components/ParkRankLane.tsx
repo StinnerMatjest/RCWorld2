@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, Reorder, AnimatePresence } from "framer-motion";
 import Image from "next/image";
@@ -50,6 +50,13 @@ interface Props {
   newParkImageUrl?: string;
   /** Park being rated; its own coasters are left out of the Best Coaster lane. */
   excludeParkId?: number | null;
+  /**
+   * Rate one coaster instead of the park: the dragged entry is this coaster and
+   * the lane holds every other rated coaster, its park mates included.
+   */
+  coaster?: { id: number; name: string } | null;
+  /** Scores given to coasters earlier in this session; they replace the stored ones in the lane. */
+  coasterOverrides?: Record<number, number>;
   onSetRating: (rating: number) => void;
 }
 
@@ -78,6 +85,29 @@ const ratingCache = new Map<string, number>();
 const reviewPeekCache = new Map<number, { date: string | null; texts: Record<string, string> }>();
 // Coaster line-ups per park for the Coaster Depth peek
 const parkCoastersCache = new Map<number, CoasterInfo[]>();
+// Every coaster on the site, fetched once per rating session and shared by the
+// Best Coaster lane and the one-coaster-at-a-time lanes (which then open instantly).
+let allCoastersList: CoasterInfo[] | null = null;
+let allCoastersPromise: Promise<CoasterInfo[]> | null = null;
+
+function fetchAllCoasters(): Promise<CoasterInfo[]> {
+  if (allCoastersList) return Promise.resolve(allCoastersList);
+  if (!allCoastersPromise) {
+    allCoastersPromise = fetch("/api/coasters")
+      .then((res) => {
+        if (!res.ok) throw new Error("coasters request failed");
+        return res.json();
+      })
+      .then((json) => {
+        const list = Array.isArray(json) ? json : Array.isArray(json?.coasters) ? json.coasters : null;
+        if (!list) throw new Error("unexpected coasters response");
+        allCoastersList = list.map(normalizeCoaster);
+        return allCoastersList as CoasterInfo[];
+      })
+      .catch((err) => { allCoastersPromise = null; throw err; });
+  }
+  return allCoastersPromise;
+}
 
 /** Forget everything cached from a previous rating session. */
 export function clearRankLaneCaches() {
@@ -85,6 +115,28 @@ export function clearRankLaneCaches() {
   ratingCache.clear();
   reviewPeekCache.clear();
   parkCoastersCache.clear();
+  allCoastersList = null;
+  allCoastersPromise = null;
+}
+
+/** Lane rows for coasters, best first, with this session's scores applied. */
+function coasterLaneItems(
+  list: CoasterInfo[],
+  opts: { excludeCoasterId?: number; excludeParkId?: number | null; overrides?: Record<number, number> }
+): LaneItem[] {
+  return list
+    .map((c) => (opts.overrides && opts.overrides[c.id] !== undefined ? { ...c, rating: opts.overrides[c.id] } : c))
+    .filter((c) => c.rating > 0 && (opts.excludeCoasterId !== undefined ? c.id !== opts.excludeCoasterId : c.parkId !== opts.excludeParkId))
+    .sort((a, b) => b.rating - a.rating || a.name.localeCompare(b.name))
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      subtitle: c.parkName,
+      imagePath: c.image ?? undefined,
+      slug: c.slug,
+      value: c.rating,
+      coaster: c,
+    }));
 }
 
 const titleCase = (s: string) =>
@@ -162,13 +214,41 @@ const ParkRankLane: React.FC<Props> = ({
   initialRating = null,
   newParkImageUrl,
   excludeParkId = null,
+  coaster = null,
+  coasterOverrides,
   onSetRating,
 }) => {
-  const isCoasterLane = category === "bestCoaster";
+  const isSingleCoaster = !!coaster;
+  const isCoasterLane = category === "bestCoaster" || isSingleCoaster;
   const isDepthLane = category === "coasterDepth";
+  const entryName = coaster?.name ?? (newParkName || "New Park");
 
   const startVal = typeof initialRating === "number" ? initialRating : 0;
-  const [order, setOrder] = useState<LaneItem[]>(() => orderCache.get(category) ?? []);
+  // Other coasters' session scores, leaving out this lane's own coaster: its
+  // score changes on every drop, and rebuilding the lane then would move it.
+  const othersOverrides = useMemo(() => {
+    if (!coasterOverrides) return undefined;
+    const o: Record<number, number> = {};
+    for (const [k, v] of Object.entries(coasterOverrides)) if (Number(k) !== coaster?.id) o[Number(k)] = v;
+    return o;
+  }, [coasterOverrides, coaster?.id]);
+  const overridesKey = useMemo(() => JSON.stringify(othersOverrides ?? {}), [othersOverrides]);
+
+  const buildSingleCoasterOrder = (list: CoasterInfo[], value: number): LaneItem[] => {
+    const others = coasterLaneItems(list, { excludeCoasterId: coaster!.id, overrides: othersOverrides });
+    const entry: LaneItem = { id: NEW_PARK_ID, name: entryName, value };
+    return value > 0 ? insertByValueDesc(others, entry) : [entry, ...others];
+  };
+
+  const [order, setOrder] = useState<LaneItem[]>(() => {
+    if (isSingleCoaster && allCoastersList) return buildSingleCoasterOrder(allCoastersList, ratingCache.get(category) ?? startVal);
+    return orderCache.get(category) ?? [];
+  });
+  const entryImage = useMemo(() => {
+    if (!isSingleCoaster) return newParkImageUrl;
+    return (allCoastersList ?? []).find((c) => c.id === coaster!.id)?.image ?? undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSingleCoaster, coaster?.id, newParkImageUrl, order]);
   const [pending, setPending] = useState<boolean>(order.length === 0);
   const [currentRating, setCurrentRating] = useState<number>(ratingCache.get(category) ?? startVal);
   const [manualText, setManualText] = useState<string>(
@@ -246,6 +326,24 @@ const ParkRankLane: React.FC<Props> = ({
 
   const label = useMemo(() => titleCase(category), [category]);
 
+  // A rated coaster sits by its score, often far down a long lane: bring it
+  // into view once per step (the modal leaves the scroll position to us then).
+  const laneRef = useRef<HTMLDivElement>(null);
+  const scrolledRef = useRef(false);
+  useEffect(() => {
+    if (!isSingleCoaster || pending || scrolledRef.current || currentRating <= 0) return;
+    const t = setTimeout(() => {
+      scrolledRef.current = true;
+      const el = laneRef.current?.querySelector<HTMLElement>("[data-lane-entry]");
+      if (!el) return;
+      // Glide over short distances; a long one is a jump (a 4000 px glide takes seconds).
+      const r = el.getBoundingClientRect();
+      const far = Math.abs(r.top + r.height / 2 - window.innerHeight / 2) > window.innerHeight * 1.5;
+      el.scrollIntoView({ block: "center", behavior: far ? "auto" : "smooth" });
+    }, 120);
+    return () => clearTimeout(t);
+  }, [isSingleCoaster, pending, currentRating]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -271,27 +369,33 @@ const ParkRankLane: React.FC<Props> = ({
     }
 
     async function loadCoasters(): Promise<LaneItem[]> {
-      const res = await fetch("/api/coasters");
-      if (!res.ok) throw new Error("coasters request failed");
-      const json = await res.json();
-      const list = Array.isArray(json) ? json : Array.isArray(json?.coasters) ? json.coasters : null;
-      if (!list) throw new Error("unexpected coasters response");
-      return list
-        .map(normalizeCoaster)
-        .filter((c: CoasterInfo) => c.rating > 0 && c.parkId !== excludeParkId)
-        .sort((a: CoasterInfo, b: CoasterInfo) => b.rating - a.rating || a.name.localeCompare(b.name))
-        .map((c: CoasterInfo) => ({
-          id: c.id,
-          name: c.name,
-          subtitle: c.parkName,
-          imagePath: c.image ?? undefined,
-          slug: c.slug,
-          value: c.rating,
-          coaster: c,
-        } as LaneItem));
+      return coasterLaneItems(await fetchAllCoasters(), { excludeParkId });
     }
 
     async function load() {
+      // One coaster at a time: always rebuilt from the shared list, so scores
+      // given to its park mates a moment ago are in place.
+      if (isSingleCoaster) {
+        const base = ratingCache.get(category) ?? startVal ?? 0;
+        try {
+          if (!allCoastersList) setPending(true);
+          setLoadError(false);
+          const list = await fetchAllCoasters();
+          if (cancelled) return;
+          setOrder(buildSingleCoasterOrder(list, base));
+          setCurrentRating(base);
+          setManualText(base > 0 ? String(base) : "");
+          ratingCache.set(category, base);
+          setPending(false);
+        } catch {
+          if (cancelled) return;
+          setOrder((prev) => (prev.length ? prev : [{ id: NEW_PARK_ID, name: entryName, value: base }]));
+          setLoadError(true);
+          setPending(false);
+        }
+        return;
+      }
+
       // A cached order holding only the park being rated means an earlier load
       // failed — try again rather than showing an empty lane.
       const cached = orderCache.get(category);
@@ -309,7 +413,7 @@ const ParkRankLane: React.FC<Props> = ({
         if (existing.length === 0) throw new Error("empty list");
 
         const base = ratingCache.get(category) ?? startVal ?? 0;
-        const newEntry: LaneItem = { id: NEW_PARK_ID, name: newParkName || "New Park", value: base };
+        const newEntry: LaneItem = { id: NEW_PARK_ID, name: entryName, value: base };
 
         const nextOrder = base > 0 ? insertByValueDesc(existing, newEntry) : [newEntry, ...existing];
 
@@ -325,7 +429,7 @@ const ParkRankLane: React.FC<Props> = ({
       } catch {
         if (cancelled) return;
         const base = ratingCache.get(category) ?? startVal ?? 0;
-        setOrder((prev) => (prev.length ? prev : [{ id: NEW_PARK_ID, name: newParkName || "New Park", value: base }]));
+        setOrder((prev) => (prev.length ? prev : [{ id: NEW_PARK_ID, name: entryName, value: base }]));
         setLoadError(true);
         setPending(false);
       }
@@ -335,7 +439,8 @@ const ParkRankLane: React.FC<Props> = ({
     return () => {
       cancelled = true;
     };
-  }, [category, startVal, newParkName, isCoasterLane, excludeParkId, retryKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, startVal, newParkName, isCoasterLane, excludeParkId, retryKey, overridesKey]);
 
   /**
    * Score implied by where the dragged entry sits:
@@ -395,7 +500,7 @@ const ParkRankLane: React.FC<Props> = ({
 
     setOrder((prev) => {
       const others = prev.filter((p) => p.id !== NEW_PARK_ID);
-      const newEntry: LaneItem = { id: NEW_PARK_ID, name: newParkName || "New Park", value };
+      const newEntry: LaneItem = { id: NEW_PARK_ID, name: entryName, value };
       const next = value > 0 ? insertByValueDesc(others, newEntry) : [newEntry, ...others];
       orderCache.set(category, next);
       return next;
@@ -433,7 +538,9 @@ const ParkRankLane: React.FC<Props> = ({
 
   const displayValue = (v: number) => v.toFixed(1);
 
-  const heading = isCoasterLane ? (
+  const heading = isSingleCoaster ? (
+    <>Drag <span className="text-blue-400">{entryName}</span> to where it ranks</>
+  ) : isCoasterLane ? (
     <>Drag <span className="text-blue-400">{newParkName || "your park"}</span> to where its best coaster ranks</>
   ) : (
     <>Drag <span className="text-blue-400">{newParkName || "your park"}</span> to assign {label}</>
@@ -556,7 +663,7 @@ const ParkRankLane: React.FC<Props> = ({
     : (peekItem?.slug ? `/park/${peekItem.slug}` : null);
 
   return (
-    <div className="relative flex flex-col items-center py-6 w-full">
+    <div ref={laneRef} className="relative flex flex-col items-center py-6 w-full">
       <AnimatePresence>
         {pending && (
           <motion.div
@@ -605,6 +712,7 @@ const ParkRankLane: React.FC<Props> = ({
             value={p}
             drag="y"
             dragListener={p.id === NEW_PARK_ID}
+            data-lane-entry={p.id === NEW_PARK_ID ? "" : undefined}
             dragMomentum={false}
             onDragEnd={commitCurrentRating}
             layout="position"
@@ -651,16 +759,32 @@ const ParkRankLane: React.FC<Props> = ({
                   🎢
                 </div>
               )}
-              {p.id === NEW_PARK_ID && newParkImageUrl && (
-                <img
-                  src={newParkImageUrl}
-                  alt={newParkName || "New Park"}
+              {p.id === NEW_PARK_ID && entryImage && isSingleCoaster && (
+                <R2Image
+                  src={entryImage}
+                  alt={entryName}
+                  width={32}
+                  height={32}
+                  sizes="64px"
                   className="w-8 h-8 object-cover rounded-md border border-blue-300 flex-shrink-0"
                   draggable={false}
                 />
               )}
+              {p.id === NEW_PARK_ID && entryImage && !isSingleCoaster && (
+                <img
+                  src={entryImage}
+                  alt={entryName}
+                  className="w-8 h-8 object-cover rounded-md border border-blue-300 flex-shrink-0"
+                  draggable={false}
+                />
+              )}
+              {p.id === NEW_PARK_ID && !entryImage && isSingleCoaster && (
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md border border-blue-300 bg-blue-700 text-base" aria-hidden>
+                  🎢
+                </div>
+              )}
               <div className="min-w-0">
-                <span className="block truncate font-medium">{p.id === NEW_PARK_ID ? (newParkName || p.name) : p.name}</span>
+                <span className="block truncate font-medium">{p.id === NEW_PARK_ID ? entryName : p.name}</span>
                 {p.subtitle && <span className="block truncate text-[11px] text-slate-400">{p.subtitle}</span>}
               </div>
             </div>

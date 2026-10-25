@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, Suspense, useEffect } from "react";
+import React, { useRef, useState, Suspense, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Loading from "./Loading";
 import DatePicker from "react-datepicker";
@@ -41,6 +41,22 @@ const CATEGORIES = [
 ] as const;
 
 type Category = typeof CATEGORIES[number];
+
+/** One of the park's coasters, rated one at a time right after Best Coaster. */
+type ParkCoaster = {
+  id: number;
+  name: string;
+  /** Score stored today (0 = not rated yet). */
+  rating: number;
+  isBest: boolean;
+  /** Rides logged in this visit's checklist; null without a checklist. */
+  ridesThisVisit: number | null;
+};
+
+/** A step in the rating flow: a park category, or one coaster. */
+type Slot =
+  | { kind: "category"; cat: Category }
+  | { kind: "coaster"; coaster: ParkCoaster; n: number; total: number };
 
 function toTitleCaseFromCamel(key: string) {
   const spaced = key.replace(/([A-Z])/g, " $1").trim();
@@ -172,8 +188,43 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
   const [loading, setLoading] = useState(false);
   const [isFetchingData, setIsFetchingData] = useState(true);
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [categoryIndex, setCategoryIndex] = useState(0);
-  const category: Category = CATEGORIES[categoryIndex];
+  // The park's coasters and the scores given to them in this review.
+  const [parkCoasters, setParkCoasters] = useState<ParkCoaster[]>([]);
+  const [coasterRatings, setCoasterRatings] = useState<Record<number, number>>({});
+  // Coasters ridden this visit first, then best first, then by name.
+  const orderedCoasters = useMemo(() => [...parkCoasters].sort((a, b) =>
+    Number((b.ridesThisVisit ?? 0) > 0) - Number((a.ridesThisVisit ?? 0) > 0) ||
+    b.rating - a.rating ||
+    a.name.localeCompare(b.name)
+  ), [parkCoasters]);
+  // Categories in order, with one step per coaster between Best Coaster and Coaster Depth.
+  const slots = useMemo<Slot[]>(() => {
+    const out: Slot[] = [];
+    for (const cat of CATEGORIES) {
+      out.push({ kind: "category", cat });
+      if (cat === "bestCoaster") {
+        orderedCoasters.forEach((coaster, i) => out.push({ kind: "coaster", coaster, n: i + 1, total: orderedCoasters.length }));
+      }
+    }
+    return out;
+  }, [orderedCoasters]);
+  const [slotIndex, setSlotIndex] = useState(0);
+  const slot: Slot = slots[Math.min(slotIndex, slots.length - 1)];
+  const category: Category | null = slot.kind === "category" ? slot.cat : null;
+
+  // Coaster Depth works from the line-up minus the best coaster, with this review's scores.
+  const depthLineup = useMemo(() => {
+    const scored = parkCoasters.map((c) => ({ ...c, score: coasterRatings[c.id] ?? c.rating }));
+    const best = [...scored]
+      .filter((c) => c.score > 0)
+      .sort((a, b) => b.score - a.score || Number(b.isBest) - Number(a.isBest) || a.name.localeCompare(b.name))[0] ?? null;
+    const rest = scored
+      .filter((c) => c.id !== best?.id)
+      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+    const rated = rest.filter((c) => c.score > 0);
+    const average = rated.length ? rated.reduce((sum, c) => sum + c.score, 0) / rated.length : null;
+    return { best, rest, average };
+  }, [parkCoasters, coasterRatings]);
 
   const [pendingGalleryImages, setPendingGalleryImages] = useState<{ title: string; url: string }[]>([]);
   const [pendingCoasterStats, setPendingCoasterStats] = useState<{ id: number | null; count: number; name: string }[]>([]);
@@ -414,6 +465,32 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
           setPendingCoasterStats(coastersToSync);
         }
 
+        // The park's coasters for the coaster-by-coaster step
+        setCoasterRatings({});
+        if (fetchedParkData?.id) {
+          try {
+            const cRes = await fetch(`/api/park/${fetchedParkData.id}/coasters`, { cache: "no-store" });
+            const cJson = cRes.ok ? await cRes.json() : [];
+            const ridesById = new Map<number, number>();
+            for (const item of cl?.items ?? []) {
+              const m = typeof item?.id === "string" ? item.id.match(/^pic-coaster-(\d+)$/) : null;
+              if (m && item.isCoaster && !item.skipped) ridesById.set(Number(m[1]), Number(item.rideCount) || 0);
+            }
+            setParkCoasters((Array.isArray(cJson) ? cJson : []).map((c: any) => ({
+              id: Number(c.id),
+              name: String(c.name),
+              rating: Number(c.rating) || 0,
+              isBest: Boolean(c.isbestcoaster),
+              ridesThisVisit: cl ? (ridesById.get(Number(c.id)) ?? 0) : null,
+            })));
+          } catch (e) {
+            console.error("Could not load the park's coasters", e);
+            setParkCoasters([]);
+          }
+        } else {
+          setParkCoasters([]);
+        }
+
       } catch (error) {
         console.error("Failed to load modal data:", error);
       } finally {
@@ -425,9 +502,13 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
   }, [searchParams, isOpen, pendingParkId]);
 
   useEffect(() => {
+    // A rated coaster's lane scrolls to the coaster itself (see ParkRankLane).
+    const s = slots[Math.min(slotIndex, slots.length - 1)];
+    if (s?.kind === "coaster" && (coasterRatings[s.coaster.id] ?? s.coaster.rating) > 0) return;
     const el = scrollContainerRef.current;
     if (el) el.scrollTo({ top: 0, behavior: "smooth" });
-  }, [categoryIndex]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slotIndex]);
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   useEffect(() => {
@@ -603,8 +684,10 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
           }
 
           // COASTER SYNC LOGIC
-          const coastersToCreate = pendingCoasterStats.filter(c => c.id === null);
-          const coastersToPatch = pendingCoasterStats.filter(c => c.id !== null && c.count > 0);
+          // Ride counts are added once, when the review is first posted: editing
+          // the visit later used to add the checklist's rides again every time.
+          const coastersToCreate = isRatingUpdate ? [] : pendingCoasterStats.filter(c => c.id === null);
+          const coastersToPatch = isRatingUpdate ? [] : pendingCoasterStats.filter(c => c.id !== null && c.count > 0);
 
           // 1. Create missing coasters dynamically from the checklist
           if (coastersToCreate.length > 0) {
@@ -630,15 +713,22 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
             }
           }
 
-          // 2. Patch existing coasters
-          if (coastersToPatch.length > 0) {
-            syncPromises.push(
-              fetch(`/api/park/${finalParkId}/coasters`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ updates: coastersToPatch }),
-              })
-            );
+          // 2. Patch existing coasters: ride counts, and the scores given one by one
+          const coasterScores = parkCoasters
+            .filter((c) => coasterRatings[c.id] !== undefined && coasterRatings[c.id] !== c.rating)
+            .map((c) => ({ id: c.id, rating: coasterRatings[c.id] }));
+          if (coastersToPatch.length > 0 || coasterScores.length > 0) {
+            const coasterSync = fetch(`/api/park/${finalParkId}/coasters`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ updates: coastersToPatch, ratings: coasterScores }),
+            }).then((res) => {
+              if (!res.ok) throw new Error(`coaster sync ${res.status}`);
+            });
+            syncPromises.push(coasterSync);
+            if (coasterScores.length > 0) {
+              coasterSync.catch(() => alert("The review was saved, but the coaster scores were not. Rate them again from Edit Visit."));
+            }
           }
 
           await Promise.allSettled(syncPromises);
@@ -659,12 +749,25 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
   };
 
   const jumpToCategory = (cat: string) => {
-    const idx = CATEGORIES.indexOf(cat as Category);
+    const idx = slots.findIndex((s) => s.kind === "category" && s.cat === cat);
     if (idx >= 0) {
-      setCategoryIndex(idx);
+      setSlotIndex(idx);
       setStep(2);
     }
   };
+
+  const jumpToCoaster = (id: number) => {
+    const idx = slots.findIndex((s) => s.kind === "coaster" && s.coaster.id === id);
+    if (idx >= 0) {
+      setSlotIndex(idx);
+      setStep(2);
+    }
+  };
+
+  const lastSlot = slotIndex >= slots.length - 1;
+  const slotTitle = slot.kind === "category"
+    ? `${toTitleCaseFromCamel(slot.cat)} · ${CATEGORIES.indexOf(slot.cat) + 1}/${CATEGORIES.length}`
+    : `${slot.coaster.name} · coaster ${slot.n}/${slot.total}`;
 
   if (!isOpen) return null;
 
@@ -882,33 +985,90 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                         <ProgressBar categories={CATEGORIES} />
                         <div className="mt-2 flex items-center justify-between gap-2">
                           <button
-                            onClick={() => setCategoryIndex((i) => (i - 1 + CATEGORIES.length) % CATEGORIES.length)}
+                            onClick={() => setSlotIndex((i) => (i - 1 + slots.length) % slots.length)}
                             className="px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors text-xs sm:text-sm cursor-pointer"
                           >
                             ← Prev
                           </button>
-                          <div className="text-sm font-semibold truncate">{toTitleCaseFromCamel(category)} · {categoryIndex + 1}/{CATEGORIES.length}</div>
+                          <div className="text-sm font-semibold truncate">{slotTitle}</div>
                           <button
-                            onClick={() => categoryIndex === CATEGORIES.length - 1 ? setStep(3) : setCategoryIndex((i) => (i + 1) % CATEGORIES.length)}
+                            onClick={() => lastSlot ? setStep(3) : setSlotIndex((i) => i + 1)}
                             className="px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors text-xs sm:text-sm cursor-pointer"
                           >
-                            {categoryIndex === CATEGORIES.length - 1 ? "Finish →" : "Next →"}
+                            {lastSlot ? "Finish →" : "Next →"}
                           </button>
                         </div>
                       </div>
-                      <div className="px-4 sm:px-8 pt-6">
-                        {checklistNotes[category]?.trim() && (
-                          <div className="mb-4 rounded-xl border border-emerald-900/50 bg-emerald-950/30 p-3.5">
-                            <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                              📝 Your note from the visit
-                            </p>
-                            <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-200">
-                              {checklistNotes[category]}
-                            </p>
-                          </div>
-                        )}
-                        <ParkRankLane key={category} category={category} newParkName={parkInfo.name || "New Park"} initialRating={ratingsStore.get(category)} newParkImageUrl={imagePreview ?? undefined} excludeParkId={editingParkId ? Number(editingParkId) : null} onSetRating={(v) => ratingsStore.set(category, v)} />
-                      </div>
+                      {slot.kind === "coaster" ? (
+                        <div className="px-4 sm:px-8 pt-6">
+                          <p className="text-center text-xs text-gray-400">
+                            {slot.coaster.rating > 0
+                              ? `Rated ${slot.coaster.rating.toFixed(1)} before. Drag to re-rate it, or leave it where it is.`
+                              : "Not rated yet."}
+                            {slot.coaster.ridesThisVisit !== null && (
+                              slot.coaster.ridesThisVisit > 0
+                                ? ` Ridden ${slot.coaster.ridesThisVisit}× this visit.`
+                                : " Not ridden this visit."
+                            )}
+                          </p>
+                          <ParkRankLane
+                            key={`coaster:${slot.coaster.id}`}
+                            category={`coaster:${slot.coaster.id}`}
+                            coaster={{ id: slot.coaster.id, name: slot.coaster.name }}
+                            coasterOverrides={coasterRatings}
+                            newParkName={parkInfo.name || "New Park"}
+                            // Stored score; the lane keeps this session's score itself, and
+                            // feeding it back would rebuild the lane on every drop.
+                            initialRating={slot.coaster.rating}
+                            onSetRating={(v) => setCoasterRatings((r) => ({ ...r, [slot.coaster.id]: v }))}
+                          />
+                        </div>
+                      ) : category && (
+                        <div className="px-4 sm:px-8 pt-6">
+                          {(checklistNotes[category]?.trim() || (category === "coasterDepth" && depthLineup.rest.length > 0)) && (
+                            <div className="mb-4 rounded-xl border border-emerald-900/50 bg-emerald-950/30 p-3.5">
+                              {checklistNotes[category]?.trim() && (
+                                <>
+                                  <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                                    📝 Your note from the visit
+                                  </p>
+                                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-200">
+                                    {checklistNotes[category]}
+                                  </p>
+                                </>
+                              )}
+                              {category === "coasterDepth" && depthLineup.rest.length > 0 && (
+                                <div className={checklistNotes[category]?.trim() ? "mt-3 border-t border-emerald-900/50 pt-3" : ""}>
+                                  <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                                    🎢 Coaster scores
+                                  </p>
+                                  <ul className="space-y-1">
+                                    {depthLineup.rest.map((c) => (
+                                      <li key={c.id} className="flex items-baseline justify-between gap-3 text-sm">
+                                        <span className="truncate text-slate-200">{c.name}</span>
+                                        {c.score > 0 ? (
+                                          <span className={`font-bold tabular-nums ${getRatingColor(c.score)}`}>{c.score.toFixed(1)}</span>
+                                        ) : (
+                                          <span className="text-xs text-slate-500">not rated</span>
+                                        )}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                  <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-emerald-900/40 pt-2 text-xs text-slate-400">
+                                    <span>{depthLineup.best ? `${depthLineup.best.name} left out as the best coaster` : "Best coaster left out"}</span>
+                                    {depthLineup.average !== null && (
+                                      <span>
+                                        Average <span className={`font-bold tabular-nums ${getRatingColor(depthLineup.average)}`}>{depthLineup.average.toFixed(2)}</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          <ParkRankLane key={category} category={category} newParkName={parkInfo.name || "New Park"} initialRating={ratingsStore.get(category)} newParkImageUrl={imagePreview ?? undefined} excludeParkId={editingParkId ? Number(editingParkId) : null} onSetRating={(v) => ratingsStore.set(category, v)} />
+                        </div>
+                      )}
                     </motion.div>
                   )}
 
@@ -930,6 +1090,33 @@ const RatingModal: React.FC<ModalProps> = ({ closeModal, fetchRatingsAndParks })
                         {visitDetails.durationMinutes > 0 && <div><strong>Time:</strong> {formatDuration(visitDetails.durationMinutes * 60)}</div>}
                       </div>
                       <SummaryList categories={CATEGORIES} onEditCategory={(cat) => jumpToCategory(cat)} />
+                      {orderedCoasters.length > 0 && (
+                        <div className="border-t border-gray-700 pt-3 space-y-1">
+                          <p className="text-xs font-semibold text-gray-400">Coasters</p>
+                          {orderedCoasters.map((c) => {
+                            const score = coasterRatings[c.id] ?? c.rating;
+                            const changed = coasterRatings[c.id] !== undefined && coasterRatings[c.id] !== c.rating;
+                            return (
+                              <div key={c.id} className="flex items-center justify-between gap-3">
+                                <span className="truncate">{c.name}</span>
+                                <div className="flex items-center gap-2">
+                                  {changed && <span className="text-xs text-gray-500 tabular-nums">{c.rating > 0 ? c.rating.toFixed(1) : "–"} →</span>}
+                                  <span className={`font-semibold ${score > 0 ? getRatingColor(score) : "text-gray-500"}`}>{score > 0 ? score.toFixed(1) : "–"}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => jumpToCoaster(c.id)}
+                                    className="p-1 rounded hover:bg-gray-700"
+                                    aria-label={`Edit ${c.name}`}
+                                    title="Edit"
+                                  >
+                                    ✎
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                       <button onClick={submitData} disabled={loading} className={`mt-6 w-full p-3 text-white font-semibold rounded-md ${loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}>
                         {loading ? <Loading /> : "Submit All Ratings"}
                       </button>

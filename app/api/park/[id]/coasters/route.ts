@@ -187,16 +187,34 @@ export async function PATCH(
         const { id } = await context.params;
         const parkId = Number(id);
         const body = await req.json();
-        const { updates } = body;
+        const updates: { id: number; count: number }[] = Array.isArray(body.updates) ? body.updates : [];
+        // Scores from the review's coaster-by-coaster step: [{ id, rating }]
+        const ratingsIn: unknown[] = Array.isArray(body.ratings) ? body.ratings : [];
 
         if (isNaN(parkId)) {
             return NextResponse.json({ error: "Invalid park ID" }, { status: 400 });
         }
 
-        if (!updates || !Array.isArray(updates)) {
+        if (!Array.isArray(body.updates) && !Array.isArray(body.ratings)) {
             return NextResponse.json({ error: "Invalid updates array" }, { status: 400 });
         }
 
+        // Legal scores: 0 to 10 in half steps, or 11 (the GOAT score).
+        const ratings: { id: number; rating: number }[] = [];
+        for (const raw of ratingsIn) {
+            const r = raw as { id?: unknown; rating?: unknown };
+            const id = Number(r?.id);
+            const rating = Number(r?.rating);
+            const legal = Number.isFinite(rating) && (rating === 11 || (rating >= 0 && rating <= 10 && Math.round(rating * 2) === rating * 2));
+            if (!Number.isInteger(id) || id <= 0 || !legal) {
+                return NextResponse.json({ error: "Invalid coaster rating" }, { status: 400 });
+            }
+            ratings.push({ id, rating });
+        }
+
+        const rated: { id: number; name: string; old: number; new: number }[] = [];
+        // Outside the transaction: adding the column would wait on its own row locks.
+        if (ratings.length > 0) await ensureTieRankColumn();
         const client = await pool.connect();
         try {
             await client.query("BEGIN");
@@ -211,12 +229,47 @@ export async function PATCH(
                 );
             }
 
+            if (ratings.length > 0) {
+                const current = await client.query<{ id: number; name: string; rating: string | number | null }>(
+                    "SELECT id, name, rating FROM rollercoasters WHERE park_id = $1 AND id = ANY($2::int[]) FOR UPDATE",
+                    [parkId, ratings.map((r) => r.id)]
+                );
+                const byId = new Map(current.rows.map((row) => [row.id, row]));
+                for (const r of ratings) {
+                    const row = byId.get(r.id);
+                    if (!row) continue; // not this park's coaster
+                    const old = Number(row.rating) || 0;
+                    if (old === r.rating) continue;
+                    // A rated coaster has been ridden. A new score means a new tie
+                    // group, so the agreed position no longer applies (tiebreak tool).
+                    await client.query(
+                        `UPDATE rollercoasters
+                         SET rating = $1::numeric, haveridden = haveridden OR $1::numeric > 0, tie_rank = NULL
+                         WHERE id = $2 AND park_id = $3`,
+                        [r.rating, r.id, parkId]
+                    );
+                    rated.push({ id: r.id, name: row.name, old, new: r.rating });
+                }
+            }
+
             await client.query("COMMIT");
         } catch (e) {
             await client.query("ROLLBACK");
             throw e;
         } finally {
             client.release();
+        }
+
+        for (const r of rated) {
+            logChange({
+                parkId,
+                entityType: "coaster",
+                entityId: r.id,
+                label: r.name,
+                action: "update",
+                summary: `Rated ${r.name} in the review: ${r.old.toFixed(1)} → ${r.new.toFixed(1)}`,
+                details: { rating: { old: r.old, new: r.new } },
+            });
         }
 
         const applied = updates.filter((u) => u.id && u.count);
@@ -233,7 +286,7 @@ export async function PATCH(
             });
         }
 
-        return NextResponse.json({ success: true }, { status: 200 });
+        return NextResponse.json({ success: true, rated: rated.length }, { status: 200 });
     } catch (error) {
         console.error("Failed to sync coasters:", error);
         return NextResponse.json({ error: "Sync failed" }, { status: 500 });
