@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { getRatingColor } from "../utils/design";
-import { matchSearch, searchHref, useSearchIndex } from "./SearchBar";
+import { coasterCount, matchSearch, searchHref, useSearchIndex } from "./SearchBar";
 
 /**
  * The phone search: a full-width field that drops in under the header with the
@@ -19,7 +19,7 @@ export default function MobileSearch({ open, onClose }: { open: boolean; onClose
   const idx = useSearchIndex();
   const q = val.trim();
   const r = matchSearch(q, idx);
-  const total = r.parks.length + r.coasters.length + r.manufacturers.length + r.models.length;
+  const total = r.parks.length + r.coasters.length + r.manufacturers.length;
 
   // focus on open, clear on close, Escape closes, no page scroll behind
   useEffect(() => {
@@ -94,13 +94,7 @@ export default function MobileSearch({ open, onClose }: { open: boolean; onClose
             {r.manufacturers.length > 0 && (
               <div>
                 <p className={label}>Manufacturers</p>
-                {r.manufacturers.map((m) => <Row key={`m${m.id}`} title={m.name} decimals={0} href={searchHref("manufacturer", m)} />)}
-              </div>
-            )}
-            {r.models.length > 0 && (
-              <div>
-                <p className={label}>Ride models</p>
-                {r.models.map((m) => <Row key={`o${m.id}`} title={m.name} sub={m.manufacturerName} decimals={0} href={searchHref("model", m)} />)}
+                {r.manufacturers.map((m) => <Row key={`m${m.id}`} title={m.name} sub={coasterCount(m)} decimals={0} href={searchHref("manufacturer", m)} />)}
               </div>
             )}
           </div>

@@ -5,7 +5,7 @@ import { pool } from "@/app/lib/db";
 // the full endpoints. Cacheable for repeat visitors.
 export async function GET() {
   try {
-    const [parksRes, coastersRes, manRes, modRes] = await Promise.all([
+    const [parksRes, coastersRes, manRes] = await Promise.all([
       pool.query(`
         SELECT p.id, p.name, p.country, p.slug, l.overall
         FROM parks p
@@ -24,23 +24,16 @@ export async function GET() {
         WHERE rc.rating IS NOT NULL AND rc.slug IS NOT NULL
         ORDER BY rc.rating DESC
       `),
+      // Only makers with rated coasters: a manufacturer result opens the coaster
+      // list filtered to that maker, and the list holds rated coasters only.
       pool.query(`
-        SELECT id, name
-        FROM manufacturers 
-        ORDER BY name ASC
+        SELECT m.id, m.name, COUNT(rc.id)::int AS coasters
+        FROM manufacturers m
+        JOIN rollercoasters rc ON rc.manufacturer_id = m.id
+        WHERE rc.rating > 0
+        GROUP BY m.id, m.name
+        ORDER BY m.name ASC
       `),
-      // Fallback catch to safely handle either table naming convention 
-      pool.query(`
-        SELECT rm.id, rm.name, m.name AS manufacturer_name, m.id AS manufacturer_id
-        FROM ride_models rm
-        LEFT JOIN manufacturers m ON m.id = rm.manufacturer_id
-        ORDER BY rm.name ASC
-      `).catch(() => pool.query(`
-        SELECT rm.id, rm.name, m.name AS manufacturer_name, m.id AS manufacturer_id
-        FROM ridemodels rm
-        LEFT JOIN manufacturers m ON m.id = rm.manufacturer_id
-        ORDER BY rm.name ASC
-      `)),
     ]);
 
     return NextResponse.json(
@@ -54,11 +47,8 @@ export async function GET() {
           rating: r.rating == null ? undefined : Number(r.rating),
         })),
         manufacturers: manRes.rows.map(r => ({
-          id: r.id, name: r.name
+          id: r.id, name: r.name, coasters: r.coasters,
         })),
-        models: modRes.rows.map(r => ({
-          id: r.id, name: r.name, manufacturerName: r.manufacturer_name, manufacturerId: r.manufacturer_id
-        }))
       },
       { headers: { "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=3600" } }
     );

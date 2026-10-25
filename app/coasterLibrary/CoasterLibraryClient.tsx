@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, Suspense } from "react";
+import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { getRatingColor } from "@/app/utils/design";
+import { slugify } from "@/app/lib/slug";
 import { useSearch } from "@/app/context/SearchContext";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import type { RollerCoasterSpecs } from "@/app/types";
@@ -139,11 +140,70 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
   const q = rawQuery.trim().toLowerCase();
   const setQuery = searchCtx?.setQuery;
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const urlQ = searchParams.get("q");
     if (urlQ && setQuery) setQuery(urlQ);
   }, [searchParams, setQuery]);
+
+  // Makers by lower-case name and by URL slug ("vekoma", "mack-rides", "b-m").
+  // When the search box holds exactly a maker's name it is a manufacturer filter:
+  // exact match on the maker, mirrored in the address bar as ?manufacturer=<slug>.
+  const makers = useMemo(() => {
+    const byName = new Map<string, string>(), bySlug = new Map<string, string>();
+    for (const c of coasters) {
+      if (!c.manufacturer || c.manufacturer === "Unknown") continue;
+      byName.set(c.manufacturer.toLowerCase(), c.manufacturer);
+      bySlug.set(slugify(c.manufacturer), c.manufacturer);
+    }
+    return { byName, bySlug };
+  }, [coasters]);
+  const maker = makers.byName.get(q) ?? null;
+  const makerSlug = maker ? slugify(maker) : null;
+  const makerSlugRef = useRef(makerSlug);
+  makerSlugRef.current = makerSlug;
+
+  // ?manufacturer=vekoma (a fresh load, or the navbar search while this page is
+  // open) puts the maker in the box and ranks by score; the param going away
+  // through navigation (back button, the Coasters link) clears it again.
+  const urlMaker = searchParams.get("manufacturer");
+  const prevUrlMaker = useRef<string | null>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const prev = prevUrlMaker.current;
+    prevUrlMaker.current = urlMaker;
+    const wanted = urlMaker ? makers.bySlug.get(slugify(urlMaker)) ?? null : null;
+    if ((wanted ? slugify(wanted) : null) === makerSlugRef.current) return; // the box already says so
+    if (wanted) {
+      setQuery?.(wanted);
+      setSortBy("rating");
+      setSortDir("desc");
+      // on a phone the hero fills the screen: bring the box and the list up
+      requestAnimationFrame(() => {
+        const el = controlsRef.current;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        if (r.bottom > window.innerHeight - 200) window.scrollTo({ top: window.scrollY + r.top });
+      });
+    } else if (prev && !urlMaker) {
+      setQuery?.("");
+    }
+  }, [urlMaker, makers, setQuery]);
+
+  // Every edit of the box goes through here so the address bar keeps up.
+  function setFilter(text: string) {
+    setQuery?.(text);
+    const m = makers.byName.get(text.trim().toLowerCase());
+    const slug = m ? slugify(m) : null;
+    if (slug === urlMaker && !searchParams.has("q")) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("q"); // a ?q= link no longer describes the box once it is edited
+    if (slug) params.set("manufacturer", slug); else params.delete("manufacturer");
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
 
   useEffect(() => () => { if (setQuery) setQuery(""); }, []);
 
@@ -165,6 +225,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
 
   const filtered = useMemo<Coaster[]>(() => {
     if (!q) return coasters;
+    if (maker) return coasters.filter(c => c.manufacturer === maker);
     return coasters.filter(c => {
       const hay = [
         c.name, c.parkName, c.country, c.manufacturer, c.model, c.specs?.type,
@@ -174,7 +235,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
       ].filter(Boolean).join(" ").toLowerCase();
       return hay.includes(q);
     });
-  }, [coasters, q]);
+  }, [coasters, q, maker]);
 
   const sorted = useMemo<Coaster[]>(() => {
     return [...filtered].sort((a, b) => {
@@ -271,7 +332,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
       </div>
 
       {/* ── Controls ─────────────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4 space-y-4">
+      <div ref={controlsRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4 space-y-4">
         <div className="relative group max-w-2xl mx-auto">
           <div className="absolute -inset-[1.5px] rounded-xl bg-gradient-to-r from-brand via-amber-500 to-orange-600 opacity-30 blur-sm group-focus-within:opacity-60 transition" />
           <div className="relative rounded-xl bg-slate-900 border border-slate-700">
@@ -281,14 +342,14 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
               </svg>
               <input
                 value={rawQuery}
-                onChange={e => setQuery?.(e.target.value)}
+                onChange={e => setFilter(e.target.value)}
                 placeholder="Search by name, park, manufacturer, rating, year…"
                 className="w-full bg-transparent outline-none text-sm text-slate-100 placeholder:text-slate-500"
                 aria-label="Search coasters"
               />
               {rawQuery && (
                 <button
-                  onClick={() => setQuery?.("")}
+                  onClick={() => setFilter("")}
                   className="text-xs px-2.5 py-1 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition cursor-pointer"
                 >
                   Clear
@@ -387,7 +448,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                       {colOn("country") && (
                         <>
                           {" · "}
-                          <button onClick={() => setQuery?.(c.country)} className="hover:text-brand transition-colors cursor-pointer">
+                          <button onClick={() => setFilter(c.country)} className="hover:text-brand transition-colors cursor-pointer">
                             {c.country}
                           </button>
                         </>
@@ -400,7 +461,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                   {/* aligned data columns, desktop only */}
                   {colOn("manufacturer") && (
                     <button
-                      onClick={() => setQuery?.(c.manufacturer)}
+                      onClick={() => setFilter(c.manufacturer)}
                       className="hidden md:block truncate text-left text-[13px] text-slate-300 hover:text-brand-light transition cursor-pointer"
                     >
                       {c.manufacturer}
@@ -416,7 +477,7 @@ function CoasterRatingsContent({ initialCoasters }: { initialCoasters?: any[] })
                   )}
                   {colOn("country") && (
                     <button
-                      onClick={() => setQuery?.(c.country)}
+                      onClick={() => setFilter(c.country)}
                       className="hidden md:block truncate text-left text-[13px] text-slate-400 hover:text-brand-light transition cursor-pointer"
                     >
                       {c.country}

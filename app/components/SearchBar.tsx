@@ -3,11 +3,11 @@
 import React, { useState, useRef, useEffect, useId } from "react";
 import { useRouter } from "next/navigation";
 import { getRatingColor } from "../utils/design";
+import { slugify } from "../lib/slug";
 
 export type SPark = { id: number; name: string; country: string; slug: string; overall?: number };
 export type SCoaster = { id: number; name: string; parkName: string; slug: string; rating?: number };
-export type SManufacturer = { id: number; name: string };
-export type SModel = { id: number; name: string; manufacturerName?: string; manufacturerId?: number };
+export type SManufacturer = { id: number; name: string; coasters?: number };
 
 // Lower-case and strip accents and special letters so plain typing matches
 function fold(s: string): string {
@@ -17,17 +17,17 @@ function fold(s: string): string {
     .replace(/ß/g, "ss").replace(/ł/g, "l").replace(/đ/g, "d");
 }
 
-export type SearchIndex = { parks: SPark[]; coasters: SCoaster[]; manufacturers: SManufacturer[]; models: SModel[]; loaded: boolean };
-const EMPTY: SearchIndex = { parks: [], coasters: [], manufacturers: [], models: [], loaded: false };
+export type SearchIndex = { parks: SPark[]; coasters: SCoaster[]; manufacturers: SManufacturer[]; loaded: boolean };
+const EMPTY: SearchIndex = { parks: [], coasters: [], manufacturers: [], loaded: false };
 let indexPromise: Promise<Partial<SearchIndex>> | null = null;   // one download per page, shared by every search box
 
-/** The site's search index (parks, coasters, manufacturers, models), fetched once. */
+/** The site's search index (parks, coasters, manufacturers), fetched once. */
 export function useSearchIndex(): SearchIndex {
   const [idx, setIdx] = useState<SearchIndex>(EMPTY);
   useEffect(() => {
     if (!indexPromise) indexPromise = fetch("/api/search-index").then(r => (r.ok ? r.json() : {})).catch(err => { console.error("Failed to load search index", err); return {}; });
     let alive = true;
-    indexPromise.then(d => { if (alive) setIdx({ parks: d.parks || [], coasters: d.coasters || [], manufacturers: d.manufacturers || [], models: d.models || [], loaded: true }); });
+    indexPromise.then(d => { if (alive) setIdx({ parks: d.parks || [], coasters: d.coasters || [], manufacturers: d.manufacturers || [], loaded: true }); });
     return () => { alive = false; };
   }, []);
   return idx;
@@ -35,12 +35,12 @@ export function useSearchIndex(): SearchIndex {
 
 /**
  * Every word of the query must appear in the name (plus country for parks, park for
- * coasters, maker for models). A country query also lists the best coasters in that
- * country's parks, so "germany" gives the German parks and their top rides.
+ * coasters). A country query also lists the best coasters in that country's parks,
+ * so "germany" gives the German parks and their top rides.
  */
 export function matchSearch(q: string, idx: SearchIndex) {
   const words = fold(q.trim()).split(/\s+/).filter(Boolean);
-  if (!words.length) return { parks: [] as SPark[], coasters: [] as SCoaster[], manufacturers: [] as SManufacturer[], models: [] as SModel[], country: null as string | null };
+  if (!words.length) return { parks: [] as SPark[], coasters: [] as SCoaster[], manufacturers: [] as SManufacturer[], country: null as string | null };
   const hits = (...fields: string[]) => { const hay = fold(fields.join(" ")); return words.every(w => hay.includes(w)); };
   const countryParks = idx.parks.filter(p => words.every(w => fold(p.country).includes(w)));
   const country = countryParks.length ? countryParks[0].country : null;
@@ -48,16 +48,19 @@ export function matchSearch(q: string, idx: SearchIndex) {
   const parks = idx.parks.filter(p => hits(p.name, p.country)).sort((a, b) => (b.overall ?? 0) - (a.overall ?? 0)).slice(0, country ? 6 : 4);
   const coasters = idx.coasters.filter(c => hits(c.name, c.parkName) || inCountry.has(c.parkName)).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 5);
   const manufacturers = idx.manufacturers.filter(m => hits(m.name)).slice(0, 3);
-  const models = idx.models.filter(m => hits(m.name, m.manufacturerName || "")).slice(0, 3);
-  return { parks, coasters, manufacturers, models, country };
+  return { parks, coasters, manufacturers, country };
 }
 
-export function searchHref(type: "park" | "coaster" | "manufacturer" | "model", item: any): string {
+/** A maker opens the coaster list filtered to that maker: /coasterLibrary?manufacturer=vekoma */
+export function searchHref(type: "park" | "coaster" | "manufacturer", item: any): string {
   if (type === "park") return `/park/${item.slug}`;
   if (type === "coaster") return `/coasters/${item.slug}`;
-  if (type === "manufacturer") return `/manufacturers/directory?mfg=${item.id}`;
-  return `/manufacturers/directory?mfg=${item.manufacturerId}&model=${item.id}`;
+  return `/coasterLibrary?manufacturer=${slugify(item.name)}`;
 }
+
+/** "30 coasters", the line under a maker's name */
+export const coasterCount = (m: SManufacturer) =>
+  m.coasters ? `${m.coasters} ${m.coasters === 1 ? "coaster" : "coasters"}` : undefined;
 
 const SearchBar = ({ collapsible = false }: { collapsible?: boolean }) => {
   const [open, setOpen] = useState(false);
@@ -72,18 +75,17 @@ const SearchBar = ({ collapsible = false }: { collapsible?: boolean }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const q = val.trim().toLowerCase();
-  const { parks: matchedParks, coasters: matchedCoasters, manufacturers: matchedManufacturers, models: matchedModels } = matchSearch(val, idx);
+  const { parks: matchedParks, coasters: matchedCoasters, manufacturers: matchedManufacturers } = matchSearch(val, idx);
 
   const pLen = matchedParks.length;
   const cLen = matchedCoasters.length;
   const mLen = matchedManufacturers.length;
-  const moLen = matchedModels.length;
-  const total = pLen + cLen + mLen + moLen;
+  const total = pLen + cLen + mLen;
 
   const hasResults = total > 0;
   const showDrop = open && q.length > 0;
 
-  function navigate(type: "park" | "coaster" | "manufacturer" | "model", item: any) {
+  function navigate(type: "park" | "coaster" | "manufacturer", item: any) {
     router.push(searchHref(type, item));
 
     setVal("");
@@ -109,16 +111,16 @@ const SearchBar = ({ collapsible = false }: { collapsible?: boolean }) => {
       e.preventDefault();
       setActiveIdx(i => Math.max(i - 1, -1));
     }
-    if (e.key === "Enter" && activeIdx >= 0) {
+    // Enter opens the highlighted result, or the top one when nothing is highlighted
+    if (e.key === "Enter" && total > 0) {
       e.preventDefault();
-      if (activeIdx < pLen) {
-        navigate("park", matchedParks[activeIdx]);
-      } else if (activeIdx < pLen + cLen) {
-        navigate("coaster", matchedCoasters[activeIdx - pLen]);
-      } else if (activeIdx < pLen + cLen + mLen) {
-        navigate("manufacturer", matchedManufacturers[activeIdx - pLen - cLen]);
+      const i = activeIdx >= 0 ? activeIdx : 0;
+      if (i < pLen) {
+        navigate("park", matchedParks[i]);
+      } else if (i < pLen + cLen) {
+        navigate("coaster", matchedCoasters[i - pLen]);
       } else {
-        navigate("model", matchedModels[activeIdx - pLen - cLen - mLen]);
+        navigate("manufacturer", matchedManufacturers[i - pLen - cLen]);
       }
     }
   }
@@ -276,29 +278,9 @@ const SearchBar = ({ collapsible = false }: { collapsible?: boolean }) => {
                   <button key={`manuf-${m.id}`} role="option" className={itemCls(idx)} onMouseEnter={() => setActiveIdx(idx)} onClick={() => navigate("manufacturer", m)}>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-white truncate">{m.name}</p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Models */}
-          {loaded && matchedModels.length > 0 && (
-            <div className={(total - moLen > 0) ? "border-t border-slate-800/60 mt-1 pt-1" : ""}>
-              <div className="flex items-center gap-2 px-3 pt-3 pb-1">
-                <span className="text-sm">📐</span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-brand">Ride Models</span>
-              </div>
-              {matchedModels.map((m, i) => {
-                const idx = pLen + cLen + mLen + i;
-                return (
-                  <button key={`model-${m.id}`} role="option" className={itemCls(idx)} onMouseEnter={() => setActiveIdx(idx)} onClick={() => navigate("model", m)}>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-white truncate">{m.name}</p>
-                      {m.manufacturerName && (
-                        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider truncate">{m.manufacturerName}</p>
-                      )}
+                      {m.coasters ? (
+                        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{coasterCount(m)}</p>
+                      ) : null}
                     </div>
                   </button>
                 );
