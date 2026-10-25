@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import type { Checklist, ChecklistItem, ChecklistSession } from "@/app/types";
+import type { Checklist, ChecklistSession } from "@/app/types";
+import AuthenticationModal from "@/app/components/admin/AuthenticationModal";
+import { useChecklistSync, type SyncStatus } from "./useChecklistSync";
 
 // Note keys must match RatingModal's CATEGORIES so the review modal can show them
 const NOTE_CATEGORIES = [
@@ -39,24 +41,13 @@ function sameDay(a: string, b: string) {
 }
 
 export default function ChecklistClient({ checklist }: { checklist: Checklist }) {
-  const [items, setItems] = useState<ChecklistItem[]>(checklist.items || []);
+  const { view, status, pending, actions } = useChecklistSync(checklist);
+  const { items, notes, sessions } = view;
+  const visitFinished = view.is_finished;
   const [showCelebration, setShowCelebration] = useState(checklist.is_finished || false);
-  const [visitFinished, setVisitFinished] = useState<boolean>(checklist.is_finished || false);
-  const [visitEnd, setVisitEnd] = useState<string | null>(checklist.visit_end ?? null);
-  const [finalDuration, setFinalDuration] = useState<number>(checklist.duration || 0);
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
-  const [notes, setNotes] = useState<Record<string, string>>(checklist.notes ?? {});
   const [openNote, setOpenNote] = useState<string | null>(null);
-
-  // Sessions: pause/resume and multiday visits create several segments.
-  // Older checklists only stored visit_start/visit_end — migrate on the fly.
-  const [sessions, setSessions] = useState<ChecklistSession[]>(() => {
-    if (checklist.sessions && checklist.sessions.length > 0) return checklist.sessions;
-    if (checklist.visit_start) {
-      return [{ start: checklist.visit_start, end: checklist.is_finished ? (checklist.visit_end ?? null) : null }];
-    }
-    return [];
-  });
+  const [showLogin, setShowLogin] = useState(false);
 
   const activeSession = sessions.length > 0 && !sessions[sessions.length - 1].end
     ? sessions[sessions.length - 1] : null;
@@ -76,7 +67,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
     Math.max(0, Math.floor(((s.end ? new Date(s.end).getTime() : now) - new Date(s.start).getTime()) / 1000));
 
   const elapsedSeconds = visitFinished
-    ? finalDuration
+    ? view.duration
     : sessions.reduce((sum, s) => sum + sessionSeconds(s), 0);
 
   const pausedForSeconds = isPaused
@@ -95,71 +86,24 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
   const isMultiday = dayKeys.length > 1;
   const dayNumber = (iso: string) => dayKeys.indexOf(new Date(iso).toDateString()) + 1;
 
-  async function syncToDatabase(payload: Partial<Checklist>) {
-    try {
-      await fetch(`/api/checklists/${checklist.slug}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items,
-          visit_start: visitStart,
-          visit_end: visitEnd,
-          duration: elapsedSeconds,
-          is_finished: visitFinished,
-          sessions,
-          notes,
-          ...payload,
-        }),
-      });
-    } catch (err) {
-      console.error("Failed to sync checklist to DB", err);
-    }
-  }
-
   function handleBeginVisit() {
-    const nowIso = new Date().toISOString();
-    const newSessions = [{ start: nowIso, end: null }];
-    setSessions(newSessions);
-    setVisitFinished(false);
-    setVisitEnd(null);
-    syncToDatabase({ sessions: newSessions, visit_start: nowIso, is_finished: false, visit_end: null, duration: 0 });
+    actions.timer("start");
   }
 
   function handlePause() {
     if (!activeSession) return;
-    const nowIso = new Date().toISOString();
-    const newSessions = sessions.map((s, i) => i === sessions.length - 1 ? { ...s, end: nowIso } : s);
-    setSessions(newSessions);
-    const dur = newSessions.reduce((sum, s) =>
-      sum + Math.floor((new Date(s.end!).getTime() - new Date(s.start).getTime()) / 1000), 0);
-    syncToDatabase({ sessions: newSessions, duration: dur });
+    actions.timer("pause");
   }
 
   function handleResume() {
     if (!isPaused) return;
-    const nowIso = new Date().toISOString();
-    const newSessions = [...sessions, { start: nowIso, end: null }];
-    setSessions(newSessions);
-    syncToDatabase({ sessions: newSessions });
+    actions.timer("resume");
   }
 
   function handleComplete() {
     if (!allCompleted || visitFinished) return;
-    const nowIso = new Date().toISOString();
-    // Close the running session; if paused, sessions are already closed
-    const newSessions = activeSession
-      ? sessions.map((s, i) => i === sessions.length - 1 ? { ...s, end: nowIso } : s)
-      : sessions;
-    const dur = newSessions.reduce((sum, s) =>
-      sum + Math.floor((new Date(s.end!).getTime() - new Date(s.start).getTime()) / 1000), 0);
-    const endIso = newSessions[newSessions.length - 1]?.end ?? nowIso;
-
-    setSessions(newSessions);
-    setFinalDuration(dur);
-    setVisitFinished(true);
-    setVisitEnd(endIso);
+    actions.timer("complete");
     setShowCelebration(true);
-    syncToDatabase({ sessions: newSessions, duration: dur, is_finished: true, visit_end: endIso });
   }
 
   function toggleItem(id: string) {
@@ -171,41 +115,23 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
       setCompletingIds(prev => new Set([...prev, id]));
       setTimeout(() => {
         setCompletingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
-        const newItems = items.map(i => i.id === id ? { ...i, checked: true } : i);
-        setItems(newItems);
-        syncToDatabase({ items: newItems });
+        actions.setItem(id, { checked: true });
       }, 420);
     } else {
-      const newItems = items.map(i => i.id === id ? { ...i, checked: false } : i);
-      setItems(newItems);
-      syncToDatabase({ items: newItems });
+      actions.setItem(id, { checked: false });
     }
   }
 
   function toggleSkipItem(id: string) {
-    const newItems = items.map(i => i.id === id ? { ...i, skipped: !i.skipped } : i);
-    setItems(newItems);
-    syncToDatabase({ items: newItems });
+    actions.toggleSkip(id);
   }
 
   function updateRideCount(id: string, delta: number) {
-    const nowIso = new Date().toISOString();
-    const newItems = items.map(i => {
-      if (i.id !== id) return i;
-      const newCount = Math.max(0, (i.rideCount || 0) + delta);
-      return { ...i, rideCount: newCount, rideCountLastModified: nowIso };
-    });
-    setItems(newItems);
-    syncToDatabase({ items: newItems });
+    actions.changeRideCount(id, delta);
   }
 
-  // Notes save with a short debounce so we don't PATCH per keystroke
-  const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   function updateNote(key: string, value: string) {
-    const newNotes = { ...notes, [key]: value };
-    setNotes(newNotes);
-    if (noteTimer.current) clearTimeout(noteTimer.current);
-    noteTimer.current = setTimeout(() => syncToDatabase({ notes: newNotes }), 800);
+    actions.setNote(key, value);
   }
 
   function timeAgo(iso: string | null | undefined): string | null {
@@ -629,7 +555,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                           <textarea
                             value={value}
                             onChange={(e) => updateNote(cat.key, e.target.value)}
-                            onBlur={() => syncToDatabase({ notes })}
+                            onBlur={() => actions.flushNow()}
                             placeholder={`Notes on ${cat.label.toLowerCase()}…`}
                             rows={3}
                             className="w-full resize-y rounded-lg border border-slate-700 bg-slate-900 p-2.5 text-sm text-slate-100 placeholder-slate-600 focus:border-emerald-500 focus:outline-none"
@@ -672,6 +598,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center pb-8 pt-4 sm:pb-6">
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent" />
           <div className="pointer-events-auto relative w-full max-w-xl px-4">
+            <SyncNotice status={status} pending={pending} onLogin={() => setShowLogin(true)} />
             {!visitStart ? (
               <button onClick={handleBeginVisit} className="flex min-h-[56px] w-full items-center justify-center rounded-2xl bg-emerald-500 px-4 text-base font-bold text-slate-950 shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 active:scale-[0.98] cursor-pointer">
                 Start Visit ⏱️
@@ -708,6 +635,16 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
           </div>
         </div>
       </div>
+
+      {showLogin && (
+        <AuthenticationModal
+          onClose={() => setShowLogin(false)}
+          onAuthenticated={() => {
+            setShowLogin(false);
+            actions.retryAfterLogin();
+          }}
+        />
+      )}
 
       {/* ── Celebration modal ── */}
       <AnimatePresence>
@@ -766,4 +703,70 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
       </AnimatePresence>
     </main>
   );
+}
+
+/**
+ * Quiet while everything is saved. Says so plainly when changes are only on
+ * this phone: no connection (they sync on their own) or not logged in (they
+ * wait for a login and are never dropped).
+ */
+function SyncNotice({ status, pending, onLogin }: { status: SyncStatus; pending: number; onLogin: () => void }) {
+  const [showSaving, setShowSaving] = useState(false);
+  const [justSynced, setJustSynced] = useState(false);
+  const [wasOffline, setWasOffline] = useState(false);
+
+  // A save normally takes a fraction of a second; only mention it if it lingers.
+  useEffect(() => {
+    if (status !== "saving") { setShowSaving(false); return; }
+    const t = setTimeout(() => setShowSaving(true), 1500);
+    return () => clearTimeout(t);
+  }, [status]);
+
+  useEffect(() => {
+    if (status === "offline" || status === "unauthorized") { setWasOffline(true); return; }
+    if (status === "saved" && wasOffline) {
+      setWasOffline(false);
+      setJustSynced(true);
+      const t = setTimeout(() => setJustSynced(false), 2500);
+      return () => clearTimeout(t);
+    }
+  }, [status, wasOffline]);
+
+  const changes = `${pending} change${pending === 1 ? "" : "s"}`;
+
+  if (status === "unauthorized") {
+    return (
+      <div className="mb-2 flex items-center gap-3 rounded-xl border border-amber-500/30 bg-slate-900/95 px-3 py-2.5 text-xs text-amber-200 shadow-lg">
+        <span className="flex-1 leading-snug">
+          This phone isn&apos;t logged in, so nothing reaches the site.
+          {pending > 0 ? ` ${changes} kept on this phone.` : ""}
+        </span>
+        <button
+          onClick={onLogin}
+          className="shrink-0 rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-300 cursor-pointer"
+        >
+          Log in
+        </button>
+      </div>
+    );
+  }
+
+  if (status === "offline") {
+    return (
+      <div className="mb-2 flex items-center gap-2.5 rounded-xl border border-amber-500/30 bg-slate-900/95 px-3 py-2.5 text-xs leading-snug text-amber-200 shadow-lg">
+        <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-amber-400" />
+        <span>No connection. {changes} kept on this phone, sent as soon as you&apos;re back online.</span>
+      </div>
+    );
+  }
+
+  let line: ReactNode = null;
+  if (showSaving) {
+    line = <span className="text-slate-400">Saving…</span>;
+  } else if (justSynced) {
+    line = <span className="text-emerald-400">All changes synced</span>;
+  }
+
+  if (!line) return null;
+  return <p className="mb-2 text-center text-[11px] font-medium">{line}</p>;
 }

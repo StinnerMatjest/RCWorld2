@@ -45,6 +45,10 @@ export interface Visit {
   parkId: number;
   published: boolean;
   warnings?: RatingWarningType[];
+  /** This visit's own header photo and crop; absent = the park's header. */
+  headerImagepath?: string | null;
+  headerFocus?: string | null;
+  headerImageSize?: ImageSize;
 }
 
 export interface RatingWarningType {
@@ -352,6 +356,8 @@ export type Checklist = {
   sessions?: ChecklistSession[] | null;
   // Per-rating-category notes, keyed like RatingModal's CATEGORIES (camelCase)
   notes?: Record<string, string> | null;
+  // Count of saved changes; lets the page ignore a server copy older than one it already has
+  rev?: number;
 };
 
 // --- Directory Specific Types ---

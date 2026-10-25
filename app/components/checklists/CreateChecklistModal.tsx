@@ -113,10 +113,11 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
                 { id: "pic-park-3", label: "Park appearance 3", checked: false, isPhotoTask: true }
             );
 
-            // Always last: Buy a mug
-            newItems.push({
-                id: "buy-mug", label: "Buy a mug!", checked: false, isPhotoTask: false
-            });
+            // Always last: Buy a mug, then don't leave anything behind
+            newItems.push(
+                { id: "buy-mug", label: "Buy a mug!", checked: false, isPhotoTask: false },
+                { id: "remember-things", label: "Remember your things!", checked: false, isPhotoTask: false }
+            );
 
             // Construct checklist payload with unique timestamp
             const timestamp = Date.now();
@@ -262,7 +263,8 @@ export default function CreateChecklistModal({ parks }: { parks: Park[] }) {
                 { id: "pic-park-1", label: "Park appearance 1", checked: false, isPhotoTask: true },
                 { id: "pic-park-2", label: "Park appearance 2", checked: false, isPhotoTask: true },
                 { id: "pic-park-3", label: "Park appearance 3", checked: false, isPhotoTask: true },
-                { id: "buy-mug", label: "Buy a mug!", checked: false, isPhotoTask: false }
+                { id: "buy-mug", label: "Buy a mug!", checked: false, isPhotoTask: false },
+                { id: "remember-things", label: "Remember your things!", checked: false, isPhotoTask: false }
             );
 
             const currentYear = new Date().getFullYear();
