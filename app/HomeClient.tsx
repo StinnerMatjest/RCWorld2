@@ -267,14 +267,11 @@ const FULL_BLEED_GROUPS = [
   { emoji: "📋", label: "Mgmt", getValue: (r: Visit) => avg(r.rideOperations, r.parkManagement), keys: ["rideOperations", "parkManagement", "Ride Operations", "Park Management"] },
 ];
 
-const CARD_CATS = ["coasters", "rides", "park", "food", "mgmt"] as const;
-type CardCat = typeof CARD_CATS[number];
 
-const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, park, isActive = false, autoCycle = true, delayIndex = 0, eager = false, first = false, defer = false, preloadAll = false, assumedScreen = "desktop", onImgReady }: { rating: Visit; park: Park; isActive?: boolean; autoCycle?: boolean; delayIndex?: number; eager?: boolean; first?: boolean; /** Off-screen cards get their image address only when near view (phone strip). */ defer?: boolean; /** After the first interaction: load every deferred card in the background. */ preloadAll?: boolean; assumedScreen?: keyof typeof ASSUMED_SCREEN; onImgReady?: () => void }) {
+const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0, eager = false, first = false, defer = false, preloadAll = false, assumedScreen = "desktop", onImgReady }: { rating: Visit; park: Park; isActive?: boolean; delayIndex?: number; eager?: boolean; first?: boolean; /** Off-screen cards get their image address only when near view (phone strip). */ defer?: boolean; /** After the first interaction: load every deferred card in the background. */ preloadAll?: boolean; assumedScreen?: keyof typeof ASSUMED_SCREEN; onImgReady?: () => void }) {
   const headerSrc = park.imagepath || "/images/error.PNG";
   // The card photo as framed in the editor, or its cut when one is ready.
-  // Memoised: it feeds the hover/cycle callbacks and the mobile effect below,
-  // and a fresh object per render made that effect cancel in-flight fades.
+  // Memoised so the mount effect below sees one stable entry.
   const header = useMemo(() => resolveEntry(
     park.cardImagepath || headerSrc,
     park.imageFocus || "0.5 0.5 1",
@@ -288,11 +285,6 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
 
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const slotAFocusRef = useRef<string>(cardFocusStr);
-  const slotBFocusRef = useRef<string>(cardFocusStr);
-  // Logical (un-optimized) src per slot — DOM .src now holds the /_next/image
-  // rewrite, so "which image is this slot showing" must be tracked separately.
-  const slotARawSrcRef = useRef<string>(cardSrc);
-  const slotBRawSrcRef = useRef<string>(cardSrc);
 
   // Returns the device-pixel scale of the drawn image (>1 means the source was enlarged).
   const applyFocusToImg = useCallback((img: HTMLImageElement, focusStr: string): number => {
@@ -322,30 +314,9 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     return true;
   }, []);
 
-  const getCardEntry = useCallback((label: string): CardEntry => {
-    const key = label.toLowerCase() as CardCat;
-    // Coasters is always the card photo itself, with the card's framing; the
-    // picker's Coasters slot is ignored.
-    if (key === "coasters") return header;
-    const entry = park.cardImages?.[key];
-    if (entry?.src) return resolveEntry(entry.src, entry.focus, entry.size, entry.cut);
-    return header;
-  }, [park.cardImages, header]);
-
-  const getCycleImages = useCallback(() =>
-    FULL_BLEED_GROUPS
-      .map(g => ({ label: g.label, ...getCardEntry(g.label) })),
-    [getCardEntry]);
-
-  // Two-slot cross-fade — both slots always sum to opacity 0.7, no black ever shows
+  // The card always shows its own photo. Hovering or tapping a category only
+  // highlights its score and shows its warnings; the photo never changes.
   const slotARef = useRef<HTMLImageElement>(null);
-  const slotBRef = useRef<HTMLImageElement>(null);
-  const activeSlotRef = useRef<"A" | "B">("A");
-  // True while a category image (not the header) is displayed — lets us skip
-  // pointless fade-to-header transitions that made the carousel blink on swipe
-  const showingCategoryRef = useRef(false);
-  const raf1Ref = useRef<number | null>(null);
-  const raf2Ref = useRef<number | null>(null);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
   // Drives the shimmer placeholder: true once the header image is showing.
   const [imgReady, setImgReady] = useState(false);
@@ -356,12 +327,8 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
 
   useLayoutEffect(() => {
     const a = slotARef.current;
-    const b = slotBRef.current;
-    if (!a || !b) return;
+    if (!a) return;
     slotAFocusRef.current = cardFocusStr;
-    slotBFocusRef.current = cardFocusStr;
-    slotARawSrcRef.current = cardSrc;
-    slotBRawSrcRef.current = cardSrc;
     // A photo of known size was positioned and shown by the server render; keep it on screen.
     const placed = a.dataset.placed === "1";
     const sources = entrySources(header);
@@ -370,7 +337,6 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     const inHtml = eager || !defer;
     const showFromStart = placed && inHtml;
     a.style.opacity = showFromStart ? "0.95" : "0"; a.style.transition = "none";
-    b.style.opacity = "0"; b.style.transition = "none";
     // The SSR src was chosen for a generous assumed screen and may already be
     // downloading (eager, or lazy but near the viewport). Keep it unless this
     // screen needs more pixels: a downgrade would only add a second download.
@@ -379,8 +345,6 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     // A cut already has srcset/sizes from the server render; leave the
     // browser's choice alone (re-setting src would not change it anyway).
     if (!sources && inHtml) a.src = initialSrc;
-    // Slot B only gets a src when a cross-fade needs it; giving it the header
-    // image here made every card (lazy or not) download immediately.
     // Server-placed cut: already visible, just refine the position with the
     // real frame size and drop the shimmer. Otherwise: loaded by hydration ->
     // show instantly; loaded later (slow network, below-fold) -> fade in.
@@ -456,231 +420,53 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     return () => clearTimeout(t);
   }, [preloadAll, defer, eager, delayIndex]);
 
-  const isHoveringRef = useRef(false);
-  const hoveredCatRef = useRef<string | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const cycleFirstRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cycleIdxRef = useRef(0);
-  const cycleListRef = useRef<{ label: string; src: string; focus: string }[]>([]);
-
-  const cancelInFlight = useCallback(() => {
-    if (raf1Ref.current) { cancelAnimationFrame(raf1Ref.current); raf1Ref.current = null; }
-    if (raf2Ref.current) { cancelAnimationFrame(raf2Ref.current); raf2Ref.current = null; }
-    // Snap slots back to a clean state so the next transition always starts correctly
-    const activeEl = (activeSlotRef.current === "A" ? slotARef : slotBRef).current;
-    const inactiveEl = (activeSlotRef.current === "A" ? slotBRef : slotARef).current;
-    if (activeEl) { activeEl.style.transition = "none"; activeEl.style.opacity = "0.95"; }
-    if (inactiveEl) { inactiveEl.style.transition = "none"; inactiveEl.style.opacity = "0"; }
-    [slotARef, slotBRef].forEach(r => { if (r.current) { r.current.onload = null; r.current.onerror = null; } });
-  }, []);
-
-  const transitionTo = useCallback((entry: CardEntry | null, label: string | null) => {
-    cancelInFlight();
-    setActiveLabel(label);
-    showingCategoryRef.current = entry != null;
-
-    const target: CardEntry = entry ?? header;
-    // Already showing this photo (e.g. Coasters = the card photo): nothing to
-    // fade, just record the label. Avoids a cross-fade between identical images.
-    const activeRaw = activeSlotRef.current === "A" ? slotARawSrcRef.current : slotBRawSrcRef.current;
-    if (target.src === activeRaw) return;
-    const [inactiveRef, activeRef, nextSlot] = activeSlotRef.current === "A"
-      ? [slotBRef, slotARef, "B" as const]
-      : [slotARef, slotBRef, "A" as const];
-
-    const inactive = inactiveRef.current;
-    const active = activeRef.current;
-    if (!inactive || !active) return;
-
-    applyEntryToImg(inactive, target, cardSrcFor(target.src, target.size, imageContainerRef.current, false, target.focus, assumedScreen, target.direct));
-    if (inactiveRef === slotARef) {
-      slotAFocusRef.current = target.focus;
-      slotARawSrcRef.current = target.src;
-    } else {
-      slotBFocusRef.current = target.focus;
-      slotBRawSrcRef.current = target.src;
-    }
-
-    const startFade = () => {
-      inactive.onload = null;
-      inactive.onerror = null;
-      const scale = applyFocusToImg(inactive, target.focus);
-      if (upgradeIfSoft(inactive, target.src, scale, !!target.size || !!target.direct)) { inactive.onload = startFade; inactive.onerror = startFade; return; }
-      raf1Ref.current = requestAnimationFrame(() => {
-        raf2Ref.current = requestAnimationFrame(() => {
-          inactive.style.transition = "opacity 700ms ease-in-out";
-          inactive.style.opacity = "0.95";
-          active.style.transition = "opacity 700ms ease-in-out";
-          active.style.opacity = "0";
-          activeSlotRef.current = nextSlot;
-        });
-      });
-    };
-
-    if (inactive.complete && inactive.naturalWidth > 0) {
-      startFade();
-    } else {
-      inactive.onload = startFade;
-      inactive.onerror = startFade;
-    }
-  }, [cancelInFlight, cardSrc, cardFocusStr, applyFocusToImg, upgradeIfSoft]);
-
-  const stopCycle = useCallback(() => {
-    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
-    if (cycleFirstRef.current) { clearTimeout(cycleFirstRef.current); cycleFirstRef.current = null; }
-  }, []);
-
-  const startCycle = useCallback((initialDelay = 1500) => {
-    if (intervalRef.current || cycleFirstRef.current) return;
-    // Skip images that are the same src as the header — no point cycling to what's already shown
-    const imgs = getCycleImages().filter(img => img.src !== cardSrc);
-    cycleListRef.current = imgs;
-    if (imgs.length === 0) return;
-    cycleIdxRef.current = -1;
-    cycleFirstRef.current = setTimeout(() => {
-      cycleFirstRef.current = null;
-      const list = cycleListRef.current;
-      if (!list.length) return;
-      cycleIdxRef.current = 0;
-      transitionTo(list[0], list[0].label);
-      intervalRef.current = setInterval(() => {
-        const l = cycleListRef.current;
-        if (!l.length) return;
-        cycleIdxRef.current = (cycleIdxRef.current + 1) % l.length;
-        transitionTo(l[cycleIdxRef.current], l[cycleIdxRef.current].label);
-      }, 4500);
-    }, initialDelay);
-  }, [getCycleImages, transitionTo]);
-
-  // Mobile: auto-cycle the active card's category images, but only once the
-  // visitor has touched or scrolled the page (autoCycle). Cycling on its own
-  // cost every phone visitor 2-4 MB of category images they might never look
-  // at, and its cross-fades were what Google's speed test recorded as the
-  // page's largest paint. Tapping a category still works immediately.
-  useEffect(() => {
-    if (isActive && autoCycle) {
-      startCycle(3000);
-    } else {
-      stopCycle();
-      // Only fade back if a category image is actually showing — blindly
-      // transitioning re-faded the header onto itself on every swipe
-      if (showingCategoryRef.current) transitionTo(null, null);
-    }
-  }, [isActive, autoCycle, startCycle, stopCycle, transitionTo]);
-
-  // Re-apply absolute positioning on container resize
+  // Re-apply px positioning on container resize. Slot A keeps the server's
+  // CSS placement (which handles resizes by itself) until reveal gives it px values.
   useEffect(() => {
     const c = imageContainerRef.current;
     if (!c) return;
     const ro = new ResizeObserver(() => {
-      // Slot A keeps the server's CSS placement (which handles resizes by itself)
-      // until a cross-fade gives it px values.
       if (slotARef.current && !slotARef.current.style.transform.startsWith("translate")) applyFocusToImg(slotARef.current, slotAFocusRef.current);
-      if (slotBRef.current) applyFocusToImg(slotBRef.current, slotBFocusRef.current);
     });
     ro.observe(c);
     return () => ro.disconnect();
   }, [applyFocusToImg]);
 
-  useEffect(() => () => {
-    stopCycle();
-    cancelInFlight();
-    if (cardEnterTimerRef.current) clearTimeout(cardEnterTimerRef.current);
-    if (catHoverTimerRef.current) clearTimeout(catHoverTimerRef.current);
-    if (catLeaveTimerRef.current) clearTimeout(catLeaveTimerRef.current);
-    if (cycleFirstRef.current) clearTimeout(cycleFirstRef.current);
-    if (cycleRestartRef.current) clearTimeout(cycleRestartRef.current);
-  }, [stopCycle, cancelInFlight]);
-
-  const cardEnterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Mouse: hovering a category highlights it after a short pause, so sweeping
+  // across the row doesn't flash every warning. Touch: a tap toggles it.
+  const hoveredCatRef = useRef<string | null>(null);
   const catHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const catLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (catHoverTimerRef.current) clearTimeout(catHoverTimerRef.current); }, []);
 
-  const handleCardEnter = useCallback(() => {
-    isHoveringRef.current = true;
-    // Short delay: if cursor entered directly onto a category pill,
-    // handleCatEnter fires within ~16ms and sets hoveredCatRef, skipping the cycle
-    if (cardEnterTimerRef.current) clearTimeout(cardEnterTimerRef.current);
-    cardEnterTimerRef.current = setTimeout(() => {
-      if (isHoveringRef.current && !hoveredCatRef.current) startCycle();
-    }, 60);
-  }, [startCycle]);
-
-  const handleCardLeave = useCallback(() => {
-    isHoveringRef.current = false;
-    hoveredCatRef.current = null;
-    if (cardEnterTimerRef.current) { clearTimeout(cardEnterTimerRef.current); cardEnterTimerRef.current = null; }
-    if (catHoverTimerRef.current) { clearTimeout(catHoverTimerRef.current); catHoverTimerRef.current = null; }
-    if (catLeaveTimerRef.current) { clearTimeout(catLeaveTimerRef.current); catLeaveTimerRef.current = null; }
-    if (cycleRestartRef.current) { clearTimeout(cycleRestartRef.current); cycleRestartRef.current = null; }
-    stopCycle();
-    const activeEl = (activeSlotRef.current === "A" ? slotARef : slotBRef).current;
-    const activeRawSrc = activeSlotRef.current === "A" ? slotARawSrcRef.current : slotBRawSrcRef.current;
-    const isOnHeader = !activeEl || activeRawSrc === cardSrc || activeEl.src === "";
-    if (isOnHeader) {
-      // Already showing header — cancel silently, no visible transition
-      cancelInFlight();
-      setActiveLabel(null);
-    } else {
-      // A category image is showing — fade back to header gracefully
-      transitionTo(null, null);
-    }
-  }, [stopCycle, cancelInFlight, transitionTo, cardSrc]);
-
-  const cycleRestartRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleCatEnter = useCallback((label: string) => {
-    if (catLeaveTimerRef.current) { clearTimeout(catLeaveTimerRef.current); catLeaveTimerRef.current = null; }
-    if (catHoverTimerRef.current) { clearTimeout(catHoverTimerRef.current); catHoverTimerRef.current = null; }
-    if (cycleRestartRef.current) { clearTimeout(cycleRestartRef.current); cycleRestartRef.current = null; }
-    hoveredCatRef.current = label;
-    stopCycle();
-    // Only show image after intentional hover (500ms) — prevents accidental triggers
-    catHoverTimerRef.current = setTimeout(() => {
-      catHoverTimerRef.current = null;
-      if (hoveredCatRef.current !== label) return;
-      const entry = getCardEntry(label);
-      transitionTo(entry, entry ? label : null);
-    }, 500);
-  }, [stopCycle, getCardEntry, transitionTo]);
+  // A phone card swiped out of the centre drops its highlight.
+  useEffect(() => { if (!isActive) setActiveLabel(null); }, [isActive]);
 
   const handleCatLeave = useCallback(() => {
+    hoveredCatRef.current = null;
     if (catHoverTimerRef.current) { clearTimeout(catHoverTimerRef.current); catHoverTimerRef.current = null; }
-    if (catLeaveTimerRef.current) clearTimeout(catLeaveTimerRef.current);
-    catLeaveTimerRef.current = setTimeout(() => {
-      catLeaveTimerRef.current = null;
-      hoveredCatRef.current = null;
-      stopCycle();
-      transitionTo(getCardEntry("Coasters"), null);
-      if (isHoveringRef.current) {
-        if (cycleRestartRef.current) clearTimeout(cycleRestartRef.current);
-        cycleRestartRef.current = setTimeout(() => {
-          if (isHoveringRef.current && !hoveredCatRef.current) startCycle();
-        }, 800);
-      }
-    }, 50);
-  }, [stopCycle, getCardEntry, transitionTo, startCycle]);
+    setActiveLabel(null);
+  }, []);
+
+  const handleCatEnter = useCallback((label: string) => {
+    hoveredCatRef.current = label;
+    if (catHoverTimerRef.current) clearTimeout(catHoverTimerRef.current);
+    catHoverTimerRef.current = setTimeout(() => {
+      catHoverTimerRef.current = null;
+      if (hoveredCatRef.current === label) setActiveLabel(label);
+    }, 500);
+  }, []);
 
   const handleCatTap = useCallback((e: React.MouseEvent, label: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (hoveredCatRef.current === label) {
-      hoveredCatRef.current = null;
-      startCycle();
-    } else {
-      hoveredCatRef.current = label;
-      stopCycle();
-      const entry = getCardEntry(label);
-      transitionTo(entry, entry ? label : null);
-    }
-  }, [getCardEntry, startCycle, stopCycle, transitionTo]);
+    setActiveLabel((prev) => (prev === label ? null : label));
+  }, []);
 
   return (
     <Link href={`/park/${park.slug}`}>
       <div
         className="mx-auto w-full max-w-[400px] py-3 md:py-4 [@media(hover:hover)]:hover:scale-105 transition-transform duration-300 ease-in-out will-change-transform"
-        onPointerEnter={(e) => { if (e.pointerType === "mouse") handleCardEnter(); }}
-        onPointerLeave={(e) => { if (e.pointerType === "mouse") handleCardLeave(); }}
+        onPointerLeave={(e) => { if (e.pointerType === "mouse") handleCatLeave(); }}
       >
         <div ref={imageContainerRef} className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
           {/* Shimmer placeholder while the header image is still on its way */}
@@ -708,8 +494,6 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
             data-placed={header.size ? "1" : undefined}
             draggable={false}
           />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img ref={slotBRef} alt="" loading="lazy" className="absolute max-w-none select-none" style={{ opacity: 0 }} draggable={false} />
 
           <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent px-4 pt-4 pb-16 pointer-events-none">
             <div className="flex items-center gap-2">
@@ -793,8 +577,8 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
   // Only one card layout is rendered at a time so a phone never downloads the
   // grid's images and a desktop never downloads the strip's.
   const [isMobileLayout, setIsMobileLayout] = useState<boolean>(initialIsMobile ?? false);
-  // First touch, scroll, click or key: from then on the active phone card may
-  // auto-cycle its category images (see FullBleedRatingCard).
+  // First touch, scroll, click or key: from then on the phone strip loads the
+  // remaining cards' photos in the background (see FullBleedRatingCard).
   const [engaged, setEngaged] = useState(false);
   const searchParams = useSearchParams();
   const modalRequested = searchParams?.get("modal") === "true";
@@ -1047,7 +831,7 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
                 ) : item.type === "teaser" ? (
                   <TeaserParkCard rating={item.rating} park={item.park} eager={index < EAGER_MOBILE} first={index === 0} defer assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
                 ) : item.type === "rating" ? (
-                  <FullBleedRatingCard rating={item.rating} park={item.park} isActive={active} autoCycle={engaged} delayIndex={index} eager={index < EAGER_MOBILE} first={index === 0} defer preloadAll={engaged} assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
+                  <FullBleedRatingCard rating={item.rating} park={item.park} isActive={active} delayIndex={index} eager={index < EAGER_MOBILE} first={index === 0} defer preloadAll={engaged} assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
                 ) : null}
               </div>
             );
