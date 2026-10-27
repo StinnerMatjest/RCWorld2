@@ -54,13 +54,21 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
   const [gen, setGen] = useState<Record<number, number>>({});
   const [busy, setBusy] = useState(false);
 
-  // The top card's drag. Its tilt follows the drag while a finger is down;
-  // while it is springing from its resting place to the front, framer owns both.
-  const x = useMotionValue(0);
-  const rotate = useMotionValue(0);
+  // The top card's drag. The card keeps its own resting offset and tilt even
+  // on top; a drag adds to them and the tilt follows the finger.
+  const topImg = shown[pile[0]];
+  const topPlace = topImg ? restingPlace(topImg.id) : { x: 0, y: 0, rotate: 0 };
+  const topPlaceRef = useRef(topPlace);
+  topPlaceRef.current = topPlace;
+  const x = useMotionValue(topPlace.x);
+  const rotate = useMotionValue(topPlace.rotate);
   const draggingRef = useRef(false);
   const draggedRef = useRef(false);
-  useMotionValueEvent(x, "change", (v) => { if (draggingRef.current) rotate.set(Math.max(-14, Math.min(14, v / 220 * 14))); });
+  useMotionValueEvent(x, "change", (v) => {
+    if (!draggingRef.current) return;
+    const p = topPlaceRef.current;
+    rotate.set(p.rotate + Math.max(-14, Math.min(14, (v - p.x) / 220 * 14)));
+  });
 
   // Warm the cards below the visible pile so a throw never shows an empty frame.
   useEffect(() => {
@@ -77,9 +85,8 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     animate(x, dir * (window.innerWidth + 120), { duration: 0.22, ease: [0.4, 0, 1, 1] }).then(() => {
       const nextTop = shown[pile[1]];
       const place = nextTop ? restingPlace(nextTop.id) : { x: 0, rotate: 0 };
-      // The next card springs from its resting place to the front: start x and
-      // rotate there (jump: no inherited velocity) and let its animate target
-      // of 0/0 pull them in.
+      // The next card stays exactly where it lies; only the motion values move
+      // to its place (jump: no inherited velocity from the throw).
       x.jump(place.x);
       rotate.jump(place.rotate);
       setGen((g) => ({ ...g, [top.id]: (g[top.id] ?? 0) + 1 }));
@@ -93,7 +100,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     setTimeout(() => { draggedRef.current = false; }, 0);
     const { offset, velocity } = info;
     if (Math.abs(offset.x) > THROW_PX || Math.abs(velocity.x) > THROW_VELOCITY) throwCard(offset.x + velocity.x * 0.1 < 0 ? -1 : 1);
-    else { animate(x, 0, SPRING); animate(rotate, 0, SPRING); }
+    else { const p = topPlaceRef.current; animate(x, p.x, SPRING); animate(rotate, p.rotate, SPRING); }
   };
 
   if (shown.length === 0) return null;
@@ -126,14 +133,13 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
               key={`${img.id}-${gen[img.id] ?? 0}`}
               className="absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl overflow-hidden bg-slate-900 shadow-[0_10px_24px_rgba(0,0,0,0.4)] touch-pan-y select-none will-change-transform"
               style={isTop ? { x, rotate, zIndex: VISIBLE - slot, marginLeft: "-39vw" } : { zIndex: VISIBLE - slot, marginLeft: "-39vw" }}
-              // Back cards sit still at their resting place. A card entering at the
-              // bottom fades in there. The card coming to the front straightens and
-              // rises (x and rotate are the motion values above).
+              // Every card sits still at its resting place, the front one included:
+              // coming to the front it only brightens and grows a touch. A card
+              // entering at the bottom fades in there.
               initial={isTop ? false : { ...rest, opacity: slot === VISIBLE - 1 ? 0 : 1 }}
-              animate={isTop ? { x: 0, y: 0, rotate: 0, scale: 1, opacity: 1 } : { ...rest, opacity: 1 }}
+              animate={isTop ? { y: place.y, scale: 1, opacity: 1 } : { ...rest, opacity: 1 }}
               transition={isTop ? SPRING : { ...SPRING, opacity: { duration: 0.35 } }}
               drag={isTop && !single ? "x" : false}
-              dragConstraints={{ left: 0, right: 0 }}
               dragElastic={1}
               dragMomentum={false}
               onDragStart={isTop ? () => { draggingRef.current = true; draggedRef.current = true; } : undefined}
