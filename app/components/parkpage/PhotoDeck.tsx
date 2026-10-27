@@ -152,11 +152,15 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
       st.moved = true;
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       if (st.dir > 0) {
-        gx.jump(-window.innerWidth);
-        grot.jump(-10);
-        setGhostIdx(pileRef.current[pileRef.current.length - 1]);
+        const prevIdx = pileRef.current[pileRef.current.length - 1];
+        const pp = restingPlace(shown[prevIdx].id, prevIdx);
+        gx.jump(-window.innerWidth + pp.x);
+        grot.jump(pp.rotate - 8);
+        setGhostIdx(prevIdx);
       }
     }
+    const gi = pileRef.current[pileRef.current.length - 1];
+    const gp = restingPlace(shown[gi].id, gi);
     const now = performance.now();
     const dt = now - st.lastT;
     if (dt > 0) st.vx = 0.7 * st.vx + 0.3 * ((e.clientX - st.lastX) / dt) * 1000;
@@ -164,10 +168,12 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     if (st.dir < 0) {
       const pl = topPlaceRef.current;
       x.set(pl.x + dx);
-      rotate.set(pl.rotate + Math.max(-14, Math.min(0, dx / 220 * 14)));
+      // Lean further the way it travels, from its own lean, at most 8° more.
+      rotate.set(pl.rotate + Math.max(-8, Math.min(0, dx / 220 * 8)));
     } else {
-      gx.set(-window.innerWidth + Math.max(0, dx));
-      grot.set(-10 + Math.min(10, Math.max(0, dx) / 220 * 10));
+      gx.set(-window.innerWidth + gp.x + Math.max(0, dx));
+      // Arrives leaning into its travel and straightens towards its own lean.
+      grot.set(gp.rotate - 8 + Math.min(8, Math.max(0, dx) / 220 * 8));
     }
   };
   const onPointerUp = (e: React.PointerEvent) => {
@@ -183,7 +189,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     } else {
       const prevIdx = pileRef.current[pileRef.current.length - 1];
       if (flung && dx > 0) { setBusy(true); finishRight(prevIdx); }
-      else { animate(grot, -10, SPRING); animate(gx, -(window.innerWidth + 120), SPRING).then(() => setGhostIdx(null)); }
+      else { animate(gx, -(window.innerWidth + 120), SPRING).then(() => setGhostIdx(null)); }
     }
   };
   const onPointerCancel = () => {
@@ -220,7 +226,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
         {ghostIdx !== null && shown[ghostIdx] && (
           <motion.div
             className="absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl shadow-[0_10px_24px_rgba(0,0,0,0.4)] pointer-events-none"
-            style={{ x: gx, rotate: grot, zIndex: VISIBLE + 1, marginLeft: "-39vw", willChange: "transform" }}
+            style={{ x: gx, y: restingPlace(shown[ghostIdx].id, ghostIdx).y, rotate: grot, zIndex: VISIBLE + 1, marginLeft: "-39vw", willChange: "transform" }}
           >
             <R2Image src={shown[ghostIdx].path} alt="" fill sizes="(min-width: 640px) 340px, 78vw" loading="eager" draggable={false} className="object-cover rounded-2xl pointer-events-none" />
           </motion.div>
