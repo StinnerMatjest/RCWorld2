@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { motion, useMotionValue, useMotionValueEvent, animate, type PanInfo } from "framer-motion";
 import { R2Image } from "../R2Image";
 import { isR2Image, variantKey } from "@/app/lib/imageVariants";
@@ -85,12 +86,16 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     animate(x, dir * (window.innerWidth + 120), { duration: 0.22, ease: [0.4, 0, 1, 1] }).then(() => {
       const nextTop = shown[pile[1]];
       const place = nextTop ? restingPlace(nextTop.id) : { x: 0, rotate: 0 };
-      // The next card stays exactly where it lies; only the motion values move
-      // to its place (jump: no inherited velocity from the throw).
+      // Swap the order synchronously first, so the thrown card is unbound from
+      // the drag values before they move: otherwise it would show up at the
+      // front for a frame. The next card stays exactly where it lies; the
+      // values simply take its place (jump: no inherited velocity).
+      flushSync(() => {
+        setGen((g) => ({ ...g, [top.id]: (g[top.id] ?? 0) + 1 }));
+        setOrder((o) => [...o.slice(1), o[0]]);
+      });
       x.jump(place.x);
       rotate.jump(place.rotate);
-      setGen((g) => ({ ...g, [top.id]: (g[top.id] ?? 0) + 1 }));
-      setOrder((o) => [...o.slice(1), o[0]]);
       setBusy(false);
     });
   };
@@ -159,10 +164,13 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
               {/* Back cards are dimmed by an overlay (opacity animates on the compositor). */}
               <motion.div className="absolute inset-0 bg-black pointer-events-none" initial={false} animate={{ opacity: isTop ? 0 : 0.22 }} transition={{ duration: 0.3 }} />
               {isTop && (
-                <div className="absolute inset-x-0 bottom-0 px-3.5 pt-10 pb-3 bg-gradient-to-t from-black/75 to-transparent flex items-end justify-between gap-3 pointer-events-none">
+                <motion.div
+                  className="absolute inset-x-0 bottom-0 px-3.5 pt-10 pb-3 bg-gradient-to-t from-black/75 to-transparent flex items-end justify-between gap-3 pointer-events-none"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.05 }}
+                >
                   <span className="text-[13px] text-white font-medium leading-snug line-clamp-2">{img.description || ""}</span>
                   {!single && <span className="text-[11px] text-slate-200 tabular-nums flex-shrink-0">{imgIdx + 1} / {shown.length}</span>}
-                </div>
+                </motion.div>
               )}
             </motion.div>
           );
