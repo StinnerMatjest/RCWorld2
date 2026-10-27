@@ -58,6 +58,8 @@ interface GalleryProps {
   /** Controlled viewer: the page opens photos from the deck, strip and review here too. */
   selectedIndex?: number | null;
   onSelectedIndexChange?: (index: number | null) => void;
+  /** false = the page renders its own viewer for the selected index. */
+  renderViewer?: boolean;
 }
 
 function isVideo(path: string) {
@@ -158,7 +160,7 @@ const DescriptionEditor = ({
   );
 };
 
-const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages, refreshImages, onHeaderChanged, loading = false, selectedIndex: controlledIndex, onSelectedIndexChange }) => {
+const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages, refreshImages, onHeaderChanged, loading = false, selectedIndex: controlledIndex, onSelectedIndexChange, renderViewer = true }) => {
   const { isAdminMode } = useAdminMode();
 
   const [images, setImages] = useState<VisitGalleryImage[]>(initialImages);
@@ -583,7 +585,7 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
       )}
 
       {/* MODAL */}
-      {selected && (
+      {renderViewer && selected && (
         <div
           ref={modalContainerRef}
           className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex items-center justify-center"

@@ -17,12 +17,17 @@ interface Props {
   onEdit?: () => void;
 }
 
-// The slots behind the top card, as the mocks drew them.
+// The slots behind the top card, as the mocks drew them. Only transforms and
+// an overlay's opacity are animated: both run on the compositor, so a phone
+// never repaints the photo mid-gesture.
 const SLOTS = [
-  { x: 0, y: 0, rotate: 0, scale: 1, brightness: 1, z: 3 },
-  { x: -22, y: -14, rotate: -6, scale: 0.96, brightness: 0.85, z: 2 },
-  { x: 26, y: -26, rotate: 7, scale: 0.92, brightness: 0.7, z: 1 },
+  { x: 0, y: 0, rotate: 0, scale: 1, dim: 0, z: 3 },
+  { x: -22, y: -14, rotate: -6, scale: 0.96, dim: 0.15, z: 2 },
+  { x: 26, y: -26, rotate: 7, scale: 0.92, dim: 0.3, z: 1 },
+  // Where a card enters from when it first appears at the back.
+  { x: 0, y: -34, rotate: 0, scale: 0.88, dim: 0.45, z: 0 },
 ];
+const SPRING = { type: "spring", stiffness: 420, damping: 34 } as const;
 const THROW_PX = 90;
 const THROW_VELOCITY = 500;
 
@@ -41,11 +46,12 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
   // Order of the deck as indexes into `shown`; the first is on top.
   const [order, setOrder] = useState<number[]>(() => shown.map((_, i) => i));
   useEffect(() => { setOrder(shown.map((_, i) => i)); }, [shown]);
-  const [thrown, setThrown] = useState<number | null>(null); // index that just went to the back: no slide-in
   const [busy, setBusy] = useState(false);
 
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-220, 0, 220], [-12, 0, 12]);
+  // Tilt follows the drag. The two inner stops match the back slots, so a card
+  // springing from slot 1 (x -22) starts at exactly slot 1's tilt (-6°).
+  const rotate = useTransform(x, [-220, SLOTS[1].x, 0, SLOTS[2].x, 220], [-14, SLOTS[1].rotate, 0, SLOTS[2].rotate, 14]);
   // A flick ends with a pointerup over the card, which framer also reports as a
   // tap. Remember that a drag happened so the viewer only opens on a real tap.
   const draggedRef = useRef(false);
@@ -61,13 +67,16 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
   const throwCard = (dir: 1 | -1) => {
     if (busy) return;
     setBusy(true);
-    const top = order[0];
-    animate(x, dir * (window.innerWidth + 120), { duration: 0.26, ease: [0.4, 0, 1, 1] }).then(() => {
-      setThrown(top);
+    animate(x, dir * (window.innerWidth + 120), { duration: 0.24, ease: [0.4, 0, 1, 1] }).then(() => {
+      // Each card is keyed by its slot, so the reorder mounts the next card at
+      // the front with `initial` = slot 1 and springs it to centre; the thrown
+      // card simply leaves the DOM. Reset x for the new front card first.
+      // jump(), not set(): set() would record the leap from the far edge as
+      // velocity and the spring would fling the next card right off the screen.
+      x.jump(SLOTS[1].x);
       setOrder((o) => [...o.slice(1), o[0]]);
-      x.set(0);
+      animate(x, 0, SPRING);
       setBusy(false);
-      setTimeout(() => setThrown(null), 50);
     });
   };
 
@@ -75,7 +84,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     setTimeout(() => { draggedRef.current = false; }, 0);
     const { offset, velocity } = info;
     if (Math.abs(offset.x) > THROW_PX || Math.abs(velocity.x) > THROW_VELOCITY) throwCard(offset.x + velocity.x * 0.1 < 0 ? -1 : 1);
-    else animate(x, 0, { type: "spring", stiffness: 500, damping: 36 });
+    else animate(x, 0, SPRING);
   };
 
   if (shown.length === 0) return null;
@@ -100,16 +109,16 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
         {order.slice(0, 3).map((imgIdx, slot) => {
           const img = shown[imgIdx];
           const s = SLOTS[slot];
+          const from = SLOTS[slot + 1];
           const isTop = slot === 0;
-          const justThrown = thrown === imgIdx;
           return (
             <motion.div
-              key={img.id}
-              className="absolute left-1/2 top-2 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl overflow-hidden bg-slate-900 shadow-[0_18px_40px_rgba(0,0,0,0.45)] touch-pan-y select-none"
-              style={isTop ? { x, rotate, zIndex: s.z, marginLeft: "-39vw", filter: `brightness(${s.brightness})` } : { zIndex: s.z, marginLeft: "-39vw" }}
-              initial={false}
-              animate={isTop ? { scale: 1 } : { x: s.x, y: s.y, rotate: s.rotate, scale: s.scale, filter: `brightness(${s.brightness})` }}
-              transition={justThrown ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 32 }}
+              key={`${img.id}-${slot}`}
+              className="absolute left-1/2 top-2 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl overflow-hidden bg-slate-900 shadow-[0_10px_24px_rgba(0,0,0,0.4)] touch-pan-y select-none will-change-transform"
+              style={isTop ? { x, rotate, zIndex: s.z, marginLeft: "-39vw" } : { zIndex: s.z, marginLeft: "-39vw" }}
+              initial={isTop ? { y: from.y, scale: from.scale } : { x: from.x, y: from.y, rotate: from.rotate, scale: from.scale }}
+              animate={isTop ? { y: 0, scale: 1 } : { x: s.x, y: s.y, rotate: s.rotate, scale: s.scale }}
+              transition={SPRING}
               drag={isTop && !single ? "x" : false}
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={1}
@@ -127,6 +136,8 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
                 draggable={false}
                 className="object-cover pointer-events-none"
               />
+              {/* Dimming for the back cards: an overlay's opacity, not a filter on the photo. */}
+              <motion.div className="absolute inset-0 bg-black pointer-events-none" initial={{ opacity: from.dim }} animate={{ opacity: s.dim }} transition={{ duration: 0.25 }} />
               {isTop && (
                 <div className="absolute inset-x-0 bottom-0 px-3.5 pt-10 pb-3 bg-gradient-to-t from-black/75 to-transparent flex items-end justify-between gap-3 pointer-events-none">
                   <span className="text-[13px] text-white font-medium leading-snug line-clamp-2">{img.description || ""}</span>

@@ -16,6 +16,7 @@ import PhotoDeck from "@/app/components/parkpage/PhotoDeck";
 import ParkCoasterList from "@/app/components/parkpage/ParkCoasterList";
 import ParkScorecard from "@/app/components/parkpage/ParkScorecard";
 import VisitGallery, { type VisitGalleryImage } from "@/app/components/parkpage/VisitGallery";
+import PhotoViewer from "@/app/components/parkpage/PhotoViewer";
 import type { Park, Visit, RatingWarningType, RollerCoaster } from "@/app/types";
 import type { ParkRanks } from "@/app/utils/parkRanks";
 import { useAdminMode } from "@/app/context/AdminModeContext";
@@ -450,7 +451,13 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
             )}
 
             {review}
+          </div>
 
+          {/* Desktop: coasters, then the full gallery, in the right column. Phones: the gallery alone, after the review. */}
+          <aside className="min-w-0 mt-12 lg:mt-0 space-y-12">
+            <div className="hidden lg:block">
+              <ParkCoasterList {...coasterListProps} />
+            </div>
             {activeRatingId && (galleryImages.length > 0 || isAdminMode || loadingGallery) && (
               <VisitGallery
                 visitId={activeRatingId}
@@ -461,12 +468,9 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
                 loading={loadingGallery}
                 selectedIndex={lightboxIndex}
                 onSelectedIndexChange={setLightboxIndex}
+                renderViewer={false}
               />
             )}
-          </div>
-
-          <aside className="hidden lg:block min-w-0">
-            <ParkCoasterList {...coasterListProps} />
           </aside>
         </div>
 
@@ -474,6 +478,18 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
           <MainPageButton />
         </div>
       </div>
+
+      {lightboxIndex !== null && galleryImages[lightboxIndex] && (
+        <PhotoViewer
+          images={galleryImages}
+          index={lightboxIndex}
+          onIndex={setLightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          parkName={park.name}
+          isAdminMode={isAdminMode}
+          onImagesChanged={refreshGallery}
+        />
+      )}
 
       {showCoasterModal && (
         <CoasterCreatorModal
