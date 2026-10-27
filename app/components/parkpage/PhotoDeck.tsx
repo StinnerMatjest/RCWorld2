@@ -38,7 +38,7 @@ function restingPlace(id: number, index: number) {
   // Successive cards lean to alternate sides, so the pile always reads as a
   // fan rather than a run of cards tilted the same way; the amount is the card's own.
   const side = index % 2 === 0 ? -1 : 1;
-  return { x: side * (12 + r1 * 20), y: (r2 - 0.5) * 24 - 10, rotate: side * (4 + r3 * 9) };
+  return { x: side * (8 + r1 * 14), y: (r2 - 0.5) * 20 - 8, rotate: side * (2 + r3 * 5) };
 }
 
 export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = false, onEdit }: Props) {
