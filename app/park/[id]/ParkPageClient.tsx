@@ -336,19 +336,20 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
 
   const review = activeVisit ? (
     <section id="review" className="scroll-mt-20">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight">Our review</h2>
+      {/* Phones: "Our review" opens the scorecard. Desktop has the scorecard in the rail, so Introduction leads as before. */}
+      <div className="flex items-center justify-between lg:hidden">
+        <h2 className="text-3xl font-bold text-white tracking-tight">Our review</h2>
         {adminMenu}
       </div>
-      <div className="w-12 h-1 bg-brand rounded-full mt-3 mb-5" />
+      <div className="w-12 h-1 bg-brand rounded-full mt-3 mb-5 lg:hidden" />
+      {isAdminMode && <div className="hidden lg:flex justify-end mb-3">{adminMenu}</div>}
 
       {/* Phones: the scorecard opens the review and is its table of contents. Desktop has it in the left rail. */}
-      <ParkScorecard rating={activeVisit} ranks={initialRanks} className="lg:hidden mb-8" />
+      <ParkScorecard rating={activeVisit} ranks={initialRanks} className="lg:hidden mb-10" />
 
-      <div id="section-description" className="space-y-3 scroll-mt-6 mb-10">
-        <div className="flex items-baseline gap-3 border-l-4 border-brand pl-3">
-          <h3 className="text-xl font-semibold text-white">Introduction</h3>
-        </div>
+      <div id="section-description" className="scroll-mt-6 mb-12">
+        <h2 className="text-4xl font-bold text-white tracking-tight">Introduction</h2>
+        <div className="w-12 h-1 bg-brand rounded-full mt-3 mb-4" />
         <SectionBody
           text={explanations.description ?? "No description available."}
           media={descriptionMedia}
@@ -409,7 +410,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
         onOpenPhoto={openPhoto}
       />
 
-      <div className="w-full px-4 sm:px-6 lg:px-20 pt-4 lg:pt-7 pb-12">
+      <div className="w-full px-6 lg:px-20 pt-4 lg:pt-7 pb-12">
         {activeVisit && (
           <VisitSwitcher visits={visibleRatings} active={activeVisit} parkSlug={park.slug} className="mb-7 lg:mb-8" />
         )}

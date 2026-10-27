@@ -106,15 +106,15 @@ export default function ParkCoasterList({ coasters, loading = false, cap = 0, is
   const peek = capped ? rows[cap] : null;
 
   const Row = ({ c }: { c: RollerCoaster }) => (
-    <li className="group grid grid-cols-[1fr_auto_auto] items-baseline gap-3 py-[5px]">
-      <Link href={`/coasters/${c.slug}`} className="min-w-0 truncate text-[15px] font-medium text-white hover:text-brand transition-colors">
+    <li className="group grid grid-cols-[1fr_auto_auto] items-baseline gap-3 py-[5px] lg:py-1.5">
+      <Link href={`/coasters/${c.slug}`} className="min-w-0 truncate text-[15px] lg:text-[17px] font-medium text-white hover:text-brand transition-colors">
         {c.name}
       </Link>
-      <span className="text-xs text-slate-400 whitespace-nowrap">
+      <span className="text-xs lg:text-sm text-slate-400 whitespace-nowrap">
         {[c.manufacturerName, c.year].filter(Boolean).join(" · ")}
       </span>
       <span className="flex items-baseline gap-2">
-        <span className={`min-w-[2.2em] text-right text-[1.05rem] font-bold tabular-nums tracking-tight ${ridden(c) ? getRatingColor(rating(c)) : "text-slate-600"}`}>
+        <span className={`min-w-[2.2em] text-right text-[1.05rem] lg:text-[1.2rem] font-bold tabular-nums tracking-tight ${ridden(c) ? getRatingColor(rating(c)) : "text-slate-600"}`}>
           {ridden(c) ? formatScore(rating(c)) : "NR"}
         </span>
         {isAdminMode && onEdit && (
@@ -126,8 +126,8 @@ export default function ParkCoasterList({ coasters, loading = false, cap = 0, is
   );
 
   const TierHead = ({ tier }: { tier: Tier }) => (
-    <div className="flex items-baseline gap-2.5 mt-4 first:mt-1 mb-0.5">
-      <span className="text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: tier.hex }}>{tier.label}</span>
+    <div className="flex items-baseline gap-2.5 mt-4 lg:mt-5 first:mt-1 mb-0.5">
+      <span className="text-[11px] lg:text-xs font-black uppercase tracking-[0.14em]" style={{ color: tier.hex }}>{tier.label}</span>
       <span className="flex-1 h-px bg-white/[0.08]" />
     </div>
   );

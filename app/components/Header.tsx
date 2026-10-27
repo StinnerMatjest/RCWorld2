@@ -76,7 +76,7 @@ const Header = ({ initialStatus = null }: { initialStatus?: HeaderStatus | null 
       `}
     >
       {/* 1. Locked header to slate-900 background and slate-100 text */}
-      <header className={`w-full text-slate-100 py-4 md:py-6 px-4 md:px-6 relative animate-fade-in ${overlay ? "bg-gradient-to-b from-[#020617]/65 via-[#020617]/25 to-transparent pb-12 md:pb-16 pointer-events-none" : "bg-slate-900"}`}>
+      <header className={`w-full text-slate-100 py-4 md:py-6 px-4 md:px-6 relative animate-fade-in ${overlay ? "bg-gradient-to-b from-[#020617]/45 via-[#020617]/15 to-transparent pb-8 md:pb-12 pointer-events-none" : "bg-slate-900"}`}>
         <div className={`relative grid grid-cols-2 items-center gap-x-3 lg:flex lg:items-center lg:justify-between ${overlay ? "pointer-events-auto" : ""}`}>
           <div className="relative -ml-2 md:ml-0 h-14 sm:h-16 md:h-20 lg:h-20 w-36 sm:w-44 md:w-52 lg:w-56 z-10">
             <Link

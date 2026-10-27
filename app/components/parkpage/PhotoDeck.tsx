@@ -20,13 +20,21 @@ interface Props {
 // The slots behind the top card, as the mocks drew them. Only transforms and
 // an overlay's opacity are animated: both run on the compositor, so a phone
 // never repaints the photo mid-gesture.
+// A card thrown off the front sends every card one slot forward and a new one
+// surfaces at the back, so the stack behaves like a real pile. Each card also
+// carries its own small, fixed offset and tilt (from its id), so no two stacks
+// line up the same way.
 const SLOTS = [
-  { x: 0, y: 0, rotate: 0, scale: 1, dim: 0, z: 3 },
-  { x: -22, y: -14, rotate: -6, scale: 0.96, dim: 0.15, z: 2 },
-  { x: 26, y: -26, rotate: 7, scale: 0.92, dim: 0.3, z: 1 },
-  // Where a card enters from when it first appears at the back.
-  { x: 0, y: -34, rotate: 0, scale: 0.88, dim: 0.45, z: 0 },
+  { x: 0, y: 0, rotate: 0, scale: 1, dim: 0, z: 4, opacity: 1 },
+  { x: -18, y: -12, rotate: -5, scale: 0.96, dim: 0.14, z: 3, opacity: 1 },
+  { x: 22, y: -24, rotate: 6, scale: 0.92, dim: 0.28, z: 2, opacity: 1 },
+  { x: -8, y: -34, rotate: -3, scale: 0.88, dim: 0.42, z: 1, opacity: 1 },
+  // Where a card is before it surfaces at the back.
+  { x: 0, y: -40, rotate: 0, scale: 0.84, dim: 0.5, z: 0, opacity: 0 },
 ];
+const VISIBLE = 4;
+/** Per-card nudge so the pile looks hand-dropped rather than drawn: ±6 px, ±2.5°. */
+const nudge = (id: number) => { const a = Math.sin(id * 12.9898) * 43758.5453, b = Math.sin(id * 78.233) * 43758.5453; const f = (v: number) => v - Math.floor(v); return { x: (f(a) - 0.5) * 12, rotate: (f(b) - 0.5) * 5 }; };
 const SPRING = { type: "spring", stiffness: 420, damping: 34 } as const;
 const THROW_PX = 90;
 const THROW_VELOCITY = 500;
@@ -51,14 +59,14 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
   const x = useMotionValue(0);
   // Tilt follows the drag. The two inner stops match the back slots, so a card
   // springing from slot 1 (x -22) starts at exactly slot 1's tilt (-6°).
-  const rotate = useTransform(x, [-220, SLOTS[1].x, 0, SLOTS[2].x, 220], [-14, SLOTS[1].rotate, 0, SLOTS[2].rotate, 14]);
+  const rotate = useTransform(x, [-220, SLOTS[1].x, 0, 220], [-14, SLOTS[1].rotate, 0, 14]);
   // A flick ends with a pointerup over the card, which framer also reports as a
   // tap. Remember that a drag happened so the viewer only opens on a real tap.
   const draggedRef = useRef(false);
 
   // Warm the next cards so a flick never shows an empty frame.
   useEffect(() => {
-    for (const i of order.slice(3, 5)) {
+    for (const i of order.slice(VISIBLE, VISIBLE + 2)) {
       const src = shown[i]?.path;
       if (src && isR2Image(src)) { const img = new Image(); img.src = variantKey(src, 1200); }
     }
@@ -106,18 +114,20 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
 
       {/* The frame is the card plus the room the back cards and the tilt need. */}
       <div className="relative w-full" style={{ height: "min(104vw, 460px)" }}>
-        {order.slice(0, 3).map((imgIdx, slot) => {
+        {order.slice(0, VISIBLE).map((imgIdx, slot) => {
           const img = shown[imgIdx];
           const s = SLOTS[slot];
           const from = SLOTS[slot + 1];
           const isTop = slot === 0;
+          const n = isTop ? { x: 0, rotate: 0 } : nudge(img.id);
+          const at = (sl: typeof s) => ({ x: sl.x + n.x, y: sl.y, rotate: sl.rotate + n.rotate, scale: sl.scale, opacity: sl.opacity });
           return (
             <motion.div
               key={`${img.id}-${slot}`}
               className="absolute left-1/2 top-2 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl overflow-hidden bg-slate-900 shadow-[0_10px_24px_rgba(0,0,0,0.4)] touch-pan-y select-none will-change-transform"
               style={isTop ? { x, rotate, zIndex: s.z, marginLeft: "-39vw" } : { zIndex: s.z, marginLeft: "-39vw" }}
-              initial={isTop ? { y: from.y, scale: from.scale } : { x: from.x, y: from.y, rotate: from.rotate, scale: from.scale }}
-              animate={isTop ? { y: 0, scale: 1 } : { x: s.x, y: s.y, rotate: s.rotate, scale: s.scale }}
+              initial={isTop ? { y: from.y, scale: from.scale, opacity: 1 } : at(from)}
+              animate={isTop ? { y: 0, scale: 1, opacity: 1 } : at(s)}
               transition={SPRING}
               drag={isTop && !single ? "x" : false}
               dragConstraints={{ left: 0, right: 0 }}
@@ -133,6 +143,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
                 fill
                 sizes="(min-width: 640px) 340px, 78vw"
                 priority={slot < 2}
+                loading={slot < 2 ? "eager" : "lazy"}
                 draggable={false}
                 className="object-cover pointer-events-none"
               />

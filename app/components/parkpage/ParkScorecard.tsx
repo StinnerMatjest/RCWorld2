@@ -38,13 +38,13 @@ export default function ParkScorecard({ rating, ranks, label, className = "" }: 
               <button
                 type="button"
                 onClick={() => jump(g.section)}
-                className="w-full grid grid-cols-[1fr_auto_auto] items-baseline gap-3.5 py-2.5 text-left cursor-pointer group"
+                className="w-full grid grid-cols-[1fr_auto_auto] items-baseline gap-3.5 py-2.5 lg:py-3 text-left cursor-pointer group"
               >
-                <span className="text-[15px] text-slate-200 group-hover:text-white transition-colors">{g.key}</span>
-                <span className="text-xs text-slate-400 whitespace-nowrap">
-                  {rank != null ? <><b className={`font-black text-[13px] ${rankColorClass(rank)}`}>#{rank}</b> world</> : ""}
+                <span className="text-[15px] lg:text-[16px] text-slate-200 group-hover:text-white transition-colors">{g.key}</span>
+                <span className="text-xs lg:text-[13px] text-slate-400 whitespace-nowrap">
+                  {rank != null ? <><b className={`font-black text-[13px] lg:text-sm ${rankColorClass(rank)}`}>#{rank}</b> world</> : ""}
                 </span>
-                <span className={`min-w-[2.2em] text-right text-[1.05rem] font-bold tabular-nums tracking-tight ${getRatingColor(score)}`}>{formatScore(score)}</span>
+                <span className={`min-w-[2.2em] text-right text-[1.05rem] lg:text-[1.2rem] font-bold tabular-nums tracking-tight ${getRatingColor(score)}`}>{formatScore(score)}</span>
               </button>
             </li>
           );
