@@ -24,17 +24,33 @@ function heroSources(src: string, size: { w: number; h: number }): { srcSet: str
 // Server-side placement of the photo (cover the frame, focus point at the
 // centre), so the HTML shows a placed photo before any JavaScript runs.
 // FocusedImage replaces this with px values after hydration. The frame
-// height comes from the .park-hero-frame CSS variable (it depends on the breakpoint).
+// height comes from the .park-hero-frame CSS variable (it depends on the
+// breakpoint), and the translate is clamped per breakpoint so a focus point
+// saved for a frame of another shape never leaves a gap at an edge: the
+// phone's values go in --hero-tx-m/--hero-ty-m, the desktop's in -d (globals.css).
 function heroPlacement(size: { w: number; h: number }, focusStr?: string | null): React.CSSProperties {
   const { cx, cy, zoom } = parseFocusStr(focusStr);
+  const a = size.w / size.h;
+  // Frame aspects: 3:4 on phones, 21:9 from lg (the vh caps are handled after hydration).
+  const clampFor = (frameAspect: number) => {
+    // Drawn size relative to the frame: cover, then zoom.
+    const dw = (a > frameAspect ? frameAspect ? (a / frameAspect) : 1 : 1) * zoom; // in frame widths
+    const dh = (a > frameAspect ? 1 : frameAspect / a) * zoom;                  // in frame heights
+    const kx = dw > 1 ? Math.min(Math.max(cx, 1 / (2 * dw)), 1 - 1 / (2 * dw)) : 0.5;
+    const ky = dh > 1 ? Math.min(Math.max(cy, 1 / (2 * dh)), 1 - 1 / (2 * dh)) : 0.5;
+    return { tx: (-kx * 100).toFixed(3) + "%", ty: (-ky * 100).toFixed(3) + "%" };
+  };
+  const m = clampFor(3 / 4);
+  const d = clampFor(21 / 9);
   return {
-    width: `max(${(100 * zoom).toFixed(3)}%, calc(var(--frame-h) * ${(zoom * size.w / size.h).toFixed(4)}))`,
+    width: `max(${(100 * zoom).toFixed(3)}%, calc(var(--frame-h) * ${(zoom * a).toFixed(4)}))`,
     height: "auto",
     aspectRatio: `${size.w} / ${size.h}`,
     left: "50%",
     top: "50%",
-    transform: `translate(${(-cx * 100).toFixed(3)}%, ${(-cy * 100).toFixed(3)}%)`,
-  };
+    ["--hero-tx-m" as string]: m.tx, ["--hero-ty-m" as string]: m.ty,
+    ["--hero-tx-d" as string]: d.tx, ["--hero-ty-d" as string]: d.ty,
+  } as React.CSSProperties;
 }
 
 interface ParkHeroProps {
@@ -108,7 +124,7 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
               placement={headerSize ? heroPlacement(headerSize, headerFocus) : undefined}
               {...(headerSize ? heroSources(headerSrc, headerSize) : {})}
               className="absolute inset-0"
-              imgClassName={`transition-opacity duration-700 ease-out ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+              imgClassName={`park-hero-img transition-opacity duration-700 ease-out ${imageLoaded ? "opacity-100" : "opacity-0"}`}
               priority
               onLoad={revealPhoto}
             />

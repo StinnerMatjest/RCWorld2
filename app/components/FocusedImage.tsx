@@ -130,10 +130,14 @@ export function FocusedImage({
     const dh = nhRef.current * cs * zoom;
     img.style.width = `${dw}px`;
     img.style.height = `${dh}px`;
-    img.style.left = `${c.clientWidth / 2 - cx * dw}px`;
-    img.style.top = `${c.clientHeight / 2 - cy * dh}px`;
+    // The focus point sits at the frame's centre, except where that would pull
+    // an edge of the photo inside the frame (a focus saved for a frame of
+    // another shape): then the photo stops at the frame edge instead.
+    img.style.left = `${Math.min(0, Math.max(c.clientWidth - dw, c.clientWidth / 2 - cx * dw))}px`;
+    img.style.top = `${Math.min(0, Math.max(c.clientHeight - dh, c.clientHeight / 2 - cy * dh))}px`;
     // Drop the server-side CSS placement (see HomeClient ssrPlacement) now that px values are set.
-    img.style.transform = ""; img.style.minWidth = ""; img.style.minHeight = ""; img.style.aspectRatio = "";
+    // "none", not "": the park hero's server placement comes from a class, which "" would leave in force.
+    img.style.transform = "none"; img.style.minWidth = ""; img.style.minHeight = ""; img.style.aspectRatio = "";
     // Step up if this stored size is being enlarged on this screen. The old
     // pixels stay on screen until the larger file has decoded, then onLoad
     // re-runs this with the new natural size.

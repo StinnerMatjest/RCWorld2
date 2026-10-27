@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { motion, useMotionValue, useTransform, animate, type PanInfo } from "framer-motion";
+import { motion, useMotionValue, useMotionValueEvent, animate, type PanInfo } from "framer-motion";
 import { R2Image } from "../R2Image";
 import { isR2Image, variantKey } from "@/app/lib/imageVariants";
 import type { VisitGalleryImage } from "./VisitGallery";
@@ -17,33 +17,26 @@ interface Props {
   onEdit?: () => void;
 }
 
-// The slots behind the top card, as the mocks drew them. Only transforms and
-// an overlay's opacity are animated: both run on the compositor, so a phone
-// never repaints the photo mid-gesture.
-// A card thrown off the front sends every card one slot forward and a new one
-// surfaces at the back, so the stack behaves like a real pile. Each card also
-// carries its own small, fixed offset and tilt (from its id), so no two stacks
-// line up the same way.
-const SLOTS = [
-  { x: 0, y: 0, rotate: 0, scale: 1, dim: 0, z: 4, opacity: 1 },
-  { x: -18, y: -12, rotate: -5, scale: 0.96, dim: 0.14, z: 3, opacity: 1 },
-  { x: 22, y: -24, rotate: 6, scale: 0.92, dim: 0.28, z: 2, opacity: 1 },
-  { x: -8, y: -34, rotate: -3, scale: 0.88, dim: 0.42, z: 1, opacity: 1 },
-  // Where a card is before it surfaces at the back.
-  { x: 0, y: -40, rotate: 0, scale: 0.84, dim: 0.5, z: 0, opacity: 0 },
-];
+/** How many cards of the pile are drawn. */
 const VISIBLE = 4;
-/** Per-card nudge so the pile looks hand-dropped rather than drawn: ±6 px, ±2.5°. */
-const nudge = (id: number) => { const a = Math.sin(id * 12.9898) * 43758.5453, b = Math.sin(id * 78.233) * 43758.5453; const f = (v: number) => v - Math.floor(v); return { x: (f(a) - 0.5) * 12, rotate: (f(b) - 0.5) * 5 }; };
-const SPRING = { type: "spring", stiffness: 420, damping: 34 } as const;
 const THROW_PX = 90;
 const THROW_VELOCITY = 500;
+const SPRING = { type: "spring", stiffness: 420, damping: 34 } as const;
 
 /**
- * The phone's photo section: a deck of cards. Flick the top one and it flies
- * off and goes to the back; tap it and it opens full size. Shows the photos
- * flagged for the top of the page, or every photo when none are flagged.
+ * Where a card lies in the pile: its own fixed offset and tilt, from its id,
+ * so every card has a resting place that never changes. Nothing in the pile
+ * moves when a card is thrown; the thrown card leaves and reappears at the
+ * bottom in its own place.
  */
+function restingPlace(id: number) {
+  const f = (v: number) => v - Math.floor(v);
+  const r1 = f(Math.sin(id * 12.9898) * 43758.5453);
+  const r2 = f(Math.sin(id * 78.233) * 43758.5453);
+  const r3 = f(Math.sin(id * 37.719) * 43758.5453);
+  return { x: (r1 - 0.5) * 28, y: (r2 - 0.5) * 20 - 8, rotate: (r3 - 0.5) * 14 };
+}
+
 export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = false, onEdit }: Props) {
   const shown = useMemo(() => {
     const photos = images.filter((g) => !isVideo(g.path));
@@ -51,48 +44,56 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     return picked.length ? picked : photos;
   }, [images]);
 
-  // Order of the deck as indexes into `shown`; the first is on top.
+  // The pile as indexes into `shown`; the first is on top. Indexes that no
+  // longer exist (the gallery changed under us) are dropped on read.
   const [order, setOrder] = useState<number[]>(() => shown.map((_, i) => i));
   useEffect(() => { setOrder(shown.map((_, i) => i)); }, [shown]);
+  const pile = order.filter((i) => i < shown.length);
+  // A thrown card gets a new generation, so it re-enters the pile as a fresh
+  // element (fading in at the bottom) instead of flying back across the screen.
+  const [gen, setGen] = useState<Record<number, number>>({});
   const [busy, setBusy] = useState(false);
 
+  // The top card's drag. Its tilt follows the drag while a finger is down;
+  // while it is springing from its resting place to the front, framer owns both.
   const x = useMotionValue(0);
-  // Tilt follows the drag. The two inner stops match the back slots, so a card
-  // springing from slot 1 (x -22) starts at exactly slot 1's tilt (-6°).
-  const rotate = useTransform(x, [-220, SLOTS[1].x, 0, 220], [-14, SLOTS[1].rotate, 0, 14]);
-  // A flick ends with a pointerup over the card, which framer also reports as a
-  // tap. Remember that a drag happened so the viewer only opens on a real tap.
+  const rotate = useMotionValue(0);
+  const draggingRef = useRef(false);
   const draggedRef = useRef(false);
+  useMotionValueEvent(x, "change", (v) => { if (draggingRef.current) rotate.set(Math.max(-14, Math.min(14, v / 220 * 14))); });
 
-  // Warm the next cards so a flick never shows an empty frame.
+  // Warm the cards below the visible pile so a throw never shows an empty frame.
   useEffect(() => {
-    for (const i of order.slice(VISIBLE, VISIBLE + 2)) {
+    for (const i of pile.slice(VISIBLE, VISIBLE + 2)) {
       const src = shown[i]?.path;
       if (src && isR2Image(src)) { const img = new Image(); img.src = variantKey(src, 1200); }
     }
-  }, [order, shown]);
+  }, [pile, shown]);
 
   const throwCard = (dir: 1 | -1) => {
-    if (busy) return;
+    if (busy || pile.length < 2) return;
     setBusy(true);
-    animate(x, dir * (window.innerWidth + 120), { duration: 0.24, ease: [0.4, 0, 1, 1] }).then(() => {
-      // Each card is keyed by its slot, so the reorder mounts the next card at
-      // the front with `initial` = slot 1 and springs it to centre; the thrown
-      // card simply leaves the DOM. Reset x for the new front card first.
-      // jump(), not set(): set() would record the leap from the far edge as
-      // velocity and the spring would fling the next card right off the screen.
-      x.jump(SLOTS[1].x);
+    const top = shown[pile[0]];
+    animate(x, dir * (window.innerWidth + 120), { duration: 0.22, ease: [0.4, 0, 1, 1] }).then(() => {
+      const nextTop = shown[pile[1]];
+      const place = nextTop ? restingPlace(nextTop.id) : { x: 0, rotate: 0 };
+      // The next card springs from its resting place to the front: start x and
+      // rotate there (jump: no inherited velocity) and let its animate target
+      // of 0/0 pull them in.
+      x.jump(place.x);
+      rotate.jump(place.rotate);
+      setGen((g) => ({ ...g, [top.id]: (g[top.id] ?? 0) + 1 }));
       setOrder((o) => [...o.slice(1), o[0]]);
-      animate(x, 0, SPRING);
       setBusy(false);
     });
   };
 
   const onDragEnd = (_: unknown, info: PanInfo) => {
+    draggingRef.current = false;
     setTimeout(() => { draggedRef.current = false; }, 0);
     const { offset, velocity } = info;
     if (Math.abs(offset.x) > THROW_PX || Math.abs(velocity.x) > THROW_VELOCITY) throwCard(offset.x + velocity.x * 0.1 < 0 ? -1 : 1);
-    else animate(x, 0, SPRING);
+    else { animate(x, 0, SPRING); animate(rotate, 0, SPRING); }
   };
 
   if (shown.length === 0) return null;
@@ -112,28 +113,30 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
         </div>
       </div>
 
-      {/* The frame is the card plus the room the back cards and the tilt need. */}
-      <div className="relative w-full" style={{ height: "min(104vw, 460px)" }}>
-        {order.slice(0, VISIBLE).map((imgIdx, slot) => {
+      {/* The frame is the card plus the room the spread of the pile needs. */}
+      <div className="relative w-full" style={{ height: "min(106vw, 470px)" }}>
+        {pile.slice(0, VISIBLE).map((imgIdx, slot) => {
           const img = shown[imgIdx];
-          const s = SLOTS[slot];
-          const from = SLOTS[slot + 1];
+          if (!img) return null;
           const isTop = slot === 0;
-          const n = isTop ? { x: 0, rotate: 0 } : nudge(img.id);
-          const at = (sl: typeof s) => ({ x: sl.x + n.x, y: sl.y, rotate: sl.rotate + n.rotate, scale: sl.scale, opacity: sl.opacity });
+          const place = restingPlace(img.id);
+          const rest = { x: place.x, y: place.y, rotate: place.rotate, scale: 0.97 };
           return (
             <motion.div
-              key={`${img.id}-${slot}`}
-              className="absolute left-1/2 top-2 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl overflow-hidden bg-slate-900 shadow-[0_10px_24px_rgba(0,0,0,0.4)] touch-pan-y select-none will-change-transform"
-              style={isTop ? { x, rotate, zIndex: s.z, marginLeft: "-39vw" } : { zIndex: s.z, marginLeft: "-39vw" }}
-              initial={isTop ? { y: from.y, scale: from.scale, opacity: 1 } : at(from)}
-              animate={isTop ? { y: 0, scale: 1, opacity: 1 } : at(s)}
-              transition={SPRING}
+              key={`${img.id}-${gen[img.id] ?? 0}`}
+              className="absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl overflow-hidden bg-slate-900 shadow-[0_10px_24px_rgba(0,0,0,0.4)] touch-pan-y select-none will-change-transform"
+              style={isTop ? { x, rotate, zIndex: VISIBLE - slot, marginLeft: "-39vw" } : { zIndex: VISIBLE - slot, marginLeft: "-39vw" }}
+              // Back cards sit still at their resting place. A card entering at the
+              // bottom fades in there. The card coming to the front straightens and
+              // rises (x and rotate are the motion values above).
+              initial={isTop ? false : { ...rest, opacity: slot === VISIBLE - 1 ? 0 : 1 }}
+              animate={isTop ? { x: 0, y: 0, rotate: 0, scale: 1, opacity: 1 } : { ...rest, opacity: 1 }}
+              transition={isTop ? SPRING : { ...SPRING, opacity: { duration: 0.35 } }}
               drag={isTop && !single ? "x" : false}
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={1}
               dragMomentum={false}
-              onDragStart={isTop ? () => { draggedRef.current = true; } : undefined}
+              onDragStart={isTop ? () => { draggingRef.current = true; draggedRef.current = true; } : undefined}
               onDragEnd={isTop ? onDragEnd : undefined}
               onTap={isTop ? () => { if (!draggedRef.current) onOpen(img); } : undefined}
             >
@@ -147,8 +150,8 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
                 draggable={false}
                 className="object-cover pointer-events-none"
               />
-              {/* Dimming for the back cards: an overlay's opacity, not a filter on the photo. */}
-              <motion.div className="absolute inset-0 bg-black pointer-events-none" initial={{ opacity: from.dim }} animate={{ opacity: s.dim }} transition={{ duration: 0.25 }} />
+              {/* Back cards are dimmed by an overlay (opacity animates on the compositor). */}
+              <motion.div className="absolute inset-0 bg-black pointer-events-none" initial={false} animate={{ opacity: isTop ? 0 : 0.22 }} transition={{ duration: 0.3 }} />
               {isTop && (
                 <div className="absolute inset-x-0 bottom-0 px-3.5 pt-10 pb-3 bg-gradient-to-t from-black/75 to-transparent flex items-end justify-between gap-3 pointer-events-none">
                   <span className="text-[13px] text-white font-medium leading-snug line-clamp-2">{img.description || ""}</span>
