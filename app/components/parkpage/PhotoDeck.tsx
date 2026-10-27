@@ -22,6 +22,8 @@ interface Props {
 const VISIBLE = 4;
 const THROW_PX = 90;
 const THROW_VELOCITY = 500;
+/** After this many flicks the hint under the pile points to the full gallery. */
+const GALLERY_NUDGE_AFTER = 8;
 const SPRING = { type: "spring", stiffness: 420, damping: 34 } as const;
 
 /**
@@ -88,11 +90,12 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     }
   }, [pile, shown]);
 
-  const throwCard = (dir: 1 | -1) => {
+  /** Flick left: the top card leaves to the left and the next one is on top. */
+  const throwCard = () => {
     if (busy || pile.length < 2) return;
     setBusy(true);
     const top = shown[pile[0]];
-    animate(x, dir * (window.innerWidth + 120), { duration: 0.22, ease: [0.4, 0, 1, 1] }).then(() => {
+    animate(x, -(window.innerWidth + 120), { duration: 0.22, ease: [0.4, 0, 1, 1] }).then(() => {
       const nextTop = shown[pile[1]];
       const place = nextTop ? restingPlace(nextTop.id, pile[1]) : { x: 0, rotate: 0 };
       // Swap the order synchronously first, so the thrown card is unbound from
@@ -110,11 +113,33 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     });
   };
 
+  /** Flick right: the previous card (the bottom of the pile) comes back in from the left. */
+  const bringBack = () => {
+    if (busy || pile.length < 2) return;
+    setBusy(true);
+    const prevIdx = pile[pile.length - 1];
+    const prev = shown[prevIdx];
+    const place = restingPlace(prev.id, prevIdx);
+    // The dragged card settles back into the pile under the returning one.
+    flushSync(() => {
+      setGen((g) => ({ ...g, [prev.id]: (g[prev.id] ?? 0) + 1 }));
+      setOrder((o) => [o[o.length - 1], ...o.slice(0, -1)]);
+      setThrows((n) => Math.max(0, n - 1));
+    });
+    x.jump(-(window.innerWidth + 120));
+    rotate.jump(-14);
+    animate(x, place.x, SPRING);
+    animate(rotate, place.rotate, SPRING).then(() => setBusy(false));
+  };
+
   const onDragEnd = (_: unknown, info: PanInfo) => {
     draggingRef.current = false;
     setTimeout(() => { draggedRef.current = false; }, 0);
     const { offset, velocity } = info;
-    if (Math.abs(offset.x) > THROW_PX || Math.abs(velocity.x) > THROW_VELOCITY) throwCard(offset.x + velocity.x * 0.1 < 0 ? -1 : 1);
+    const flung = Math.abs(offset.x) > THROW_PX || Math.abs(velocity.x) > THROW_VELOCITY;
+    const dir = offset.x + velocity.x * 0.1 < 0 ? -1 : 1;
+    if (flung && dir < 0) throwCard();
+    else if (flung) bringBack();
     else { const p = topPlaceRef.current; animate(x, p.x, SPRING); animate(rotate, p.rotate, SPRING); }
   };
 
@@ -207,7 +232,16 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
           );
         })}
       </div>
-      {!single && <p className="mt-1 text-center text-[11px] text-slate-600">Swipe for the next · tap to open</p>}
+      {!single && (throws >= GALLERY_NUDGE_AFTER ? (
+        <p className="mt-2 text-center">
+          <a href="#gallery" className="inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.08em] text-brand hover:text-brand-light transition-colors">
+            Looking for more? Browse all {images.length} photos
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+          </a>
+        </p>
+      ) : (
+        <p className="mt-1 text-center text-[11px] text-slate-600">Swipe left for the next · right for the previous · tap to open</p>
+      ))}
     </section>
   );
 }
