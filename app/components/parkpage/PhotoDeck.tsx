@@ -55,9 +55,6 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
   const [order, setOrder] = useState<number[]>(() => shown.map((_, i) => i));
   useEffect(() => { setOrder(shown.map((_, i) => i)); }, [shown]);
   const pile = order.filter((i) => i < shown.length);
-  // A thrown card gets a new generation, so it re-enters the pile as a fresh
-  // element (fading in at the bottom) instead of flying back across the screen.
-  const [gen, setGen] = useState<Record<number, number>>({});
   const [busy, setBusy] = useState(false);
   const [throws, setThrows] = useState(0);
   // Cards that just (re)entered the pile fade in rather than pop.
@@ -97,7 +94,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
 
   const finishLeft = () => {
     const pileNow = pileRef.current;
-    const top = shown[pileNow[0]];
+
     animate(x, -(window.innerWidth + 120), { duration: 0.22, ease: [0.4, 0, 1, 1] }).then(() => {
       const nextIdx = pileNow[1];
       const next = shown[nextIdx];
@@ -107,8 +104,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
       // the drag values before they move: otherwise it would show up at the
       // front for a frame. The card coming to the top stays where it lies.
       flushSync(() => {
-        setGen((gen) => ({ ...gen, [top.id]: (gen[top.id] ?? 0) + 1 }));
-        setEntering([top.id, ...(surfacing ? [surfacing.id] : [])]);
+        setEntering(surfacing ? [surfacing.id] : []);
         setOrder((o) => [...o.slice(1), o[0]]);
         setThrows((n) => n + 1);
       });
@@ -202,7 +198,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     <section id="photo-deck" className="scroll-mt-20">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-xl font-bold text-white">
-          Photos <span className="text-slate-500 font-semibold">({images.length})</span>
+          Photos <span className="text-slate-500 font-semibold">({shown.length})</span>
         </h2>
         <div className="flex items-baseline gap-4">
           {isAdminMode && onEdit && (
@@ -222,7 +218,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
         {ghostIdx !== null && shown[ghostIdx] && (
           <motion.div
             className="absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl shadow-[0_10px_24px_rgba(0,0,0,0.4)] pointer-events-none"
-            style={{ x: gx, y: restingPlace(shown[ghostIdx].id, ghostIdx).y, rotate: grot, zIndex: VISIBLE + 1, marginLeft: "-39vw", willChange: "transform" }}
+            style={{ x: gx, y: restingPlace(shown[ghostIdx].id, ghostIdx).y, rotate: grot, zIndex: VISIBLE + 2, marginLeft: "-39vw", willChange: "transform" }}
           >
             <R2Image src={shown[ghostIdx].path} alt="" fill sizes="(min-width: 640px) 340px, 78vw" loading="eager" draggable={false} className="object-cover rounded-2xl pointer-events-none" />
           </motion.div>
@@ -233,17 +229,23 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
             <svg className="w-7 h-7 drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
           </div>
         )}
-        {pile.slice(0, VISIBLE).map((imgIdx, slot) => {
+        {/* The visible pile, plus the previous card (the bottom of the order)
+            kept mounted behind it, so a bring-back never creates an element and
+            a thrown card simply moves there: nothing is created or destroyed
+            while swiping, so nothing has to decode or paint for the first time
+            in view. */}
+        {[...pile.slice(0, VISIBLE), ...(pile.length > VISIBLE ? [pile[pile.length - 1]] : [])].map((imgIdx, slot) => {
           const img = shown[imgIdx];
           if (!img) return null;
           const isTop = slot === 0;
+          const isPrev = slot === VISIBLE;
           const place = restingPlace(img.id, imgIdx);
           // No scale: when a scale animation ends the browser re-rasterises the
           // layer at the new size, and that repaint of the photo is a black frame.
           const rest = { x: place.x, y: place.y, rotate: place.rotate };
           return (
             <motion.div
-              key={`${img.id}-${gen[img.id] ?? 0}`}
+              key={img.id}
               // No overflow clipping on the card: a rounded clip around an animated
               // layer makes Android rebuild its mask when an animation starts or
               // ends, which blinks the whole card. The image and overlays carry
@@ -257,8 +259,8 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
               // of each animation and remove it after, and that demotion rebuilds
               // the layer (another repaint of the photo).
               style={isTop
-                ? { x, rotate, zIndex: VISIBLE - slot, marginLeft: "-39vw", willChange: "transform", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }
-                : { zIndex: VISIBLE - slot, marginLeft: "-39vw", willChange: "transform", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+                ? { x, rotate, zIndex: VISIBLE + 1, marginLeft: "-39vw", willChange: "transform", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }
+                : { zIndex: isPrev ? 0 : VISIBLE - slot, marginLeft: "-39vw", willChange: "transform", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
               // Every card sits still at its resting place, the front one included:
               // coming to the front it only brightens (CSS). A card entering at the
               // bottom fades in there (CSS keyframe via .deck-enter). No framer
