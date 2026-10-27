@@ -132,19 +132,23 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
           if (!img) return null;
           const isTop = slot === 0;
           const place = restingPlace(img.id);
-          // No scale anywhere: a scale change makes the phone re-rasterise the
-          // photo's layer when it ends, which shows as a dark flash.
-          const rest = { x: place.x, y: place.y, rotate: place.rotate };
+          const rest = { x: place.x, y: place.y, rotate: place.rotate, scale: 0.97 };
           return (
             <motion.div
               key={`${img.id}-${gen[img.id] ?? 0}`}
-              className="absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl overflow-hidden bg-slate-900 shadow-[0_10px_24px_rgba(0,0,0,0.4)] touch-pan-y select-none"
+              // No overflow clipping on the card: a rounded clip around an animated
+              // layer makes Android rebuild its mask when an animation starts or
+              // ends, which blinks the whole card. The image and overlays carry
+              // the corners themselves, and translateZ keeps each card on its own
+              // layer for good, so nothing is promoted or demoted mid-animation.
+              className="absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl bg-slate-900 shadow-[0_10px_24px_rgba(0,0,0,0.4)] touch-pan-y select-none"
               style={isTop ? { x, rotate, zIndex: VISIBLE - slot, marginLeft: "-39vw" } : { zIndex: VISIBLE - slot, marginLeft: "-39vw" }}
+              transformTemplate={(_, generated) => `${generated} translateZ(0)`}
               // Every card sits still at its resting place, the front one included:
-              // coming to the front it only brightens. A card entering at the
-              // bottom fades in there.
+              // coming to the front it brightens and grows a touch. A card
+              // entering at the bottom fades in there.
               initial={isTop ? false : { ...rest, opacity: slot === VISIBLE - 1 ? 0 : 1 }}
-              animate={isTop ? { y: place.y, opacity: 1 } : { ...rest, opacity: 1 }}
+              animate={isTop ? { y: place.y, scale: 1, opacity: 1 } : { ...rest, opacity: 1 }}
               transition={isTop ? SPRING : { ...SPRING, opacity: { duration: 0.35 } }}
               drag={isTop && !single ? "x" : false}
               dragElastic={1}
@@ -161,13 +165,13 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
                 priority={slot < 2}
                 loading={slot < 2 ? "eager" : "lazy"}
                 draggable={false}
-                className="object-cover pointer-events-none"
+                className="object-cover rounded-2xl pointer-events-none"
               />
               {/* Back cards are dimmed by an overlay (opacity animates on the compositor). */}
-              <motion.div className="absolute inset-0 bg-black pointer-events-none" initial={false} animate={{ opacity: isTop ? 0 : 0.22 }} transition={{ duration: 0.3 }} />
+              <motion.div className="absolute inset-0 rounded-2xl bg-black pointer-events-none" initial={false} animate={{ opacity: isTop ? 0 : 0.22 }} transition={{ duration: 0.3 }} />
               {isTop && (
                 <motion.div
-                  className="absolute inset-x-0 bottom-0 px-3.5 pt-10 pb-3 bg-gradient-to-t from-black/75 to-transparent flex items-end justify-between gap-3 pointer-events-none"
+                  className="absolute inset-x-0 bottom-0 px-3.5 pt-10 pb-3 rounded-b-2xl bg-gradient-to-t from-black/75 to-transparent flex items-end justify-between gap-3 pointer-events-none"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.05 }}
                 >
                   <span className="text-[13px] text-white font-medium leading-snug line-clamp-2">{img.description || ""}</span>
