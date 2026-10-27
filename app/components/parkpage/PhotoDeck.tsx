@@ -126,10 +126,13 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
       setOrder((o) => [o[o.length - 1], ...o.slice(0, -1)]);
       setThrows((n) => Math.max(0, n - 1));
     });
-    x.jump(-(window.innerWidth + 120));
-    rotate.jump(-14);
-    animate(x, place.x, SPRING);
-    animate(rotate, place.rotate, SPRING).then(() => setBusy(false));
+    // Ease in from just past the left edge, gently, rather than springing in
+    // from far off: it is a card being put back, not thrown.
+    x.jump(-(window.innerWidth * 0.75));
+    rotate.jump(-7);
+    const settle = { duration: 0.42, ease: [0.22, 0.8, 0.3, 1] as [number, number, number, number] };
+    animate(x, place.x, settle);
+    animate(rotate, place.rotate, settle).then(() => setBusy(false));
   };
 
   const onDragEnd = (_: unknown, info: PanInfo) => {
