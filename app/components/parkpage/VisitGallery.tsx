@@ -1,11 +1,41 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import Image from "next/image";
 import { R2Image } from "../R2Image";
 import ImageUploaderModal from "@/app/components/ImageUploaderModal";
 import { useAdminMode } from "../../context/AdminModeContext";
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
+import { isR2Image, variantKey } from "@/app/lib/imageVariants";
+
+/**
+ * The viewer's photo: the largest stored size shows at once (it is usually
+ * already cached from the deck or the grid), and the original replaces it the
+ * moment it has arrived, so zooming always has every pixel.
+ */
+function ViewerImage({ path, alt, onClick }: { path: string; alt: string; onClick: (e: React.MouseEvent) => void }) {
+  const quick = isR2Image(path) ? variantKey(path, 1920) : path;
+  const [src, setSrc] = useState(quick);
+  useEffect(() => {
+    setSrc(quick);
+    if (quick === path) return;
+    let live = true;
+    const img = new window.Image();
+    img.onload = () => { if (live) setSrc(path); };
+    img.src = path;
+    return () => { live = false; };
+  }, [path, quick]);
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      onClick={onClick}
+      className="w-auto h-auto max-w-full max-h-[85vh] object-contain cursor-pointer shadow-2xl rounded-lg block mx-auto"
+      draggable={false}
+      decoding="async"
+    />
+  );
+}
 
 export type VisitGalleryImage = {
   id: number;
@@ -13,6 +43,8 @@ export type VisitGalleryImage = {
   title: string;
   path: string;
   description: string;
+  /** Shown in the deck / strip at the top of the page (none flagged = all shown). */
+  featured?: boolean;
 };
 
 interface GalleryProps {
@@ -23,6 +55,9 @@ interface GalleryProps {
   /** A new upload became the visit's header; the page reloads its header. */
   onHeaderChanged?: () => void;
   loading?: boolean;
+  /** Controlled viewer: the page opens photos from the deck, strip and review here too. */
+  selectedIndex?: number | null;
+  onSelectedIndexChange?: (index: number | null) => void;
 }
 
 function isVideo(path: string) {
@@ -123,11 +158,19 @@ const DescriptionEditor = ({
   );
 };
 
-const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages, refreshImages, onHeaderChanged, loading = false }) => {
+const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages, refreshImages, onHeaderChanged, loading = false, selectedIndex: controlledIndex, onSelectedIndexChange }) => {
   const { isAdminMode } = useAdminMode();
 
   const [images, setImages] = useState<VisitGalleryImage[]>(initialImages);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [innerIndex, setInnerIndex] = useState<number | null>(null);
+  const controlled = controlledIndex !== undefined;
+  const selectedIndex = controlled ? controlledIndex : innerIndex;
+  const selectedRef = useRef(selectedIndex);
+  selectedRef.current = selectedIndex;
+  const setSelectedIndex = (v: number | null | ((prev: number | null) => number | null)) => {
+    const next = typeof v === "function" ? v(selectedRef.current) : v;
+    if (controlled) onSelectedIndexChange?.(next); else setInnerIndex(next);
+  };
   const [showModal, setShowModal] = useState(false);
   const [direction, setDirection] = useState<"left" | "right" | null>(null);
   const [isEditingDesc, setIsEditingDesc] = useState(false);
@@ -421,7 +464,7 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
   const isDraggingAnything = draggedIndex !== null;
 
   return (
-    <div className="space-y-4">
+    <div id="gallery" className="space-y-4 scroll-mt-20">
       <style>{`
         @keyframes slideInRight {
           0% { opacity: 0.7; transform: translateX(16px) scale(0.985); }
@@ -437,7 +480,7 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
 
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Gallery</h2>
+        <h2 className="text-xl lg:text-[1.35rem] font-bold text-white">All photos <span className="text-slate-500 font-semibold">({images.length})</span></h2>
         {isAdminMode && (
           <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition text-sm cursor-pointer shadow-md">
             + Upload
@@ -624,12 +667,14 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
 
             <div className="flex-1 flex items-center justify-center w-full h-full overflow-hidden">
               <div className="absolute opacity-0 pointer-events-none w-0 h-0 overflow-hidden">
+                {/* eslint-disable @next/next/no-img-element */}
                 {selectedIndex !== null && selectedIndex > 0 && !isVideo(images[selectedIndex - 1].path) && (
-                  <Image src={images[selectedIndex - 1].path} alt="prev" width={1920} height={1080} unoptimized priority />
+                  <img src={isR2Image(images[selectedIndex - 1].path) ? variantKey(images[selectedIndex - 1].path, 1920) : images[selectedIndex - 1].path} alt="" />
                 )}
                 {selectedIndex !== null && selectedIndex < images.length - 1 && !isVideo(images[selectedIndex + 1].path) && (
-                  <Image src={images[selectedIndex + 1].path} alt="next" width={1920} height={1080} unoptimized priority />
+                  <img src={isR2Image(images[selectedIndex + 1].path) ? variantKey(images[selectedIndex + 1].path, 1920) : images[selectedIndex + 1].path} alt="" />
                 )}
+                {/* eslint-enable @next/next/no-img-element */}
               </div>
               <div
                 className={`relative ${animClass} w-full h-full flex items-center justify-center p-4 md:p-12`}
@@ -661,17 +706,7 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
                       wrapperStyle={{ width: "100%", height: "100%" }}
                       contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}
                     >
-                      <Image
-                        src={selected.path}
-                        alt={selected.title || "Full Image"}
-                        width={1920}
-                        height={1080}
-                        unoptimized
-                        onClick={handleImageClick}
-                        className="w-auto h-auto max-w-full max-h-[85vh] object-contain cursor-pointer shadow-2xl rounded-lg block mx-auto"
-                        draggable={false}
-                        priority
-                      />
+                      <ViewerImage path={selected.path} alt={selected.title || "Full Image"} onClick={handleImageClick} />
                     </TransformComponent>
                   </TransformWrapper>
                 )}

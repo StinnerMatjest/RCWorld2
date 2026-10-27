@@ -24,6 +24,8 @@ interface ParkTextProps {
   onWarningsUpdate: () => void;
   /** Re-fetch gallery images after a caption was edited from the review editor. */
   onGalleryUpdate?: () => void;
+  /** When given, section photos open through the page's own viewer instead of the built-in one. */
+  onMediaOpen?: (url: string) => void;
   onSectionsUpdate: (
     texts: Record<string, string>,
     images: Record<string, string>,
@@ -52,6 +54,7 @@ const ParkText: React.FC<ParkTextProps> = ({
   parkName,
   onWarningsUpdate,
   onGalleryUpdate,
+  onMediaOpen,
   onSectionsUpdate,
   coasters,
 }) => {
@@ -120,16 +123,16 @@ const ParkText: React.FC<ParkTextProps> = ({
   });
 
   return (
-    <div className="space-y-12">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
-        <h2 className="text-3xl font-semibold text-white flex items-center flex-wrap gap-3">
-          {parkName} Review
+    <div className="space-y-10">
+      {(isAdminMode || !rating.published) && (
+      <div className="flex items-center justify-between gap-4 w-full">
+        <div className="flex items-center flex-wrap gap-3">
           {!rating.published && (
             <span className="bg-red-900/30 text-red-400 text-sm uppercase font-bold px-3 py-1 rounded-md tracking-wider border border-red-800">
               Unpublished Draft
             </span>
           )}
-        </h2>
+        </div>
 
         <div className="flex items-center gap-4">
           {isAdminMode && (
@@ -151,6 +154,7 @@ const ParkText: React.FC<ParkTextProps> = ({
           )}
         </div>
       </div>
+      )}
 
       {(() => {
         let imageIndex = 0;
@@ -176,7 +180,7 @@ const ParkText: React.FC<ParkTextProps> = ({
                 isSpoiler={isSpoilerSection}
                 isAdminMode={isAdminMode}
                 altLabel={humanizeLabel(key)}
-                onMediaClick={(url) => setLightbox(url)}
+                onMediaClick={(url) => (onMediaOpen ? onMediaOpen(url) : setLightbox(url))}
                 captions={captions}
               />
             );

@@ -3,6 +3,19 @@ import { revalidateContent } from "@/app/lib/revalidate";
 import { pool } from "@/app/lib/db";
 import { getParkName, logChange } from "@/app/lib/changelog";
 
+// The photo deck / strip at the top of the park page shows the photos flagged
+// here (none flagged = every photo). Added in place; runs once per process.
+let featuredColumn: Promise<void> | null = null;
+function ensureFeaturedColumn(): Promise<void> {
+    if (!featuredColumn) {
+        featuredColumn = pool
+            .query(`ALTER TABLE visitgallery ADD COLUMN IF NOT EXISTS featured BOOLEAN NOT NULL DEFAULT false`)
+            .then(() => undefined)
+            .catch((err) => { featuredColumn = null; throw err; });
+    }
+    return featuredColumn;
+}
+
 export async function GET(
     req: NextRequest,
     context: { params: Promise<{ id: string }> }
@@ -13,11 +26,13 @@ export async function GET(
 
         if (isNaN(visitId)) return NextResponse.json({ gallery: [] });
 
+        await ensureFeaturedColumn();
+        // Gallery order is the saved sort_order (the drag-and-drop layout), then upload order.
         const res = await pool.query(
-            `SELECT id, title, path, description 
-       FROM visitgallery 
-       WHERE visit_id = $1 
-       ORDER BY id ASC`,
+            `SELECT id, title, path, description, featured
+       FROM visitgallery
+       WHERE visit_id = $1
+       ORDER BY sort_order ASC NULLS LAST, id ASC`,
             [visitId]
         );
 
@@ -87,23 +102,46 @@ export async function PUT(
             return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
         }
 
-        await client.query("BEGIN");
-
-        // Update the sort_order for every image based on its new array index
-        for (let i = 0; i < reorderedIds.length; i++) {
-            await client.query(
-                `UPDATE visitgallery SET sort_order = $1 WHERE id = $2 AND visit_id = $3`,
-                [i, reorderedIds[i], visitId]
-            );
-        }
-
-        await client.query("COMMIT");
+        // One statement for the whole order (a visit can have 60 photos; one
+        // round trip each used to take ten seconds on the hosted database).
+        const ids = reorderedIds.map(Number).filter((n) => Number.isFinite(n));
+        await client.query(
+            `UPDATE visitgallery AS g SET sort_order = o.ord
+             FROM unnest($2::int[]) WITH ORDINALITY AS o(id, ord)
+             WHERE g.id = o.id AND g.visit_id = $1`,
+            [visitId, ids]
+        );
         return NextResponse.json({ success: true }, { status: 200 });
     } catch (error) {
-        await client.query("ROLLBACK");
         console.error("Failed to reorder visit gallery:", error);
         return NextResponse.json({ error: "Failed to reorder" }, { status: 500 });
     } finally {
         client.release();
+    }
+}
+
+/** Which photos open the page (the deck on phones, the strip on desktop). */
+export async function PATCH(
+    req: NextRequest,
+    context: { params: Promise<{ id: string }> }
+) {
+    revalidateContent();
+    try {
+        const { id } = await context.params;
+        const visitId = parseInt(id, 10);
+        const { featuredIds } = await req.json();
+        if (isNaN(visitId) || !Array.isArray(featuredIds)) {
+            return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+        }
+        await ensureFeaturedColumn();
+        const ids = featuredIds.map(Number).filter((n) => Number.isFinite(n));
+        await pool.query(
+            `UPDATE visitgallery SET featured = (id = ANY($2::int[])) WHERE visit_id = $1`,
+            [visitId, ids]
+        );
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error("Failed to set featured visit photos:", error);
+        return NextResponse.json({ error: "Failed to save" }, { status: 500 });
     }
 }

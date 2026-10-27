@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import Navbar from "./Navbar";
 import { getDaysUntil } from "@/app/utils/trips";
 
@@ -24,6 +25,10 @@ const Header = ({ initialStatus = null }: { initialStatus?: HeaderStatus | null 
   const [isLoading, setIsLoading] = useState(!initialStatus);
   const [isVisible, setIsVisible] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
+  // Park pages open on a full-bleed photo: the header floats over its top on a
+  // light shade instead of sitting above it, and the countdown lines stay off.
+  const pathname = usePathname();
+  const overlay = !!pathname && /^\/park\/[^/]+/.test(pathname);
 
   useEffect(() => {
     if (initialStatus) return;
@@ -61,7 +66,8 @@ const Header = ({ initialStatus = null }: { initialStatus?: HeaderStatus | null 
   return (
     <div
       className={`
-        transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] relative z-50
+        transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] z-50
+        ${overlay ? "absolute inset-x-0 top-0 pointer-events-none" : "relative"}
         ${isVisible
           ? "max-h-[300px] opacity-100"
           : "max-h-0 opacity-0 md:max-h-[300px] md:opacity-100"
@@ -70,8 +76,8 @@ const Header = ({ initialStatus = null }: { initialStatus?: HeaderStatus | null 
       `}
     >
       {/* 1. Locked header to slate-900 background and slate-100 text */}
-      <header className="w-full bg-slate-900 text-slate-100 py-4 md:py-6 px-4 md:px-6 relative animate-fade-in">
-        <div className="relative grid grid-cols-2 items-center gap-x-3 lg:flex lg:items-center lg:justify-between">
+      <header className={`w-full text-slate-100 py-4 md:py-6 px-4 md:px-6 relative animate-fade-in ${overlay ? "bg-gradient-to-b from-[#020617]/65 via-[#020617]/25 to-transparent pb-12 md:pb-16 pointer-events-none" : "bg-slate-900"}`}>
+        <div className={`relative grid grid-cols-2 items-center gap-x-3 lg:flex lg:items-center lg:justify-between ${overlay ? "pointer-events-auto" : ""}`}>
           <div className="relative -ml-2 md:ml-0 h-14 sm:h-16 md:h-20 lg:h-20 w-36 sm:w-44 md:w-52 lg:w-56 z-10">
             <Link
               href="/"
@@ -94,7 +100,7 @@ const Header = ({ initialStatus = null }: { initialStatus?: HeaderStatus | null 
           </div>
 
           {/* Centered Countdown */}
-          <div
+          {!overlay && <div
             className={`
               hidden md:block
               col-span-2 mt-4 lg:mt-2 lg:order-2 lg:col-span-2 lg:flex lg:justify-center
@@ -114,11 +120,11 @@ const Header = ({ initialStatus = null }: { initialStatus?: HeaderStatus | null 
             >
               {days ? `🎢 ${days} days until next trip` : `No trip planned yet this season`}
             </Link>
-          </div>
+          </div>}
         </div>
 
         {/* Parks Under Review */}
-        {underReviewParks.length > 0 && (
+        {underReviewParks.length > 0 && !overlay && (
           <div className="hidden md:flex absolute bottom-1 left-0 w-full justify-center pointer-events-none z-0">
             {/* 3. Locked to a clean, readable dark mode slate text state */}
             <span

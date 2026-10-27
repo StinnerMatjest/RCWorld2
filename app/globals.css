@@ -225,3 +225,6 @@ html.dark ::-webkit-scrollbar-thumb:hover {
    the frame's aspect-[16/8] md:aspect-[16/4] max-h-screen classes. */
 .hero-frame { --frame-h: min(50vw, 100vh); }
 @media (min-width: 768px) { .hero-frame { --frame-h: min(25vw, 100vh); } }
+/* Park page poster hero: 3:4 on phones, 21:9 from lg up (see ParkHero). */
+.park-hero-frame { --frame-h: min(133.333vw, 88vh); }
+@media (min-width: 1024px) { .park-hero-frame { --frame-h: min(42.857vw, 68vh); } }

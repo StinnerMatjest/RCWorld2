@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
+import { variantUrl } from "@/app/lib/imageVariants";
 import type { CoasterGalleryImage } from "./coasterPageTypes";
 
 interface Props {
@@ -10,12 +11,16 @@ interface Props {
   gallery: CoasterGalleryImage[];
   onClose: () => void;
   onSaved: () => void;
+  /** Gallery API that takes PATCH {featuredIds} and PUT {reorderedIds}. Defaults to the coaster's. */
+  endpoint?: string;
 }
 
 const isVideo = (src: string) => /\.(mp4|webm|ogg)$/i.test(src);
 
-export default function CoasterStripEditor({ coasterId, coasterName, gallery, onClose, onSaved }: Props) {
+/** Picks and orders the photos that open a page (coaster strip, park deck and strip). */
+export default function CoasterStripEditor({ coasterId, coasterName, gallery, onClose, onSaved, endpoint }: Props) {
   useScrollLock();
+  const api = endpoint ?? `/api/coasters/${coasterId}/gallery`;
 
   const initialImages = gallery.filter((g) => !isVideo(g.path));
   const [localImages, setLocalImages] = useState<CoasterGalleryImage[]>(initialImages);
@@ -92,7 +97,7 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
     setSaving(true);
     setError(null);
     try {
-      const patchReq = fetch(`/api/coasters/${coasterId}/gallery`, {
+      const patchReq = fetch(api, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ featuredIds: [...picked] }),
@@ -101,7 +106,7 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
       const videoIds = gallery.filter((g) => isVideo(g.path)).map(v => v.id);
       const reorderedIds = [...localImages.map(img => img.id), ...videoIds];
 
-      const putReq = fetch(`/api/coasters/${coasterId}/gallery`, {
+      const putReq = fetch(api, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reorderedIds }),
@@ -178,10 +183,10 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
                       ${isDragOverThis ? "!opacity-100 !scale-105 shadow-2xl !border-brand z-10" : ""}
                     `}
                   >
-                    {/* Swapped Next Image for raw <img> to boost performance */}
+                    {/* A stored small size, not the multi-megabyte original, for a grid of thumbnails. */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={img.path}
+                      src={variantUrl(img.path, 480)}
                       alt={img.title || "Gallery Image"}
                       className="w-full h-full object-cover pointer-events-none"
                       loading="lazy"

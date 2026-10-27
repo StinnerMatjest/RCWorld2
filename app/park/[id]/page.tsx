@@ -1,6 +1,7 @@
 import { permanentRedirect, notFound } from "next/navigation";
 import ParkPageClient from "./ParkPageClient";
 import { LEGACY_PARK_SLUGS } from "@/app/lib/slug";
+import { computeParkRanks, type ParkRanks, type RankedPark } from "@/app/utils/parkRanks";
 
 type PageProps = {
   params: Promise<{
@@ -106,6 +107,19 @@ async function getCoasters(numericId: number): Promise<any[] | null> {
   }
 }
 
+// Where the park stands (country, world, per group), from the ranked list of
+// every park. Null when the list is unavailable: the hero then shows the score alone.
+async function getParkRanks(parkId: number): Promise<ParkRanks | null> {
+  try {
+    const res = await fetch(`${BASE}api/parks/ranked`, { cache: "force-cache", next: { tags: ["content"] } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return computeParkRanks((data.parks ?? []) as RankedPark[], parkId);
+  } catch {
+    return null;
+  }
+}
+
 // Photos of the active visit; seeded so the gallery is in the first paint and
 // the client doesn't refetch it.
 async function getVisitGallery(ratingId: number): Promise<any[] | undefined> {
@@ -203,7 +217,7 @@ export default async function Page({ params, searchParams }: PageProps) {
   // Server-render the published review prose into the initial HTML (same text the
   // client shows). Honor ?visit= deep links when they name a published rating;
   // otherwise fall back to the latest published visit (the client default).
-  const [ratings, coasters] = await Promise.all([getRatings(data.id), getCoasters(data.id)]);
+  const [ratings, coasters, ranks] = await Promise.all([getRatings(data.id), getCoasters(data.id), getParkRanks(data.id)]);
   const requestedId = visit ? Number(visit) : NaN;
   const activeRatingId =
     ratings.find((r: any) => r.id === requestedId)?.id ?? ratings[0]?.id ?? null;
@@ -285,6 +299,7 @@ export default async function Page({ params, searchParams }: PageProps) {
         initialGalleryImages={galleryImages}
         initialRatings={ratings}
         initialCoasters={coasters ?? undefined}
+        initialRanks={ranks}
         initialExplanations={texts.explanations}
         initialSectionImages={texts.sectionImages}
         initialSectionLayouts={texts.sectionLayouts}

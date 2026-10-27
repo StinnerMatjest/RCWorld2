@@ -7,6 +7,8 @@ import { getParkFlag, getRatingColor } from "@/app/utils/design";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
 import { parseFocusStr } from "@/app/components/FocusedImage";
 import type { Visit } from "@/app/types";
+import type { ParkRanks } from "@/app/utils/parkRanks";
+import { HeroStats } from "./HeroStats";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +35,9 @@ export interface ParkHeaderModalProps {
   currentFocus?: string;
   /** Visit whose scores the home card shows, so the preview carries the real numbers. */
   cardRating?: Visit | null;
+  /** The figures the hero draws over the photo, so the crop preview is the real thing. */
+  heroOverall?: number | null;
+  heroRanks?: ParkRanks | null;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -50,8 +55,8 @@ function phoneCardWidth(vw: number): number {
 }
 /** Our phones are 384 CSS px wide: a 299.5 px card. */
 const PHONE_CARD_W = phoneCardWidth(384);
-/** Phone park header: full width at 16:8. */
-const PHONE_HERO = { w: 384, h: 192 };
+/** Phone park hero: full width at 3:4 (see ParkHero). */
+const PHONE_HERO = { w: 384, h: 512 };
 
 function scrollbarWidth(): number {
   const probe = document.createElement("div");
@@ -331,18 +336,27 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, onChange, edi
  * ScaledLayer sized like the real page frame, so the text falls on the same
  * part of the photo as on the page, which is how a crop is judged.
  */
-function HeaderFace({ parkName, city, country, continent, phone, hint }: {
+function HeaderFace({ parkName, city, country, continent, phone, hint, overall = null, ranks = null }: {
   parkName: string; city?: string; country?: string; continent?: string; phone: boolean; hint?: boolean;
+  overall?: number | null; ranks?: ParkRanks | null;
 }) {
   return <>
-    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-60" />
-    <h1 className={`absolute left-6 font-bold text-white drop-shadow-lg ${phone ? "bottom-10 text-4xl" : "bottom-12 text-5xl"}`}>{parkName}</h1>
-    <p className="absolute bottom-4 left-6 flex items-center gap-2 text-base font-medium text-white/90 drop-shadow-md">
-      {city && <span>{city}</span>}
-      {city && country && <span className="opacity-40">·</span>}
-      {country && <span>{country}</span>}
-      {continent && <><span className="opacity-40">·</span><span>{continent}</span></>}
-    </p>
+    <div className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/70 to-transparent ${phone ? "h-[70%]" : "h-[58%]"}`} />
+    <div className={`absolute inset-x-0 bottom-0 ${phone ? "px-4 pb-6" : "px-20 pb-10"}`}>
+      <div className="flex items-end justify-between gap-6">
+        <div className="min-w-0">
+          <h1 className={`font-bold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)] break-words ${phone ? "text-[2.75rem] leading-[0.95]" : "text-7xl"}`}>{parkName}</h1>
+          <p className={`flex flex-wrap items-center gap-x-1.5 text-slate-300 drop-shadow ${phone ? "mt-2 text-sm" : "mt-3 text-lg"}`}>
+            {city && <span>{city}</span>}
+            {city && country && <span className="text-slate-500">·</span>}
+            {country && <span>{country}</span>}
+            {continent && <><span className="text-slate-500">·</span><span>{continent}</span></>}
+          </p>
+          {phone && <HeroStats overall={overall} ranks={ranks} />}
+        </div>
+        {!phone && <div className="flex-shrink-0"><HeroStats overall={overall} ranks={ranks} desktop /></div>}
+      </div>
+    </div>
     {hint && (
       <div className="absolute top-3 right-3 text-white/30 text-[9px] font-bold uppercase tracking-widest">
         Drag · scroll to zoom
@@ -583,7 +597,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   parkId, parkName, parkCountry, parkCity, parkContinent,
   visitId, visitDate, visitCount = 1,
   currentImagePath, currentHeaderFocus, parkImagePath,
-  currentCardImagepath, currentFocus, cardRating,
+  currentCardImagepath, currentFocus, cardRating, heroOverall = null, heroRanks = null,
   onClose, onSuccess,
 }) => {
   useScrollLock();
@@ -828,15 +842,15 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                       key={`h-${headerPath}-${isMobile}`}
                       editorRef={headerEditorRef}
                       src={headerPath}
-                      aspectRatio={isMobile ? "16/8" : "16/4"}
+                      aspectRatio={isMobile ? "3/4" : "21/9"}
                       focusStr={headerFocus}
                       onCommit={setHeaderFocus}
                       onChange={live(setLiveHeaderFocus)}
                       className={isMobile ? "w-full" : "w-full rounded-2xl"}
                     >
                       {headerFrameW > 0 && (
-                        <ScaledLayer w={pageW} h={isMobile ? pageW / 2 : pageW / 4} scale={headerFrameW / pageW}>
-                          <HeaderFace parkName={parkName} city={parkCity} country={parkCountry} continent={parkContinent} phone={isMobile} hint />
+                        <ScaledLayer w={pageW} h={isMobile ? pageW * 4 / 3 : pageW * 9 / 21} scale={headerFrameW / pageW}>
+                          <HeaderFace parkName={parkName} city={parkCity} country={parkCountry} continent={parkContinent} phone={isMobile} hint overall={heroOverall} ranks={heroRanks} />
                         </ScaledLayer>
                       )}
                     </CropEditor>
@@ -844,7 +858,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                   {!isMobile && (
                     <figure className="flex flex-col gap-1.5">
                       <LiveFrame src={headerPath} focus={liveHeaderFocus} w={PHONE_HERO.w} h={PHONE_HERO.h} scale={1} className="rounded-xl">
-                        <HeaderFace parkName={parkName} city={parkCity} country={parkCountry} continent={parkContinent} phone />
+                        <HeaderFace parkName={parkName} city={parkCity} country={parkCountry} continent={parkContinent} phone overall={heroOverall} ranks={heroRanks} />
                       </LiveFrame>
                       <figcaption className="text-xs text-slate-500">Phone</figcaption>
                     </figure>
