@@ -67,7 +67,7 @@ export default function ParkCoasterList({ coasters, loading = false, cap = 0, is
 
   const header = (
     <div className="flex items-baseline justify-between mb-2">
-      <h2 className="text-xl lg:text-[1.35rem] font-bold text-white">
+      <h2 className="text-xl lg:text-[1.35rem] font-bold text-white leading-none">
         Coasters <span className="text-slate-500 font-semibold">({total})</span>
       </h2>
       <div className="flex items-baseline gap-4">
@@ -106,7 +106,7 @@ export default function ParkCoasterList({ coasters, loading = false, cap = 0, is
   const peek = capped ? rows[cap] : null;
 
   const Row = ({ c }: { c: RollerCoaster }) => (
-    <li className="group grid grid-cols-[1fr_auto_auto] items-baseline gap-3 py-[5px] lg:py-1.5">
+    <li className="group grid grid-cols-[1fr_auto_auto] items-baseline gap-3 py-1 lg:py-[3px]">
       <Link href={`/coasters/${c.slug}`} className="min-w-0 truncate text-[15px] lg:text-[17px] font-medium text-white hover:text-brand transition-colors">
         {c.name}
       </Link>
@@ -126,7 +126,7 @@ export default function ParkCoasterList({ coasters, loading = false, cap = 0, is
   );
 
   const TierHead = ({ tier }: { tier: Tier }) => (
-    <div className="flex items-baseline gap-2.5 mt-4 lg:mt-5 first:mt-1 mb-0.5">
+    <div className="flex items-baseline gap-2.5 mt-3 lg:mt-3.5 first:mt-1 mb-0">
       <span className="text-[11px] lg:text-xs font-black uppercase tracking-[0.14em]" style={{ color: tier.hex }}>{tier.label}</span>
       <span className="flex-1 h-px bg-white/[0.08]" />
     </div>

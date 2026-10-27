@@ -132,17 +132,19 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
           if (!img) return null;
           const isTop = slot === 0;
           const place = restingPlace(img.id);
-          const rest = { x: place.x, y: place.y, rotate: place.rotate, scale: 0.97 };
+          // No scale anywhere: a scale change makes the phone re-rasterise the
+          // photo's layer when it ends, which shows as a dark flash.
+          const rest = { x: place.x, y: place.y, rotate: place.rotate };
           return (
             <motion.div
               key={`${img.id}-${gen[img.id] ?? 0}`}
-              className="absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl overflow-hidden bg-slate-900 shadow-[0_10px_24px_rgba(0,0,0,0.4)] touch-pan-y select-none will-change-transform"
+              className="absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl overflow-hidden bg-slate-900 shadow-[0_10px_24px_rgba(0,0,0,0.4)] touch-pan-y select-none"
               style={isTop ? { x, rotate, zIndex: VISIBLE - slot, marginLeft: "-39vw" } : { zIndex: VISIBLE - slot, marginLeft: "-39vw" }}
               // Every card sits still at its resting place, the front one included:
-              // coming to the front it only brightens and grows a touch. A card
-              // entering at the bottom fades in there.
+              // coming to the front it only brightens. A card entering at the
+              // bottom fades in there.
               initial={isTop ? false : { ...rest, opacity: slot === VISIBLE - 1 ? 0 : 1 }}
-              animate={isTop ? { y: place.y, scale: 1, opacity: 1 } : { ...rest, opacity: 1 }}
+              animate={isTop ? { y: place.y, opacity: 1 } : { ...rest, opacity: 1 }}
               transition={isTop ? SPRING : { ...SPRING, opacity: { duration: 0.35 } }}
               drag={isTop && !single ? "x" : false}
               dragElastic={1}
