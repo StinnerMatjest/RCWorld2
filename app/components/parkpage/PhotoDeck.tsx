@@ -132,7 +132,10 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
           if (!img) return null;
           const isTop = slot === 0;
           const place = restingPlace(img.id);
-          const rest = { x: place.x, y: place.y, rotate: place.rotate, scale: 0.97 };
+          // No scale: when a scale animation ends the browser re-rasterises the
+          // layer at the new size, and that repaint of the photo is a black frame
+          // on phones. Promotion is two opacity fades on their own small layers.
+          const rest = { x: place.x, y: place.y, rotate: place.rotate };
           return (
             <motion.div
               key={`${img.id}-${gen[img.id] ?? 0}`}
@@ -145,15 +148,17 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
               // image shows as a fringe along the anti-aliased edge of a rotated
               // card whenever the edge is re-rasterised, which reads as a blink.
               className="absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl shadow-[0_10px_24px_rgba(0,0,0,0.4)] touch-pan-y select-none"
+              // willChange set by hand: framer would otherwise add it for the length
+              // of each animation and remove it after, and that demotion rebuilds
+              // the layer (another repaint of the photo).
               style={isTop
-                ? { x, rotate, zIndex: VISIBLE - slot, marginLeft: "-39vw", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", outline: "1px solid transparent" }
-                : { zIndex: VISIBLE - slot, marginLeft: "-39vw", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", outline: "1px solid transparent" }}
-              transformTemplate={(_, generated) => `${generated} translateZ(0)`}
+                ? { x, rotate, zIndex: VISIBLE - slot, marginLeft: "-39vw", willChange: "transform", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }
+                : { zIndex: VISIBLE - slot, marginLeft: "-39vw", willChange: "transform", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
               // Every card sits still at its resting place, the front one included:
-              // coming to the front it brightens and grows a touch. A card
-              // entering at the bottom fades in there.
+              // coming to the front it only brightens. A card entering at the
+              // bottom fades in there.
               initial={isTop ? false : { ...rest, opacity: slot === VISIBLE - 1 ? 0 : 1 }}
-              animate={isTop ? { y: place.y, scale: 1, opacity: 1 } : { ...rest, opacity: 1 }}
+              animate={isTop ? { y: place.y, opacity: 1 } : { ...rest, opacity: 1 }}
               transition={isTop ? SPRING : { ...SPRING, opacity: { duration: 0.35 } }}
               drag={isTop && !single ? "x" : false}
               dragElastic={1}
@@ -162,29 +167,24 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
               onDragEnd={isTop ? onDragEnd : undefined}
               onTap={isTop ? () => { if (!draggedRef.current) onOpen(img); } : undefined}
             >
-              {/* The photo lives on its own permanent layer that no animation
-                  touches, so the card's fades and scale never re-rasterise it;
-                  decode() keeps its bitmap ready instead of letting the browser
-                  re-decode it (a black frame) when a layer is rebuilt. */}
-              <div className="absolute inset-0 rounded-2xl overflow-hidden" style={{ transform: "translateZ(0)", willChange: "transform", backfaceVisibility: "hidden" }}>
-                <R2Image
-                  src={img.path}
-                  alt={img.description || `${parkName} photo`}
-                  fill
-                  sizes="(min-width: 640px) 340px, 78vw"
-                  priority={slot < 2}
-                  loading="eager"
-                  draggable={false}
-                  className="object-cover pointer-events-none"
-                  onLoad={(e) => { const el = e.currentTarget; if (el.decode) el.decode().catch(() => {}); }}
-                />
-              </div>
+              {/* decode() keeps the bitmap ready, so a rebuilt layer never waits on a decode. */}
+              <R2Image
+                src={img.path}
+                alt={img.description || `${parkName} photo`}
+                fill
+                sizes="(min-width: 640px) 340px, 78vw"
+                priority={slot < 2}
+                loading="eager"
+                draggable={false}
+                className="object-cover rounded-2xl pointer-events-none"
+                onLoad={(e) => { const el = e.currentTarget; if (el.decode) el.decode().catch(() => {}); }}
+              />
               {/* Back cards are dimmed by an overlay (opacity animates on the compositor). */}
-              <motion.div className="absolute inset-0 rounded-2xl bg-black pointer-events-none" style={{ willChange: "opacity", transform: "translateZ(0)" }} initial={false} animate={{ opacity: isTop ? 0 : 0.22 }} transition={{ duration: 0.3 }} />
+              <motion.div className="absolute inset-0 rounded-2xl bg-black pointer-events-none" style={{ willChange: "opacity" }} initial={false} animate={{ opacity: isTop ? 0 : 0.22 }} transition={{ duration: 0.3 }} />
               {isTop && (
                 <motion.div
                   className="absolute inset-x-0 bottom-0 px-3.5 pt-10 pb-3 rounded-b-2xl bg-gradient-to-t from-black/75 to-transparent flex items-end justify-between gap-3 pointer-events-none"
-                  style={{ willChange: "opacity", transform: "translateZ(0)" }}
+                  style={{ willChange: "opacity" }}
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.05 }}
                 >
                   <span className="text-[13px] text-white font-medium leading-snug line-clamp-2">{img.description || ""}</span>
