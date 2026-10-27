@@ -162,21 +162,29 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
               onDragEnd={isTop ? onDragEnd : undefined}
               onTap={isTop ? () => { if (!draggedRef.current) onOpen(img); } : undefined}
             >
-              <R2Image
-                src={img.path}
-                alt={img.description || `${parkName} photo`}
-                fill
-                sizes="(min-width: 640px) 340px, 78vw"
-                priority={slot < 2}
-                loading={slot < 2 ? "eager" : "lazy"}
-                draggable={false}
-                className="object-cover rounded-2xl pointer-events-none"
-              />
+              {/* The photo lives on its own permanent layer that no animation
+                  touches, so the card's fades and scale never re-rasterise it;
+                  decode() keeps its bitmap ready instead of letting the browser
+                  re-decode it (a black frame) when a layer is rebuilt. */}
+              <div className="absolute inset-0 rounded-2xl overflow-hidden" style={{ transform: "translateZ(0)", willChange: "transform", backfaceVisibility: "hidden" }}>
+                <R2Image
+                  src={img.path}
+                  alt={img.description || `${parkName} photo`}
+                  fill
+                  sizes="(min-width: 640px) 340px, 78vw"
+                  priority={slot < 2}
+                  loading="eager"
+                  draggable={false}
+                  className="object-cover pointer-events-none"
+                  onLoad={(e) => { const el = e.currentTarget; if (el.decode) el.decode().catch(() => {}); }}
+                />
+              </div>
               {/* Back cards are dimmed by an overlay (opacity animates on the compositor). */}
-              <motion.div className="absolute inset-0 rounded-2xl bg-black pointer-events-none" style={{ willChange: "opacity" }} initial={false} animate={{ opacity: isTop ? 0 : 0.22 }} transition={{ duration: 0.3 }} />
+              <motion.div className="absolute inset-0 rounded-2xl bg-black pointer-events-none" style={{ willChange: "opacity", transform: "translateZ(0)" }} initial={false} animate={{ opacity: isTop ? 0 : 0.22 }} transition={{ duration: 0.3 }} />
               {isTop && (
                 <motion.div
                   className="absolute inset-x-0 bottom-0 px-3.5 pt-10 pb-3 rounded-b-2xl bg-gradient-to-t from-black/75 to-transparent flex items-end justify-between gap-3 pointer-events-none"
+                  style={{ willChange: "opacity", transform: "translateZ(0)" }}
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.05 }}
                 >
                   <span className="text-[13px] text-white font-medium leading-snug line-clamp-2">{img.description || ""}</span>
