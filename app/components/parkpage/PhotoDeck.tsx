@@ -122,7 +122,6 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     const prev = shown[prevIdx];
     const place = restingPlace(prev.id, prevIdx);
     // The returning card settles into its place; then it simply is the top card.
-    animate(grot, place.rotate, SPRING);
     animate(gx, place.x, SPRING).then(() => {
       flushSync(() => {
         setEntering([]);
@@ -155,7 +154,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
         const prevIdx = pileRef.current[pileRef.current.length - 1];
         const pp = restingPlace(shown[prevIdx].id, prevIdx);
         gx.jump(-window.innerWidth + pp.x);
-        grot.jump(pp.rotate - 8);
+        grot.jump(pp.rotate);
         setGhostIdx(prevIdx);
       }
     }
@@ -167,13 +166,10 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     st.lastX = e.clientX; st.lastT = now;
     if (st.dir < 0) {
       const pl = topPlaceRef.current;
+      // The card only slides with the finger; it keeps its own lean throughout.
       x.set(pl.x + dx);
-      // Lean further the way it travels, from its own lean, at most 8° more.
-      rotate.set(pl.rotate + Math.max(-8, Math.min(0, dx / 220 * 8)));
     } else {
       gx.set(-window.innerWidth + gp.x + Math.max(0, dx));
-      // Arrives leaning into its travel and straightens towards its own lean.
-      grot.set(gp.rotate - 8 + Math.min(8, Math.max(0, dx) / 220 * 8));
     }
   };
   const onPointerUp = (e: React.PointerEvent) => {
@@ -185,7 +181,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     const flung = Math.abs(dx) > THROW_PX || Math.abs(st.vx) > THROW_VELOCITY;
     if (st.dir < 0) {
       if (flung && dx < 0) { setBusy(true); finishLeft(); }
-      else { const pl = topPlaceRef.current; animate(x, pl.x, SPRING); animate(rotate, pl.rotate, SPRING); }
+      else { animate(x, topPlaceRef.current.x, SPRING); }
     } else {
       const prevIdx = pileRef.current[pileRef.current.length - 1];
       if (flung && dx > 0) { setBusy(true); finishRight(prevIdx); }
@@ -196,7 +192,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     const st = g.current;
     if (!st.active) return;
     st.active = false;
-    const pl = topPlaceRef.current; animate(x, pl.x, SPRING); animate(rotate, pl.rotate, SPRING);
+    animate(x, topPlaceRef.current.x, SPRING);
     if (ghostIdx !== null) animate(gx, -(window.innerWidth + 120), SPRING).then(() => setGhostIdx(null));
   };
 
