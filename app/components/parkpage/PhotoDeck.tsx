@@ -141,8 +141,13 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
               // ends, which blinks the whole card. The image and overlays carry
               // the corners themselves, and translateZ keeps each card on its own
               // layer for good, so nothing is promoted or demoted mid-animation.
-              className="absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl bg-slate-900 shadow-[0_10px_24px_rgba(0,0,0,0.4)] touch-pan-y select-none"
-              style={isTop ? { x, rotate, zIndex: VISIBLE - slot, marginLeft: "-39vw" } : { zIndex: VISIBLE - slot, marginLeft: "-39vw" }}
+              // No background on the card either: a dark backing behind a rounded
+              // image shows as a fringe along the anti-aliased edge of a rotated
+              // card whenever the edge is re-rasterised, which reads as a blink.
+              className="absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl shadow-[0_10px_24px_rgba(0,0,0,0.4)] touch-pan-y select-none"
+              style={isTop
+                ? { x, rotate, zIndex: VISIBLE - slot, marginLeft: "-39vw", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", outline: "1px solid transparent" }
+                : { zIndex: VISIBLE - slot, marginLeft: "-39vw", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", outline: "1px solid transparent" }}
               transformTemplate={(_, generated) => `${generated} translateZ(0)`}
               // Every card sits still at its resting place, the front one included:
               // coming to the front it brightens and grows a touch. A card
@@ -168,7 +173,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
                 className="object-cover rounded-2xl pointer-events-none"
               />
               {/* Back cards are dimmed by an overlay (opacity animates on the compositor). */}
-              <motion.div className="absolute inset-0 rounded-2xl bg-black pointer-events-none" initial={false} animate={{ opacity: isTop ? 0 : 0.22 }} transition={{ duration: 0.3 }} />
+              <motion.div className="absolute inset-0 rounded-2xl bg-black pointer-events-none" style={{ willChange: "opacity" }} initial={false} animate={{ opacity: isTop ? 0 : 0.22 }} transition={{ duration: 0.3 }} />
               {isTop && (
                 <motion.div
                   className="absolute inset-x-0 bottom-0 px-3.5 pt-10 pb-3 rounded-b-2xl bg-gradient-to-t from-black/75 to-transparent flex items-end justify-between gap-3 pointer-events-none"
