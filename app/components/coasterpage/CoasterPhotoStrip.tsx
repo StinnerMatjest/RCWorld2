@@ -95,7 +95,11 @@ export default function CoasterPhotoStrip({ images, coasterName, onOpen, isAdmin
                   src={img.path}
                   alt={img.description || `${coasterName} photo ${i + 1}`}
                   fill
-                  sizes="(min-width: 1024px) 256px, (min-width: 640px) 224px, 62vw"
+                  // The tile is 4:5 and most photos are landscape, so they are
+                  // scaled by height: a 16:9 photo needs 2.2x the tile width in
+                  // source pixels to fill it. The hint asks for that, so the
+                  // browser never picks a variant it would have to enlarge.
+                  sizes="(min-width: 1024px) 570px, (min-width: 640px) 500px, 138vw"
                   className="object-cover transition-transform duration-500 group-hover/item:scale-[1.03]"
                 />
               )}

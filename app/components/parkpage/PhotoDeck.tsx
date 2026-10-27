@@ -283,7 +283,9 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
                 src={img.path}
                 alt={img.description || `${parkName} photo`}
                 fill
-                sizes="(min-width: 640px) 340px, 78vw"
+                // 4:5 card, mostly landscape photos scaled by height: ask for
+                // 2.2x the card width so no variant is ever enlarged.
+                sizes="(min-width: 640px) 760px, 174vw"
                 loading="eager"
                 draggable={false}
                 className="object-cover rounded-2xl pointer-events-none"

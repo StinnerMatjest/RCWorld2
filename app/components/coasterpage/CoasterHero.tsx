@@ -53,15 +53,7 @@ function useDesktop() {
 export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, headerFocus, isAdminMode, onPickHeader, onOpenPhoto }: Props) {
   const desktop = useDesktop();
   const focus = (desktop ? headerFocus?.desktop : headerFocus?.mobile) ?? "0.5 0.5 1";
-  const [scrolled, setScrolled] = useState(false);
   const [photoIn, setPhotoIn] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => { if (window.scrollY > 40) setScrolled(true); };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   const score = formatScore(coaster.rating);
   const scoreColor = score ? getRatingColor(Number(coaster.rating)) : "text-slate-500";
@@ -103,18 +95,6 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
       {/* Dark from the bottom edge for the text; the top of the photo stays clean. */}
       <div className="absolute inset-x-0 bottom-0 h-[62%] bg-gradient-to-t from-[#0f172a] via-[#0f172a]/65 to-transparent pointer-events-none" />
 
-      {/* A quiet nudge that the page goes on; gone after the first scroll. */}
-      {!scrolled && (
-        <a
-          href="#below-hero"
-          aria-label="Scroll down"
-          className="absolute left-1/2 -translate-x-1/2 bottom-2 sm:bottom-3 z-10 text-white/60 hover:text-white motion-safe:animate-bounce transition-colors"
-          onClick={() => setScrolled(true)}
-        >
-          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" /></svg>
-        </a>
-      )}
-
       {isAdminMode && onPickHeader && (
         <button
           onClick={(e) => { e.stopPropagation(); onPickHeader(); }}
@@ -127,8 +107,9 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
         </button>
       )}
 
-      <div className="absolute inset-x-0 bottom-0 px-4 sm:px-6 lg:px-8 pb-11 sm:pb-7 pointer-events-none">
-        <div className="max-w-7xl mx-auto flex items-end justify-between gap-4 pointer-events-auto">
+      {/* Same placement as the park hero, so the two pages read as one design. */}
+      <div className="absolute inset-x-0 bottom-0 px-4 sm:px-6 lg:px-20 pb-6 lg:pb-10 pointer-events-none">
+        <div className="flex items-end justify-between gap-6 pointer-events-auto">
           <div className="min-w-0">
             <h1 className="text-[2.75rem] leading-[0.95] sm:text-6xl lg:text-7xl font-bold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)] break-words">
               {coaster.name}
