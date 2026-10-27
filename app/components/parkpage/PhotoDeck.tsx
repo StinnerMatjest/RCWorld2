@@ -60,6 +60,8 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
   const [gen, setGen] = useState<Record<number, number>>({});
   const [busy, setBusy] = useState(false);
   const [throws, setThrows] = useState(0);
+  // Cards that just (re)entered the pile fade in rather than pop.
+  const [entering, setEntering] = useState<number[]>([]);
   // Every fade in the pile is a CSS transition or keyframe, never a framer
   // opacity animation: on Android, opacity written from JavaScript each frame
   // blinked the whole card, while the browser's own transitions are clean
@@ -90,22 +92,32 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     }
   }, [pile, shown]);
 
-  /** Flick left: the top card leaves to the left and the next one is on top. */
-  const throwCard = () => {
+  /**
+   * A flick throws the top card off that side, the same way in both
+   * directions, and the pile turns the other way: left shows the next photo,
+   * right the previous one (from the bottom of the pile).
+   */
+  const throwCard = (dir: 1 | -1) => {
     if (busy || pile.length < 2) return;
     setBusy(true);
     const top = shown[pile[0]];
-    animate(x, -(window.innerWidth + 120), { duration: 0.22, ease: [0.4, 0, 1, 1] }).then(() => {
-      const nextTop = shown[pile[1]];
-      const place = nextTop ? restingPlace(nextTop.id, pile[1]) : { x: 0, rotate: 0 };
+    animate(x, dir * (window.innerWidth + 120), { duration: 0.22, ease: [0.4, 0, 1, 1] }).then(() => {
+      const nextIdx = dir < 0 ? pile[1] : pile[pile.length - 1];
+      const next = shown[nextIdx];
+      const place = next ? restingPlace(next.id, nextIdx) : { x: 0, rotate: 0 };
+      // Who fades in: the thrown card (it re-enters the pile) and, flicking
+      // left, the card that surfaces at the bottom; flicking right, the one
+      // that comes to the top from the bottom. Cards merely shifting a slot don't.
+      const surfacing = dir < 0 ? shown[pile[VISIBLE]] : next;
+      const enter = [top.id, ...(surfacing ? [surfacing.id] : [])];
       // Swap the order synchronously first, so the thrown card is unbound from
       // the drag values before they move: otherwise it would show up at the
-      // front for a frame. The next card stays exactly where it lies; the
-      // values simply take its place (jump: no inherited velocity).
+      // front for a frame. The card coming to the top stays where it lies.
       flushSync(() => {
         setGen((g) => ({ ...g, [top.id]: (g[top.id] ?? 0) + 1 }));
-        setOrder((o) => [...o.slice(1), o[0]]);
-        setThrows((n) => n + 1);
+        setEntering(enter);
+        setOrder((o) => (dir < 0 ? [...o.slice(1), o[0]] : [o[o.length - 1], ...o.slice(0, -1)]));
+        setThrows((n) => Math.max(0, n + (dir < 0 ? 1 : -1)));
       });
       x.jump(place.x);
       rotate.jump(place.rotate);
@@ -113,36 +125,11 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     });
   };
 
-  /** Flick right: the previous card (the bottom of the pile) comes back in from the left. */
-  const bringBack = () => {
-    if (busy || pile.length < 2) return;
-    setBusy(true);
-    const prevIdx = pile[pile.length - 1];
-    const prev = shown[prevIdx];
-    const place = restingPlace(prev.id, prevIdx);
-    // The dragged card settles back into the pile under the returning one.
-    flushSync(() => {
-      setGen((g) => ({ ...g, [prev.id]: (g[prev.id] ?? 0) + 1 }));
-      setOrder((o) => [o[o.length - 1], ...o.slice(0, -1)]);
-      setThrows((n) => Math.max(0, n - 1));
-    });
-    // Ease in from just past the left edge, gently, rather than springing in
-    // from far off: it is a card being put back, not thrown.
-    x.jump(-(window.innerWidth * 0.75));
-    rotate.jump(-7);
-    const settle = { duration: 0.42, ease: [0.22, 0.8, 0.3, 1] as [number, number, number, number] };
-    animate(x, place.x, settle);
-    animate(rotate, place.rotate, settle).then(() => setBusy(false));
-  };
-
   const onDragEnd = (_: unknown, info: PanInfo) => {
     draggingRef.current = false;
     setTimeout(() => { draggedRef.current = false; }, 0);
     const { offset, velocity } = info;
-    const flung = Math.abs(offset.x) > THROW_PX || Math.abs(velocity.x) > THROW_VELOCITY;
-    const dir = offset.x + velocity.x * 0.1 < 0 ? -1 : 1;
-    if (flung && dir < 0) throwCard();
-    else if (flung) bringBack();
+    if (Math.abs(offset.x) > THROW_PX || Math.abs(velocity.x) > THROW_VELOCITY) throwCard(offset.x + velocity.x * 0.1 < 0 ? -1 : 1);
     else { const p = topPlaceRef.current; animate(x, p.x, SPRING); animate(rotate, p.rotate, SPRING); }
   };
 
@@ -190,7 +177,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
               // No background on the card either: a dark backing behind a rounded
               // image shows as a fringe along the anti-aliased edge of a rotated
               // card whenever the edge is re-rasterised, which reads as a blink.
-              className={`absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl shadow-[0_10px_24px_rgba(0,0,0,0.4)] touch-pan-y select-none ${slot === VISIBLE - 1 ? "deck-enter" : ""}`}
+              className={`absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl shadow-[0_10px_24px_rgba(0,0,0,0.4)] touch-pan-y select-none ${entering.includes(img.id) ? "deck-enter" : ""}`}
               // willChange set by hand: framer would otherwise add it for the length
               // of each animation and remove it after, and that demotion rebuilds
               // the layer (another repaint of the photo).
@@ -243,7 +230,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
           </a>
         </p>
       ) : (
-        <p className="mt-1 text-center text-[11px] text-slate-600">Swipe left for the next · right for the previous · tap to open</p>
+        <p className="mt-1 text-center text-[11px] text-slate-600">Swipe left or right · tap to open</p>
       ))}
     </section>
   );
