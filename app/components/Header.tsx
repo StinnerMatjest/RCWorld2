@@ -28,7 +28,7 @@ const Header = ({ initialStatus = null }: { initialStatus?: HeaderStatus | null 
   // Park pages open on a full-bleed photo: the header floats over its top on a
   // light shade instead of sitting above it, and the countdown lines stay off.
   const pathname = usePathname();
-  const overlay = !!pathname && /^\/park\/[^/]+/.test(pathname);
+  const overlay = !!pathname && /^\/(park|coasters)\/[^/]+\/?$/.test(pathname);
 
   useEffect(() => {
     if (initialStatus) return;

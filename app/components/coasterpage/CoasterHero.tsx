@@ -118,7 +118,7 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
       {isAdminMode && onPickHeader && (
         <button
           onClick={(e) => { e.stopPropagation(); onPickHeader(); }}
-          className="absolute top-4 right-4 z-20 p-2.5 bg-black/60 hover:bg-brand text-white rounded-xl backdrop-blur-md border border-white/20 transition-all shadow-xl cursor-pointer"
+          className="absolute top-24 right-4 lg:top-32 lg:right-8 z-20 p-2.5 bg-black/60 hover:bg-brand text-white rounded-xl backdrop-blur-md border border-white/20 transition-all shadow-xl cursor-pointer"
           title="Header photo and crop"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">

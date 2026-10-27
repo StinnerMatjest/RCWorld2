@@ -226,11 +226,16 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 .hero-frame { --frame-h: min(50vw, 100vh); }
 @media (min-width: 768px) { .hero-frame { --frame-h: min(25vw, 100vh); } }
 /* Park page poster hero: 3:4 on phones, 21:9 from lg up (see ParkHero). */
-.park-hero-frame { --frame-h: min(133.333vw, 88vh); }
+.park-hero-frame { --frame-h: min(125vw, 82vh); }
+@media (min-width: 640px) { .park-hero-frame { --frame-h: min(56.25vw, 82vh); } }
 @media (min-width: 1024px) { .park-hero-frame { --frame-h: min(42.857vw, 68vh); } }
 .park-hero-img { transform: translate(var(--hero-tx-m, -50%), var(--hero-ty-m, -50%)); }
+@media (min-width: 640px) { .park-hero-img { transform: translate(var(--hero-tx-s, -50%), var(--hero-ty-s, -50%)); } }
 @media (min-width: 1024px) { .park-hero-img { transform: translate(var(--hero-tx-d, -50%), var(--hero-ty-d, -50%)); } }
 
 /* Park photo deck: a card or caption entering the pile fades in on the compositor. */
 @keyframes deck-enter { from { opacity: 0; } to { opacity: 1; } }
-.deck-enter { animation: deck-enter 350ms ease both; }
+.deck-enter { animation: deck-enter 600ms ease-out both; }
+/* The deck's swipe hint: a chevron that nudges sideways until the first throw. */
+@keyframes deck-nudge { 0%, 100% { transform: translateX(0); opacity: .55; } 50% { transform: translateX(5px); opacity: 1; } }
+.deck-nudge { animation: deck-nudge 1.4s ease-in-out infinite; }

@@ -55,8 +55,8 @@ function phoneCardWidth(vw: number): number {
 }
 /** Our phones are 384 CSS px wide: a 299.5 px card. */
 const PHONE_CARD_W = phoneCardWidth(384);
-/** Phone park hero: full width at 3:4 (see ParkHero). */
-const PHONE_HERO = { w: 384, h: 512 };
+/** Phone park hero: full width at 4:5 (see ParkHero). */
+const PHONE_HERO = { w: 384, h: 480 };
 
 function scrollbarWidth(): number {
   const probe = document.createElement("div");
@@ -842,14 +842,14 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                       key={`h-${headerPath}-${isMobile}`}
                       editorRef={headerEditorRef}
                       src={headerPath}
-                      aspectRatio={isMobile ? "3/4" : "21/9"}
+                      aspectRatio={isMobile ? "4/5" : "21/9"}
                       focusStr={headerFocus}
                       onCommit={setHeaderFocus}
                       onChange={live(setLiveHeaderFocus)}
                       className={isMobile ? "w-full" : "w-full rounded-2xl"}
                     >
                       {headerFrameW > 0 && (
-                        <ScaledLayer w={pageW} h={isMobile ? pageW * 4 / 3 : pageW * 9 / 21} scale={headerFrameW / pageW}>
+                        <ScaledLayer w={pageW} h={isMobile ? pageW * 5 / 4 : pageW * 9 / 21} scale={headerFrameW / pageW}>
                           <HeaderFace parkName={parkName} city={parkCity} country={parkCountry} continent={parkContinent} phone={isMobile} hint overall={heroOverall} ranks={heroRanks} />
                         </ScaledLayer>
                       )}

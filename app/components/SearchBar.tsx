@@ -169,7 +169,7 @@ const SearchBar = ({ collapsible = false }: { collapsible?: boolean }) => {
         onKeyDown={(e) => { if (collapsible && !expanded && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); expand(); } }}
         className={`flex items-center h-10 rounded-full transition-all duration-300 ${expanded
           ? `${collapsible ? "w-64 lg:w-80" : "w-full"} bg-slate-900 border border-slate-700 px-4 focus-within:border-brand focus-within:ring-1 focus-within:ring-brand shadow-inner`
-          : "w-10 justify-center cursor-pointer text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 shadow-sm"
+          : "w-10 justify-center cursor-pointer text-slate-300 hover:text-white"
           }`}
       >
         <svg className={`flex-shrink-0 ${expanded ? "w-4 h-4 mr-2 text-brand" : "w-5 h-5"}`} fill="none" stroke="currentColor" strokeWidth={expanded ? 2.5 : 2} viewBox="0 0 24 24">

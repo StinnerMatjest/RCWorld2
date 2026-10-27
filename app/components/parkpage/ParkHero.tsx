@@ -10,7 +10,7 @@ import { isR2Image, variantKey, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
 
 // Stored sizes plus the original, so the browser fetches the smallest file
 // whose pixels cover the hero on its screen. The frame is 100vw wide and
-// 4/3 vw (phone) or 9/21 vw (desktop) tall, so a photo of aspect a is drawn
+// 5/4 vw (phone), 9/16 vw (tablet) or 9/21 vw (desktop) tall, so a photo of aspect a is drawn
 // max(100vw, frameHeight × a) wide.
 function heroSources(src: string, size: { w: number; h: number }): { srcSet: string; sizes: string } | undefined {
   if (!isR2Image(src) || !size.w || !size.h) return undefined;
@@ -18,7 +18,7 @@ function heroSources(src: string, size: { w: number; h: number }): { srcSet: str
   const parts = VARIANT_WIDTHS.filter((w) => w < size.w).map((w) => `${variantKey(src, w)} ${w}w`);
   parts.push(`${src} ${size.w}w`);
   const vw = (frameH: number) => `${Math.ceil(Math.max(1, frameH * a) * 100)}vw`;
-  return { srcSet: parts.join(", "), sizes: `(min-width: 1024px) ${vw(9 / 21)}, ${vw(4 / 3)}` };
+  return { srcSet: parts.join(", "), sizes: `(min-width: 1024px) ${vw(9 / 21)}, (min-width: 640px) ${vw(9 / 16)}, ${vw(5 / 4)}` };
 }
 
 // Server-side placement of the photo (cover the frame, focus point at the
@@ -31,7 +31,7 @@ function heroSources(src: string, size: { w: number; h: number }): { srcSet: str
 function heroPlacement(size: { w: number; h: number }, focusStr?: string | null): React.CSSProperties {
   const { cx, cy, zoom } = parseFocusStr(focusStr);
   const a = size.w / size.h;
-  // Frame aspects: 3:4 on phones, 21:9 from lg (the vh caps are handled after hydration).
+  // Frame aspects: 4:5 on phones, 16:9 from sm, 21:9 from lg (the vh caps are handled after hydration).
   const clampFor = (frameAspect: number) => {
     // Drawn size relative to the frame: cover, then zoom.
     const dw = (a > frameAspect ? frameAspect ? (a / frameAspect) : 1 : 1) * zoom; // in frame widths
@@ -40,7 +40,8 @@ function heroPlacement(size: { w: number; h: number }, focusStr?: string | null)
     const ky = dh > 1 ? Math.min(Math.max(cy, 1 / (2 * dh)), 1 - 1 / (2 * dh)) : 0.5;
     return { tx: (-kx * 100).toFixed(3) + "%", ty: (-ky * 100).toFixed(3) + "%" };
   };
-  const m = clampFor(3 / 4);
+  const m = clampFor(4 / 5);
+  const t = clampFor(16 / 9);
   const d = clampFor(21 / 9);
   return {
     width: `max(${(100 * zoom).toFixed(3)}%, calc(var(--frame-h) * ${(zoom * a).toFixed(4)}))`,
@@ -49,6 +50,7 @@ function heroPlacement(size: { w: number; h: number }, focusStr?: string | null)
     left: "50%",
     top: "50%",
     ["--hero-tx-m" as string]: m.tx, ["--hero-ty-m" as string]: m.ty,
+    ["--hero-tx-s" as string]: t.tx, ["--hero-ty-s" as string]: t.ty,
     ["--hero-tx-d" as string]: d.tx, ["--hero-ty-d" as string]: d.ty,
   } as React.CSSProperties;
 }
@@ -109,7 +111,7 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
     <>
       <section
         ref={frameRef}
-        className="park-hero-frame relative w-full overflow-hidden bg-slate-950 aspect-[3/4] max-h-[88vh] lg:aspect-[21/9] lg:max-h-[68vh]"
+        className="park-hero-frame relative w-full overflow-hidden bg-slate-950 aspect-[4/5] sm:aspect-[16/9] lg:aspect-[21/9] max-h-[82vh] lg:max-h-[68vh]"
       >
         <div
           className={`absolute inset-0 ${onOpenPhoto && headerSrc ? "cursor-zoom-in" : ""}`}

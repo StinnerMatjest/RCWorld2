@@ -30,12 +30,15 @@ const SPRING = { type: "spring", stiffness: 420, damping: 34 } as const;
  * moves when a card is thrown; the thrown card leaves and reappears at the
  * bottom in its own place.
  */
-function restingPlace(id: number) {
+function restingPlace(id: number, index: number) {
   const f = (v: number) => v - Math.floor(v);
   const r1 = f(Math.sin(id * 12.9898) * 43758.5453);
   const r2 = f(Math.sin(id * 78.233) * 43758.5453);
   const r3 = f(Math.sin(id * 37.719) * 43758.5453);
-  return { x: (r1 - 0.5) * 28, y: (r2 - 0.5) * 20 - 8, rotate: (r3 - 0.5) * 14 };
+  // Successive cards lean to alternate sides, so the pile always reads as a
+  // fan rather than a run of cards tilted the same way; the amount is the card's own.
+  const side = index % 2 === 0 ? -1 : 1;
+  return { x: side * (12 + r1 * 20), y: (r2 - 0.5) * 24 - 10, rotate: side * (4 + r3 * 9) };
 }
 
 export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = false, onEdit }: Props) {
@@ -54,6 +57,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
   // element (fading in at the bottom) instead of flying back across the screen.
   const [gen, setGen] = useState<Record<number, number>>({});
   const [busy, setBusy] = useState(false);
+  const [throws, setThrows] = useState(0);
   // Every fade in the pile is a CSS transition or keyframe, never a framer
   // opacity animation: on Android, opacity written from JavaScript each frame
   // blinked the whole card, while the browser's own transitions are clean
@@ -63,7 +67,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
   // The top card's drag. The card keeps its own resting offset and tilt even
   // on top; a drag adds to them and the tilt follows the finger.
   const topImg = shown[pile[0]];
-  const topPlace = topImg ? restingPlace(topImg.id) : { x: 0, y: 0, rotate: 0 };
+  const topPlace = topImg ? restingPlace(topImg.id, pile[0]) : { x: 0, y: 0, rotate: 0 };
   const topPlaceRef = useRef(topPlace);
   topPlaceRef.current = topPlace;
   const x = useMotionValue(topPlace.x);
@@ -90,7 +94,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     const top = shown[pile[0]];
     animate(x, dir * (window.innerWidth + 120), { duration: 0.22, ease: [0.4, 0, 1, 1] }).then(() => {
       const nextTop = shown[pile[1]];
-      const place = nextTop ? restingPlace(nextTop.id) : { x: 0, rotate: 0 };
+      const place = nextTop ? restingPlace(nextTop.id, pile[1]) : { x: 0, rotate: 0 };
       // Swap the order synchronously first, so the thrown card is unbound from
       // the drag values before they move: otherwise it would show up at the
       // front for a frame. The next card stays exactly where it lies; the
@@ -98,6 +102,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
       flushSync(() => {
         setGen((g) => ({ ...g, [top.id]: (g[top.id] ?? 0) + 1 }));
         setOrder((o) => [...o.slice(1), o[0]]);
+        setThrows((n) => n + 1);
       });
       x.jump(place.x);
       rotate.jump(place.rotate);
@@ -131,12 +136,18 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
       </div>
 
       {/* The frame is the card plus the room the spread of the pile needs. */}
-      <div className="relative w-full" style={{ height: "min(106vw, 470px)" }}>
+      <div className="relative w-full" style={{ height: "min(108vw, 480px)" }}>
+        {/* Swipe hint: a chevron at the edge of the pile, until the first throw. */}
+        {!single && throws === 0 && (
+          <div className="deck-nudge absolute right-0 top-1/2 -translate-y-1/2 z-10 text-white/70 pointer-events-none" aria-hidden>
+            <svg className="w-7 h-7 drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
+          </div>
+        )}
         {pile.slice(0, VISIBLE).map((imgIdx, slot) => {
           const img = shown[imgIdx];
           if (!img) return null;
           const isTop = slot === 0;
-          const place = restingPlace(img.id);
+          const place = restingPlace(img.id, imgIdx);
           // No scale: when a scale animation ends the browser re-rasterises the
           // layer at the new size, and that repaint of the photo is a black frame.
           const rest = { x: place.x, y: place.y, rotate: place.rotate };

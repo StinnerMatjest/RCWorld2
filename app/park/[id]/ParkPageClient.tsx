@@ -410,7 +410,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
         onOpenPhoto={openPhoto}
       />
 
-      <div className="w-full px-6 lg:px-20 pt-4 lg:pt-7 pb-12">
+      <div className="w-full px-4 sm:px-6 md:px-20 pt-4 lg:pt-7 pb-12">
         {activeVisit && (
           <VisitSwitcher visits={visibleRatings} active={activeVisit} parkSlug={park.slug} className="mb-7 lg:mb-8" />
         )}
@@ -429,7 +429,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
           <ParkCoasterList {...coasterListProps} cap={7} />
         </div>
 
-        <div className="lg:grid lg:grid-cols-[1.4fr_5.5fr_3.5fr] [@media(min-width:2560px)]:lg:grid-cols-[1.8fr_6fr_3.5fr] lg:gap-10">
+        <div className="lg:grid lg:grid-cols-[1.4fr_5.5fr_3.5fr] [@media(min-width:2560px)]:lg:grid-cols-[1.8fr_6fr_3.5fr] lg:gap-6">
           <aside className="hidden lg:block min-w-0">
             {activeVisit && (
               <div className="sticky top-6">
