@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { motion, useMotionValue, useMotionValueEvent, animate, type PanInfo } from "framer-motion";
+import { motion, useMotionValue, animate } from "framer-motion";
 import { R2Image } from "../R2Image";
 import { isR2Image, variantKey } from "@/app/lib/imageVariants";
 import type { VisitGalleryImage } from "./VisitGallery";
@@ -62,62 +62,55 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
   const [throws, setThrows] = useState(0);
   // Cards that just (re)entered the pile fade in rather than pop.
   const [entering, setEntering] = useState<number[]>([]);
+  const single = shown.length === 1;
   // Every fade in the pile is a CSS transition or keyframe, never a framer
   // opacity animation: on Android, opacity written from JavaScript each frame
   // blinked the whole card, while the browser's own transitions are clean
   // (bisected on the user's phone, 2026-10-27). framer only drives the drag
   // and the throw of the top card.
 
-  // The top card's drag. The card keeps its own resting offset and tilt even
-  // on top; a drag adds to them and the tilt follows the finger.
+  // The gesture is the deck's own. A finger moving left drags the top card
+  // out; a finger moving right drags the previous card (the bottom of the
+  // pile) back in from the left, the way it went. Release decides: past the
+  // threshold the move completes, otherwise it eases back.
   const topImg = shown[pile[0]];
   const topPlace = topImg ? restingPlace(topImg.id, pile[0]) : { x: 0, y: 0, rotate: 0 };
   const topPlaceRef = useRef(topPlace);
   topPlaceRef.current = topPlace;
   const x = useMotionValue(topPlace.x);
   const rotate = useMotionValue(topPlace.rotate);
-  const draggingRef = useRef(false);
-  const draggedRef = useRef(false);
-  useMotionValueEvent(x, "change", (v) => {
-    if (!draggingRef.current) return;
-    const p = topPlaceRef.current;
-    rotate.set(p.rotate + Math.max(-14, Math.min(14, (v - p.x) / 220 * 14)));
-  });
+  // The returning card while it is being dragged in.
+  const gx = useMotionValue(0);
+  const grot = useMotionValue(0);
+  const [ghostIdx, setGhostIdx] = useState<number | null>(null);
+  const pileRef = useRef(pile);
+  pileRef.current = pile;
 
-  // Warm the cards below the visible pile so a throw never shows an empty frame.
+  // Warm the cards just below the visible pile, so a throw never shows an empty frame.
   useEffect(() => {
     for (const i of pile.slice(VISIBLE, VISIBLE + 2)) {
       const src = shown[i]?.path;
       if (src && isR2Image(src)) { const img = new Image(); img.src = variantKey(src, 1200); }
     }
   }, [pile, shown]);
+  const g = useRef({ active: false, dir: 0 as 0 | -1 | 1, startX: 0, startY: 0, lastX: 0, lastT: 0, vx: 0, moved: false });
 
-  /**
-   * A flick throws the top card off that side, the same way in both
-   * directions, and the pile turns the other way: left shows the next photo,
-   * right the previous one (from the bottom of the pile).
-   */
-  const throwCard = (dir: 1 | -1) => {
-    if (busy || pile.length < 2) return;
-    setBusy(true);
-    const top = shown[pile[0]];
-    animate(x, dir * (window.innerWidth + 120), { duration: 0.22, ease: [0.4, 0, 1, 1] }).then(() => {
-      const nextIdx = dir < 0 ? pile[1] : pile[pile.length - 1];
+  const finishLeft = () => {
+    const pileNow = pileRef.current;
+    const top = shown[pileNow[0]];
+    animate(x, -(window.innerWidth + 120), { duration: 0.22, ease: [0.4, 0, 1, 1] }).then(() => {
+      const nextIdx = pileNow[1];
       const next = shown[nextIdx];
       const place = next ? restingPlace(next.id, nextIdx) : { x: 0, rotate: 0 };
-      // Who fades in: the thrown card (it re-enters the pile) and, flicking
-      // left, the card that surfaces at the bottom; flicking right, the one
-      // that comes to the top from the bottom. Cards merely shifting a slot don't.
-      const surfacing = dir < 0 ? shown[pile[VISIBLE]] : next;
-      const enter = [top.id, ...(surfacing ? [surfacing.id] : [])];
+      const surfacing = shown[pileNow[VISIBLE]];
       // Swap the order synchronously first, so the thrown card is unbound from
       // the drag values before they move: otherwise it would show up at the
       // front for a frame. The card coming to the top stays where it lies.
       flushSync(() => {
-        setGen((g) => ({ ...g, [top.id]: (g[top.id] ?? 0) + 1 }));
-        setEntering(enter);
-        setOrder((o) => (dir < 0 ? [...o.slice(1), o[0]] : [o[o.length - 1], ...o.slice(0, -1)]));
-        setThrows((n) => Math.max(0, n + (dir < 0 ? 1 : -1)));
+        setGen((gen) => ({ ...gen, [top.id]: (gen[top.id] ?? 0) + 1 }));
+        setEntering([top.id, ...(surfacing ? [surfacing.id] : [])]);
+        setOrder((o) => [...o.slice(1), o[0]]);
+        setThrows((n) => n + 1);
       });
       x.jump(place.x);
       rotate.jump(place.rotate);
@@ -125,16 +118,83 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     });
   };
 
-  const onDragEnd = (_: unknown, info: PanInfo) => {
-    draggingRef.current = false;
-    setTimeout(() => { draggedRef.current = false; }, 0);
-    const { offset, velocity } = info;
-    if (Math.abs(offset.x) > THROW_PX || Math.abs(velocity.x) > THROW_VELOCITY) throwCard(offset.x + velocity.x * 0.1 < 0 ? -1 : 1);
-    else { const p = topPlaceRef.current; animate(x, p.x, SPRING); animate(rotate, p.rotate, SPRING); }
+  const finishRight = (prevIdx: number) => {
+    const prev = shown[prevIdx];
+    const place = restingPlace(prev.id, prevIdx);
+    // The returning card settles into its place; then it simply is the top card.
+    animate(grot, place.rotate, SPRING);
+    animate(gx, place.x, SPRING).then(() => {
+      flushSync(() => {
+        setEntering([]);
+        setOrder((o) => [o[o.length - 1], ...o.slice(0, -1)]);
+        setThrows((n) => Math.max(0, n - 1));
+      });
+      x.jump(place.x);
+      rotate.jump(place.rotate);
+      setGhostIdx(null);
+      setBusy(false);
+    });
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (busy || single) return;
+    const st = g.current;
+    st.active = true; st.dir = 0; st.moved = false; st.startX = e.clientX; st.startY = e.clientY; st.lastX = e.clientX; st.lastT = performance.now(); st.vx = 0;
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const st = g.current;
+    if (!st.active) return;
+    const dx = e.clientX - st.startX, dy = e.clientY - st.startY;
+    if (!st.dir) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      if (Math.abs(dy) > Math.abs(dx)) { st.active = false; return; } // a scroll: leave it to the page
+      st.dir = dx < 0 ? -1 : 1;
+      st.moved = true;
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      if (st.dir > 0) {
+        gx.jump(-window.innerWidth);
+        grot.jump(-10);
+        setGhostIdx(pileRef.current[pileRef.current.length - 1]);
+      }
+    }
+    const now = performance.now();
+    const dt = now - st.lastT;
+    if (dt > 0) st.vx = 0.7 * st.vx + 0.3 * ((e.clientX - st.lastX) / dt) * 1000;
+    st.lastX = e.clientX; st.lastT = now;
+    if (st.dir < 0) {
+      const pl = topPlaceRef.current;
+      x.set(pl.x + dx);
+      rotate.set(pl.rotate + Math.max(-14, Math.min(0, dx / 220 * 14)));
+    } else {
+      gx.set(-window.innerWidth + Math.max(0, dx));
+      grot.set(-10 + Math.min(10, Math.max(0, dx) / 220 * 10));
+    }
+  };
+  const onPointerUp = (e: React.PointerEvent) => {
+    const st = g.current;
+    if (!st.active) return;
+    st.active = false;
+    const dx = e.clientX - st.startX;
+    if (!st.moved) { if (topImg) onOpen(topImg); return; }
+    const flung = Math.abs(dx) > THROW_PX || Math.abs(st.vx) > THROW_VELOCITY;
+    if (st.dir < 0) {
+      if (flung && dx < 0) { setBusy(true); finishLeft(); }
+      else { const pl = topPlaceRef.current; animate(x, pl.x, SPRING); animate(rotate, pl.rotate, SPRING); }
+    } else {
+      const prevIdx = pileRef.current[pileRef.current.length - 1];
+      if (flung && dx > 0) { setBusy(true); finishRight(prevIdx); }
+      else { animate(grot, -10, SPRING); animate(gx, -(window.innerWidth + 120), SPRING).then(() => setGhostIdx(null)); }
+    }
+  };
+  const onPointerCancel = () => {
+    const st = g.current;
+    if (!st.active) return;
+    st.active = false;
+    const pl = topPlaceRef.current; animate(x, pl.x, SPRING); animate(rotate, pl.rotate, SPRING);
+    if (ghostIdx !== null) animate(gx, -(window.innerWidth + 120), SPRING).then(() => setGhostIdx(null));
   };
 
   if (shown.length === 0) return null;
-  const single = shown.length === 1;
 
   return (
     <section id="photo-deck" className="scroll-mt-20">
@@ -151,7 +211,20 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
       </div>
 
       {/* The frame is the card plus the room the spread of the pile needs. */}
-      <div className="relative w-full" style={{ height: "min(108vw, 480px)" }}>
+      <div
+        className="relative w-full touch-pan-y select-none"
+        style={{ height: "min(108vw, 480px)" }}
+        onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel}
+      >
+        {/* The previous card, while a finger drags it back in from the left. */}
+        {ghostIdx !== null && shown[ghostIdx] && (
+          <motion.div
+            className="absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl shadow-[0_10px_24px_rgba(0,0,0,0.4)] pointer-events-none"
+            style={{ x: gx, rotate: grot, zIndex: VISIBLE + 1, marginLeft: "-39vw", willChange: "transform" }}
+          >
+            <R2Image src={shown[ghostIdx].path} alt="" fill sizes="(min-width: 640px) 340px, 78vw" loading="eager" draggable={false} className="object-cover rounded-2xl pointer-events-none" />
+          </motion.div>
+        )}
         {/* Swipe hint: a chevron at the edge of the pile, until the first throw. */}
         {!single && throws === 0 && (
           <div className="deck-nudge absolute right-0 top-1/2 -translate-y-1/2 z-10 text-white/70 pointer-events-none" aria-hidden>
@@ -177,7 +250,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
               // No background on the card either: a dark backing behind a rounded
               // image shows as a fringe along the anti-aliased edge of a rotated
               // card whenever the edge is re-rasterised, which reads as a blink.
-              className={`absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl shadow-[0_10px_24px_rgba(0,0,0,0.4)] touch-pan-y select-none ${entering.includes(img.id) ? "deck-enter" : ""}`}
+              className={`absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl shadow-[0_10px_24px_rgba(0,0,0,0.4)] ${entering.includes(img.id) ? "deck-enter" : ""}`}
               // willChange set by hand: framer would otherwise add it for the length
               // of each animation and remove it after, and that demotion rebuilds
               // the layer (another repaint of the photo).
@@ -191,12 +264,6 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
               initial={isTop ? false : rest}
               animate={isTop ? { y: place.y } : rest}
               transition={{ duration: 0 }}
-              drag={isTop && !single ? "x" : false}
-              dragElastic={1}
-              dragMomentum={false}
-              onDragStart={isTop ? () => { draggingRef.current = true; draggedRef.current = true; } : undefined}
-              onDragEnd={isTop ? onDragEnd : undefined}
-              onTap={isTop ? () => { if (!draggedRef.current) onOpen(img); } : undefined}
             >
               {/* decode() keeps the bitmap ready, so a rebuilt layer never waits on a decode. */}
               <R2Image
@@ -230,7 +297,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
           </a>
         </p>
       ) : (
-        <p className="mt-1 text-center text-[11px] text-slate-600">Swipe left or right · tap to open</p>
+        <p className="mt-1 text-center text-[11px] text-slate-600">Swipe left for the next · drag right to bring one back · tap to open</p>
       ))}
     </section>
   );
