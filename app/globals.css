@@ -230,3 +230,7 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 @media (min-width: 1024px) { .park-hero-frame { --frame-h: min(42.857vw, 68vh); } }
 .park-hero-img { transform: translate(var(--hero-tx-m, -50%), var(--hero-ty-m, -50%)); }
 @media (min-width: 1024px) { .park-hero-img { transform: translate(var(--hero-tx-d, -50%), var(--hero-ty-d, -50%)); } }
+
+/* Park photo deck: a card or caption entering the pile fades in on the compositor. */
+@keyframes deck-enter { from { opacity: 0; } to { opacity: 1; } }
+.deck-enter { animation: deck-enter 350ms ease both; }

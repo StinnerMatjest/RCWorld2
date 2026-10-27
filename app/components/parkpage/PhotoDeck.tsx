@@ -54,6 +54,11 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
   // element (fading in at the bottom) instead of flying back across the screen.
   const [gen, setGen] = useState<Record<number, number>>({});
   const [busy, setBusy] = useState(false);
+  // Every fade in the pile is a CSS transition or keyframe, never a framer
+  // opacity animation: on Android, opacity written from JavaScript each frame
+  // blinked the whole card, while the browser's own transitions are clean
+  // (bisected on the user's phone, 2026-10-27). framer only drives the drag
+  // and the throw of the top card.
 
   // The top card's drag. The card keeps its own resting offset and tilt even
   // on top; a drag adds to them and the tilt follows the finger.
@@ -133,8 +138,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
           const isTop = slot === 0;
           const place = restingPlace(img.id);
           // No scale: when a scale animation ends the browser re-rasterises the
-          // layer at the new size, and that repaint of the photo is a black frame
-          // on phones. Promotion is two opacity fades on their own small layers.
+          // layer at the new size, and that repaint of the photo is a black frame.
           const rest = { x: place.x, y: place.y, rotate: place.rotate };
           return (
             <motion.div
@@ -147,7 +151,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
               // No background on the card either: a dark backing behind a rounded
               // image shows as a fringe along the anti-aliased edge of a rotated
               // card whenever the edge is re-rasterised, which reads as a blink.
-              className="absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl shadow-[0_10px_24px_rgba(0,0,0,0.4)] touch-pan-y select-none"
+              className={`absolute left-1/2 top-3 w-[78vw] max-w-[340px] aspect-[4/5] rounded-2xl shadow-[0_10px_24px_rgba(0,0,0,0.4)] touch-pan-y select-none ${slot === VISIBLE - 1 ? "deck-enter" : ""}`}
               // willChange set by hand: framer would otherwise add it for the length
               // of each animation and remove it after, and that demotion rebuilds
               // the layer (another repaint of the photo).
@@ -155,11 +159,12 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
                 ? { x, rotate, zIndex: VISIBLE - slot, marginLeft: "-39vw", willChange: "transform", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }
                 : { zIndex: VISIBLE - slot, marginLeft: "-39vw", willChange: "transform", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
               // Every card sits still at its resting place, the front one included:
-              // coming to the front it only brightens. A card entering at the
-              // bottom fades in there.
-              initial={isTop ? false : { ...rest, opacity: slot === VISIBLE - 1 ? 0 : 1 }}
-              animate={isTop ? { y: place.y, opacity: 1 } : { ...rest, opacity: 1 }}
-              transition={isTop ? SPRING : { ...SPRING, opacity: { duration: 0.35 } }}
+              // coming to the front it only brightens (CSS). A card entering at the
+              // bottom fades in there (CSS keyframe via .deck-enter). No framer
+              // transition on the card itself: nothing it owns ever moves.
+              initial={isTop ? false : rest}
+              animate={isTop ? { y: place.y } : rest}
+              transition={{ duration: 0 }}
               drag={isTop && !single ? "x" : false}
               dragElastic={1}
               dragMomentum={false}
@@ -180,16 +185,12 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
                 onLoad={(e) => { const el = e.currentTarget; if (el.decode) el.decode().catch(() => {}); }}
               />
               {/* Back cards are dimmed by an overlay (opacity animates on the compositor). */}
-              <motion.div className="absolute inset-0 rounded-2xl bg-black pointer-events-none" style={{ willChange: "opacity" }} initial={false} animate={{ opacity: isTop ? 0 : 0.22 }} transition={{ duration: 0.3 }} />
+              <div className="absolute inset-0 rounded-2xl bg-black pointer-events-none" style={{ opacity: isTop ? 0 : 0.22, transition: "opacity 300ms ease" }} />
               {isTop && (
-                <motion.div
-                  className="absolute inset-x-0 bottom-0 px-3.5 pt-10 pb-3 rounded-b-2xl bg-gradient-to-t from-black/75 to-transparent flex items-end justify-between gap-3 pointer-events-none"
-                  style={{ willChange: "opacity" }}
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.05 }}
-                >
+                <div className="deck-enter absolute inset-x-0 bottom-0 px-3.5 pt-10 pb-3 rounded-b-2xl bg-gradient-to-t from-black/75 to-transparent flex items-end justify-between gap-3 pointer-events-none">
                   <span className="text-[13px] text-white font-medium leading-snug line-clamp-2">{img.description || ""}</span>
                   {!single && <span className="text-[11px] text-slate-200 tabular-nums flex-shrink-0">{imgIdx + 1} / {shown.length}</span>}
-                </motion.div>
+                </div>
               )}
             </motion.div>
           );
