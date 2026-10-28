@@ -207,6 +207,10 @@ export function FocusedImage({
         className={`absolute max-w-none select-none ${imgClassName}`}
         style={placement ? { ...imgStyle, ...placement, visibility: "visible" } : { ...imgStyle, visibility: "hidden" }}
         loading={priority ? "eager" : "lazy"}
+        // The LCP photo asks the browser to fetch it ahead of everything else.
+        // camelCase: the app router's React 19 then also marks the preload
+        // link it hoists for an eager image as high priority.
+        fetchPriority={priority ? "high" : undefined}
         onLoad={(e) => {
           nwRef.current = e.currentTarget.naturalWidth;
           nhRef.current = e.currentTarget.naturalHeight;

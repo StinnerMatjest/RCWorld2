@@ -13,12 +13,18 @@ import { isR2Image, variantKey, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
  * Non-R2 sources render through next/image unchanged, and if a variant is missing
  * (an upload that predates the backfill) the image falls back to next/image too.
  */
-export function R2Image(props: ImageProps) {
+type Props = ImageProps & {
+  /** Browser fetch priority; "low" keeps a below-the-fold photo from racing the hero. */
+  fetchPriority?: "high" | "low" | "auto";
+};
+
+export function R2Image(props: Props) {
   const [fallback, setFallback] = useState(false);
-  const { src, alt, fill, sizes, className, style, width, height, priority, loading, draggable, onLoad, onClick } = props;
+  const { src, alt, fill, sizes, className, style, width, height, priority, loading, draggable, onLoad, onClick, fetchPriority } = props;
 
   if (fallback || typeof src !== "string" || !isR2Image(src)) {
-    return <Image {...props} alt={alt} />;
+    const { fetchPriority: _fp, ...rest } = props;
+    return <Image {...rest} alt={alt} />;
   }
 
   const srcSet = VARIANT_WIDTHS.map((w) => `${variantKey(src, w)} ${w}w`).join(", ");
@@ -39,6 +45,9 @@ export function R2Image(props: ImageProps) {
       width={fill ? undefined : width}
       height={fill ? undefined : height}
       loading={priority ? "eager" : (loading ?? "lazy")}
+      // camelCase: React 19 maps it to the attribute and, for "low", does not
+      // hoist a preload link for the image (eager images otherwise get one).
+      fetchPriority={fetchPriority}
       decoding="async"
       draggable={draggable}
       onLoad={onLoad}

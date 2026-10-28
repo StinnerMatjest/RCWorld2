@@ -356,7 +356,10 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
                 // 4:5 card, mostly landscape photos scaled by height: ask for
                 // 2.2x the card width so no variant is ever enlarged.
                 sizes="(min-width: 640px) 760px, 174vw"
+                // Eager so the pile is ready to swipe, but behind the hero in the queue:
+                // the deck sits under the fold and must not delay the page's first photo.
                 loading="eager"
+                fetchPriority="low"
                 draggable={false}
                 className="object-cover rounded-2xl pointer-events-none"
                 // A saved framing places the photo as the editor showed it (the card
