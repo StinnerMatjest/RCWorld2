@@ -53,7 +53,8 @@ function buildTiers(coasters: RollerCoaster[]): Tier[] {
 }
 
 /**
- * The park's coasters, grouped by tier. Each row: name, maker · year in grey,
+ * The park's coasters, grouped by tier under white headings with a dot in the
+ * tier colour. Each row: name, maker · year in grey,
  * the score at the right edge in its rating colour. Phones fold the list
  * after `cap` coasters: the next one shows through a fade, and a pill opens
  * the rest (optional coasters live inside the fold, never outside it).
@@ -125,9 +126,12 @@ export default function ParkCoasterList({ coasters, loading = false, cap = 0, is
     </li>
   );
 
+  // The heading is white; the tier's colour is only a small dot before it,
+  // so the list is not a rainbow and the scores stay the one thing in colour.
   const TierHead = ({ tier }: { tier: Tier }) => (
-    <div className="flex items-baseline gap-2.5 mt-3 lg:mt-3.5 first:mt-1 mb-0">
-      <span className="text-[11px] lg:text-xs font-black uppercase tracking-[0.14em]" style={{ color: tier.hex }}>{tier.label}</span>
+    <div className="flex items-center gap-2 mt-3 lg:mt-3.5 first:mt-1 mb-0.5">
+      <span className="w-[7px] h-[7px] rounded-full flex-none" style={{ backgroundColor: tier.muted ? "#475569" : tier.hex }} aria-hidden />
+      <span className="text-[11px] lg:text-xs font-extrabold uppercase tracking-[0.14em] text-slate-300">{tier.label}</span>
       <span className="flex-1 h-px bg-white/[0.08]" />
     </div>
   );
