@@ -199,7 +199,7 @@ type Tier = {
 };
 
 const SCORING_TIERS: Tier[] = [
-  { score: "11", color: getRatingColor(11), unified: "GOATED" },
+  { score: "11", color: getRatingColor(11), unified: "Legendary" },
   { score: "10", color: getRatingColor(10), unified: "World Class" },
   { score: "9.0 - 9.5", color: getRatingColor(9), unified: "Elite" },
   { score: "8.0 - 8.5", color: getRatingColor(8), thrill: "Great thrill coaster", family: "Extraordinary Family coaster" },

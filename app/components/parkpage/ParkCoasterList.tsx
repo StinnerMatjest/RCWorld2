@@ -108,8 +108,10 @@ export default function ParkCoasterList({ coasters, loading = false, cap = 0, is
 
   const Row = ({ c }: { c: RollerCoaster }) => (
     <li className="group grid grid-cols-[1fr_auto_auto] items-baseline gap-3 py-1 lg:py-[3px]">
-      <Link href={`/coasters/${c.slug}`} className="min-w-0 truncate text-[15px] lg:text-[17px] font-medium text-white hover:text-brand transition-colors">
-        {c.name}
+      {/* White name with a small orange chevron: the chevron is the "this opens" signal. */}
+      <Link href={`/coasters/${c.slug}`} className="min-w-0 flex items-center gap-1.5 text-[15px] lg:text-[17px] font-medium text-white hover:text-brand-light active:opacity-60 transition-colors">
+        <span className="truncate">{c.name}</span>
+        <svg className="w-[11px] h-[11px] flex-none text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M9 5l7 7-7 7" /></svg>
       </Link>
       <span className="text-xs lg:text-sm text-slate-400 whitespace-nowrap">
         {[c.manufacturerName, c.year].filter(Boolean).join(" · ")}

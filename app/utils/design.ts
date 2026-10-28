@@ -6,7 +6,7 @@
 export type RatingTier = { min: number; hex: string; label: string };
 
 export const RATING_TIERS: RatingTier[] = [
-  { min: 11,  hex: "#FCD34D", label: "GOATED" },
+  { min: 11,  hex: "#FCD34D", label: "Legendary" },
   { min: 10,  hex: "#F472B6", label: "World Class" },
   { min: 9,   hex: "#C4B5FD", label: "Elite" },
   { min: 8,   hex: "#60A5FA", label: "Fantastic" },
@@ -32,7 +32,7 @@ export const getRatingColor = (rating: number | string) => {
     return "text-slate-500";
   }
 
-  // ⭐ 11 — GOATED (gold + glow)
+  // ⭐ 11 — Legendary (gold + glow)
   if (rating >= 11) {
     return "text-[#FCD34D] drop-shadow-[0_0_4px_rgba(252,211,77,0.4)]";
   }
