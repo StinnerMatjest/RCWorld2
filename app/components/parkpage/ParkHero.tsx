@@ -124,6 +124,23 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
           className={`absolute inset-0 ${onOpenPhoto && headerSrc ? "cursor-zoom-in" : ""}`}
           onClick={onOpenPhoto && headerSrc ? () => onOpenPhoto(headerSrc) : undefined}
         >
+          {/* Blur-up: the 480 variant, placed by the very same server rules as the
+              sharp photo (same classes and CSS vars, vh caps included), blurred
+              and a touch enlarged so it reads as the photo coming into focus. */}
+          {headerSrc && headerSize && isR2Image(headerSrc) && (
+            <div aria-hidden className="park-hero-blurwrap absolute inset-0 pointer-events-none">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={variantKey(headerSrc, 480)}
+                alt=""
+                draggable={false}
+                decoding="async"
+                fetchPriority="high"
+                className="park-hero-img absolute max-w-none select-none"
+                style={heroPlacement(headerSize, headerFocus)}
+              />
+            </div>
+          )}
           {headerSrc && (
             <FocusedImage
               key={headerSrc}
