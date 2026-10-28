@@ -28,6 +28,11 @@ const GALLERY_NUDGE_AFTER = 5;
 const GALLERY_NUDGE_MS = 10_000;
 /** A thrown card leaves and a brought-back card lands in the same time. */
 const MOVE_S = 0.22;
+/** A card surfacing at the back of the pile, or sinking out of it, fades this
+ *  slowly so the eye never catches it appearing. */
+const DEPTH_FADE_MS = 1200;
+/** Without a curated set, the deck shows this many of the visit's photos. */
+const FALLBACK_COUNT = 12;
 const EASE_OUT = [0.2, 0, 0, 1] as const;
 const EASE_IN = [0.4, 0, 1, 1] as const;
 const SPRING = { type: "spring", stiffness: 420, damping: 34 } as const;
@@ -53,7 +58,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
   const shown = useMemo(() => {
     const photos = images.filter((g) => !isVideo(g.path));
     const picked = photos.filter((g) => g.featured);
-    return picked.length ? picked : photos;
+    return picked.length ? picked : photos.slice(0, FALLBACK_COUNT);
   }, [images]);
 
   // The pile as indexes into `shown`; the first is on top. Indexes that no
@@ -241,13 +246,13 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
     <section id="photo-deck" className="scroll-mt-20">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-xl font-bold text-white">
-          Photos <span className="text-slate-500 font-semibold">({shown.length})</span>
+          Curated photos
         </h2>
         <div className="flex items-baseline gap-4">
           {isAdminMode && onEdit && (
             <button type="button" onClick={onEdit} className="text-xs font-semibold text-slate-500 hover:text-white transition-colors cursor-pointer">Edit</button>
           )}
-          <a href="#gallery" className="text-[11px] font-bold uppercase tracking-widest text-brand hover:text-brand-light transition-colors">See all {images.length}</a>
+          <a href="#gallery" className="text-[11px] font-bold uppercase tracking-widest text-brand hover:text-brand-light transition-colors">Go to gallery</a>
         </div>
       </div>
 
@@ -297,11 +302,12 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
           // leaving for or arriving from off screen switches its look at once,
           // out of sight.
           const ease = inPile ? "opacity 300ms ease" : "none";
+          const depthEase = inPile ? `opacity ${DEPTH_FADE_MS}ms ease` : "none";
           const layer = { marginLeft: "-39vw", willChange: "transform", backfaceVisibility: "hidden" as const, WebkitBackfaceVisibility: "hidden" as const };
           const fade = airborne || isTop
             ? { opacity: 1, transition: ease }
             : inPile
-              ? { opacity: slot < VISIBLE ? 1 : 0, transition: ease }
+              ? { opacity: slot < VISIBLE ? 1 : 0, transition: depthEase }
               : { opacity: 0, visibility: "hidden" as const };
           const zIndex = isFlying ? VISIBLE + 3 : raised ? VISIBLE + 2 : isTop ? VISIBLE + 1 : inPile ? Math.max(0, VISIBLE - slot) : 0;
           return (
@@ -354,7 +360,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
       {!single && (swipes >= GALLERY_NUDGE_AFTER || nudgeTime ? (
         <p className="mt-2 text-center">
           <a href="#gallery" className="inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.08em] text-brand hover:text-brand-light transition-colors">
-            Looking for more? Browse all {images.length} photos
+            Looking for more? Go to the gallery
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
           </a>
         </p>

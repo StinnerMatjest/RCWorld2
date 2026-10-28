@@ -21,8 +21,9 @@ interface Props {
 }
 
 /**
- * One line under the hero: "Visited 24 Aug 2026 · 3 visits" and, when there
- * are several, a "Switch visit" link that opens the list.
+ * The visit date beside the review heading. With one visit it is a quiet grey
+ * date; with several it is the control: orange, "· n visits" and a chevron,
+ * and a tap opens the list.
  */
 export default function VisitSwitcher({ visits, active, parkSlug, className = "" }: Props) {
   const router = useRouter();
@@ -40,23 +41,24 @@ export default function VisitSwitcher({ visits, active, parkSlug, className = ""
   }, [open]);
 
   return (
-    <div ref={ref} className={`relative flex items-baseline justify-between gap-4 ${className}`}>
-      <p className="text-sm text-slate-400 min-w-0 truncate">
-        Visited <span className="text-slate-200 font-medium">{formatVisitDate(active.date)}</span>
-        {hasMultiple && <span className="text-slate-500"> · {visits.length} visits</span>}
-        {!active.published && (
-          <span className="ml-2 bg-red-900/30 text-red-400 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded align-middle">Draft</span>
-        )}
-      </p>
-      {hasMultiple && (
+    <div ref={ref} className={`relative inline-flex items-center gap-2 ${className}`}>
+      {hasMultiple ? (
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest text-brand hover:text-brand-light transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:text-brand-light transition-colors cursor-pointer whitespace-nowrap"
+          aria-haspopup="listbox"
+          aria-expanded={open}
         >
-          Switch visit
+          {formatVisitDate(active.date)}
+          <span className="text-slate-500 font-normal">· {visits.length} visits</span>
           <svg className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
         </button>
+      ) : (
+        <span className="text-sm text-slate-400 whitespace-nowrap">{formatVisitDate(active.date)}</span>
+      )}
+      {!active.published && (
+        <span className="bg-red-900/30 text-red-400 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded align-middle">Draft</span>
       )}
 
       <AnimatePresence>

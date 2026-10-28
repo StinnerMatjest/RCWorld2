@@ -337,9 +337,12 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
   const review = activeVisit ? (
     <section id="review" className="scroll-mt-20">
       {/* Phones: "Our review" opens the scorecard. Desktop has the scorecard in the rail, so Introduction leads as before. */}
-      <div className="flex items-center justify-between lg:hidden">
+      <div className="flex items-center justify-between gap-4 lg:hidden">
         <h2 className="text-3xl font-bold text-white tracking-tight">Our review</h2>
-        {adminMenu}
+        <div className="flex items-center gap-3">
+          <VisitSwitcher visits={visibleRatings} active={activeVisit} parkSlug={park.slug} />
+          {adminMenu}
+        </div>
       </div>
       <div className="w-12 h-1 bg-brand rounded-full mt-3 mb-5 lg:hidden" />
       {isAdminMode && <div className="hidden lg:flex justify-end mb-3">{adminMenu}</div>}
@@ -411,10 +414,6 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
       />
 
       <div className="w-full px-4 sm:px-6 md:px-20 pt-4 lg:pt-7 pb-12">
-        {activeVisit && (
-          <VisitSwitcher visits={visibleRatings} active={activeVisit} parkSlug={park.slug} className="mb-7 lg:mb-8" />
-        )}
-
         {/* Phones: the deck and the coasters come before the review. */}
         <div className="lg:hidden space-y-9 mb-10">
           {activeRatingId && (
@@ -433,6 +432,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
           <aside className="hidden lg:block min-w-0">
             {activeVisit && (
               <div className="sticky top-6">
+                <VisitSwitcher visits={visibleRatings} active={activeVisit} parkSlug={park.slug} className="mb-5" />
                 <ParkScorecard rating={activeVisit} ranks={initialRanks} label="Scorecard" />
               </div>
             )}
