@@ -26,7 +26,6 @@ function heroSources(src: string, size: { w: number; h: number }): { srcSet: str
 }
 
 // Server-side placement of the photo (cover the frame, focus point at the
-// centre), so the HTML shows a placed photo before any JavaScript runs.
 // FocusedImage replaces this with px values after hydration. The frame
 // height comes from the .park-hero-frame CSS variable (it depends on the
 // breakpoint), and the translate is clamped per breakpoint so a focus point
@@ -82,28 +81,24 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
   const headerSrc = ownHeader ?? park.imagepath;
   const headerFocus = (ownHeader ? visit?.headerFocus : park.headerFocus) ?? undefined;
   const headerSize = ownHeader ? visit?.headerImageSize : park.imageSize;
-  const placed = !!headerSize;
-  const [imageLoaded, setImageLoaded] = useState(placed);
+  // The photo always arrives with a 700 ms fade: it is drawn at opacity 0 in
+  // the HTML and revealed once it is in, whether that is before React takes
+  // over (then at hydration) or later (then on load).
+  const [imageLoaded, setImageLoaded] = useState(false);
   const frameRef = useRef<HTMLDivElement>(null);
   const [showModal, setShowModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const overall = visit ? Number(visit.overall) : null;
 
-  // A placed photo is in the HTML from the start. If it is still on its way
-  // when we take over, hide it at once and fade it in when it lands.
   useLayoutEffect(() => {
     const img = frameRef.current?.querySelector("img");
-    if (img && !(img.complete && img.naturalWidth > 0)) { img.style.transition = "none"; img.style.opacity = "0"; }
-  }, []);
-  const revealPhoto = () => {
-    const img = frameRef.current?.querySelector("img");
-    if (img && img.style.opacity === "0") {
-      void img.offsetWidth;
-      img.style.transition = "opacity 700ms ease-out";
-      img.style.opacity = "1";
+    if (img && img.complete && img.naturalWidth > 0) {
+      // Already here: reveal on the next frame so the transition runs from 0.
+      const id = requestAnimationFrame(() => setImageLoaded(true));
+      return () => cancelAnimationFrame(id);
     }
-    setImageLoaded(true);
-  };
+  }, []);
+  const revealPhoto = () => setImageLoaded(true);
 
   useEffect(() => {
     if (!showToast) return;
