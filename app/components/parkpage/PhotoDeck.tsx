@@ -358,10 +358,12 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
         })}
       </div>
       {!single && (swipes >= GALLERY_NUDGE_AFTER || nudgeTime ? (
-        <p className="mt-2 text-center">
-          <a href="#gallery" className="inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.08em] text-brand hover:text-brand-light transition-colors">
+        /* The hint becomes the invitation: it rises in, the chevron bobs a few
+           times, then everything settles so it does not keep nagging. */
+        <p className="mt-2 text-center deck-more">
+          <a href="#gallery" className="inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-brand hover:text-brand-light transition-colors">
             Looking for more? Go to the gallery
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+            <svg className="w-4 h-4 deck-more-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
           </a>
         </p>
       ) : (

@@ -239,3 +239,9 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 /* The deck's swipe hint: a chevron that nudges sideways until the first throw. */
 @keyframes deck-nudge { 0%, 100% { transform: translateX(0); opacity: .55; } 50% { transform: translateX(5px); opacity: 1; } }
 .deck-nudge { animation: deck-nudge 1.4s ease-in-out infinite; }
+/* The "Looking for more?" line: rises and brightens in, then the chevron bobs
+   three times and rests. Transform/opacity only, so it never re-rasters the deck. */
+@keyframes deck-more-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.deck-more { animation: deck-more-in 500ms cubic-bezier(.2,.8,.2,1) both; }
+@keyframes deck-more-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+.deck-more-chev { animation: deck-more-bob 700ms ease-in-out 500ms 3; }
