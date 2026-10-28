@@ -81,10 +81,12 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
   const headerSrc = ownHeader ?? park.imagepath;
   const headerFocus = (ownHeader ? visit?.headerFocus : park.headerFocus) ?? undefined;
   const headerSize = ownHeader ? visit?.headerImageSize : park.imageSize;
-  // The photo always arrives with a 700 ms fade: it is drawn at opacity 0 in
-  // the HTML and revealed once it is in, whether that is before React takes
-  // over (then at hydration) or later (then on load).
-  const [imageLoaded, setImageLoaded] = useState(false);
+  // The photo always arrives with a 700 ms fade. In the common case it is in
+  // the HTML, loaded by first paint, and the .hero-fade-in keyframe runs from
+  // that paint with no JavaScript involved (a slow phone must never wait for
+  // hydration to see the hero). If it is still on its way when React takes
+  // over, it is hidden at once and faded in when it lands.
+  const [imageLoaded, setImageLoaded] = useState(true);
   const frameRef = useRef<HTMLDivElement>(null);
   const [showModal, setShowModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -92,13 +94,19 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
 
   useLayoutEffect(() => {
     const img = frameRef.current?.querySelector("img");
-    if (img && img.complete && img.naturalWidth > 0) {
-      // Already here: reveal on the next frame so the transition runs from 0.
-      const id = requestAnimationFrame(() => setImageLoaded(true));
-      return () => cancelAnimationFrame(id);
+    if (img && !(img.complete && img.naturalWidth > 0)) {
+      img.style.animation = "none"; img.style.transition = "none"; img.style.opacity = "0";
     }
   }, []);
-  const revealPhoto = () => setImageLoaded(true);
+  const revealPhoto = () => {
+    const img = frameRef.current?.querySelector("img");
+    if (img && img.style.opacity === "0") {
+      void img.offsetWidth;
+      img.style.transition = "opacity 700ms ease-out";
+      img.style.opacity = "1";
+    }
+    setImageLoaded(true);
+  };
 
   useEffect(() => {
     if (!showToast) return;
@@ -125,7 +133,7 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
               placement={headerSize ? heroPlacement(headerSize, headerFocus) : undefined}
               {...(headerSize ? heroSources(headerSrc, headerSize) : {})}
               className="absolute inset-0"
-              imgClassName={`park-hero-img transition-opacity duration-700 ease-out ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+              imgClassName={`park-hero-img hero-fade-in ${imageLoaded ? "" : "opacity-0"}`}
               priority
               onLoad={revealPhoto}
             />

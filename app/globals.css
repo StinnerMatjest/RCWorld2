@@ -234,6 +234,9 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 @media (min-width: 1024px) { .park-hero-img { transform: translate(var(--hero-tx-d, -50%), var(--hero-ty-d, -50%)); } }
 
 /* Park photo deck: a card or caption entering the pile fades in on the compositor. */
+/* The park hero's landing: fades up from the first paint, no JavaScript needed. */
+@keyframes hero-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.hero-fade-in { animation: hero-fade-in 700ms ease-out both; }
 @keyframes deck-enter { from { opacity: 0; } to { opacity: 1; } }
 .deck-enter { animation: deck-enter 600ms ease-out both; }
 /* The deck's swipe hint: a chevron that nudges sideways until the first throw. */
