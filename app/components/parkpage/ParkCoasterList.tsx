@@ -151,7 +151,7 @@ export default function ParkCoasterList({ coasters, loading = false, cap = 0, is
         {peek && (
           <>
             {peek.first && <TierHead tier={peek.tier} />}
-            <div className="relative h-[26px] overflow-hidden" aria-hidden {...({ inert: "true" } as object)}>
+            <div className="relative h-[26px] overflow-hidden" aria-hidden inert>
               <ul><Row c={peek.c} /></ul>
               <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a]/10 via-[#0f172a]/70 to-[#0f172a]" />
             </div>
