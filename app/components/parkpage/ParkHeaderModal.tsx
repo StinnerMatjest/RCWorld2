@@ -347,6 +347,13 @@ function HeaderFace({ parkName, city, country, continent, phone, hint, overall =
     <div className={`absolute inset-x-0 top-0 bg-gradient-to-b from-[#020617]/45 via-[#020617]/15 to-transparent pointer-events-none ${phone ? "h-[104px]" : "h-[152px]"}`} />
     {/* eslint-disable-next-line @next/next/no-img-element */}
     <img src="/logos/logodark.svg" alt="" aria-hidden className={`absolute object-contain pointer-events-none ${phone ? "left-2 top-4 w-36 h-14" : "left-6 top-6 w-56 h-20"}`} />
+    {!phone && (
+      <div className="absolute right-6 top-6 h-20 flex items-center gap-7 text-[17px] text-slate-200 pointer-events-none" aria-hidden>
+        <svg className="w-5 h-5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+        {["About", "Ratings", "Parks", "Lists", "Coasters", "Manufacturers"].map((t) => <span key={t}>{t}</span>)}
+        <span className="text-fuchsia-400">Games</span>
+      </div>
+    )}
     {phone && (
       <div className="absolute right-4 top-8 flex items-center gap-6 text-white pointer-events-none" aria-hidden>
         <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
@@ -663,8 +670,14 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   // Card frame: the home card exactly as this screen draws it, shrunk only if
   // the modal is too short to show it at its real size.
   const [cardW, setCardW] = useState(360);
-  // The page header is the full viewport width, 16:8 on phones and 16:4 above.
+  // The page header is the full viewport width; its height is the aspect for
+  // the breakpoint (4:5, 16:9 from 640, 21:9 from 1024) capped at 82vh / 68vh,
+  // exactly as .park-hero-frame and ParkHero's max-h classes size it. The editor
+  // takes that shape, so the crop is judged in the frame this screen shows.
   const [pageW, setPageW] = useState(1920);
+  const [pageH, setPageH] = useState(1920 * 9 / 21);
+  const pageFrameH = (w: number, h: number) =>
+    w >= 1024 ? Math.min(w * 9 / 21, h * 0.68) : w >= 640 ? Math.min(w * 9 / 16, h * 0.82) : Math.min(w * 5 / 4, h * 0.82);
   const headerWrapRef = useRef<HTMLDivElement>(null);
   const [headerFrameW, setHeaderFrameW] = useState(0);
   // Follow the frame's real width: on phones it widens once the phone layout kicks in.
@@ -683,6 +696,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
     const measure = () => {
       setCardW(homeCardWidth());
       setPageW(window.innerWidth);
+      setPageH(pageFrameH(window.innerWidth, window.innerHeight));
       const el = cardAreaRef.current;
       if (!el) return;
       const room = el.clientHeight - 140; // caption + buttons + padding
@@ -854,19 +868,22 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                       key={`h-${headerPath}-${isMobile}`}
                       editorRef={headerEditorRef}
                       src={headerPath}
-                      aspectRatio={isMobile ? "4/5" : "21/9"}
+                      aspectRatio={`${Math.round(pageW)}/${Math.round(pageH)}`}
                       focusStr={headerFocus}
                       onCommit={setHeaderFocus}
                       onChange={live(setLiveHeaderFocus)}
                       className={isMobile ? "w-full" : "w-full rounded-2xl"}
                     >
                       {headerFrameW > 0 && (
-                        <ScaledLayer w={pageW} h={isMobile ? pageW * 5 / 4 : pageW * 9 / 21} scale={headerFrameW / pageW}>
+                        <ScaledLayer w={pageW} h={pageH} scale={headerFrameW / pageW}>
                           <HeaderFace parkName={parkName} city={parkCity} country={parkCountry} continent={parkContinent} phone={isMobile} hint overall={heroOverall} ranks={heroRanks} />
                         </ScaledLayer>
                       )}
                     </CropEditor>
                   </div>
+                  {!isMobile && (
+                    <p className="text-xs text-slate-500 -mt-3">Header on this screen, {Math.round(pageW)} × {Math.round(pageH)}. Phones below.</p>
+                  )}
                   {!isMobile && (
                     <figure className="flex flex-col gap-1.5">
                       <LiveFrame src={headerPath} focus={liveHeaderFocus} w={PHONE_HERO.w} h={PHONE_HERO.h} scale={1} className="rounded-xl">
