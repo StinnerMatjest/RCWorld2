@@ -107,17 +107,17 @@ export default function ParkCoasterList({ coasters, loading = false, cap = 0, is
   const peek = capped ? rows[cap] : null;
 
   const Row = ({ c }: { c: RollerCoaster }) => (
-    <li className="group grid grid-cols-[1fr_auto_auto] items-baseline gap-3 py-1 lg:py-[9px] lg:border-t lg:border-white/[0.07] lg:first:border-t-0">
+    <li className="group grid grid-cols-[1fr_auto_auto] items-baseline gap-3 py-1 lg:py-[5px] lg:border-t lg:border-white/[0.06] lg:first:border-t-0">
       {/* White name with a small orange chevron: the chevron is the "this opens" signal. */}
       <Link href={`/coasters/${c.slug}`} className="min-w-0 flex items-center gap-1.5 text-[15px] lg:text-[18px] font-medium text-white hover:text-brand-light active:opacity-60 transition-colors">
         <span className="truncate">{c.name}</span>
         <svg className="w-[11px] h-[11px] flex-none text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M9 5l7 7-7 7" /></svg>
       </Link>
-      <span className="text-xs lg:text-[15px] text-slate-400 lg:text-slate-300/90 whitespace-nowrap">
+      <span className="text-xs lg:text-[14px] text-slate-400 lg:text-slate-300/90 whitespace-nowrap">
         {[c.manufacturerName, c.year].filter(Boolean).join(" · ")}
       </span>
       <span className="flex items-baseline gap-2">
-        <span className={`min-w-[2.2em] text-right text-[1.05rem] lg:text-[1.4rem] font-bold tabular-nums tracking-tight ${ridden(c) ? getRatingColor(rating(c)) : "text-slate-600"}`}>
+        <span className={`min-w-[2.2em] text-right text-[1.05rem] lg:text-[1.3rem] font-bold tabular-nums tracking-tight ${ridden(c) ? getRatingColor(rating(c)) : "text-slate-600"}`}>
           {ridden(c) ? formatScore(rating(c)) : "NR"}
         </span>
         {isAdminMode && onEdit && (
@@ -133,7 +133,7 @@ export default function ParkCoasterList({ coasters, loading = false, cap = 0, is
   const TierHead = ({ tier }: { tier: Tier }) => (
     <div className="flex items-center gap-2 mt-3 lg:mt-3.5 first:mt-1 mb-0.5">
       <span className="w-[7px] h-[7px] rounded-full flex-none" style={{ backgroundColor: tier.muted ? "#475569" : tier.hex }} aria-hidden />
-      <span className="text-[11px] lg:text-[13px] font-extrabold uppercase tracking-[0.14em] text-slate-300 lg:text-slate-200">{tier.label}</span>
+      <span className="text-[11px] lg:text-xs font-extrabold uppercase tracking-[0.14em] text-slate-300 lg:text-slate-200">{tier.label}</span>
       <span className="flex-1 h-px bg-white/[0.08]" />
     </div>
   );
