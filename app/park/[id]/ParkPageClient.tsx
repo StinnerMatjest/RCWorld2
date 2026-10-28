@@ -510,6 +510,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
           coasterName={park.name}
           gallery={galleryImages}
           endpoint={`/api/visits/${activeRatingId}/gallery`}
+          focusEditing
           onClose={() => setStripEditorOpen(false)}
           onSaved={refreshGallery}
         />

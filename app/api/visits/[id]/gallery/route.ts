@@ -4,12 +4,14 @@ import { pool } from "@/app/lib/db";
 import { getParkName, logChange } from "@/app/lib/changelog";
 
 // The photo deck / strip at the top of the park page shows the photos flagged
-// here (none flagged = every photo). Added in place; runs once per process.
+// here (none flagged = every photo), each framed by its focus ("cx cy zoom",
+// the crop editor's string) in the 4:5 card. Added in place; runs once per process.
 let featuredColumn: Promise<void> | null = null;
 function ensureFeaturedColumn(): Promise<void> {
     if (!featuredColumn) {
         featuredColumn = pool
             .query(`ALTER TABLE visitgallery ADD COLUMN IF NOT EXISTS featured BOOLEAN NOT NULL DEFAULT false`)
+            .then(() => pool.query(`ALTER TABLE visitgallery ADD COLUMN IF NOT EXISTS focus TEXT`))
             .then(() => undefined)
             .catch((err) => { featuredColumn = null; throw err; });
     }
@@ -29,7 +31,7 @@ export async function GET(
         await ensureFeaturedColumn();
         // Gallery order is the saved sort_order (the drag-and-drop layout), then upload order.
         const res = await pool.query(
-            `SELECT id, title, path, description, featured
+            `SELECT id, title, path, description, featured, focus
        FROM visitgallery
        WHERE visit_id = $1
        ORDER BY sort_order ASC NULLS LAST, id ASC`,
@@ -120,7 +122,10 @@ export async function PUT(
     }
 }
 
-/** Which photos open the page (the deck on phones, the strip on desktop). */
+/**
+ * Which photos open the page (the deck on phones, the strip on desktop), and
+ * how each is framed: { featuredIds?: number[], focus?: { [imageId]: "cx cy zoom" | null } }.
+ */
 export async function PATCH(
     req: NextRequest,
     context: { params: Promise<{ id: string }> }
@@ -129,16 +134,33 @@ export async function PATCH(
     try {
         const { id } = await context.params;
         const visitId = parseInt(id, 10);
-        const { featuredIds } = await req.json();
-        if (isNaN(visitId) || !Array.isArray(featuredIds)) {
+        const { featuredIds, focus } = await req.json();
+        const hasIds = Array.isArray(featuredIds);
+        const hasFocus = !!focus && typeof focus === "object" && !Array.isArray(focus);
+        if (isNaN(visitId) || (!hasIds && !hasFocus)) {
             return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
         }
         await ensureFeaturedColumn();
-        const ids = featuredIds.map(Number).filter((n) => Number.isFinite(n));
-        await pool.query(
-            `UPDATE visitgallery SET featured = (id = ANY($2::int[])) WHERE visit_id = $1`,
-            [visitId, ids]
-        );
+        if (hasIds) {
+            const ids = (featuredIds as unknown[]).map(Number).filter((n) => Number.isFinite(n));
+            await pool.query(
+                `UPDATE visitgallery SET featured = (id = ANY($2::int[])) WHERE visit_id = $1`,
+                [visitId, ids]
+            );
+        }
+        if (hasFocus) {
+            const entries = Object.entries(focus as Record<string, unknown>)
+                .map(([k, v]) => [Number(k), v == null ? null : String(v).slice(0, 64)] as const)
+                .filter(([k]) => Number.isFinite(k));
+            if (entries.length) {
+                await pool.query(
+                    `UPDATE visitgallery AS g SET focus = o.focus
+                     FROM unnest($2::int[], $3::text[]) AS o(id, focus)
+                     WHERE g.id = o.id AND g.visit_id = $1`,
+                    [visitId, entries.map(([k]) => k), entries.map(([, v]) => v)]
+                );
+            }
+        }
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("Failed to set featured visit photos:", error);

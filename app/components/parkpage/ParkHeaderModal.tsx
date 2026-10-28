@@ -341,6 +341,18 @@ function HeaderFace({ parkName, city, country, continent, phone, hint, overall =
   overall?: number | null; ranks?: ParkRanks | null;
 }) {
   return <>
+    {/* The nav as it floats over the hero on the page: its top shade, the logo
+        at the page's size and place, and on phones the search and menu icons,
+        so the crop is judged with the logo on it. */}
+    <div className={`absolute inset-x-0 top-0 bg-gradient-to-b from-[#020617]/45 via-[#020617]/15 to-transparent pointer-events-none ${phone ? "h-[104px]" : "h-[152px]"}`} />
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img src="/logos/logodark.svg" alt="" aria-hidden className={`absolute object-contain pointer-events-none ${phone ? "left-2 top-4 w-36 h-14" : "left-6 top-6 w-56 h-20"}`} />
+    {phone && (
+      <div className="absolute right-4 top-8 flex items-center gap-6 text-white pointer-events-none" aria-hidden>
+        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+      </div>
+    )}
     <div className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/70 to-transparent ${phone ? "h-[70%]" : "h-[58%]"}`} />
     <div className={`absolute inset-x-0 bottom-0 ${phone ? "px-4 pb-6" : "px-20 pb-10"}`}>
       <div className="flex items-end justify-between gap-6">

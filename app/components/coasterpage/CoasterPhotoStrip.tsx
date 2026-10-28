@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import { R2Image } from "../R2Image";
+import { hasCustomFocus, placeCover, replaceCovers } from "@/app/lib/coverPlacement";
 import type { CoasterGalleryImage } from "./coasterPageTypes";
 
 interface Props {
@@ -30,6 +31,11 @@ const isVideo = (src: string) => /\.(mp4|webm|ogg)$/i.test(src);
  */
 export default function CoasterPhotoStrip({ images, coasterName, onOpen, isAdminMode = false, onEdit, title, seeAllLabel = "See all", fallbackCount = 0 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onResize = () => { if (scrollRef.current) replaceCovers(scrollRef.current); };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
@@ -107,6 +113,8 @@ export default function CoasterPhotoStrip({ images, coasterName, onOpen, isAdmin
                   // browser never picks a variant it would have to enlarge.
                   sizes="(min-width: 1024px) 570px, (min-width: 640px) 500px, 138vw"
                   className="object-cover transition-transform duration-500 group-hover/item:scale-[1.03]"
+                  {...(hasCustomFocus(img.focus) ? { "data-focus": img.focus as string } : {})}
+                  onLoad={(e) => { if (hasCustomFocus(img.focus)) placeCover(e.currentTarget, img.focus); }}
                 />
               )}
               {img.description && (

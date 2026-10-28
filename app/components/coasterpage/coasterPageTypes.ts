@@ -24,6 +24,8 @@ export interface CoasterGalleryImage {
   focus_desktop?: string | null;
   /** Shown in the photo strip at the top of the page (none flagged = all shown). */
   featured?: boolean;
+  /** Framing in the 4:5 deck card / strip tile ("cx cy zoom"); null or absent = plain cover. */
+  focus?: string | null;
 }
 
 /** A neighbour in a ranking list or a sibling coaster at the same park. */

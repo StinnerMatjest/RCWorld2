@@ -5,6 +5,7 @@ import { flushSync } from "react-dom";
 import { motion, motionValue, animate, type MotionValue } from "framer-motion";
 import { R2Image } from "../R2Image";
 import { isR2Image, variantKey } from "@/app/lib/imageVariants";
+import { hasCustomFocus, placeCover, replaceCovers } from "@/app/lib/coverPlacement";
 import type { VisitGalleryImage } from "./VisitGallery";
 
 const isVideo = (src: string) => /\.(mp4|webm|ogg)$/i.test(src);
@@ -122,6 +123,13 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
   const pileRef = useRef(pile);
   pileRef.current = pile;
 
+  // Focused photos are placed in px for the card's size: redo them when it changes.
+  const sectionRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const onResize = () => { if (sectionRef.current) replaceCovers(sectionRef.current); };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   // Warm the cards just below the mounted pile.
   useEffect(() => {
     for (const i of pile.slice(VISIBLE + 1, VISIBLE + 3)) {
@@ -249,7 +257,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
   if (shown.length === 0) return null;
 
   return (
-    <section id="photo-deck" className="scroll-mt-20">
+    <section id="photo-deck" ref={sectionRef} className="scroll-mt-20">
       <div className="flex items-baseline justify-between mb-5">
         <h2 className="text-xl font-bold text-white">
           Curated photos
@@ -347,7 +355,9 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
                 loading="eager"
                 draggable={false}
                 className="object-cover rounded-2xl pointer-events-none"
-                onLoad={(e) => { const el = e.currentTarget; if (el.decode) el.decode().catch(() => {}); }}
+                // A saved framing places the photo as the editor showed it; otherwise plain cover.
+                {...(hasCustomFocus(img.focus) ? { "data-focus": img.focus as string } : {})}
+                onLoad={(e) => { const el = e.currentTarget; if (hasCustomFocus(img.focus)) placeCover(el, img.focus); if (el.decode) el.decode().catch(() => {}); }}
               />
               {/* Back cards are dimmed by an overlay; the front card lifts it as a CSS transition. */}
               <div className="absolute inset-0 rounded-2xl bg-black pointer-events-none" style={{ opacity: front ? 0 : 0.22, transition: ease }} />

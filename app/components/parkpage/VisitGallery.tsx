@@ -45,6 +45,8 @@ export type VisitGalleryImage = {
   description: string;
   /** Shown in the deck / strip at the top of the page (none flagged = all shown). */
   featured?: boolean;
+  /** Framing in the 4:5 deck card / strip tile ("cx cy zoom"); null or absent = plain cover. */
+  focus?: string | null;
 };
 
 interface GalleryProps {

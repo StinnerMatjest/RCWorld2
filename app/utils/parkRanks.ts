@@ -8,7 +8,7 @@ export type ParkGroupKey = "Coasters" | "Rides" | "Park" | "Food" | "Management"
 
 export type ParkRanks = {
   world: RankStat;
-  /** Null when the country has fewer than three rated parks: a "#1 of 2" says nothing. */
+  /** Null only when the park itself is unrated; a lone park in its country is still #1 there. */
   country: (RankStat & { name: string }) | null;
   groups: Record<ParkGroupKey, RankStat>;
 };
@@ -36,7 +36,8 @@ export const PARK_GROUPS: {
   { key: "Management", ranked: ["rideOperations", "parkManagement"], visit: ["rideOperations", "parkManagement"], section: "rideOperations" },
 ];
 
-const MIN_COUNTRY_PARKS = 3;
+/** Every rated park ranks in its country, even when it is the only one there. */
+const MIN_COUNTRY_PARKS = 1;
 
 const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 

@@ -1,9 +1,15 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
+import dynamic from "next/dynamic";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
 import { variantUrl } from "@/app/lib/imageVariants";
+import { DEFAULT_FOCUS, hasCustomFocus } from "@/app/lib/coverPlacement";
+import type { CropEditorProps } from "@/app/components/parkpage/ParkHeaderModal";
 import type { CoasterGalleryImage } from "./coasterPageTypes";
+
+// The hero's crop editor, loaded only when a framing is opened.
+const CropEditor = dynamic<CropEditorProps>(() => import("@/app/components/parkpage/ParkHeaderModal").then((m) => m.CropEditor), { ssr: false });
 
 interface Props {
   coasterId: number;
@@ -13,12 +19,14 @@ interface Props {
   onSaved: () => void;
   /** Gallery API that takes PATCH {featuredIds} and PUT {reorderedIds}. Defaults to the coaster's. */
   endpoint?: string;
+  /** Lets each picked photo be framed for its 4:5 card (the API must take PATCH {focus}). */
+  focusEditing?: boolean;
 }
 
 const isVideo = (src: string) => /\.(mp4|webm|ogg)$/i.test(src);
 
 /** Picks and orders the photos that open a page (coaster strip, park deck and strip). */
-export default function CoasterStripEditor({ coasterId, coasterName, gallery, onClose, onSaved, endpoint }: Props) {
+export default function CoasterStripEditor({ coasterId, coasterName, gallery, onClose, onSaved, endpoint, focusEditing = false }: Props) {
   useScrollLock();
   const api = endpoint ?? `/api/coasters/${coasterId}/gallery`;
 
@@ -29,13 +37,22 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Framing per photo ("cx cy zoom"); only the changed ones are sent.
+  const [focusMap, setFocusMap] = useState<Record<number, string | null>>(() => Object.fromEntries(initialImages.map((g) => [g.id, g.focus ?? null])));
+  const [focusEdit, setFocusEdit] = useState<CoasterGalleryImage | null>(null);
+  const [focusDraft, setFocusDraft] = useState<string>(DEFAULT_FOCUS);
+  const focusEditRef = useRef<CoasterGalleryImage | null>(null);
+  focusEditRef.current = focusEdit;
+  const openFocus = (img: CoasterGalleryImage) => { setFocusDraft(focusMap[img.id] || DEFAULT_FOCUS); setFocusEdit(img); };
+  const doneFocus = () => { if (focusEdit) setFocusMap((m) => ({ ...m, [focusEdit.id]: hasCustomFocus(focusDraft) ? focusDraft : null })); setFocusEdit(null); };
+
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const wasDragged = useRef(false);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { if (focusEditRef.current) setFocusEdit(null); else onClose(); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
@@ -97,10 +114,17 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
     setSaving(true);
     setError(null);
     try {
+      const focus: Record<number, string | null> = {};
+      if (focusEditing) {
+        for (const img of initialImages) {
+          const was = img.focus ?? null, now = focusMap[img.id] ?? null;
+          if (was !== now) focus[img.id] = now;
+        }
+      }
       const patchReq = fetch(api, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ featuredIds: [...picked] }),
+        body: JSON.stringify({ featuredIds: [...picked], ...(Object.keys(focus).length ? { focus } : {}) }),
       });
 
       const videoIds = gallery.filter((g) => isVideo(g.path)).map(v => v.id);
@@ -133,7 +157,7 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
   return (
     // Removed backdrop-blur-sm, increased opacity to bg-black/95 for performance
     <div className="fixed inset-0 z-[100] flex items-start md:items-center justify-center bg-black/95 pt-3 md:pt-0 md:p-4" onClick={onClose}>
-      <div className="bg-slate-900 rounded-2xl w-full max-w-5xl h-[97dvh] md:h-[88vh] flex flex-col overflow-hidden shadow-2xl border border-slate-700" onClick={(e) => e.stopPropagation()}>
+      <div className="relative bg-slate-900 rounded-2xl w-full max-w-5xl h-[97dvh] md:h-[88vh] flex flex-col overflow-hidden shadow-2xl border border-slate-700" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 px-4 h-14 border-b border-slate-800 flex-shrink-0">
           <div className="min-w-0 flex items-baseline gap-2">
             <h2 className="font-bold text-white text-base truncate">Photos at the top</h2>
@@ -152,6 +176,7 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
         <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6">
           <p className="text-sm text-slate-400 mb-6">
             Tap to select which photos open the page. <strong className="text-white">Click and drag (or long-press on mobile) to rearrange their order.</strong> With nothing picked, visitors see all of them.
+            {focusEditing && <> Use the <span className="text-white">frame button</span> on a picked photo to set what the 4:5 card shows.</>}
           </p>
           {localImages.length === 0 ? (
             <p className="text-sm text-slate-500">No photos yet. Upload some in the gallery first.</p>
@@ -207,12 +232,57 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
                         {img.description}
                       </span>
                     )}
+                    {focusEditing && on && !isDraggingAnything && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openFocus(img); }}
+                        title={hasCustomFocus(focusMap[img.id]) ? "Framing set · change it" : "Set the framing"}
+                        aria-label="Set the framing"
+                        className={`absolute top-1.5 left-1.5 w-7 h-7 rounded-full flex items-center justify-center shadow transition-colors cursor-pointer ${hasCustomFocus(focusMap[img.id]) ? "bg-brand text-white" : "bg-black/60 text-white/90 hover:bg-black/80"}`}
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" /></svg>
+                      </button>
+                    )}
                   </div>
                 );
               })}
             </div>
           )}
         </div>
+
+        {/* Framing editor: the 4:5 card at phone size, dragged and zoomed like the hero. */}
+        {focusEdit && (
+          <div className="absolute inset-0 z-20 bg-slate-900 flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 px-4 h-14 border-b border-slate-800 flex-shrink-0">
+              <h2 className="font-bold text-white text-base truncate">Frame this photo</h2>
+              <span className="hidden sm:inline text-sm text-slate-500 truncate">{focusEdit.description || focusEdit.title}</span>
+              <button onClick={() => setFocusEdit(null)} aria-label="Back" className="ml-auto p-2 rounded-full hover:bg-slate-800 text-slate-500 hover:text-white transition-colors cursor-pointer flex-shrink-0">
+                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center gap-4 p-6">
+              <div className="w-[min(78vw,340px)]">
+                <CropEditor
+                  key={`f-${focusEdit.id}`}
+                  src={focusEdit.path}
+                  aspectRatio="4/5"
+                  focusStr={focusDraft}
+                  onCommit={setFocusDraft}
+                  onChange={setFocusDraft}
+                  maxZoom={3}
+                  className="w-full rounded-2xl shadow-[0_10px_24px_rgba(0,0,0,0.4)]"
+                >
+                  <div className="absolute top-3 right-3 text-white/40 text-[9px] font-bold uppercase tracking-widest pointer-events-none">Drag · pinch or scroll to zoom</div>
+                </CropEditor>
+              </div>
+              <p className="text-xs text-slate-500 text-center">This is the card as it shows on a phone; the desktop strip uses the same framing.</p>
+            </div>
+            <div className="flex items-center gap-3 p-4 border-t border-slate-800 flex-shrink-0">
+              <button type="button" onClick={() => setFocusDraft(DEFAULT_FOCUS)} className="px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-700 text-slate-300 hover:border-slate-500 transition-all cursor-pointer">Reset</button>
+              <button type="button" onClick={doneFocus} className="ml-auto px-6 py-2.5 rounded-xl text-sm font-bold bg-brand hover:bg-brand-light text-white transition-colors cursor-pointer shadow-lg">Done</button>
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center gap-3 p-4 border-t border-slate-800 flex-shrink-0 bg-slate-900">
           <span className="text-sm text-slate-400 flex-1">
