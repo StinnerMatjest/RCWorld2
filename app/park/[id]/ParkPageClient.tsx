@@ -447,6 +447,9 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
                   onOpen={openPhoto}
                   isAdminMode={isAdminMode}
                   onEdit={() => setStripEditorOpen(true)}
+                  title="Curated photos"
+                  seeAllLabel="Go to gallery"
+                  fallbackCount={12}
                 />
               </div>
             )}

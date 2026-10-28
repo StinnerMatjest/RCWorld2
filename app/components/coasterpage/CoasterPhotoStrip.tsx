@@ -11,6 +11,12 @@ interface Props {
   isAdminMode?: boolean;
   /** Opens the editor that picks which photos make the strip. */
   onEdit?: () => void;
+  /** Heading text; the default is "Photos (n)". With a title the count is left out. */
+  title?: string;
+  /** Text of the link to the full gallery. */
+  seeAllLabel?: string;
+  /** Without a curated set, show at most this many photos (0 = all). */
+  fallbackCount?: number;
 }
 
 const isVideo = (src: string) => /\.(mp4|webm|ogg)$/i.test(src);
@@ -22,13 +28,13 @@ const isVideo = (src: string) => /\.(mp4|webm|ogg)$/i.test(src);
  * fewer than two to show (the hero already shows one). Admins see exactly what
  * visitors see, plus an Edit link.
  */
-export default function CoasterPhotoStrip({ images, coasterName, onOpen, isAdminMode = false, onEdit }: Props) {
+export default function CoasterPhotoStrip({ images, coasterName, onOpen, isAdminMode = false, onEdit, title, seeAllLabel = "See all", fallbackCount = 0 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
   const picked = images.filter((g) => g.featured);
-  const shown = picked.length ? picked : images;
+  const shown = picked.length ? picked : fallbackCount > 0 ? images.slice(0, fallbackCount) : images;
 
   // Check if we have scrolled to the edges so we can hide/show the arrow buttons
   const checkScroll = () => {
@@ -60,7 +66,7 @@ export default function CoasterPhotoStrip({ images, coasterName, onOpen, isAdmin
     <section id="photos" className="scroll-mt-20">
       <div className="flex items-baseline justify-between mb-3 px-4 sm:px-0">
         <h2 className="text-lg sm:text-xl font-bold text-white">
-          Photos <span className="text-slate-500 font-semibold">({shown.length})</span>
+          {title ?? <>Photos <span className="text-slate-500 font-semibold">({shown.length})</span></>}
         </h2>
         <div className="flex items-baseline gap-4">
           {isAdminMode && onEdit && (
@@ -68,7 +74,7 @@ export default function CoasterPhotoStrip({ images, coasterName, onOpen, isAdmin
               Edit
             </button>
           )}
-          <a href="#gallery" className="text-xs font-bold uppercase tracking-widest text-brand hover:text-brand-light transition-colors">See all</a>
+          <a href="#gallery" className="text-xs font-bold uppercase tracking-widest text-brand hover:text-brand-light transition-colors">{seeAllLabel}</a>
         </div>
       </div>
 
