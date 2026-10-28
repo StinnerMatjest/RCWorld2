@@ -17,7 +17,11 @@ function heroSources(src: string, size: { w: number; h: number }): { srcSet: str
   const a = size.w / size.h;
   const parts = VARIANT_WIDTHS.filter((w) => w < size.w).map((w) => `${variantKey(src, w)} ${w}w`);
   parts.push(`${src} ${size.w}w`);
-  const vw = (frameH: number) => `${Math.ceil(Math.max(1, frameH * a) * 100)}vw`;
+  // Hinted 4% under the drawn width: an enlargement that small is invisible,
+  // while a 2 px shortfall would make the browser take the next stored size
+  // at 2.5x the bytes (a 4:3 photo in the 4:5 phone frame on a 1.75x screen
+  // needs 1202 px; this keeps it on the 1200 variant).
+  const vw = (frameH: number) => `${Math.floor(Math.max(1, frameH * a) * 100 * 0.96)}vw`;
   return { srcSet: parts.join(", "), sizes: `(min-width: 1024px) ${vw(9 / 21)}, (min-width: 640px) ${vw(9 / 16)}, ${vw(5 / 4)}` };
 }
 
