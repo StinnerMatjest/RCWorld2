@@ -54,6 +54,12 @@ function restingPlace(id: number, index: number) {
   return { x: side * (8 + r1 * 14), y: (r2 - 0.5) * 20 - 8, rotate: side * (2 + r3 * 5) };
 }
 
+/** Both gallery links scroll there smoothly; the hash stays as the fallback. */
+const goToGallery = (e: React.MouseEvent) => {
+  const g = document.getElementById("gallery");
+  if (g) { e.preventDefault(); g.scrollIntoView({ behavior: "smooth", block: "start" }); }
+};
+
 export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = false, onEdit }: Props) {
   const shown = useMemo(() => {
     const photos = images.filter((g) => !isVideo(g.path));
@@ -244,7 +250,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
 
   return (
     <section id="photo-deck" className="scroll-mt-20">
-      <div className="flex items-baseline justify-between mb-3">
+      <div className="flex items-baseline justify-between mb-5">
         <h2 className="text-xl font-bold text-white">
           Curated photos
         </h2>
@@ -252,7 +258,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
           {isAdminMode && onEdit && (
             <button type="button" onClick={onEdit} className="text-xs font-semibold text-slate-500 hover:text-white transition-colors cursor-pointer">Edit</button>
           )}
-          <a href="#gallery" className="text-[11px] font-bold uppercase tracking-widest text-brand hover:text-brand-light transition-colors">Go to gallery</a>
+          <a href="#gallery" onClick={goToGallery} className="text-[11px] font-bold uppercase tracking-widest text-brand hover:text-brand-light transition-colors">Go to gallery</a>
         </div>
       </div>
 
@@ -361,8 +367,12 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
         /* The hint becomes the invitation: it rises in, the chevron bobs a few
            times, then everything settles so it does not keep nagging. */
         <p className="mt-2 text-center deck-more">
-          <a href="#gallery" className="inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-brand hover:text-brand-light transition-colors">
-            Looking for more? Go to the gallery
+          <a
+            href="#gallery"
+            onClick={goToGallery}
+            className="inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-brand hover:text-brand-light transition-colors"
+          >
+            Explore the full gallery
             <svg className="w-4 h-4 deck-more-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
           </a>
         </p>

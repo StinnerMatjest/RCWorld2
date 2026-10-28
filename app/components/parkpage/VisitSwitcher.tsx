@@ -17,6 +17,8 @@ interface Props {
   visits: Visit[];
   active: Visit;
   parkSlug: string;
+  /** Grey words before the date, e.g. "Visit date:" in the desktop rail. */
+  label?: string;
   className?: string;
 }
 
@@ -25,7 +27,7 @@ interface Props {
  * date; with several it is the control: orange, "· n visits" and a chevron,
  * and a tap opens the list.
  */
-export default function VisitSwitcher({ visits, active, parkSlug, className = "" }: Props) {
+export default function VisitSwitcher({ visits, active, parkSlug, label, className = "" }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -42,6 +44,7 @@ export default function VisitSwitcher({ visits, active, parkSlug, className = ""
 
   return (
     <div ref={ref} className={`relative inline-flex items-center gap-2 ${className}`}>
+      {label && <span className="text-sm text-slate-400 whitespace-nowrap">{label}</span>}
       {hasMultiple ? (
         <button
           type="button"

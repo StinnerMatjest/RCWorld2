@@ -432,8 +432,8 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
           <aside className="hidden lg:block min-w-0">
             {activeVisit && (
               <div className="sticky top-6">
-                <VisitSwitcher visits={visibleRatings} active={activeVisit} parkSlug={park.slug} className="mb-5" />
-                <ParkScorecard rating={activeVisit} ranks={initialRanks} label="Scorecard" />
+                <VisitSwitcher visits={visibleRatings} active={activeVisit} parkSlug={park.slug} label="Visit date:" className="mb-3" />
+                <ParkScorecard rating={activeVisit} ranks={initialRanks} />
               </div>
             )}
           </aside>
