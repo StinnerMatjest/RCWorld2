@@ -176,7 +176,7 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
         <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6">
           <p className="text-sm text-slate-400 mb-6">
             Tap to select which photos open the page. <strong className="text-white">Click and drag (or long-press on mobile) to rearrange their order.</strong> With nothing picked, visitors see all of them.
-            {focusEditing && <> Use the <span className="text-white">frame button</span> on a picked photo to set what the 4:5 card shows.</>}
+            {focusEditing && <> Use the <span className="text-white">frame button</span> on a picked photo to choose which part of it the 4:5 card shows.</>}
           </p>
           {localImages.length === 0 ? (
             <p className="text-sm text-slate-500">No photos yet. Upload some in the gallery first.</p>
@@ -269,13 +269,13 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
                   focusStr={focusDraft}
                   onCommit={setFocusDraft}
                   onChange={setFocusDraft}
-                  maxZoom={3}
+                  maxZoom={1}
                   className="w-full rounded-2xl shadow-[0_10px_24px_rgba(0,0,0,0.4)]"
                 >
-                  <div className="absolute top-3 right-3 text-white/40 text-[9px] font-bold uppercase tracking-widest pointer-events-none">Drag · pinch or scroll to zoom</div>
+                  <div className="absolute top-3 right-3 text-white/40 text-[9px] font-bold uppercase tracking-widest pointer-events-none">Drag to frame</div>
                 </CropEditor>
               </div>
-              <p className="text-xs text-slate-500 text-center">This is the card as it shows on a phone; the desktop strip uses the same framing.</p>
+              <p className="text-xs text-slate-500 text-center">The card as it shows on a phone; the desktop strip uses the same framing. Drag only, no zoom.</p>
             </div>
             <div className="flex items-center gap-3 p-4 border-t border-slate-800 flex-shrink-0">
               <button type="button" onClick={() => setFocusDraft(DEFAULT_FOCUS)} className="px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-700 text-slate-300 hover:border-slate-500 transition-all cursor-pointer">Reset</button>
