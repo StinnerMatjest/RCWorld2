@@ -482,7 +482,7 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
 
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-xl lg:text-[1.35rem] font-bold text-white">All photos <span className="text-slate-500 font-semibold">({images.length})</span></h2>
+        <h2 className="text-xl lg:text-[1.35rem] font-bold text-white">All photos</h2>
         {isAdminMode && (
           <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition text-sm cursor-pointer shadow-md">
             + Upload
