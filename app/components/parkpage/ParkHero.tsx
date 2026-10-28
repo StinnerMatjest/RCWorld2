@@ -81,12 +81,11 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
   const headerSrc = ownHeader ?? park.imagepath;
   const headerFocus = (ownHeader ? visit?.headerFocus : park.headerFocus) ?? undefined;
   const headerSize = ownHeader ? visit?.headerImageSize : park.imageSize;
-  // The photo always arrives with a 700 ms fade. In the common case it is in
-  // the HTML, loaded by first paint, and the .hero-fade-in keyframe runs from
-  // that paint with no JavaScript involved (a slow phone must never wait for
-  // hydration to see the hero). If it is still on its way when React takes
-  // over, it is hidden at once and faded in when it lands.
-  const [imageLoaded, setImageLoaded] = useState(true);
+  // The photo is never painted half-arrived: it stays invisible until the
+  // whole file is in, then fades up over 700 ms. The inline script after the
+  // image flips it in the server HTML the moment it loads (no waiting for
+  // hydration); at hydration the state takes over so React's class matches.
+  const [imageLoaded, setImageLoaded] = useState(false);
   const frameRef = useRef<HTMLDivElement>(null);
   const [showModal, setShowModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -94,19 +93,10 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
 
   useLayoutEffect(() => {
     const img = frameRef.current?.querySelector("img");
-    if (img && !(img.complete && img.naturalWidth > 0)) {
-      img.style.animation = "none"; img.style.transition = "none"; img.style.opacity = "0";
-    }
+    // Before paint, so a photo the inline script already revealed never blinks.
+    if (img && img.complete && img.naturalWidth > 0) setImageLoaded(true);
   }, []);
-  const revealPhoto = () => {
-    const img = frameRef.current?.querySelector("img");
-    if (img && img.style.opacity === "0") {
-      void img.offsetWidth;
-      img.style.transition = "opacity 700ms ease-out";
-      img.style.opacity = "1";
-    }
-    setImageLoaded(true);
-  };
+  const revealPhoto = () => setImageLoaded(true);
 
   useEffect(() => {
     if (!showToast) return;
@@ -124,23 +114,6 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
           className={`absolute inset-0 ${onOpenPhoto && headerSrc ? "cursor-zoom-in" : ""}`}
           onClick={onOpenPhoto && headerSrc ? () => onOpenPhoto(headerSrc) : undefined}
         >
-          {/* Blur-up: the 480 variant, placed by the very same server rules as the
-              sharp photo (same classes and CSS vars, vh caps included), blurred
-              and a touch enlarged so it reads as the photo coming into focus. */}
-          {headerSrc && headerSize && isR2Image(headerSrc) && (
-            <div aria-hidden className="park-hero-blurwrap absolute inset-0 pointer-events-none">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={variantKey(headerSrc, 480)}
-                alt=""
-                draggable={false}
-                decoding="async"
-                fetchPriority="high"
-                className="park-hero-img absolute max-w-none select-none"
-                style={heroPlacement(headerSize, headerFocus)}
-              />
-            </div>
-          )}
           {headerSrc && (
             <FocusedImage
               key={headerSrc}
@@ -150,9 +123,15 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
               placement={headerSize ? heroPlacement(headerSize, headerFocus) : undefined}
               {...(headerSize ? heroSources(headerSrc, headerSize) : {})}
               className="absolute inset-0"
-              imgClassName={`park-hero-img hero-fade-in ${imageLoaded ? "" : "opacity-0"}`}
+              imgClassName={`park-hero-img hero-reveal ${imageLoaded ? "is-loaded" : ""}`}
               priority
               onLoad={revealPhoto}
+            />
+          )}
+          {/* Reveals the photo as soon as it has fully loaded, before React runs. */}
+          {headerSrc && (
+            <script
+              dangerouslySetInnerHTML={{ __html: "(function(){var s=document.currentScript,c=s&&s.previousElementSibling,i=c&&c.querySelector('img');if(!i)return;var r=function(){i.classList.add('is-loaded')};if(i.complete&&i.naturalWidth>0)r();else i.addEventListener('load',r,{once:true})})();" }}
             />
           )}
         </div>
