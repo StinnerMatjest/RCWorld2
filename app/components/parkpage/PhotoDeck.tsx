@@ -123,8 +123,11 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
   const pileRef = useRef(pile);
   pileRef.current = pile;
 
-  // Focused photos are placed in px for the card's size: redo them when it changes.
+  // Focused photos are placed in px for the card's size: on mount (server-drawn
+  // photos are already loaded, so onLoad never fires), when the pile changes,
+  // and when the card's size changes.
   const sectionRef = useRef<HTMLElement>(null);
+  useEffect(() => { if (sectionRef.current) replaceCovers(sectionRef.current); });
   useEffect(() => {
     const onResize = () => { if (sectionRef.current) replaceCovers(sectionRef.current); };
     window.addEventListener("resize", onResize);
@@ -343,6 +346,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
               // to the front it only brightens (CSS). Only a gesture moves a card,
               // through its own motion value.
               style={{ x: mv.x, rotate: mv.rotate, y: place.y, zIndex, ...layer, ...fade }}
+              {...(hasCustomFocus(img.focus) ? { "data-focus": img.focus as string } : {})}
             >
               {/* decode() keeps the bitmap ready, so a rebuilt layer never waits on a decode. */}
               <R2Image
@@ -355,8 +359,8 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
                 loading="eager"
                 draggable={false}
                 className="object-cover rounded-2xl pointer-events-none"
-                // A saved framing places the photo as the editor showed it; otherwise plain cover.
-                {...(hasCustomFocus(img.focus) ? { "data-focus": img.focus as string } : {})}
+                // A saved framing places the photo as the editor showed it (the card
+                // carries data-focus; see the mount effect for already-loaded photos).
                 onLoad={(e) => { const el = e.currentTarget; if (hasCustomFocus(img.focus)) placeCover(el, img.focus); if (el.decode) el.decode().catch(() => {}); }}
               />
               {/* Back cards are dimmed by an overlay; the front card lifts it as a CSS transition. */}

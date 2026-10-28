@@ -36,9 +36,14 @@ export function placeCover(img: HTMLImageElement, focus: string | null | undefin
   img.style.maxWidth = "none";
 }
 
-/** Re-place every focused image under `root` (after a resize or rotation). */
+/**
+ * Place every loaded image inside a frame that carries data-focus under
+ * `root`: on mount (a server-rendered photo is often complete before React
+ * hydrates, so its onLoad never fires) and after a resize or rotation.
+ */
 export function replaceCovers(root: ParentNode): void {
-  root.querySelectorAll<HTMLImageElement>("img[data-focus]").forEach((img) => {
-    if (img.complete && img.naturalWidth) placeCover(img, img.dataset.focus);
+  root.querySelectorAll<HTMLElement>("[data-focus]").forEach((frame) => {
+    const img = frame.querySelector<HTMLImageElement>(":scope > img");
+    if (img && img.complete && img.naturalWidth) placeCover(img, frame.dataset.focus);
   });
 }

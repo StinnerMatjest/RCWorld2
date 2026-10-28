@@ -31,6 +31,9 @@ const isVideo = (src: string) => /\.(mp4|webm|ogg)$/i.test(src);
  */
 export default function CoasterPhotoStrip({ images, coasterName, onOpen, isAdminMode = false, onEdit, title, seeAllLabel = "See all", fallbackCount = 0 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Place framed photos on mount and after every change (server-drawn photos
+  // are complete before hydration, so their onLoad never fires), and on resize.
+  useEffect(() => { if (scrollRef.current) replaceCovers(scrollRef.current); });
   useEffect(() => {
     const onResize = () => { if (scrollRef.current) replaceCovers(scrollRef.current); };
     window.addEventListener("resize", onResize);
@@ -99,6 +102,7 @@ export default function CoasterPhotoStrip({ images, coasterName, onOpen, isAdmin
               onClick={() => onOpen(img.path)}
               className="relative flex-shrink-0 snap-start w-[62vw] max-w-[260px] sm:w-56 lg:w-64 aspect-[4/5] rounded-2xl overflow-hidden bg-slate-900 group/item cursor-zoom-in"
               title={img.description || img.title}
+              {...(hasCustomFocus(img.focus) ? { "data-focus": img.focus as string } : {})}
             >
               {isVideo(img.path) ? (
                 <video src={img.path} className="absolute inset-0 w-full h-full object-cover" muted playsInline preload="metadata" />
@@ -113,7 +117,6 @@ export default function CoasterPhotoStrip({ images, coasterName, onOpen, isAdmin
                   // browser never picks a variant it would have to enlarge.
                   sizes="(min-width: 1024px) 570px, (min-width: 640px) 500px, 138vw"
                   className="object-cover transition-transform duration-500 group-hover/item:scale-[1.03]"
-                  {...(hasCustomFocus(img.focus) ? { "data-focus": img.focus as string } : {})}
                   onLoad={(e) => { if (hasCustomFocus(img.focus)) placeCover(e.currentTarget, img.focus); }}
                 />
               )}
