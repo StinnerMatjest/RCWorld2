@@ -125,6 +125,8 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
               className="absolute inset-0"
               imgClassName={`park-hero-img hero-reveal ${imageLoaded ? "is-loaded" : ""}`}
               priority
+              // The inline script below may add is-loaded before React hydrates.
+              suppressHydrationWarning
               onLoad={revealPhoto}
             />
           )}

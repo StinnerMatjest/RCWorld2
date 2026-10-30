@@ -39,6 +39,8 @@ export interface FocusedImageProps {
   sizes?: string;
   /** Server-computed position for a cut; the image is shown immediately instead of hidden until JS positions it. */
   placement?: React.CSSProperties;
+  /** The img may differ from the server HTML at hydration (an inline script marked it loaded). */
+  suppressHydrationWarning?: boolean;
 }
 
 // Rewrite an image URL to Next's optimizer endpoint — the same endpoint
@@ -79,7 +81,7 @@ export function splitMedia(entry: string): { url: string; focus: string } {
 // Renders an image absolutely positioned inside an overflow-hidden container,
 // matching exactly what CropEditor shows for the given focusStr.
 export function FocusedImage({
-  src, alt = "", focusStr, className = "", imgClassName = "", imgStyle, priority, onLoad: onLoadProp, optimizeWidth, staggerDelayMs = 0, variants = false, size, assumedScreen, srcSet, sizes, placement,
+  src, alt = "", focusStr, className = "", imgClassName = "", imgStyle, priority, onLoad: onLoadProp, optimizeWidth, staggerDelayMs = 0, variants = false, size, assumedScreen, srcSet, sizes, placement, suppressHydrationWarning,
 }: FocusedImageProps) {
   const useVariants = variants && !srcSet && isR2Image(src);
   const sizeKnown = useVariants && !!size;
@@ -207,6 +209,7 @@ export function FocusedImage({
         className={`absolute max-w-none select-none ${imgClassName}`}
         style={placement ? { ...imgStyle, ...placement, visibility: "visible" } : { ...imgStyle, visibility: "hidden" }}
         loading={priority ? "eager" : "lazy"}
+        suppressHydrationWarning={suppressHydrationWarning}
         // The LCP photo asks the browser to fetch it ahead of everything else.
         // camelCase: the app router's React 19 then also marks the preload
         // link it hoists for an eager image as high priority.

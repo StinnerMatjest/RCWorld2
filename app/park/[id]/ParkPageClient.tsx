@@ -511,6 +511,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
           gallery={galleryImages}
           endpoint={`/api/visits/${activeRatingId}/gallery`}
           focusEditing
+          emptyNote="Nothing picked: the page shows the first 12 photos."
           onClose={() => setStripEditorOpen(false)}
           onSaved={refreshGallery}
         />
