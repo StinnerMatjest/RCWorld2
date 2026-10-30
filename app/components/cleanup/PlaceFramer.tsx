@@ -109,6 +109,7 @@ function ChangePhoto({ task, place, onClose, onChanged }: { task: CleanupTask; p
   const [photos, setPhotos] = useState<Candidate[] | null>(null);
   const [rows, setRows] = useState<CoasterGalleryImage[]>([]);
   const [sel, setSel] = useState<Candidate | null>(null);
+  const [hover, setHover] = useState<Candidate | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const endpoint = ch.t === "park-header" || ch.t === "card" ? `/api/park/${ch.parkId}/gallery`
@@ -194,21 +195,25 @@ function ChangePhoto({ task, place, onClose, onChanged }: { task: CleanupTask; p
     <button key={v} type="button" onClick={() => { setFor(v); setSel(null); }}
       className={`rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors cursor-pointer ${forWhat === v ? "bg-white text-slate-900" : "text-slate-300 hover:text-white"}`}>{text}</button>
   );
+  const nowPath = forWhat === "phone" ? phoneNow : desktopNow;
+  const big = hover ?? sel ?? (photos ?? []).find((p) => p.path === nowPath) ?? null;
+  const bigSrc = big ? photoSources(big.path) : null;
   return (
     <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/80 md:items-center md:p-6" onClick={onClose}>
-      <div className="flex max-h-[92dvh] w-full max-w-5xl flex-col overflow-hidden rounded-t-2xl border border-slate-700 bg-slate-900 md:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="flex max-h-[92dvh] w-full max-w-5xl flex-col overflow-hidden rounded-t-2xl border border-slate-700 bg-slate-900 md:h-[88dvh] md:max-w-[1500px] md:rounded-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex flex-wrap items-center gap-3 border-b border-slate-800 px-5 py-3">
           <h2 className="text-base font-bold text-white">Change photo · {PLACE_TITLE[place.kind].toLowerCase()}</h2>
           {cover && <div className="flex rounded-xl bg-slate-800 p-1">{seg("both", "Phone and desktop")}{seg("phone", "Phone")}{seg("desktop", "Desktop")}</div>}
           <button type="button" onClick={onClose} className="ml-auto rounded-full p-2 text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer" aria-label="Close">✕</button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div className="flex min-h-0 flex-1">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4" onMouseLeave={() => setHover(null)}>
           {photos === null ? <p className="p-6 text-center text-sm text-slate-500">Loading photos…</p> : !photos.length ? <p className="p-6 text-center text-sm text-slate-500">No other photos to pick from.</p> : (
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
               {photos.map((p) => {
                 const now = isNow(p.path);
                 return (
-                  <button key={p.id} type="button" disabled={now} onClick={() => setSel(p)} title={p.description || p.title}
+                  <button key={p.id} type="button" disabled={now} onClick={() => setSel(p)} onMouseEnter={() => setHover(p)} title={p.description || p.title}
                     className={`relative aspect-square overflow-hidden rounded-xl border-2 ${sel?.id === p.id ? "border-brand" : "border-transparent"} ${now ? "cursor-default opacity-40" : "cursor-pointer hover:border-slate-500"}`}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={thumb(p.path)} alt="" loading="lazy" className="h-full w-full object-cover" />
@@ -219,6 +224,21 @@ function ChangePhoto({ task, place, onClose, onChanged }: { task: CleanupTask; p
               })}
             </div>
           )}
+        </div>
+        {/* The photo big: under the mouse, else the one picked, else the one shown now. The small
+            file shows at once, the sharp one over it when it is in. */}
+        <div className="hidden w-[48%] shrink-0 flex-col gap-3 border-l border-slate-800 p-4 md:flex">
+          <div className="relative min-h-0 flex-1 rounded-xl bg-slate-950 bg-contain bg-center bg-no-repeat" style={big ? { backgroundImage: `url("${thumb(big.path)}")` } : undefined}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {big && bigSrc && <img key={big.path} src={bigSrc.src} srcSet={bigSrc.srcSet} sizes="48vw" alt="" className="absolute inset-0 h-full w-full object-contain" />}
+          </div>
+          <p className="min-h-[20px] truncate text-sm text-slate-400">
+            {big && <>
+              <span className={`mr-2 font-bold ${big.path === sel?.path ? "text-brand" : isNow(big.path) ? "text-slate-300" : "text-white"}`}>{big.path === sel?.path ? "Picked" : isNow(big.path) ? "Shown now" : "Click to pick"}</span>
+              {[big.visit_date && fmtDate(big.visit_date), big.description || big.title].filter(Boolean).join(" · ")}
+            </>}
+          </p>
+        </div>
         </div>
         <div className="flex items-center gap-3 border-t border-slate-800 px-5 py-3">
           <p className="min-w-0 flex-1 truncate text-xs text-slate-500">{error ?? (forWhat === "phone" ? "Phones show this photo; desktops keep theirs." : forWhat === "desktop" ? "Desktops show this photo; phones keep theirs." : "Saved at once; the framing starts at the centre.")}</p>
@@ -270,12 +290,14 @@ function fitRow(frames: Box[], screens: ("phone" | "desktop")[], W: number, H: n
   return out;
 }
 
-function SlotPreviews({ task, values, onValue, width, maxH, phoneScreen, fill = false }: {
+function SlotPreviews({ task, values, onValue, width, maxH, phoneScreen, fill = false, onRow }: {
   task: CleanupTask; values: Values; onValue: (t: CleanupTask, s: FrameSlot, v: string) => void; width: number; maxH: number;
   /** A cover with its own phone photo shows a way back to the desktop one. */
   phoneScreen?: React.ReactNode;
   /** Enlarge the previews to fill width x maxH (one screen on desktop). */
   fill?: boolean;
+  /** The width the previews take side by side (null when they are not sized to the room). */
+  onRow?: (w: number | null) => void;
 }) {
   const place = task.place!;
   const views: { s: FrameSlot; v: SlotView | null }[] = place.slots.flatMap((s): { s: FrameSlot; v: SlotView | null }[] => (s.views.length ? s.views.map((v) => ({ s, v })) : [{ s, v: null }]));
@@ -288,37 +310,21 @@ function SlotPreviews({ task, values, onValue, width, maxH, phoneScreen, fill = 
   const [frames, setFrames] = useState<Record<string, Box>>({});
   const viewKey = (v: SlotView) => `${v.screen}|${v.page.split("#")[0]}|${v.target}`;
   const live = views.filter((x): x is { s: FrameSlot; v: SlotView } => !!x.v);
-  // Resting the mouse on a preview opens it big over the stage, to place the photo exactly;
-  // moving out of it (or Esc) closes it. The preview itself moves, so its page stays loaded.
-  const rootRef = useRef<HTMLDivElement>(null);
+  // A double-click on a preview opens it full screen, to place the photo exactly; a double-click,
+  // Esc or its close button closes it. The preview itself moves, so its page stays loaded.
   const [big, setBig] = useState<{ key: string; at: Lift } | null>(null);
-  const openT = useRef<number | undefined>(undefined), closeT = useRef<number | undefined>(undefined);
-  const openBig = (k: string, box: Box) => {
-    const r = rootRef.current?.getBoundingClientRect(); if (!r) return;
-    const area = rootRef.current!.closest("[data-lift-area]")?.getBoundingClientRect();
-    const left = Math.max(8, (area?.left ?? r.left) - 12), top = Math.max(8, (area?.top ?? r.top) - 12);
-    const at = { left, top, width: r.right + 12 - left, height: window.innerHeight - top - 12 };
-    // Only when the window shows it clearly bigger (a card already as tall as the screen allows stays put).
-    const f = frames[k];
-    if (f && Math.min(3, (at.width - 32) / f.w, (at.height - 64) / f.h) < (box.w / f.w) * 1.15) return;
-    setBig({ key: k, at });
-  };
+  const openBig = (k: string) => setBig({ key: k, at: { left: 12, top: 12, width: window.innerWidth - 24, height: window.innerHeight - 24 } });
   useEffect(() => {
     if (!big) return;
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setBig(null); };
-    // A drag that ends outside the window closes it too (leaving it mid-drag does not).
-    const up = (e: PointerEvent) => {
-      const a = big.at;
-      if (e.clientX < a.left || e.clientX > a.left + a.width || e.clientY < a.top || e.clientY > a.top + a.height) setBig(null);
-    };
     window.addEventListener("keydown", esc);
-    window.addEventListener("pointerup", up);
-    return () => { window.removeEventListener("keydown", esc); window.removeEventListener("pointerup", up); };
+    return () => window.removeEventListener("keydown", esc);
   }, [big]);
-  useEffect(() => () => { window.clearTimeout(openT.current); window.clearTimeout(closeT.current); }, []);
   const boxes = fill && !narrow && live.length === views.length
     ? fitRow(live.map(({ v }) => frames[viewKey(v)] ?? (v.screen === "phone" ? { w: 384, h: 480 } : { w: 1600, h: 600 })), live.map(({ v }) => v.screen), width, maxH)
     : null;
+  const rowW = boxes ? Math.round(boxes.reduce((n, b) => n + b.w, 0) + 24 * (boxes.length - 1)) : null;
+  useEffect(() => { onRow?.(rowW); }, [rowW]); // eslint-disable-line react-hooks/exhaustive-deps
   const label = (s: FrameSlot, v: SlotView | null) => {
     const multi = s.views.length > 1;
     const screen = v ? (v.screen === "phone" ? "Phone" : "Desktop") : s.label;
@@ -333,7 +339,7 @@ function SlotPreviews({ task, values, onValue, width, maxH, phoneScreen, fill = 
     );
   };
   return (
-    <div ref={rootRef} className={`flex gap-6 ${narrow ? "flex-col" : `flex-row flex-wrap items-start ${fill ? "justify-end" : ""}`}`}>
+    <div className={`flex gap-6 ${narrow ? "flex-col" : `flex-row flex-wrap items-start ${fill ? "justify-center" : ""}`}`}>
       {views.map(({ s, v }, vi) => {
         const k = vkey(task, s);
         const value = values[k] ?? startValue(s);
@@ -343,20 +349,9 @@ function SlotPreviews({ task, values, onValue, width, maxH, phoneScreen, fill = 
         const bk = viewKey(v);
         const lifted = !!box && big?.key === bk;
         return (
-          // The wrapper keeps the preview's place while it is lifted; leaving it (the lifted window is inside it) closes.
+          // The wrapper keeps the preview's place while it is full screen.
           <div key={`${v.screen}|${v.page.split("#")[0]}`} style={box ? { width: box.w, minHeight: box.h + 32 } : undefined}
-            onMouseEnter={() => window.clearTimeout(closeT.current)}
-            onMouseMove={(e) => {
-              if (!box || lifted || e.buttons) return;
-              window.clearTimeout(openT.current);
-              openT.current = window.setTimeout(() => openBig(bk, box), 450);
-            }}
-            // Dragging in the small preview right away keeps it small.
-            onPointerDown={() => window.clearTimeout(openT.current)}
-            onMouseLeave={(e) => {
-              window.clearTimeout(openT.current);
-              if (lifted && e.buttons === 0) closeT.current = window.setTimeout(() => setBig(null), 120);
-            }}>
+            onDoubleClick={() => { if (box) { if (lifted) setBig(null); else openBig(bk); } }}>
           <LivePreview
             page={v.page}
             target={v.target}
@@ -372,6 +367,7 @@ function SlotPreviews({ task, values, onValue, width, maxH, phoneScreen, fill = 
             maxScale={box ? MAX_UP : 1}
             onFrame={(w, h) => setFrames((m) => (m[viewKey(v)]?.w === w && m[viewKey(v)]?.h === h ? m : { ...m, [viewKey(v)]: { w, h } }))}
             lift={lifted ? big!.at : null}
+            onUnlift={() => setBig(null)}
             label={label(s, v)}
           />
           </div>
@@ -394,29 +390,30 @@ function statusOf(u: Use, values: Values) {
 }
 
 /**
- * This place and every other place its photo is shown, one under the other:
- * the other framings (adjustable here, saved with this place) and the frames
- * the pages draw by themselves (review sections, gallery tiles). The chosen
- * one shows in the middle, on the real page.
+ * Every other place the photo is shown, one under the other: the other framings
+ * (adjustable here, saved with this place) and the frames the pages draw by
+ * themselves (review sections, gallery tiles). Tapping one shows it in the
+ * middle, on the real page; tapping it again goes back to this place.
  */
-function UsesList({ here, uses, sel, onSel, values }: { here: Use; uses: Use[]; sel: string | null; onSel: (id: string | null) => void; values: Values }) {
-  const item = (u: Use, on: boolean, st: { text: string; cls: string }, onClick: () => void) => (
-    <button key={u.id} type="button" onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-xl border p-2 pr-3 text-left transition-colors cursor-pointer ${on ? "border-brand bg-brand/10" : "border-white/10 bg-white/[0.03] hover:border-white/25"}`}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={thumb(u.photo)} alt="" loading="lazy" className="h-16 w-16 flex-none rounded-lg object-cover" />
-      <span className="min-w-0">
-        <span className="block text-[14px] font-bold leading-snug text-white">{u.title}</span>
-        <span className="block truncate text-xs text-slate-400">{u.sub}</span>
-        <span className={`block text-[11px] font-bold ${st.cls}`}>{st.text}</span>
-      </span>
-    </button>
-  );
+function UsesList({ uses, sel, onSel, values }: { uses: Use[]; sel: string | null; onSel: (id: string | null) => void; values: Values }) {
   return (
     <div className="space-y-2">
-      {item(here, sel === null, { text: "Framing now", cls: "text-brand" }, () => onSel(null))}
-      {uses.length > 0 && <p className="px-1 pt-3 text-xs font-bold text-slate-400">Elsewhere on the site · {uses.length}</p>}
-      {uses.map((u) => item(u, sel === u.id, statusOf(u, values), () => onSel(sel === u.id ? null : u.id)))}
+      {uses.map((u) => {
+        const on = sel === u.id;
+        const st = on ? { text: "Shown · tap to go back", cls: "text-brand" } : statusOf(u, values);
+        return (
+          <button key={u.id} type="button" onClick={() => onSel(on ? null : u.id)}
+            className={`flex w-full items-center gap-3 rounded-xl border p-2 pr-3 text-left transition-colors cursor-pointer ${on ? "border-brand bg-brand/10" : "border-white/10 bg-white/[0.03] hover:border-white/25"}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={thumb(u.photo)} alt="" loading="lazy" className="h-16 w-16 flex-none rounded-lg object-cover" />
+            <span className="min-w-0">
+              <span className="block text-[14px] font-bold leading-snug text-white">{u.title}</span>
+              <span className="block truncate text-xs text-slate-400">{u.sub}</span>
+              <span className={`block text-[11px] font-bold ${st.cls}`}>{st.text}</span>
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -504,8 +501,11 @@ export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, 
     const fromPages: Use[] = readUses.map((u) => ({ id: `${u.page}|${u.target}`, read: u, photo: u.target.replace(/^(section|tile):/, ""), title: u.label, sub: u.where }));
     return [...fromPlaces, ...fromPages];
   }, [place, related, readUses]);
-  const here: Use = { id: task.key, place: task, photo: task.image ?? "", title: PLACE_TITLE[place.kind], sub: [place.title, place.subtitle].filter(Boolean).join(" · ") };
   const shown = uses.find((u) => u.id === sel) ?? null;
+  // The bar under the previews is as wide as they are: back under the first, forward under the last.
+  const [mainW, setMainW] = useState<number | null>(null);
+  const [shownW, setShownW] = useState<number | null>(null);
+  const barW = shown ? (shown.place ? shownW : null) : mainW;
 
   // Back to the desktop photo on phones.
   const dropPhone = async () => {
@@ -535,7 +535,7 @@ export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, 
   const hint = (
     <p className="text-xs text-slate-500">
       {place.slots.some((s) => s.maxZoom > 1) ? "Drag to move · scroll or pinch to zoom" : "Drag to move"}
-      {onePager && <span className="mt-1 block">Rest the mouse on a preview to see it big</span>}
+      {onePager && <span className="mt-1 block">Double-click a preview for full screen</span>}
       {place.note && <span className="mt-1 block">{place.note}</span>}
     </p>
   );
@@ -545,23 +545,25 @@ export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, 
         {/* The stage: this place's previews stay loaded while another use is looked at. */}
         <div ref={stageRef} className={`relative min-w-0 ${onePager ? "min-h-0 flex-1" : ""}`}>
           <div className={shown ? "pointer-events-none absolute inset-x-0 top-0 opacity-0" : ""} aria-hidden={!!shown}>
-            <SlotPreviews task={task} values={values} onValue={onValue} width={width} maxH={maxH} phoneScreen={dropLink} fill={onePager} />
+            <SlotPreviews task={task} values={values} onValue={onValue} width={width} maxH={maxH} phoneScreen={dropLink} fill={onePager} onRow={setMainW} />
           </div>
           {shown && (shown.place
-            ? <SlotPreviews key={shown.id} task={shown.place} values={values} onValue={onValue} width={width} maxH={maxH} fill={onePager} />
+            ? <SlotPreviews key={shown.id} task={shown.place} values={values} onValue={onValue} width={width} maxH={maxH} fill={onePager} onRow={setShownW} />
             : <ReadPreviews key={shown.id} use={shown.read!} width={width} maxH={maxH} />)}
           {!onePager && <div className="mt-3">{hint}</div>}
         </div>
         {side
-          ? createPortal(<div className="flex flex-col gap-4"><UsesList here={here} uses={uses} sel={sel} onSel={setSel} values={values} />{hint}</div>, side)
+          ? createPortal(<div className="flex flex-col gap-4">{uses.length > 0 && <div><h2 className="mb-3 text-base font-bold text-white">Used elsewhere</h2><UsesList uses={uses} sel={sel} onSel={setSel} values={values} /></div>}{hint}</div>, side)
           : !onePager && uses.length > 0 && (
             <aside className="mt-8">
-              <UsesList here={here} uses={uses} sel={sel} onSel={setSel} values={values} />
+              <h2 className="mb-3 text-base font-bold text-white">Used elsewhere</h2>
+              <UsesList uses={uses} sel={sel} onSel={setSel} values={values} />
             </aside>
           )}
       </div>
 
-      <div className={`z-40 flex items-center gap-2.5 ${onePager ? "mt-4 shrink-0" : "fixed inset-x-0 bottom-0 border-t border-white/10 bg-[#0f172a]/95 px-4 py-3 backdrop-blur md:static md:mt-8 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"}`}>
+      <div style={onePager && barW ? { width: Math.max(barW, 520) } : undefined}
+        className={`z-40 flex items-center gap-2.5 ${onePager ? `mt-4 max-w-full shrink-0 ${barW ? "self-center" : ""}` : "fixed inset-x-0 bottom-0 border-t border-white/10 bg-[#0f172a]/95 px-4 py-3 backdrop-blur md:static md:mt-8 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"}`}>
         {back}
         {ch && <Btn onClick={() => setChanging(true)}>Change photo</Btn>}
         {ch?.t === "coaster-curated" && <Btn onClick={openPicker}>Picks</Btn>}

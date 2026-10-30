@@ -283,6 +283,7 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
     : task.coasterName ? { value: task.parkName }
     : task.visitDate ? { label: "Visit", value: fmtDate(task.visitDate) } : null;
   const done = data.done.find((t) => t.key === task.key);
+  const doneNow = new Set(trail.filter((h) => h.undo && finished(h.key)).map((h) => h.key)).size;
   const lastName = trail.length ? (() => { const t = find(trail[trail.length - 1].key); return t ? taskName(t) : null; })() : null;
   const backBtn = (
     <ArrowBtn dir="back" onClick={() => void back()} disabled={busy || !trail.length} small={!onePager}
@@ -314,11 +315,13 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
   );
   const count = (
     <>
-      {idx >= 0 && (
+      {/* What is left here (finished tasks leave the queue), and what was finished in this sitting. */}
+      {!isDone && queue.length > 0 && (
         <p className="text-4xl font-bold leading-none tabular-nums text-brand">
-          {idx + 1}<span className="text-2xl text-slate-500"> / {queue.length}</span>
+          {queue.length.toLocaleString("en-GB")}<span className="ml-2 text-2xl text-slate-500">to go</span>
         </p>
       )}
+      {doneNow > 0 && <p className="mt-2 text-sm font-semibold text-green-300">✓ {doneNow} done now</p>}
       <p className="mt-1.5 text-sm text-slate-400">{title}</p>
       {error && <p className={`mt-2 text-sm text-red-300 ${onePager ? "" : "max-w-sm truncate"}`}>{error}</p>}
     </>
@@ -365,8 +368,7 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
   if (onePager) {
     return (
       <div ref={rootRef} className="mx-auto flex max-w-[1880px] flex-col px-4 pb-3 pt-4 md:px-10" style={{ height: onePagerH }}>
-        {/* The left column and the stage: a preview rested on opens big over both. */}
-        <div data-lift-area className="flex min-h-0 flex-1 gap-8">
+        <div className="flex min-h-0 flex-1 gap-8">
           <aside className="flex min-h-0 w-[320px] shrink-0 flex-col">
             {head}
             <div className="mt-5">{links}</div>

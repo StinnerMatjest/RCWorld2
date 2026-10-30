@@ -181,7 +181,7 @@ function clampCentre(c: number, frame: number, drawn: number) {
 
 export type Lift = { left: number; top: number; width: number; height: number };
 
-export default function LivePreview({ page, target, viewport, photo, size, value = "0.5 0.5 1", onChange, maxZoom = 1, minAspect, maxW, maxH, maxScale = 1, onFrame, lift = null, label, badge }: {
+export default function LivePreview({ page, target, viewport, photo, size, value = "0.5 0.5 1", onChange, maxZoom = 1, minAspect, maxW, maxH, maxScale = 1, onFrame, lift = null, onUnlift, label, badge }: {
   page: string;
   target: string;
   viewport: Viewport;
@@ -203,6 +203,7 @@ export default function LivePreview({ page, target, viewport, photo, size, value
   onFrame?: (w: number, h: number) => void;
   /** Shown big in a window at this place on the screen (the same element moves, the page stays loaded). */
   lift?: Lift | null;
+  onUnlift?: () => void;
   label?: React.ReactNode;
   badge?: React.ReactNode;
 }) {
@@ -426,7 +427,11 @@ export default function LivePreview({ page, target, viewport, photo, size, value
   return (
     <figure className={`flex min-w-0 flex-col gap-2 ${lift ? "fixed z-[70] items-center justify-center rounded-3xl border border-white/15 bg-[#0f172a] p-4 shadow-2xl" : ""}`}
       style={lift ? { left: lift.left, top: lift.top, width: lift.width, height: lift.height } : undefined}>
-      {(label || badge) && <figcaption className="flex min-h-[24px] items-center justify-between gap-3 text-sm" style={lift ? { width: boxW } : undefined}>{label}{lift ? <span className="text-xs text-slate-500">Move out or press Esc to close</span> : badge}</figcaption>}
+      {(label || badge) && <figcaption className="flex min-h-[24px] items-center justify-between gap-3 text-sm" style={lift ? { width: boxW } : undefined}>{label}{lift ? (
+        <span className="flex items-center gap-4 text-xs text-slate-500">Double-click or Esc to close
+          <button type="button" onClick={onUnlift} className="rounded-lg border border-slate-700 px-3 py-1 text-sm font-bold text-slate-200 hover:border-slate-500 cursor-pointer">Close ✕</button>
+        </span>
+      ) : badge}</figcaption>}
       <div className="relative overflow-hidden rounded-xl bg-slate-900 transition-[width,height] duration-200" style={{ width: boxW, height: boxH }}>
         <iframe
           ref={iframeRef}
