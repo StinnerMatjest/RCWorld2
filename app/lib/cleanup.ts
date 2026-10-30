@@ -42,7 +42,7 @@ export type SlotTarget =
 export interface FrameSlot {
   id: string;
   kind: SlotKind;
-  /** "Hero · phone (tall)", "Front-page card", … */
+  /** "Park page cover · phone (tall)", "Front page card", … */
   label: string;
   /** Which page it is on: "Parc Astérix", "Toutatis · Introduction", a list title. */
   where: string;
@@ -206,6 +206,13 @@ const LIST_COVER = "11 / 6";
 
 // ─── compute ─────────────────────────────────────────────────────────────────
 
+/**
+ * Formats left out of the tool (user, 2026-10-30): review-section photos are
+ * framed when the review is written, and gallery-tile framing does not matter.
+ * The site still draws any framing stored for them.
+ */
+const SKIPPED_FORMATS: SlotKind[] = ["section", "section-phone", "section-desktop", "tile"];
+
 type SlotDraft = Omit<FrameSlot, "fresh" | "done"> & { owner: { parkId: number | null; coasterId?: number; visitId?: number; listSlug?: string } };
 
 export async function loadCleanup(): Promise<CleanupData> {
@@ -255,7 +262,7 @@ export async function loadCleanup(): Promise<CleanupData> {
   // ── framing slots, collected per photo ──
   const photoSlots = new Map<string, SlotDraft[]>();
   const addSlot = (url: string | null | undefined, s: SlotDraft) => {
-    if (!url || isVideo(url)) return;
+    if (!url || isVideo(url) || SKIPPED_FORMATS.includes(s.kind)) return;
     const list = photoSlots.get(url) ?? photoSlots.set(url, []).get(url)!;
     const same = list.find((x) => x.id === s.id);
     if (!same) { list.push(s); return; }
@@ -263,10 +270,11 @@ export async function loadCleanup(): Promise<CleanupData> {
     for (const p of s.previews ?? []) if (!(same.previews ??= []).some((q) => q.aspect === p.aspect)) same.previews.push(p);
   };
   // Park and visit heroes draw the wide framing in the tall frame until a tall one is set (ParkHero); coaster heroes draw the centre.
-  const heroSlots = (url: string, idBase: string, where: string, name: string, owner: SlotDraft["owner"], desktop: string | null, phone: string | null, target: (phoneFlag: boolean) => SlotTarget, opts: { phoneFallsBack?: boolean; rating?: number | null } = {}) => {
+  const heroSlots = (url: string, idBase: string, where: string, name: string, owner: SlotDraft["owner"], desktop: string | null, phone: string | null, target: (phoneFlag: boolean) => SlotTarget, opts: { phoneFallsBack?: boolean; rating?: number | null; page?: string } = {}) => {
+    const page = opts.page ?? "Park page cover";
     const faceRating = opts.rating != null && Number(opts.rating) > 0 ? Number(opts.rating) : null;
-    addSlot(url, { id: `${idBase}:phone`, kind: "hero-phone", label: "Hero · phone (tall)", where, aspect: HERO.phone, mode: "focus", maxZoom: 4, face: "hero", faceText: name, faceRating, value: phone, ...(opts.phoneFallsBack !== false ? { fallback: desktop, fallbackFrom: "Hero · wide" } : {}), target: target(true), owner });
-    addSlot(url, { id: `${idBase}:desktop`, kind: "hero-desktop", label: "Hero · desktop (wide)", where, aspect: HERO.desktop, previews: HERO_DESKTOP_PREVIEWS, mode: "focus", maxZoom: 4, face: "hero", faceText: name, faceRating, value: desktop, target: target(false), owner });
+    addSlot(url, { id: `${idBase}:phone`, kind: "hero-phone", label: `${page} · phone (tall)`, where, aspect: HERO.phone, mode: "focus", maxZoom: 4, face: "hero", faceText: name, faceRating, value: phone, ...(opts.phoneFallsBack !== false ? { fallback: desktop, fallbackFrom: "desktop cover" } : {}), target: target(true), owner });
+    addSlot(url, { id: `${idBase}:desktop`, kind: "hero-desktop", label: `${page} · desktop (wide)`, where, aspect: HERO.desktop, previews: HERO_DESKTOP_PREVIEWS, mode: "focus", maxZoom: 4, face: "hero", faceText: name, faceRating, value: desktop, target: target(false), owner });
   };
 
   for (const p of parks.values()) {
@@ -280,7 +288,7 @@ export async function loadCleanup(): Promise<CleanupData> {
       if (v.header_imagepath) heroSlots(v.header_imagepath, `visit:${v.id}:hero`, `${p.name} · visit ${dateOf(v.date) ?? ""}`.trim(), p.name, { parkId: p.id, visitId: v.id }, v.header_focus, v.header_focus_mobile, (phone) => ({ t: "visit-hero", visitId: v.id, phone }), { rating: v.overall });
     }
     const cardSrc = p.card_imagepath || p.imagepath;
-    if (cardSrc) addSlot(cardSrc, { id: `card:${p.id}`, kind: "card", label: "Front-page card", where: p.name, aspect: CARD.aspect, previews: [{ label: "Phone", aspect: "3 / 5" }], clampAspect: CARD.clamp, mode: "focus", maxZoom: 4, face: "card", faceText: p.name, faceVisit: latest ? cardScores(latest) : null, value: p.image_focus, target: { t: "card", parkId: p.id }, owner: { parkId: p.id } });
+    if (cardSrc) addSlot(cardSrc, { id: `card:${p.id}`, kind: "card", label: "Front page card", where: p.name, aspect: CARD.aspect, previews: [{ label: "Phone", aspect: "3 / 5" }], clampAspect: CARD.clamp, mode: "focus", maxZoom: 4, face: "card", faceText: p.name, faceVisit: latest ? cardScores(latest) : null, value: p.image_focus, target: { t: "card", parkId: p.id }, owner: { parkId: p.id } });
 
     for (const [vi, v] of visits.entries()) {
       const photos = (galleryByVisit.get(v.id) ?? []).filter((g) => !isVideo(g.path));
@@ -289,7 +297,7 @@ export async function loadCleanup(): Promise<CleanupData> {
         push({ ...base(p.id), key: `curated-pick:${v.id}`, kind: "curated-pick", state: "open", visitId: v.id, visitDate: dateOf(v.date), image: photos[0]?.path ?? null, choices: photos.length, fingerprint: String(v.id), done: picked.length > 0 || photos.length === 0 });
       }
       for (const g of photos.filter((x) => x.featured)) {
-        addSlot(g.path, { id: `curated:${g.id}`, kind: "curated", label: "Curated card (deck and strip)", where: p.name, aspect: "4 / 5", mode: "focus", maxZoom: 1, face: "caption", faceText: g.description || "", value: g.focus, target: { t: "curated", rowId: g.id }, owner: { parkId: p.id, visitId: v.id } });
+        addSlot(g.path, { id: `curated:${g.id}`, kind: "curated", label: "Curated photo card (park page)", where: p.name, aspect: "4 / 5", mode: "focus", maxZoom: 1, face: "caption", faceText: g.description || "", value: g.focus, target: { t: "curated", rowId: g.id }, owner: { parkId: p.id, visitId: v.id } });
       }
       // Gallery tiles and captions: every photo of every published visit.
       const shared = new Map<string, number>();
@@ -346,10 +354,10 @@ export async function loadCleanup(): Promise<CleanupData> {
     const gallery = fullGallery.filter((g) => !isVideo(g.path));
     // The hero as the coaster page picks it: newest header row, else the first in gallery order.
     const header = [...fullGallery].filter((g) => g.is_header).sort((x, y) => y.id - x.id)[0] ?? fullGallery[0];
-    if (header) heroSlots(header.path, `coaster:${c.id}:hero`, `${c.name} · ${park.name}`, c.name, owner, header.focus_desktop, header.focus_mobile, (phone) => ({ t: "coaster-hero", rowId: header.id, phone }), { phoneFallsBack: false, rating: c.rating });
+    if (header) heroSlots(header.path, `coaster:${c.id}:hero`, `${c.name} · ${park.name}`, c.name, owner, header.focus_desktop, header.focus_mobile, (phone) => ({ t: "coaster-hero", rowId: header.id, phone }), { phoneFallsBack: false, rating: c.rating, page: "Coaster page cover" });
     // The coaster page's photo strip: the picked photos, or all of them.
     const strip = gallery.some((g) => g.featured) ? gallery.filter((g) => g.featured) : gallery;
-    for (const g of strip) addSlot(g.path, { id: `strip:${g.path}`, kind: "coaster-strip", label: "Coaster photo strip", where: `${c.name} · ${park.name}`, aspect: "4 / 5", mode: "focus", maxZoom: 1, face: "caption", faceText: g.description || "", value: pfGet("coaster-strip", g.path), target: { t: "photo", format: "coaster-strip" }, owner });
+    for (const g of strip) addSlot(g.path, { id: `strip:${g.path}`, kind: "coaster-strip", label: "Photo strip card (coaster page)", where: `${c.name} · ${park.name}`, aspect: "4 / 5", mode: "focus", maxZoom: 1, face: "caption", faceText: g.description || "", value: pfGet("coaster-strip", g.path), target: { t: "photo", format: "coaster-strip" }, owner });
     for (const g of gallery) addSlot(g.path, { id: `tile:${g.path}`, kind: "tile", label: "Gallery tile", where: `${c.name} · Gallery`, aspect: TILE, previews: COASTER_TILE_PREVIEWS, mode: "position", maxZoom: 1, value: pfGet("gallery-tile", g.path), target: { t: "photo", format: "gallery-tile" }, owner });
 
     const texts = textsByCoaster.get(c.id) ?? [];

@@ -8,11 +8,10 @@ export const PERSON_KEY = "parkrating_cleanup_person";
 /** A tile on the overview: a group of photo formats, or a kind of other quick fix. */
 export interface Category { id: string; title: string; verb: string; slots?: SlotKind[]; kinds?: CleanupKind[] }
 export const CATEGORIES: Category[] = [
-  { id: "heroes", title: "Heroes", verb: "tall and wide to frame", slots: ["hero-phone", "hero-desktop"] },
-  { id: "cards", title: "Front-page cards", verb: "to frame", slots: ["card"] },
+  { id: "covers", title: "Page covers", verb: "phone and desktop to frame", slots: ["hero-phone", "hero-desktop"] },
+  { id: "cards", title: "Front page cards", verb: "to frame", slots: ["card"] },
   { id: "curated", title: "Curated & strips", verb: "cards to frame", slots: ["curated", "coaster-strip"] },
-  { id: "review", title: "Review photos", verb: "to frame", slots: ["section", "section-phone", "section-desktop", "break-phone", "break-desktop"] },
-  { id: "tiles", title: "Gallery tiles", verb: "to frame", slots: ["tile"] },
+  { id: "breaks", title: "Photo breaks", verb: "to frame", slots: ["break-phone", "break-desktop"] },
   { id: "lists", title: "List photos", verb: "to frame", slots: ["list-item", "list-cover"] },
   { id: "curated-pick", title: "Curated picks", verb: "parks to pick for", kinds: ["curated-pick"] },
   { id: "section-needs-photo", title: "Sections", verb: "without a photo", kinds: ["section-needs-photo"] },
@@ -21,7 +20,7 @@ export const CATEGORIES: Category[] = [
 
 /** Short names for a format, as on the tabs. */
 export const SLOT_SHORT: Record<SlotKind, string> = {
-  "hero-phone": "Hero · tall", "hero-desktop": "Hero · wide", card: "Front-page card", curated: "Curated card", "coaster-strip": "Strip card",
+  "hero-phone": "Cover · phone", "hero-desktop": "Cover · desktop", card: "Front page card", curated: "Curated card", "coaster-strip": "Strip card",
   section: "Review", "section-phone": "Review · phone", "section-desktop": "Review · desktop", "break-phone": "Break · phone", "break-desktop": "Break · desktop",
   tile: "Gallery tile", "list-item": "List photo", "list-cover": "List cover",
 };
@@ -39,8 +38,8 @@ export function taskTitle(t: CleanupTask, only?: SlotKind[]): string {
     case "photo": {
       const open = openSlots(t, only);
       const name = t.coasterName ?? t.parkName;
-      if (open.some((s) => s.kind === "hero-phone" || s.kind === "hero-desktop")) return `Frame ${name}'s hero`;
-      if (open.some((s) => s.kind === "card")) return `Frame ${t.parkName}'s front-page card`;
+      if (open.some((s) => s.kind === "hero-phone" || s.kind === "hero-desktop")) return `Frame ${name}'s page cover`;
+      if (open.some((s) => s.kind === "card")) return `Frame ${t.parkName}'s front page card`;
       return "Frame this photo";
     }
     case "caption": return "Caption this photo";
@@ -57,7 +56,7 @@ export function taskWhere(t: CleanupTask): string {
   return bits.join(" · ");
 }
 
-/** "Hero · tall, Hero · wide and 2 more" */
+/** "Cover · phone, Cover · desktop and 2 more" */
 export function slotSummary(t: CleanupTask, only?: SlotKind[]): string {
   const names = openSlots(t, only).map((s) => SLOT_SHORT[s.kind]);
   if (names.length <= 3) return names.join(", ");
