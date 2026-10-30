@@ -256,8 +256,7 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
     const box = stripRef.current, el = nowRef.current;
     if (!box || !el) return;
     const from = (el.previousElementSibling as HTMLElement | null) ?? el;
-    if (onePager) box.scrollTo({ top: from.offsetTop - box.offsetTop, behavior: "smooth" });
-    else box.scrollTo({ left: from.offsetLeft - box.offsetLeft, behavior: "smooth" });
+    box.scrollTo({ left: from.offsetLeft - box.offsetLeft, behavior: "smooth" });
   }, [key, onePager, strip.length]);
 
   if (!task) {
@@ -297,10 +296,11 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
     <>
       <button onClick={onExit} className="self-start text-sm text-slate-400 hover:text-white cursor-pointer">‹ Admin</button>
       <h1 className={`mt-2 font-bold leading-[1.05] tracking-tight text-white ${onePager ? "line-clamp-3 break-words text-[44px]" : "truncate text-4xl"}`}>{heading}</h1>
-      <p className="mt-2.5 text-2xl font-semibold leading-tight text-slate-100">{taskTitle(task)}</p>
+      <div className="mt-3 h-1 w-12 rounded-full bg-brand" />
+      <p className="mt-3 text-2xl font-bold leading-tight text-brand">{taskTitle(task)}</p>
       {detail && (
-        <p className="mt-1.5 text-lg leading-tight text-slate-300">
-          {detail.label && <span className="mr-2 text-slate-500">{detail.label}</span>}{detail.value}
+        <p className="mt-1.5 text-lg font-semibold leading-tight text-white">
+          {detail.label && <span className="mr-2 font-normal text-slate-500">{detail.label}</span>}{detail.value}
         </p>
       )}
       {done && <p className="mt-1.5 text-sm text-green-300">✓ Done by {done.doneBy}, {fmtDate(done.doneAt)}</p>}
@@ -315,7 +315,7 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
   const count = (
     <>
       {idx >= 0 && (
-        <p className="text-4xl font-bold leading-none tabular-nums text-white">
+        <p className="text-4xl font-bold leading-none tabular-nums text-brand">
           {idx + 1}<span className="text-2xl text-slate-500"> / {queue.length}</span>
         </p>
       )}
@@ -348,7 +348,7 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
   // A tile of the strip: finished ones washed green with a tick, this one ringed.
   const tile = ({ t, at }: (typeof strip)[number]) => (
     <button key={t.key} ref={at === "now" ? nowRef : undefined} type="button" onClick={() => at !== "now" && go(t.key)}
-      className={`group block text-left ${onePager ? "w-full" : "w-[150px] flex-none md:w-[176px]"} ${at === "now" ? "cursor-default" : "cursor-pointer"}`}>
+      className={`group block w-[150px] flex-none text-left ${onePager ? "" : "md:w-[176px]"} ${at === "now" ? "cursor-default" : "cursor-pointer"}`}>
       <div className={`relative aspect-[16/10] overflow-hidden rounded-xl bg-slate-800 ring-brand transition ${at === "now" ? "ring-[3px]" : "group-hover:ring-2"}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {t.image && <img src={thumb(t.image)} alt="" loading="lazy" className={`h-full w-full object-cover transition-opacity ${at === "past" ? "opacity-50" : "opacity-90 group-hover:opacity-100"}`} />}
@@ -364,10 +364,10 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
 
   if (onePager) {
     return (
-      <div ref={rootRef} className="mx-auto flex max-w-[1880px] gap-8 px-4 pb-4 pt-4 md:px-10" style={{ height: onePagerH }}>
+      <div ref={rootRef} className="mx-auto flex max-w-[1880px] flex-col px-4 pb-3 pt-4 md:px-10" style={{ height: onePagerH }}>
         {/* The left column and the stage: a preview rested on opens big over both. */}
-        <div data-lift-area className="flex min-w-0 flex-1 gap-8">
-          <aside className="flex w-[320px] shrink-0 flex-col">
+        <div data-lift-area className="flex min-h-0 flex-1 gap-8">
+          <aside className="flex min-h-0 w-[320px] shrink-0 flex-col">
             {head}
             <div className="mt-5">{links}</div>
             <div className="mt-4">{count}</div>
@@ -375,12 +375,14 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
           </aside>
           <main className="min-h-0 min-w-0 flex-1">{body}</main>
         </div>
-        <aside className="flex w-[184px] shrink-0 flex-col">
-          <h2 className="mb-3 text-base font-bold text-white">Up next</h2>
-          <div ref={stripRef} className="relative min-h-0 flex-1 space-y-4 overflow-y-auto pr-1 [scrollbar-width:thin]">
-            {strip.map(tile)}
+        {strip.length > 1 && (
+          <div className="mt-4 shrink-0 border-t border-white/10 pt-3">
+            <h2 className="mb-2 text-base font-bold text-white">Up next</h2>
+            <div ref={stripRef} className="relative -mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
+              {strip.map(tile)}
+            </div>
           </div>
-        </aside>
+        )}
         {toast && <ToastBar toast={toast} />}
       </div>
     );

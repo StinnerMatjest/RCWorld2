@@ -24,6 +24,7 @@ import { regenerateParkCuts } from "@/app/lib/cardCut";
 import { groupOf } from "@/app/lib/cleanupGroup";
 import { joinFocusPair, splitFocusPair } from "@/app/lib/framing";
 import { overview as tiebreakOverview } from "@/app/lib/tiebreakStore";
+import { sectionImageFrame, type SectionFrame } from "@/app/utils/sectionImageAspect";
 
 export const CLEANUP_PEOPLE = ["Jannik", "Nicklas"] as const;
 export type CleanupPerson = typeof CLEANUP_PEOPLE[number];
@@ -256,10 +257,10 @@ export async function loadCleanup(): Promise<CleanupData> {
     pool.query(`SELECT id, name, slug, country, imagepath, imagepath_mobile, header_focus, header_focus_mobile, card_imagepath, image_focus FROM parks ORDER BY name`),
     pool.query(`SELECT id, park_id, date, overall, published, header_imagepath, header_imagepath_mobile, header_focus, header_focus_mobile FROM visits ORDER BY date DESC NULLS LAST, id DESC`),
     pool.query(`SELECT g.id, g.visit_id, g.title, g.path, g.description, g.featured, g.focus FROM visitgallery g JOIN visits v ON v.id = g.visit_id WHERE v.published = true ORDER BY g.sort_order ASC NULLS LAST, g.id ASC`),
-    pool.query(`SELECT id, visit_id, category, coalesce(btrim(text), '') <> '' AS has_text, image_url FROM parktexts`),
+    pool.query(`SELECT id, visit_id, category, coalesce(btrim(text), '') <> '' AS has_text, image_url, image_layout FROM parktexts`),
     pool.query(`SELECT id, name, slug, park_id, rating FROM rollercoasters`),
     pool.query(`SELECT id, coaster_id, title, path, description, is_header, is_header_mobile, focus_mobile, focus_desktop, featured FROM coastergallery ORDER BY sort_order ASC NULLS LAST, id ASC`),
-    pool.query(`SELECT id, coaster_id, headline, coalesce(btrim(text), '') <> '' AS has_text, "order", image_url FROM coastertext ORDER BY coaster_id, "order" ASC`),
+    pool.query(`SELECT id, coaster_id, headline, coalesce(btrim(text), '') <> '' AS has_text, "order", image_url, image_layout FROM coastertext ORDER BY coaster_id, "order" ASC`),
     pool.query(`SELECT id, title, slug, image_url, published FROM rankinglists`),
     pool.query(`SELECT list_id, title, image_1, image_2 FROM listitems`),
     pool.query(`SELECT format, url, focus FROM photo_framing`),
@@ -422,9 +423,14 @@ export async function loadCleanup(): Promise<CleanupData> {
 
   // Photos in reviews: each photo in a section, framed for the phone and the desktop
   // frame of its section (a phone framing falls back to the desktop one).
-  const sectionSlots = (o: { idBase: string; photo: string; focus: string | null; page: string; table: "parktexts" | "coastertext"; rowId: number; index: number }): SlotDraft[] => {
+  const sectionSlots = (o: { idBase: string; photo: string; focus: string | null; page: string; table: "parktexts" | "coastertext"; rowId: number; index: number; frame: SectionFrame }): SlotDraft[] => {
     const pair = splitFocusPair(o.focus);
     const target = `section:${o.photo}`;
+    // Beside the text the frame has one shape on every screen: one framing does both, while
+    // the phone has none of its own (it follows the desktop one).
+    if (o.frame.mobile === o.frame.desktop && !pair.phone) {
+      return [{ id: `${o.idBase}:desktop`, kind: "section-desktop", label: "Phone and desktop", photo: o.photo, value: pair.desktop, target: { t: "section", table: o.table, rowId: o.rowId, index: o.index, part: "desktop" }, maxZoom: 4, views: [{ screen: "desktop", page: o.page, target }] }];
+    }
     return [
       { id: `${o.idBase}:phone`, kind: "section-phone", label: "Phone", photo: o.photo, value: pair.phone, fallback: pair.desktop, fallbackFrom: "desktop", target: { t: "section", table: o.table, rowId: o.rowId, index: o.index, part: "phone" }, maxZoom: 4, views: [{ screen: "phone", page: o.page, target }] },
       { id: `${o.idBase}:desktop`, kind: "section-desktop", label: "Desktop", photo: o.photo, value: pair.desktop, target: { t: "section", table: o.table, rowId: o.rowId, index: o.index, part: "desktop" }, maxZoom: 4, views: [{ screen: "desktop", page: o.page, target }] },
@@ -436,7 +442,10 @@ export async function loadCleanup(): Promise<CleanupData> {
       for (const t of textsByVisit.get(v.id) ?? []) {
         const anchor = t.category === "description" ? "section-description" : `section-${t.category}`;
         const page = `${parkPage(parkId, v.id)}#${anchor}`;
-        splitSectionMedia(t.image_url).forEach((m, i) => {
+        const media = splitSectionMedia(t.image_url);
+        // The frame shape the page draws (the introduction defaults to photos below the text).
+        const frame = sectionImageFrame(t.image_layout, media.length, { defaultLayout: t.category === "description" ? "below" : null });
+        media.forEach((m, i) => {
           if (isVideo(m.url)) return;
           addPlace({
             ...base(parkId), key: `review-photo:p${t.id}:${i}`, kind: "frame", image: m.url, visitId: v.id, visitDate: dateOf(v.date), pageUrl: page,
@@ -444,7 +453,7 @@ export async function loadCleanup(): Promise<CleanupData> {
               kind: "review-photo", title: p.name, subtitle: `${SECTION_LABEL[t.category] ?? t.category}${vi === 0 ? "" : ` · visit of ${dateLabel(v.date)}`}`, change: null,
               category: { label: "Category", value: `${SECTION_LABEL[t.category] ?? t.category}${vi === 0 ? "" : ` · visit of ${dateLabel(v.date)}`}` },
               note: "Change the photo itself in the review editor.",
-              slots: sectionSlots({ idBase: `section:p${t.id}:${i}`, photo: m.url, focus: m.focus, page, table: "parktexts", rowId: t.id, index: i }),
+              slots: sectionSlots({ idBase: `section:p${t.id}:${i}`, photo: m.url, focus: m.focus, page, table: "parktexts", rowId: t.id, index: i, frame }),
             },
           });
         });
@@ -526,7 +535,9 @@ export async function loadCleanup(): Promise<CleanupData> {
 
     for (const t of texts) {
       const page = `${coasterPage}#section-${t.id}`;
-      splitSectionMedia(t.image_url).forEach((m, i) => {
+      const media = splitSectionMedia(t.image_url);
+      const frame = sectionImageFrame(t.image_layout, media.length);
+      media.forEach((m, i) => {
         if (isVideo(m.url)) return;
         addPlace({
           ...b, key: `review-photo:c${t.id}:${i}`, kind: "frame", image: m.url, pageUrl: page,
@@ -534,7 +545,7 @@ export async function loadCleanup(): Promise<CleanupData> {
             kind: "review-photo", title: c.name, subtitle: `${t.headline || "Section"} · ${park.name}`, change: null,
             category: { label: "Section", value: `${t.headline || "Untitled"} · ${park.name}` },
             note: "Change the photo itself in the review editor.",
-            slots: sectionSlots({ idBase: `section:c${t.id}:${i}`, photo: m.url, focus: m.focus, page, table: "coastertext", rowId: t.id, index: i }),
+            slots: sectionSlots({ idBase: `section:c${t.id}:${i}`, photo: m.url, focus: m.focus, page, table: "coastertext", rowId: t.id, index: i, frame }),
           },
         });
       });

@@ -5,7 +5,6 @@ import Image from "next/image";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import { getParkFlag, getRatingColor } from "@/app/utils/design";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
-import { parseFocusStr } from "@/app/components/FocusedImage";
 import type { Visit } from "@/app/types";
 import type { ParkRanks } from "@/app/utils/parkRanks";
 import { HeroStats } from "./HeroStats";
@@ -59,8 +58,6 @@ function phoneCardWidth(vw: number): number {
 }
 /** Our phones are 384 CSS px wide: a 299.5 px card. */
 const PHONE_CARD_W = phoneCardWidth(384);
-/** Phone park hero: full width at 4:5 (see ParkHero). */
-const PHONE_HERO = { w: 384, h: 480 };
 
 function scrollbarWidth(): number {
   const probe = document.createElement("div");
@@ -453,45 +450,6 @@ export function ScaledLayer({ w, h, scale, children }: { w: number; h: number; s
   );
 }
 
-/**
- * Read-only frame that places the photo with exactly the page's math (cover
- * the frame, times the zoom, focus point at the centre), at the page's real
- * frame size, then shrinks the whole thing by `scale` for display.
- */
-function LiveFrame({ src, focus, w, h, scale, className = "", children }: {
-  src: string; focus: string; w: number; h: number; scale: number; className?: string; children?: React.ReactNode;
-}) {
-  const [nat, setNat] = useState<{ src: string; w: number; h: number } | null>(null);
-  useEffect(() => {
-    if (!src) return;
-    let off = false;
-    const im = new window.Image();
-    const done = () => { if (!off && im.naturalWidth) setNat({ src, w: im.naturalWidth, h: im.naturalHeight }); };
-    im.onload = done;
-    im.src = src;
-    if (im.complete) done();
-    return () => { off = true; im.onload = null; };
-  }, [src]);
-
-  let imgStyle: React.CSSProperties = { visibility: "hidden" };
-  if (nat && nat.src === src) {
-    // The pages stop the photo at the frame's edges (FocusedImage, the home card).
-    const { cx, cy, zoom } = parseFocusStr(focus);
-    const cs = Math.max(w / nat.w, h / nat.h);
-    const dw = nat.w * cs * zoom, dh = nat.h * cs * zoom;
-    imgStyle = { width: dw, height: dh, left: Math.min(0, Math.max(w - dw, w / 2 - cx * dw)), top: Math.min(0, Math.max(h - dh, h / 2 - cy * dh)) };
-  }
-  return (
-    <div className={`relative shrink-0 overflow-hidden bg-slate-900 ${className}`} style={{ width: w * scale, height: h * scale }}>
-      <ScaledLayer w={w} h={h} scale={scale}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        {src && <img src={src} alt="" draggable={false} className="absolute max-w-none select-none" style={imgStyle} />}
-        {children}
-      </ScaledLayer>
-    </div>
-  );
-}
-
 // ─── Gallery view ────────────────────────────────────────────────────────────
 
 function GalleryView({
@@ -667,15 +625,6 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   const [headerFocusMobile, setHeaderFocusMobile] = useState<string | null>(initial.headerFocusMobile);
   const [cardPath, setCardPath] = useState<string | null>(initial.cardPath);
   const [cardFocus, setCardFocus] = useState(initial.cardFocus);
-  // Follow the drag live in the phone previews.
-  const [liveHeaderFocus, setLiveHeaderFocus] = useState(initial.headerFocus);
-  const rafRef = useRef(0);
-  const live = (set: (f: string) => void) => (f: string) => {
-    cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => set(f));
-  };
-  useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
-
   // The home card shows its own photo, or else the park header.
   const parkHeader = parkImagePath ?? initial.headerPath;
   const effectiveCardPath = cardPath ?? parkHeader;
@@ -902,7 +851,6 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                       aspectRatio={`${Math.round(pageW)}/${Math.round(pageH)}`}
                       focusStr={editsTall ? headerFocusMobile ?? (phonePhoto ? "0.5 0.5 1" : headerFocus) : headerFocus}
                       onCommit={editsTall ? setHeaderFocusMobile : setHeaderFocus}
-                      onChange={editsTall ? undefined : live(setLiveHeaderFocus)}
                       className={isMobile ? "w-full" : "w-full rounded-2xl"}
                     >
                       {headerFrameW > 0 && (
@@ -916,40 +864,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                     <p className="text-xs text-slate-500 -mt-2 px-1">The tall phone framing. The wide desktop framing is set on a computer or in the clean-up tool.</p>
                   )}
                   {!isMobile && (
-                    <p className="text-xs text-slate-500 -mt-3">Header on this screen, {Math.round(pageW)} × {Math.round(pageH)}. Phones below.</p>
-                  )}
-                  {!isMobile && !editsTall && (
-                    <figure className="flex flex-col gap-1.5">
-                      {/* The tall phone hero: follows the wide framing until it gets its own (always its own on a phone photo). */}
-                      {headerFocusMobile === null && !phonePhoto ? (
-                        <LiveFrame src={headerPath} focus={liveHeaderFocus} w={PHONE_HERO.w} h={PHONE_HERO.h} scale={1} className="rounded-xl">
-                          <HeaderFace parkName={parkName} city={parkCity} country={parkCountry} continent={parkContinent} phone overall={heroOverall} ranks={heroRanks} />
-                        </LiveFrame>
-                      ) : (
-                        <CropEditor
-                          key={`t-${phonePhoto ?? headerPath}`}
-                          editorRef={tallEditorRef}
-                          src={phonePhoto ?? headerPath}
-                          focusStr={headerFocusMobile ?? "0.5 0.5 1"}
-                          onCommit={setHeaderFocusMobile}
-                          className="rounded-xl"
-                          style={{ width: PHONE_HERO.w, height: PHONE_HERO.h }}
-                        >
-                          <ScaledLayer w={PHONE_HERO.w} h={PHONE_HERO.h} scale={1}>
-                            <HeaderFace parkName={parkName} city={parkCity} country={parkCountry} continent={parkContinent} phone overall={heroOverall} ranks={heroRanks} />
-                          </ScaledLayer>
-                        </CropEditor>
-                      )}
-                      <figcaption className="flex flex-wrap items-center gap-x-3 text-xs text-slate-500">
-                        <span>Phone · {phonePhoto ? "its own photo (change it in the clean-up tool), drag to adjust" : headerFocusMobile === null ? "follows the wide framing" : "its own framing, drag to adjust"}</span>
-                        {!phonePhoto && (
-                          <button type="button" onClick={() => setHeaderFocusMobile(headerFocusMobile === null ? liveHeaderFocus : null)}
-                            className="font-bold text-blue-400 hover:text-blue-300 cursor-pointer">
-                            {headerFocusMobile === null ? "Frame the phone separately" : "Follow the wide framing"}
-                          </button>
-                        )}
-                      </figcaption>
-                    </figure>
+                    <p className="text-xs text-slate-500 -mt-3">Header on this screen, {Math.round(pageW)} × {Math.round(pageH)}.</p>
                   )}
                   {saveRow()}
                 </div>
