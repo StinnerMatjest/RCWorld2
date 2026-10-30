@@ -9,6 +9,8 @@
 //     cover    - placeCover: object-position from the focus point, no zoom
 //     position - object-position percentages
 //   class "framing-photo"          on the photo itself
+// Frames the tool only shows as the page draws them carry just the marker:
+// review-section photos (section:<url>) and gallery tiles (tile:<url>).
 // Inside the preview a page turns off admin mode and analytics (and leaves the
 // stored admin preference alone: the iframe shares storage with the tool).
 

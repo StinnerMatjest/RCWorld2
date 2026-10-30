@@ -1,5 +1,6 @@
 import { pool } from "@/app/lib/db";
 import { logChange } from "@/app/lib/changelog";
+import { ensureParkTextsUnique } from "@/app/lib/parkTextsIndex";
 
 /**
  * Copy the per-category notes written in a park's visit checklist into the
@@ -49,8 +50,10 @@ export async function seedParkTextsFromChecklist(opts: {
       if (emptyId !== undefined) {
         await pool.query(`UPDATE parktexts SET text = $1 WHERE id = $2`, [text, emptyId]);
       } else {
+        // A section written meanwhile (the unique index catches it) keeps its text.
+        const unique = await ensureParkTextsUnique();
         await pool.query(
-          `INSERT INTO parktexts (visit_id, category, text) VALUES ($1, $2, $3)`,
+          `INSERT INTO parktexts (visit_id, category, text) VALUES ($1, $2, $3)${unique ? " ON CONFLICT (visit_id, category) DO NOTHING" : ""}`,
           [ratingId, category, text]
         );
       }

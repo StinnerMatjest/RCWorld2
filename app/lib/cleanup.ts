@@ -4,50 +4,60 @@
 // was checked by eye", cleanup_log: who gets the credit).
 //
 // Framing is one task per place a photo fills on the site: a park's front
-// page card, a park or coaster page cover, a curated image, a photo break, a
-// list photo. Each place has one or two framings (slots), usually phone and
-// desktop. A slot counts as done once someone checked it in the tool (saved
-// or "Looks right"); its fingerprint is the photo, so a new photo in that
-// place opens it again. The tool shows each slot on the real page (views):
-// it loads the page and moves the photo in its real frame (framingPreview.ts).
+// page card, a park or coaster page cover, a curated image, a list photo.
+// Each place has one or two framings (slots), usually phone and desktop, and
+// each slot frames one photo (a cover can have its own photo for phones). A
+// slot counts as done once someone checked it in the tool (saved or "Looks
+// right"); its fingerprint is its photo, so a new photo there opens it again.
+// The tool shows each slot on the real page (views): it loads the page and
+// moves the photo in its real frame (framingPreview.ts).
+//
+// Everything missing counts one point: a framing slot, a caption, a pick, a
+// review. The overview's figures are those points.
 
 import { pool } from "@/app/lib/db";
 import { getImageSizes, type ImageSize } from "@/app/lib/imageDims";
 import { ensureVisitHeaderColumns } from "@/app/lib/visitHeader";
+import { ensureParkTextsUnique } from "@/app/lib/parkTextsIndex";
 import { regenerateParkCuts } from "@/app/lib/cardCut";
-import { splitFocusPair, joinFocusPair } from "@/app/lib/framing";
 import { groupOf } from "@/app/lib/cleanupGroup";
 
 export const CLEANUP_PEOPLE = ["Jannik", "Nicklas"] as const;
 export type CleanupPerson = typeof CLEANUP_PEOPLE[number];
 
-export type CleanupKind = "frame" | "caption" | "curated-pick" | "section-needs-photo" | "coaster-review" | "coaster-photos";
-/**
- * Never handed out at random: a review to write or a visit to make, and review
- * sections without a photo, which are fixed in the page's own section editor.
- */
-export const MANUAL_KINDS: CleanupKind[] = ["coaster-review", "coaster-photos", "section-needs-photo"];
+export type CleanupKind =
+  | "frame" | "caption" | "curated-pick" | "coaster-pick"
+  | "review-photos" | "park-review" | "coaster-review" | "coaster-photos";
+/** Fixed on the page itself (a review to write, photos to place, a visit to make): listed with a link, never handed out by the runner. */
+export const PAGE_KINDS: CleanupKind[] = ["review-photos", "park-review", "coaster-review", "coaster-photos"];
+/** Can be checked off as fine as it is. */
+export const CHECKABLE_KINDS: CleanupKind[] = ["caption", "review-photos", "park-review"];
 
-export type PlaceKind = "card" | "park-cover" | "coaster-cover" | "curated" | "coaster-curated" | "break" | "list-photo";
-export type SlotKind = "card" | "cover-phone" | "cover-desktop" | "curated-phone" | "curated-desktop" | "break-phone" | "break-desktop" | "list-item" | "list-cover";
+export type PlaceKind = "card" | "park-cover" | "coaster-cover" | "curated" | "coaster-curated" | "list-photo";
+export type SlotKind = "card" | "cover-phone" | "cover-desktop" | "curated-phone" | "curated-desktop" | "list-item" | "list-cover";
 
 /** Where a slot's framing is stored; the server writes it, never the page. */
 export type SlotTarget =
   | { t: "park-hero"; parkId: number; phone: boolean }
   | { t: "visit-hero"; visitId: number; phone: boolean }
-  | { t: "coaster-hero"; rowId: number; phone: boolean }
+  /** own: the cover's own phone photo (a row flagged is_header_mobile). */
+  | { t: "coaster-hero"; rowId: number; phone: boolean; own?: boolean }
   | { t: "card"; parkId: number }
   | { t: "curated"; rowId: number }
-  | { t: "photo"; format: "curated-desktop" | "list-item" | "list-cover" | "photo-break"; part?: "desktop" | "phone" };
+  | { t: "photo"; format: "curated-desktop" | "list-item" | "list-cover" };
 
 /** One screen on which a slot is shown: a real page, and the frame on it (data-framing). */
-export interface SlotView { screen: "phone" | "desktop"; page: string; target: string }
+export interface SlotView { screen: "phone" | "desktop"; page: string; target: string; /** "Park page", "Coaster page", … when a slot shows on more than one page. */ where?: string }
 
 export interface FrameSlot {
   id: string;
   kind: SlotKind;
   /** "Phone", "Desktop", "Phone and desktop", … */
   label: string;
+  /** The photo this slot frames: the place's, or the cover's own phone photo. */
+  photo: string;
+  /** Its pixel size, when recorded. */
+  size?: ImageSize;
   value: string | null;
   /** What the site draws while value is empty (a phone framing falls back to another one), and which one. */
   fallback?: string | null;
@@ -58,8 +68,12 @@ export interface FrameSlot {
   target: SlotTarget;
   /** Zoom allowed by the page's placement (1 = drag only). */
   maxZoom: number;
-  /** Keep the photo covering a frame this wide (width / height) when framing on a narrower screen. */
-  clampAspect?: number;
+  /**
+   * The narrowest frame of this place (width / height). Up and down the photo is
+   * kept covering it too: a tall photo is drawn shorter in a narrower frame, so a
+   * framing made on a wide screen could leave a strip there (the front page card).
+   */
+  minAspect?: number;
   /** The real pages to frame it on; none = a plain frame of this shape (no text on the photo). */
   views: SlotView[];
   aspect?: string;
@@ -67,11 +81,12 @@ export interface FrameSlot {
 
 /** How "Change photo" works for a place (the site's own endpoints do the change). */
 export type ChangeSpec =
-  | { t: "park-header"; parkId: number; visitId: number | null }
+  /** phonePhoto: the cover's own phone photo, if it has one. */
+  | { t: "park-header"; parkId: number; visitId: number | null; phonePhoto: string | null }
   | { t: "card"; parkId: number; headerPath: string | null }
-  | { t: "coaster-header"; coasterId: number }
+  | { t: "coaster-header"; coasterId: number; phonePhoto: string | null }
   | { t: "curated"; visitId: number; rowId: number }
-  | { t: "coaster-curated"; coasterId: number; rowId: number; picked: boolean };
+  | { t: "coaster-curated"; coasterId: number; rowId: number };
 
 export interface FramePlace {
   kind: PlaceKind;
@@ -88,10 +103,13 @@ export interface FramePlace {
 export interface CleanupTask {
   key: string;
   kind: CleanupKind;
+  /** Worked through in the tool (framing, captions, picks); the rest are fixed on the page. */
   quick: boolean;
   parkId: number | null; parkName: string; parkSlug: string | null;
   coasterId?: number; coasterName?: string; coasterSlug?: string;
   visitId?: number; visitDate?: string | null;
+  /** The visit is not published yet (a review to write for it). */
+  draft?: boolean;
   /** List photos: the list they are in. */
   listSlug?: string;
   label?: string;
@@ -101,24 +119,39 @@ export interface CleanupTask {
   pageUrl: string;
   place?: FramePlace;
   imageId?: number;
-  section?: { table: "parktexts" | "coastertext"; rowId: number; heading: string; excerpt: string };
   caption?: { current: string; why: string };
+  /** Reviews short on photos: sections with text, and how many of them have a photo. */
+  sections?: { total: number; withPhoto: number };
   choices?: number;
   rating?: number;
+  /** Points: one per framing slot, one for anything else. */
+  points: number;
   fingerprint: string;
 }
+
+/** A task finished in the tool: who and when (the newest of its marks and credits). */
+export interface DoneTask extends CleanupTask { doneAt: string; doneBy: string }
+
+/** A use of a photo that is not framed in the tool (review sections, gallery tiles): shown as the page draws it. */
+export interface PhotoUse { label: string; where: string; page: string; target: string }
 
 export interface CleanupTotals { done: number; total: number }
 export interface CleanupPark {
   id: number; name: string; slug: string; country: string; overall: number | null; card: string | null;
+  /** The front page card's framing of that photo. */
+  cardFocus: string | null;
+  /** Points. */
   done: number; total: number; open: Partial<Record<string, number>>;
 }
 export interface CleanupData {
   tasks: CleanupTask[];
-  /** Per place kind as "place:<kind>", and per other task kind. */
+  done: DoneTask[];
+  /** Points per group (see groupOf). */
   totals: Partial<Record<string, CleanupTotals>>;
   parks: CleanupPark[];
   scores: Record<CleanupPerson, { total: number; week: number }>;
+  /** Uses of the framed photos that are not framed in the tool, by photo. */
+  uses: Record<string, PhotoUse[]>;
 }
 
 
@@ -129,6 +162,7 @@ export function ensureCleanupTables(): Promise<void> {
   if (!ready) {
     ready = Promise.all([
       ensureVisitHeaderColumns(),
+      ensureParkTextsUnique(),
       pool.query(`
         CREATE TABLE IF NOT EXISTS cleanup_marks (
           task_key TEXT PRIMARY KEY,
@@ -146,6 +180,7 @@ export function ensureCleanupTables(): Promise<void> {
           created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         );
         CREATE INDEX IF NOT EXISTS cleanup_log_person_idx ON cleanup_log (person, created_at);
+        CREATE INDEX IF NOT EXISTS cleanup_log_key_idx ON cleanup_log (task_key);
       `),
     ])
       .then(() => undefined)
@@ -182,9 +217,10 @@ const SECTION_LABEL: Record<string, string> = {
   flatridesAndDarkrides: "Flat rides & dark rides", parkAppearance: "Appearance", parkPracticality: "Practicality",
   food: "Food", snacksAndDrinks: "Snacks & drinks", rideOperations: "Ride operations", parkManagement: "Management",
 };
-const excerptOf = (t: unknown) => { const s = String(t || "").replace(/\s+/g, " ").trim(); return s.length > 160 ? s.slice(0, 157).trimEnd() + "…" : s; };
 const dateOf = (d: unknown) => (d ? new Date(d as string).toISOString().slice(0, 10) : null);
 const dateLabel = (d: unknown) => (d ? new Date(d as string).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "");
+/** A phone photo of its own: set and not the desktop photo. */
+const ownPhone = (phone: string | null | undefined, desktop: string | null | undefined) => (phone && phone !== desktop ? phone : null);
 
 /** Why a caption needs work, or null when it is fine. Shared = the same caption on 3+ photos of one visit or coaster. */
 function captionProblem(desc: string | null | undefined, parkName: string, sharedCount: number): string | null {
@@ -196,72 +232,83 @@ function captionProblem(desc: string | null | undefined, parkName: string, share
   return null;
 }
 
-/** Widest front page card: grid cards stop at 400 px, 500 px tall (HomeClient). */
-const CARD_CLAMP = 400 / 500;
+/** Narrowest front page card: 250 CSS px wide, 500 tall (HomeClient). */
+const CARD_MIN_ASPECT = 250 / 500;
 
 // ─── compute ─────────────────────────────────────────────────────────────────
 
 type SlotDraft = Omit<FrameSlot, "fresh" | "done">;
-type PlaceDraft = Omit<CleanupTask, "quick" | "place" | "fingerprint" | "size"> & { place: Omit<FramePlace, "slots"> & { slots: SlotDraft[] } };
+type PlaceDraft = Omit<CleanupTask, "quick" | "place" | "fingerprint" | "size" | "points"> & { place: Omit<FramePlace, "slots"> & { slots: SlotDraft[] } };
+type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export async function loadCleanup(): Promise<CleanupData> {
   await ensureCleanupTables();
-  const [parksR, visitsR, vgR, ptR, rcR, cgR, ctR, listsR, itemsR, pfR, marksR, scoresR] = await Promise.all([
-    pool.query(`SELECT id, name, slug, country, imagepath, header_focus, header_focus_mobile, card_imagepath, image_focus FROM parks ORDER BY name`),
-    pool.query(`SELECT id, park_id, date, overall, header_imagepath, header_focus, header_focus_mobile FROM visits WHERE published = true ORDER BY date DESC NULLS LAST, id DESC`),
+  const [parksR, visitsR, vgR, ptR, rcR, cgR, ctR, listsR, itemsR, pfR, marksR, logR, scoresR] = await Promise.all([
+    pool.query(`SELECT id, name, slug, country, imagepath, imagepath_mobile, header_focus, header_focus_mobile, card_imagepath, image_focus FROM parks ORDER BY name`),
+    pool.query(`SELECT id, park_id, date, overall, published, header_imagepath, header_imagepath_mobile, header_focus, header_focus_mobile FROM visits ORDER BY date DESC NULLS LAST, id DESC`),
     pool.query(`SELECT g.id, g.visit_id, g.title, g.path, g.description, g.featured, g.focus FROM visitgallery g JOIN visits v ON v.id = g.visit_id WHERE v.published = true ORDER BY g.sort_order ASC NULLS LAST, g.id ASC`),
-    pool.query(`SELECT t.id, t.visit_id, t.category, left(t.text, 300) AS text, t.image_url FROM parktexts t JOIN visits v ON v.id = t.visit_id WHERE v.published = true`),
+    pool.query(`SELECT id, visit_id, category, coalesce(btrim(text), '') <> '' AS has_text, image_url FROM parktexts`),
     pool.query(`SELECT id, name, slug, park_id, rating FROM rollercoasters`),
-    pool.query(`SELECT id, coaster_id, title, path, description, is_header, focus_mobile, focus_desktop, featured FROM coastergallery ORDER BY sort_order ASC NULLS LAST, id ASC`),
-    pool.query(`SELECT id, coaster_id, headline, left(text, 300) AS text, "order", image_url FROM coastertext ORDER BY coaster_id, "order" ASC`),
+    pool.query(`SELECT id, coaster_id, title, path, description, is_header, is_header_mobile, focus_mobile, focus_desktop, featured FROM coastergallery ORDER BY sort_order ASC NULLS LAST, id ASC`),
+    pool.query(`SELECT id, coaster_id, headline, coalesce(btrim(text), '') <> '' AS has_text, "order", image_url FROM coastertext ORDER BY coaster_id, "order" ASC`),
     pool.query(`SELECT id, title, slug, image_url, published FROM rankinglists`),
     pool.query(`SELECT list_id, title, image_1, image_2 FROM listitems`),
     pool.query(`SELECT format, url, focus FROM photo_framing`),
-    pool.query(`SELECT task_key, fingerprint FROM cleanup_marks`),
+    pool.query(`SELECT task_key, fingerprint, person, created_at FROM cleanup_marks`),
+    pool.query(`SELECT DISTINCT ON (task_key) task_key, person, created_at FROM cleanup_log ORDER BY task_key, created_at DESC`),
     pool.query(`SELECT person, count(*)::int AS total, count(*) FILTER (WHERE created_at >= date_trunc('week', now()))::int AS week FROM cleanup_log GROUP BY person`),
   ]);
-  const marks = new Map<string, string>(marksR.rows.map((r) => [r.task_key, r.fingerprint]));
-  const checked = (key: string, fp: string) => marks.get(key) === fp;
+  const marks = new Map<string, { fingerprint: string; person: string; at: Date }>(marksR.rows.map((r) => [r.task_key, { fingerprint: r.fingerprint, person: r.person, at: r.created_at }]));
+  const credits = new Map<string, { person: string; at: Date }>(logR.rows.map((r) => [r.task_key, { person: r.person, at: r.created_at }]));
+  const checked = (key: string, fp: string) => marks.get(key)?.fingerprint === fp;
   const pf = new Map<string, string>(pfR.rows.map((r) => [`${r.format}|${r.url}`, r.focus]));
   const pfGet = (format: string, url: string) => pf.get(`${format}|${url}`) ?? null;
 
-  const parks = new Map<number, { id: number; name: string; slug: string; country: string; imagepath: string | null; header_focus: string | null; header_focus_mobile: string | null; card_imagepath: string | null; image_focus: string | null }>(parksR.rows.map((p) => [p.id, p]));
-  const visitsByPark = new Map<number, typeof visitsR.rows>();
-  for (const v of visitsR.rows) { if (!parks.has(v.park_id)) continue; (visitsByPark.get(v.park_id) ?? visitsByPark.set(v.park_id, []).get(v.park_id)!).push(v); }
-  const visitPark = new Map<number, number>(visitsR.rows.map((v) => [v.id, v.park_id]));
-  const visitById = new Map<number, (typeof visitsR.rows)[number]>(visitsR.rows.map((v) => [v.id, v]));
-  const galleryByVisit = new Map<number, typeof vgR.rows>();
+  const parks = new Map<number, Row>(parksR.rows.map((p) => [p.id, p]));
+  const publishedByPark = new Map<number, Row[]>();
+  const allVisitsByPark = new Map<number, Row[]>();
+  for (const v of visitsR.rows) {
+    if (!parks.has(v.park_id)) continue;
+    (allVisitsByPark.get(v.park_id) ?? allVisitsByPark.set(v.park_id, []).get(v.park_id)!).push(v);
+    if (v.published) (publishedByPark.get(v.park_id) ?? publishedByPark.set(v.park_id, []).get(v.park_id)!).push(v);
+  }
+  const galleryByVisit = new Map<number, Row[]>();
   for (const g of vgR.rows) (galleryByVisit.get(g.visit_id) ?? galleryByVisit.set(g.visit_id, []).get(g.visit_id)!).push(g);
+  const textsByVisit = new Map<number, Row[]>();
+  for (const t of ptR.rows) (textsByVisit.get(t.visit_id) ?? textsByVisit.set(t.visit_id, []).get(t.visit_id)!).push(t);
   // A photo's phone-deck framing (newest visit first): the desktop strip falls back to it.
   const deckFocusByPath = new Map<string, string>();
   for (const v of visitsR.rows) for (const g of galleryByVisit.get(v.id) ?? []) if (g.focus && !deckFocusByPath.has(g.path)) deckFocusByPath.set(g.path, g.focus);
   const coasters = rcR.rows.filter((c) => parks.has(c.park_id));
-  const coasterById = new Map<number, (typeof rcR.rows)[number]>(coasters.map((c) => [c.id, c]));
-  const galleryByCoaster = new Map<number, typeof cgR.rows>();
+  const coasterById = new Map<number, Row>(coasters.map((c) => [c.id, c]));
+  const galleryByCoaster = new Map<number, Row[]>();
   for (const g of cgR.rows) if (coasterById.has(g.coaster_id)) (galleryByCoaster.get(g.coaster_id) ?? galleryByCoaster.set(g.coaster_id, []).get(g.coaster_id)!).push(g);
-  const textsByCoaster = new Map<number, typeof ctR.rows>();
+  const textsByCoaster = new Map<number, Row[]>();
   for (const t of ctR.rows) if (coasterById.has(t.coaster_id)) (textsByCoaster.get(t.coaster_id) ?? textsByCoaster.set(t.coaster_id, []).get(t.coaster_id)!).push(t);
 
   const all: (CleanupTask & { done: boolean })[] = [];
-  const push = (t: Omit<CleanupTask, "quick"> & { done: boolean }) => all.push({ ...t, quick: !MANUAL_KINDS.includes(t.kind) });
+  const push = (t: Omit<CleanupTask, "quick" | "points"> & { done: boolean; points?: number }) =>
+    all.push({ ...t, points: t.points ?? 1, quick: !PAGE_KINDS.includes(t.kind) });
   const base = (parkId: number) => { const p = parks.get(parkId)!; return { parkId, parkName: p.name, parkSlug: p.slug }; };
   const parkPage = (parkId: number, visitId?: number) => `/park/${parks.get(parkId)!.slug}${visitId ? `?visit=${visitId}` : ""}`;
 
   // Places are collected first and turned into tasks at the end (marks, sizes).
   const places: PlaceDraft[] = [];
   const addPlace = (p: PlaceDraft) => { if (p.image && !isVideo(p.image) && p.place.slots.length) places.push(p); };
-  const coverSlots = (idBase: string, page: string, target: string, desktop: string | null, phone: string | null, store: (phone: boolean) => SlotTarget, phoneFallsBack: boolean): SlotDraft[] => [
+  /** A cover's two framings. The phone one frames the cover's own phone photo when it has one. */
+  const coverSlots = (o: { idBase: string; page: string; target: string; desktopPhoto: string; phonePhoto: string | null; desktop: string | null; phone: string | null; store: (phone: boolean) => SlotTarget; phoneFallsBack: boolean }): SlotDraft[] => [
     {
-      id: `${idBase}:phone`, kind: "cover-phone", label: "Phone", value: phone,
-      // Park covers draw the desktop framing in the tall frame until a phone one is set (ParkHero); coaster covers draw the centre.
-      ...(phoneFallsBack ? { fallback: desktop, fallbackFrom: "desktop" } : {}),
-      target: store(true), maxZoom: 4, views: [{ screen: "phone", page, target }],
+      id: `${o.idBase}:phone`, kind: "cover-phone", label: "Phone", photo: o.phonePhoto ?? o.desktopPhoto, value: o.phone,
+      // Park covers draw the desktop framing in the tall frame until a phone one is set (ParkHero);
+      // coaster covers and phone photos of their own draw the centre.
+      ...(o.phoneFallsBack && !o.phonePhoto ? { fallback: o.desktop, fallbackFrom: "desktop" } : {}),
+      target: o.store(true), maxZoom: 4, views: [{ screen: "phone", page: o.page, target: o.target }],
     },
-    { id: `${idBase}:desktop`, kind: "cover-desktop", label: "Desktop", value: desktop, target: store(false), maxZoom: 4, views: [{ screen: "desktop", page, target }] },
+    { id: `${o.idBase}:desktop`, kind: "cover-desktop", label: "Desktop", photo: o.desktopPhoto, value: o.desktop, target: o.store(false), maxZoom: 4, views: [{ screen: "desktop", page: o.page, target: o.target }] },
   ];
 
   for (const p of parks.values()) {
-    const visits = visitsByPark.get(p.id) ?? [];
+    const visits = publishedByPark.get(p.id) ?? [];
     const latest = visits[0];
 
     // Front page card: parks with a published visit are on the front page.
@@ -272,8 +319,8 @@ export async function loadCleanup(): Promise<CleanupData> {
         place: {
           kind: "card", title: p.name, change: { t: "card", parkId: p.id, headerPath: p.imagepath },
           slots: [{
-            id: `card:${p.id}`, kind: "card", label: "Phone and desktop", value: p.image_focus, target: { t: "card", parkId: p.id },
-            maxZoom: 4, clampAspect: CARD_CLAMP,
+            id: `card:${p.id}`, kind: "card", label: "Phone and desktop", photo: cardSrc, value: p.image_focus, target: { t: "card", parkId: p.id },
+            maxZoom: 4, minAspect: CARD_MIN_ASPECT,
             views: [{ screen: "phone", page: "/", target: `card:${p.id}` }, { screen: "desktop", page: "/", target: `card:${p.id}` }],
           }],
         },
@@ -282,23 +329,25 @@ export async function loadCleanup(): Promise<CleanupData> {
 
     // Park page cover: the park's own, shown whenever the newest visit has no header of its own.
     if (p.imagepath && !(latest && latest.header_imagepath)) {
+      const phonePhoto = ownPhone(p.imagepath_mobile, p.imagepath);
       addPlace({
         ...base(p.id), key: `cover:park:${p.id}`, kind: "frame", image: p.imagepath, pageUrl: parkPage(p.id),
         place: {
-          kind: "park-cover", title: p.name, change: { t: "park-header", parkId: p.id, visitId: latest?.id ?? null },
-          slots: coverSlots(`park:${p.id}:hero`, parkPage(p.id), "park-cover", p.header_focus, p.header_focus_mobile, (phone) => ({ t: "park-hero", parkId: p.id, phone }), true),
+          kind: "park-cover", title: p.name, change: { t: "park-header", parkId: p.id, visitId: latest?.id ?? null, phonePhoto },
+          slots: coverSlots({ idBase: `park:${p.id}:hero`, page: parkPage(p.id), target: "park-cover", desktopPhoto: p.imagepath, phonePhoto, desktop: p.header_focus, phone: p.header_focus_mobile, store: (phone) => ({ t: "park-hero", parkId: p.id, phone }), phoneFallsBack: true }),
         },
       });
     }
     // Visits with a header of their own (the newest one's is the park's cover).
     for (const v of visits) {
       if (!v.header_imagepath) continue;
+      const phonePhoto = ownPhone(v.header_imagepath_mobile, v.header_imagepath);
       addPlace({
         ...base(p.id), key: `cover:visit:${v.id}`, kind: "frame", image: v.header_imagepath, visitId: v.id, visitDate: dateOf(v.date), pageUrl: parkPage(p.id, v.id),
         place: {
           kind: "park-cover", title: p.name, subtitle: v === latest ? undefined : `Visit of ${dateLabel(v.date)}`,
-          change: { t: "park-header", parkId: p.id, visitId: v.id },
-          slots: coverSlots(`visit:${v.id}:hero`, parkPage(p.id, v.id), "park-cover", v.header_focus, v.header_focus_mobile, (phone) => ({ t: "visit-hero", visitId: v.id, phone }), true),
+          change: { t: "park-header", parkId: p.id, visitId: v.id, phonePhoto },
+          slots: coverSlots({ idBase: `visit:${v.id}:hero`, page: parkPage(p.id, v.id), target: "park-cover", desktopPhoto: v.header_imagepath, phonePhoto, desktop: v.header_focus, phone: v.header_focus_mobile, store: (phone) => ({ t: "visit-hero", visitId: v.id, phone }), phoneFallsBack: true }),
         },
       });
     }
@@ -307,7 +356,9 @@ export async function loadCleanup(): Promise<CleanupData> {
       const photos = (galleryByVisit.get(v.id) ?? []).filter((g) => !isVideo(g.path));
       if (vi === 0) {
         const picked = photos.filter((g) => g.featured);
-        push({ ...base(p.id), key: `curated-pick:${v.id}`, kind: "curated-pick", visitId: v.id, visitDate: dateOf(v.date), image: photos[0]?.path ?? null, choices: photos.length, pageUrl: parkPage(p.id, v.id), fingerprint: String(v.id), done: picked.length > 0 || photos.length === 0 });
+        if (photos.length) {
+          push({ ...base(p.id), key: `curated-pick:${v.id}`, kind: "curated-pick", visitId: v.id, visitDate: dateOf(v.date), image: photos[0].path, choices: photos.length, pageUrl: parkPage(p.id, v.id), fingerprint: String(v.id), done: picked.length > 0 });
+        }
         // Curated images: the phone deck and the desktop strip, each with its own framing.
         picked.forEach((g, i) => {
           addPlace({
@@ -317,13 +368,13 @@ export async function loadCleanup(): Promise<CleanupData> {
               change: { t: "curated", visitId: v.id, rowId: g.id },
               slots: [
                 {
-                  id: `curated:${g.id}`, kind: "curated-phone", label: "Phone", value: g.focus, target: { t: "curated", rowId: g.id }, maxZoom: 1,
+                  id: `curated:${g.id}`, kind: "curated-phone", label: "Phone", photo: g.path, value: g.focus, target: { t: "curated", rowId: g.id }, maxZoom: 1,
                   views: [{ screen: "phone", page: `${parkPage(p.id, v.id)}&framing-deck=${g.id}`, target: `deck:${g.id}` }],
                 },
                 {
-                  id: `strip:${g.path}`, kind: "curated-desktop", label: "Desktop", value: pfGet("curated-desktop", g.path), fallback: g.focus, fallbackFrom: "phone",
+                  id: `strip:${g.path}`, kind: "curated-desktop", label: "Desktop", photo: g.path, value: pfGet("curated-desktop", g.path), fallback: g.focus, fallbackFrom: "phone",
                   target: { t: "photo", format: "curated-desktop" }, maxZoom: 1,
-                  views: [{ screen: "desktop", page: parkPage(p.id, v.id), target: `strip:${g.path}` }],
+                  views: [{ screen: "desktop", page: parkPage(p.id, v.id), target: `strip:${g.path}`, where: "Park page" }],
                 },
               ],
             },
@@ -340,22 +391,28 @@ export async function loadCleanup(): Promise<CleanupData> {
         push({ ...base(p.id), key, kind: "caption", visitId: v.id, visitDate: dateOf(v.date), imageId: g.id, label: g.title, image: g.path, pageUrl: parkPage(p.id, v.id), caption: { current: cur, why: why ?? "" }, fingerprint: cur, done: !why || checked(key, cur) });
       }
     }
-  }
 
-  // Review sections without a photo: listed with a link to the page, fixed in the page's own editor.
-  for (const t of ptR.rows) {
-    const parkId = visitPark.get(t.visit_id); if (parkId == null) continue;
-    const v = visitById.get(t.visit_id)!;
-    if (splitSectionMedia(t.image_url).length || blank(t.text)) continue;
-    if (!(galleryByVisit.get(t.visit_id) ?? []).some((g) => !isVideo(g.path))) continue;
-    const heading = SECTION_LABEL[t.category] ?? t.category;
-    const key = `section-needs-photo:p${t.id}`;
-    const anchor = t.category === "description" ? "section-description" : `section-${t.category}`;
-    push({ ...base(parkId), key, kind: "section-needs-photo", visitId: t.visit_id, visitDate: dateOf(v.date), label: heading, pageUrl: `${parkPage(parkId, t.visit_id)}#${anchor}`, section: { table: "parktexts", rowId: t.id, heading, excerpt: excerptOf(t.text) }, fingerprint: "none", done: checked(key, "none") });
+    // The park's review (newest published visit): flagged when fewer than half of its written sections have a photo.
+    if (latest) {
+      const written = (textsByVisit.get(latest.id) ?? []).filter((t) => t.has_text);
+      const withPhoto = written.filter((t) => splitSectionMedia(t.image_url).length > 0).length;
+      const hasPhotos = (galleryByVisit.get(latest.id) ?? []).some((g) => !isVideo(g.path));
+      if (written.length >= 2 && hasPhotos) {
+        const key = `review-photos:v${latest.id}`;
+        push({ ...base(p.id), key, kind: "review-photos", visitId: latest.id, visitDate: dateOf(latest.date), image: latest.header_imagepath || p.imagepath || null, pageUrl: parkPage(p.id, latest.id), sections: { total: written.length, withPhoto }, fingerprint: "ok", done: withPhoto * 2 >= written.length || checked(key, "ok") });
+      }
+    }
+    // Reviews to write: visits not published yet (their sections may hold only checklist
+    // notes), and published visits without any review text.
+    for (const v of allVisitsByPark.get(p.id) ?? []) {
+      const key = `park-review:${v.id}`;
+      const hasText = (textsByVisit.get(v.id) ?? []).some((t) => t.has_text);
+      push({ ...base(p.id), key, kind: "park-review", visitId: v.id, visitDate: dateOf(v.date), draft: !v.published, rating: Number(v.overall) || undefined, image: v.header_imagepath || p.imagepath || null, pageUrl: parkPage(p.id, v.id), fingerprint: "ok", done: (v.published && hasText) || checked(key, "ok") });
+    }
   }
 
   // Coasters.
-  const stripTaken = new Set(places.filter((p) => p.place.kind === "curated").map((p) => p.image as string));
+  const stripPlace = new Map<string, PlaceDraft>(places.filter((p) => p.place.kind === "curated").map((p) => [p.image as string, p]));
   const coasterCaptionSeen = new Set(vgR.rows.map((g) => g.path));
   for (const c of coasters) {
     const park = parks.get(c.park_id)!;
@@ -366,67 +423,64 @@ export async function loadCleanup(): Promise<CleanupData> {
     // The cover as the coaster page picks it: newest header row, else the first in gallery order.
     const header = [...fullGallery].filter((g) => g.is_header).sort((x, y) => y.id - x.id)[0] ?? fullGallery[0];
     if (header) {
+      // Its own phone photo: the newest flagged row that is not the cover (coaster gallery route).
+      const phoneRow = [...fullGallery].filter((g) => g.is_header_mobile && g.path !== header.path).sort((x, y) => y.id - x.id)[0] ?? null;
+      const phonePhoto = phoneRow && !isVideo(phoneRow.path) ? phoneRow.path : null;
+      const phoneSource = phonePhoto ? phoneRow! : header;
       addPlace({
         ...b, key: `cover:coaster:${c.id}`, kind: "frame", image: header.path, imageId: header.id, pageUrl: coasterPage,
         place: {
-          kind: "coaster-cover", title: c.name, subtitle: park.name, change: { t: "coaster-header", coasterId: c.id },
+          kind: "coaster-cover", title: c.name, subtitle: park.name, change: { t: "coaster-header", coasterId: c.id, phonePhoto },
           note: "Rankle uses these framings too: its cards the phone one, its bonus question the desktop one.",
-          slots: coverSlots(`coaster:${c.id}:hero`, coasterPage, "coaster-cover", header.focus_desktop, header.focus_mobile, (phone) => ({ t: "coaster-hero", rowId: header.id, phone }), false),
+          slots: coverSlots({
+            idBase: `coaster:${c.id}:hero`, page: coasterPage, target: "coaster-cover", desktopPhoto: header.path, phonePhoto,
+            desktop: header.focus_desktop, phone: phoneSource.focus_mobile,
+            store: (phone) => (phone ? { t: "coaster-hero", rowId: phoneSource.id, phone: true, own: !!phonePhoto } : { t: "coaster-hero", rowId: header.id, phone: false }),
+            phoneFallsBack: false,
+          }),
         },
       });
     }
-    // Curated images on the coaster page: the photo strip (picked photos, or all of them;
-    // hidden with fewer than two). Its framing is the curated image's desktop one, shared
-    // with the park page, so a photo curated there is framed there.
-    const hasPicks = fullGallery.some((g) => g.featured);
-    const shownInStrip = hasPicks ? fullGallery.filter((g) => g.featured) : fullGallery;
-    if (shownInStrip.length >= 2) {
-      for (const g of shownInStrip) {
-        if (isVideo(g.path) || stripTaken.has(g.path)) continue;
-        stripTaken.add(g.path);
+    // The photo strip on the coaster page: the picked photos (all of them while none
+    // are picked, hidden with fewer than two). Coasters without picks get a pick task;
+    // picked photos are framed. The strip framing is the curated image's desktop one,
+    // shared with the park page: a photo curated there gets this page as another view.
+    const picks = gallery.filter((g) => g.featured);
+    if (gallery.length >= 2) {
+      push({ ...b, key: `coaster-pick:${c.id}`, kind: "coaster-pick", image: header && !isVideo(header.path) ? header.path : gallery[0].path, choices: gallery.length, pageUrl: coasterPage, fingerprint: String(c.id), done: picks.length > 0 });
+    }
+    if (picks.length >= 2) {
+      for (const g of picks) {
+        const views: SlotView[] = [{ screen: "phone", page: coasterPage, target: `strip:${g.path}`, where: "Coaster page" }, { screen: "desktop", page: coasterPage, target: `strip:${g.path}`, where: "Coaster page" }];
+        const shared = stripPlace.get(g.path);
+        if (shared) {
+          shared.place.slots.find((s) => s.id === `strip:${g.path}`)?.views.push(...views);
+          continue;
+        }
         const deck = deckFocusByPath.get(g.path) ?? null;
-        addPlace({
+        const draft: PlaceDraft = {
           ...b, key: `coaster-curated:${c.id}:${g.id}`, kind: "frame", image: g.path, imageId: g.id, pageUrl: coasterPage,
           place: {
-            kind: "coaster-curated", title: c.name, subtitle: park.name, change: { t: "coaster-curated", coasterId: c.id, rowId: g.id, picked: hasPicks },
-            note: hasPicks ? undefined : "No curated images are picked for this coaster, so its page shows all its photos.",
+            kind: "coaster-curated", title: c.name, subtitle: park.name, change: { t: "coaster-curated", coasterId: c.id, rowId: g.id },
             slots: [{
-              id: `strip:${g.path}`, kind: "curated-desktop", label: "Phone and desktop", value: pfGet("curated-desktop", g.path),
+              id: `strip:${g.path}`, kind: "curated-desktop", label: "Phone and desktop", photo: g.path, value: pfGet("curated-desktop", g.path),
               ...(deck ? { fallback: deck, fallbackFrom: "park page phone" } : {}),
-              target: { t: "photo", format: "curated-desktop" }, maxZoom: 1,
-              views: [{ screen: "phone", page: coasterPage, target: `strip:${g.path}` }, { screen: "desktop", page: coasterPage, target: `strip:${g.path}` }],
+              target: { t: "photo", format: "curated-desktop" }, maxZoom: 1, views,
             }],
           },
-        });
+        };
+        addPlace(draft);
+        stripPlace.set(g.path, draft);
       }
     }
 
+    // The coaster's review: flagged when fewer than half of its written sections have a photo.
     const texts = textsByCoaster.get(c.id) ?? [];
-    const used = new Set<string>();
-    texts.forEach((t, i) => {
-      const heading = t.headline || `Section ${i + 1}`;
-      const media = splitSectionMedia(t.image_url);
-      media.forEach((m) => used.add(m.url));
-      if (!media.length && !blank(t.text) && gallery.length) {
-        const key = `section-needs-photo:c${t.id}`;
-        push({ ...b, key, kind: "section-needs-photo", label: heading, pageUrl: `${coasterPage}#section-${t.id}`, section: { table: "coastertext", rowId: t.id, heading, excerpt: excerptOf(t.text) }, fingerprint: "none", done: checked(key, "none") });
-      }
-    });
-    // Photo breaks: gallery photos that are neither the cover nor in a section, one after each section but the last (CoasterText).
-    const breaks = gallery.filter((g) => g.path !== header?.path && !used.has(g.path)).slice(0, Math.max(0, texts.length - 1));
-    for (const g of breaks) {
-      const pair = splitFocusPair(pfGet("photo-break", g.path));
-      addPlace({
-        ...b, key: `break:${c.id}:${g.id}`, kind: "frame", image: g.path, imageId: g.id, pageUrl: coasterPage,
-        place: {
-          kind: "break", title: c.name, subtitle: park.name, change: null,
-          note: "Photo breaks are picked by the page: gallery photos not used as the cover or in a section.",
-          slots: [
-            { id: `break:${g.path}:phone`, kind: "break-phone", label: "Phone", value: pair.phone, fallback: pair.desktop, fallbackFrom: "desktop", target: { t: "photo", format: "photo-break", part: "phone" }, maxZoom: 1, views: [{ screen: "phone", page: coasterPage, target: `break:${g.path}` }] },
-            { id: `break:${g.path}:desktop`, kind: "break-desktop", label: "Desktop", value: pair.desktop, target: { t: "photo", format: "photo-break", part: "desktop" }, maxZoom: 1, views: [{ screen: "desktop", page: coasterPage, target: `break:${g.path}` }] },
-          ],
-        },
-      });
+    const written = texts.filter((t) => t.has_text);
+    const withPhoto = written.filter((t) => splitSectionMedia(t.image_url).length > 0).length;
+    if (written.length >= 2 && gallery.length) {
+      const key = `review-photos:c${c.id}`;
+      push({ ...b, key, kind: "review-photos", image: header && !isVideo(header.path) ? header.path : null, pageUrl: coasterPage, sections: { total: written.length, withPhoto }, fingerprint: "ok", done: withPhoto * 2 >= written.length || checked(key, "ok") });
     }
 
     const shared = new Map<string, number>();
@@ -441,89 +495,141 @@ export async function loadCleanup(): Promise<CleanupData> {
     }
     const rating = Number(c.rating) || 0;
     if (rating > 0) {
-      push({ ...b, key: `coaster-review:${c.id}`, kind: "coaster-review", rating, image: header?.path ?? null, pageUrl: coasterPage, fingerprint: "", done: texts.some((t) => !blank(t.text)) });
-      push({ ...b, key: `coaster-photos:${c.id}`, kind: "coaster-photos", rating, pageUrl: coasterPage, fingerprint: "", done: gallery.length > 0 });
+      push({ ...b, key: `coaster-review:${c.id}`, kind: "coaster-review", rating, image: header && !isVideo(header.path) ? header.path : park.card_imagepath || park.imagepath || null, pageUrl: coasterPage, fingerprint: "", done: written.length > 0 });
+      // No photo of its own: the park's stands in for it in the lists.
+      push({ ...b, key: `coaster-photos:${c.id}`, kind: "coaster-photos", rating, image: park.card_imagepath || park.imagepath || null, pageUrl: coasterPage, fingerprint: "", done: gallery.length > 0 });
     }
   }
 
-  // Lists: the photos in each list and the covers on /lists (no text on these photos).
-  const listById = new Map<number, (typeof listsR.rows)[number]>(listsR.rows.map((l) => [l.id, l]));
-  const listTitle = (l: { title: string; published: boolean }) => `${l.title}${l.published ? "" : " (draft)"}`;
+  // Lists: the photos in published lists and their covers on /lists (no text on these photos).
+  const listById = new Map<number, Row>(listsR.rows.map((l) => [l.id, l]));
   for (const l of listsR.rows) {
-    if (!l.image_url) continue;
+    if (!l.published || !l.image_url) continue;
     addPlace({
       key: `list-cover:${l.id}`, kind: "frame", parkId: null, parkName: "Lists", parkSlug: null, listSlug: l.slug, image: l.image_url, pageUrl: "/lists",
-      place: { kind: "list-photo", title: listTitle(l), subtitle: "List cover", change: null, slots: [{ id: `list-cover:${l.image_url}`, kind: "list-cover", label: "List cover", value: pfGet("list-cover", l.image_url), target: { t: "photo", format: "list-cover" }, maxZoom: 1, views: [], aspect: "11 / 6" }] },
+      place: { kind: "list-photo", title: l.title, subtitle: "List cover", change: null, slots: [{ id: `list-cover:${l.image_url}`, kind: "list-cover", label: "List cover", photo: l.image_url, value: pfGet("list-cover", l.image_url), target: { t: "photo", format: "list-cover" }, maxZoom: 1, views: [], aspect: "11 / 6" }] },
     });
   }
   const listItemSeen = new Set<string>();
   for (const it of itemsR.rows) {
-    const l = listById.get(it.list_id); if (!l) continue;
+    const l = listById.get(it.list_id); if (!l || !l.published) continue;
     for (const u of [it.image_1, it.image_2]) {
       if (!u || listItemSeen.has(u)) continue;
       listItemSeen.add(u);
       addPlace({
         key: `list-item:${u}`, kind: "frame", parkId: null, parkName: "Lists", parkSlug: null, listSlug: l.slug, image: u, pageUrl: `/lists/${l.slug}`,
-        place: { kind: "list-photo", title: listTitle(l), subtitle: it.title, change: null, slots: [{ id: `list-item:${u}`, kind: "list-item", label: "List photo", value: pfGet("list-item", u), target: { t: "photo", format: "list-item" }, maxZoom: 1, views: [], aspect: "4 / 3" }] },
+        place: { kind: "list-photo", title: l.title, subtitle: it.title, change: null, slots: [{ id: `list-item:${u}`, kind: "list-item", label: "List photo", photo: u, value: pfGet("list-item", u), target: { t: "photo", format: "list-item" }, maxZoom: 1, views: [], aspect: "4 / 3" }] },
       });
     }
   }
 
-  // Places become tasks: each slot is done when checked for this photo.
+  // Sizes for previews and thumbnails.
+  const sizes = await getImageSizes([...new Set([...all.map((t) => t.image), ...places.flatMap((p) => p.place.slots.map((s) => s.photo))])]);
+  const withSize = <T extends CleanupTask>(t: T): T => (t.image && sizes[t.image] ? { ...t, size: sizes[t.image] } : t);
+
+  // Places become tasks: each slot is done when checked for its photo; one point per slot.
   for (const d of places) {
-    const url = d.image as string;
-    const slots: FrameSlot[] = d.place.slots.map((s) => ({ ...s, fresh: !isRealFocus(s.value), done: checked(`frame:${s.id}`, url) }));
-    push({ ...d, place: { ...d.place, slots }, fingerprint: url, done: slots.every((s) => s.done) });
+    const slots: FrameSlot[] = d.place.slots.filter((s) => !isVideo(s.photo)).map((s) => ({ ...s, ...(sizes[s.photo] ? { size: sizes[s.photo] } : {}), fresh: !isRealFocus(s.value), done: checked(`frame:${s.id}`, s.photo) }));
+    push({ ...d, place: { ...d.place, slots }, fingerprint: d.image as string, points: slots.length, done: slots.every((s) => s.done) });
   }
 
-  // Sizes for the framing previews.
-  const sizes = await getImageSizes(all.filter((t) => t.kind === "frame" && !t.done).map((t) => t.image));
+  // Other uses of the framed photos, shown as the page draws them: review sections and gallery tiles.
+  const framed = new Set(places.flatMap((p) => p.place.slots.map((s) => s.photo)));
+  const uses: Record<string, PhotoUse[]> = {};
+  const addUse = (url: string, u: PhotoUse) => { if (framed.has(url)) (uses[url] ??= []).push(u); };
+  for (const [parkId, visits] of publishedByPark) {
+    const p = parks.get(parkId)!;
+    visits.forEach((v, vi) => {
+      const where = vi === 0 ? p.name : `${p.name} · ${dateLabel(v.date)}`;
+      for (const t of textsByVisit.get(v.id) ?? []) {
+        const anchor = t.category === "description" ? "section-description" : `section-${t.category}`;
+        for (const m of splitSectionMedia(t.image_url)) addUse(m.url, { label: `Review · ${SECTION_LABEL[t.category] ?? t.category}`, where, page: `${parkPage(parkId, v.id)}#${anchor}`, target: `section:${m.url}` });
+      }
+      for (const g of galleryByVisit.get(v.id) ?? []) addUse(g.path, { label: "Gallery", where, page: parkPage(parkId, v.id), target: `tile:${g.path}` });
+    });
+  }
+  for (const c of coasters) {
+    for (const t of textsByCoaster.get(c.id) ?? []) {
+      for (const m of splitSectionMedia(t.image_url)) addUse(m.url, { label: `Review · ${t.headline || "Section"}`, where: c.name, page: `/coasters/${c.slug}#section-${t.id}`, target: `section:${m.url}` });
+    }
+    for (const g of galleryByCoaster.get(c.id) ?? []) addUse(g.path, { label: "Gallery", where: c.name, page: `/coasters/${c.slug}`, target: `tile:${g.path}` });
+  }
+
+  // Who finished what in the tool, and when: the newest of a task's marks and credits.
+  const doneInfo = (t: CleanupTask): { at: Date; by: string } | null => {
+    const keys = t.place ? t.place.slots.map((s) => `frame:${s.id}`) : [t.key];
+    let best: { at: Date; by: string } | null = null;
+    for (const k of keys) {
+      for (const e of [marks.get(k), credits.get(k)]) {
+        if (e && (!best || e.at > best.at)) best = { at: e.at, by: e.person };
+      }
+    }
+    return best;
+  };
+
   const totals: CleanupData["totals"] = {};
   const parkAgg = new Map<number, CleanupPark>();
   for (const p of parks.values()) {
-    const latest = (visitsByPark.get(p.id) ?? [])[0];
-    parkAgg.set(p.id, { id: p.id, name: p.name, slug: p.slug, country: p.country, overall: latest ? Number(latest.overall) : null, card: p.card_imagepath || p.imagepath, done: 0, total: 0, open: {} });
+    const latest = (publishedByPark.get(p.id) ?? [])[0];
+    parkAgg.set(p.id, { id: p.id, name: p.name, slug: p.slug, country: p.country, overall: latest ? Number(latest.overall) : null, card: p.card_imagepath || p.imagepath, cardFocus: p.image_focus ?? null, done: 0, total: 0, open: {} });
   }
+  const tasks: CleanupTask[] = [];
+  const done: DoneTask[] = [];
   for (const t of all) {
     const g = groupOf(t);
+    const pts = t.place ? t.place.slots.length : t.points;
+    const ptsDone = t.place ? t.place.slots.filter((s) => s.done).length : t.done ? t.points : 0;
     const tt = (totals[g] ??= { done: 0, total: 0 });
-    tt.total++; if (t.done) tt.done++;
-    if (t.quick && t.parkId != null) {
+    tt.total += pts; tt.done += ptsDone;
+    if (t.parkId != null) {
       const pa = parkAgg.get(t.parkId)!;
-      pa.total++;
-      if (t.done) pa.done++; else pa.open[g] = (pa.open[g] ?? 0) + 1;
+      pa.total += pts; pa.done += ptsDone;
+      if (pts > ptsDone) pa.open[g] = (pa.open[g] ?? 0) + pts - ptsDone;
     }
+    const { done: isDone, ...rest } = t;
+    if (!isDone) { tasks.push(withSize(rest)); continue; }
+    const info = doneInfo(rest);
+    if (info) done.push({ ...withSize(rest), doneAt: info.at.toISOString(), doneBy: info.by });
   }
-  const tasks: CleanupTask[] = all.filter((t) => !t.done).map((t) => {
-    const { done, ...rest } = t; void done;
-    return rest.image && sizes[rest.image] ? { ...rest, size: sizes[rest.image] } : rest;
-  });
+  done.sort((a, b) => b.doneAt.localeCompare(a.doneAt));
+
   const scores = Object.fromEntries(CLEANUP_PEOPLE.map((n) => [n, { total: 0, week: 0 }])) as CleanupData["scores"];
   for (const r of scoresR.rows) if ((CLEANUP_PEOPLE as readonly string[]).includes(r.person)) scores[r.person as CleanupPerson] = { total: r.total, week: r.week };
-  return { tasks, totals, parks: [...parkAgg.values()].filter((p) => p.total > 0), scores };
+  return { tasks, done, totals, parks: [...parkAgg.values()].filter((p) => p.total > 0), scores, uses };
 }
 
 // ─── actions ─────────────────────────────────────────────────────────────────
+
+/** What a write changed, so it can be undone for a few seconds after. */
+export type UndoOp =
+  | { t: "slot"; photo: string; target: SlotTarget; old: string | null }
+  | { t: "mark"; key: string; prev: { fingerprint: string; person: string; action: string; created_at: Date } | null }
+  | { t: "log"; id: number }
+  | { t: "caption"; path: string; from: string; to: string };
 
 /**
  * Credit a fix to a person. With a fingerprint the task is also marked as
  * checked; a mark that already holds this fingerprint means someone got the
  * credit already (both of them on the same photo at once), so nothing is logged.
- * Returns whether a credit was logged.
+ * Returns what changed (for undo); credited = a credit was logged.
  */
-export async function creditTask(key: string, kind: string, person: CleanupPerson, action: string, fingerprint?: string): Promise<boolean> {
+export async function creditTask(key: string, kind: string, person: CleanupPerson, action: string, fingerprint?: string): Promise<{ credited: boolean; ops: UndoOp[] }> {
   await ensureCleanupTables();
+  const ops: UndoOp[] = [];
   if (fingerprint !== undefined) {
+    const prev = await pool.query(`SELECT fingerprint, person, action, created_at FROM cleanup_marks WHERE task_key = $1`, [key]);
     const r = await pool.query(
       `INSERT INTO cleanup_marks (task_key, fingerprint, person, action) VALUES ($1, $2, $3, $4)
        ON CONFLICT (task_key) DO UPDATE SET fingerprint = EXCLUDED.fingerprint, person = EXCLUDED.person, action = EXCLUDED.action, created_at = now()
        WHERE cleanup_marks.fingerprint IS DISTINCT FROM EXCLUDED.fingerprint`,
       [key, fingerprint, person, action]
     );
-    if (!r.rowCount) return false;
+    if (!r.rowCount) return { credited: false, ops };
+    ops.push({ t: "mark", key, prev: prev.rows[0] ?? null });
   }
-  await pool.query(`INSERT INTO cleanup_log (task_key, kind, person, action) VALUES ($1, $2, $3, $4)`, [key, kind, person, action]);
-  return true;
+  const log = await pool.query(`INSERT INTO cleanup_log (task_key, kind, person, action) VALUES ($1, $2, $3, $4) RETURNING id`, [key, kind, person, action]);
+  ops.push({ t: "log", id: log.rows[0].id });
+  return { credited: true, ops };
 }
 
 /** True when someone already got the credit for this task. */
@@ -533,54 +639,120 @@ export async function wasCredited(key: string): Promise<boolean> {
   return (r.rowCount ?? 0) > 0;
 }
 
-/** Write one slot's framing where the site reads it. ok = false when the photo moved meanwhile. */
-export async function writeSlot(url: string, slot: FrameSlot, value: string): Promise<{ ok: boolean; parkId?: number }> {
-  const tg = slot.target;
+/** Put a task back on the list: its marks and credits go (the credit is earned again when it is done again). */
+export async function reopenTask(keys: string[]): Promise<void> {
+  await ensureCleanupTables();
+  await pool.query(`DELETE FROM cleanup_marks WHERE task_key = ANY($1::text[])`, [keys]);
+  await pool.query(`DELETE FROM cleanup_log WHERE task_key = ANY($1::text[])`, [keys]);
+}
+
+/** Undo a write a moment after it was made: values, marks and credits go back to how they were. */
+export async function undoOps(ops: UndoOp[]): Promise<number | null> {
+  let parkId: number | null = null;
+  for (const op of [...ops].reverse()) {
+    if (op.t === "slot") {
+      const r = await writeSlot(op.photo, op.target, op.old);
+      if (r.parkId) parkId = r.parkId;
+    } else if (op.t === "mark") {
+      if (op.prev) {
+        await pool.query(
+          `INSERT INTO cleanup_marks (task_key, fingerprint, person, action, created_at) VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (task_key) DO UPDATE SET fingerprint = EXCLUDED.fingerprint, person = EXCLUDED.person, action = EXCLUDED.action, created_at = EXCLUDED.created_at`,
+          [op.key, op.prev.fingerprint, op.prev.person, op.prev.action, op.prev.created_at]
+        );
+      } else {
+        await pool.query(`DELETE FROM cleanup_marks WHERE task_key = $1`, [op.key]);
+      }
+    } else if (op.t === "log") {
+      await pool.query(`DELETE FROM cleanup_log WHERE id = $1`, [op.id]);
+    } else if (op.t === "caption") {
+      await setCaption(op.path, op.to, op.from);
+    }
+  }
+  return parkId;
+}
+
+/** The value a slot's target holds now for this photo (undefined when the photo is no longer there). */
+export async function readSlot(photo: string, tg: SlotTarget): Promise<string | null | undefined> {
+  const one = async (sql: string, params: unknown[]) => { const r = await pool.query(sql, params); return r.rowCount ? (r.rows[0].v as string | null) : undefined; };
+  switch (tg.t) {
+    case "park-hero":
+      return tg.phone
+        ? one(`SELECT header_focus_mobile AS v FROM parks WHERE id = $1 AND coalesce(nullif(imagepath_mobile, ''), imagepath) = $2`, [tg.parkId, photo])
+        : one(`SELECT header_focus AS v FROM parks WHERE id = $1 AND imagepath = $2`, [tg.parkId, photo]);
+    case "visit-hero":
+      return tg.phone
+        ? one(`SELECT header_focus_mobile AS v FROM visits WHERE id = $1 AND coalesce(nullif(header_imagepath_mobile, ''), header_imagepath) = $2`, [tg.visitId, photo])
+        : one(`SELECT header_focus AS v FROM visits WHERE id = $1 AND header_imagepath = $2`, [tg.visitId, photo]);
+    case "coaster-hero":
+      return one(`SELECT ${tg.phone ? "focus_mobile" : "focus_desktop"} AS v FROM coastergallery WHERE id = $1 AND path = $2`, [tg.rowId, photo]);
+    case "card":
+      return one(`SELECT image_focus AS v FROM parks WHERE id = $1 AND coalesce(nullif(card_imagepath, ''), imagepath) = $2`, [tg.parkId, photo]);
+    case "curated":
+      return one(`SELECT focus AS v FROM visitgallery WHERE id = $1 AND path = $2`, [tg.rowId, photo]);
+    case "photo": {
+      const r = await pool.query(`SELECT focus AS v FROM photo_framing WHERE format = $1 AND url = $2`, [tg.format, photo]);
+      return r.rowCount ? r.rows[0].v : null;
+    }
+  }
+}
+
+/**
+ * Write one slot's framing where the site reads it (null clears it, for undo).
+ * ok = false when the photo moved meanwhile: a phone slot checks the photo
+ * phones show (the cover's own phone photo, or else the cover).
+ */
+export async function writeSlot(photo: string, tg: SlotTarget, value: string | null): Promise<{ ok: boolean; parkId?: number }> {
   switch (tg.t) {
     case "park-hero": {
-      const r = await pool.query(`UPDATE parks SET ${tg.phone ? "header_focus_mobile" : "header_focus"} = $1 WHERE id = $2 AND imagepath = $3`, [value, tg.parkId, url]);
+      const r = tg.phone
+        ? await pool.query(`UPDATE parks SET header_focus_mobile = $1 WHERE id = $2 AND coalesce(nullif(imagepath_mobile, ''), imagepath) = $3`, [value, tg.parkId, photo])
+        : await pool.query(`UPDATE parks SET header_focus = $1 WHERE id = $2 AND imagepath = $3`, [value, tg.parkId, photo]);
       return { ok: (r.rowCount ?? 0) > 0, parkId: tg.parkId };
     }
     case "visit-hero": {
       const col = tg.phone ? "header_focus_mobile" : "header_focus";
-      const r = await pool.query(`UPDATE visits SET ${col} = $1 WHERE id = $2 AND header_imagepath = $3 RETURNING park_id`, [value, tg.visitId, url]);
+      const r = tg.phone
+        ? await pool.query(`UPDATE visits SET header_focus_mobile = $1 WHERE id = $2 AND coalesce(nullif(header_imagepath_mobile, ''), header_imagepath) = $3 RETURNING park_id`, [value, tg.visitId, photo])
+        : await pool.query(`UPDATE visits SET header_focus = $1 WHERE id = $2 AND header_imagepath = $3 RETURNING park_id`, [value, tg.visitId, photo]);
       if (!r.rowCount) return { ok: false };
       const parkId = r.rows[0].park_id as number;
       // The park's header follows its newest visit; keep it in step.
       await pool.query(
-        `UPDATE parks SET ${col} = $1 WHERE id = $2 AND imagepath = $3
+        `UPDATE parks SET ${col} = $1 WHERE id = $2 AND ${tg.phone ? "coalesce(nullif(imagepath_mobile, ''), imagepath)" : "imagepath"} = $3
            AND (SELECT id FROM visits WHERE park_id = $2 ORDER BY date DESC, id DESC LIMIT 1) = $4`,
-        [value, parkId, url, tg.visitId]
+        [value, parkId, photo, tg.visitId]
       );
       return { ok: true, parkId };
     }
     case "coaster-hero": {
-      const r = await pool.query(`UPDATE coastergallery SET ${tg.phone ? "focus_mobile" : "focus_desktop"} = $1 WHERE id = $2 AND path = $3`, [value, tg.rowId, url]);
+      const r = await pool.query(
+        `UPDATE coastergallery SET ${tg.phone ? "focus_mobile" : "focus_desktop"} = $1 WHERE id = $2 AND path = $3${tg.own ? " AND is_header_mobile" : ""}`,
+        [value, tg.rowId, photo]
+      );
       return { ok: (r.rowCount ?? 0) > 0 };
     }
     case "card": {
-      const r = await pool.query(`UPDATE parks SET image_focus = $1 WHERE id = $2 AND coalesce(nullif(card_imagepath, ''), imagepath) = $3 RETURNING *`, [value, tg.parkId, url]);
+      const r = await pool.query(`UPDATE parks SET image_focus = $1 WHERE id = $2 AND coalesce(nullif(card_imagepath, ''), imagepath) = $3 RETURNING *`, [value, tg.parkId, photo]);
       if (!r.rowCount) return { ok: false };
       // The front page serves a pre-made cut of the card; make the one for the new framing.
       void regenerateParkCuts(r.rows[0]).catch((err) => console.error("card cut regeneration failed for park", tg.parkId, err));
       return { ok: true, parkId: tg.parkId };
     }
     case "curated": {
-      const r = await pool.query(`UPDATE visitgallery SET focus = $1 WHERE id = $2 AND path = $3`, [value, tg.rowId, url]);
+      const r = await pool.query(`UPDATE visitgallery SET focus = $1 WHERE id = $2 AND path = $3`, [value, tg.rowId, photo]);
       return { ok: (r.rowCount ?? 0) > 0 };
     }
     case "photo": {
-      let v = value;
-      if (tg.format === "photo-break") {
-        const old = await pool.query(`SELECT focus FROM photo_framing WHERE format = 'photo-break' AND url = $1`, [url]);
-        const pair = splitFocusPair(old.rows[0]?.focus);
-        v = tg.part === "phone" ? joinFocusPair(pair.desktop || "0.5000 0.5000 1", value) : joinFocusPair(value, pair.phone);
+      if (value === null) {
+        await pool.query(`DELETE FROM photo_framing WHERE format = $1 AND url = $2`, [tg.format, photo]);
+      } else {
+        await pool.query(
+          `INSERT INTO photo_framing (format, url, focus) VALUES ($1, $2, $3)
+           ON CONFLICT (format, url) DO UPDATE SET focus = EXCLUDED.focus, updated_at = now()`,
+          [tg.format, photo, value]
+        );
       }
-      await pool.query(
-        `INSERT INTO photo_framing (format, url, focus) VALUES ($1, $2, $3)
-         ON CONFLICT (format, url) DO UPDATE SET focus = EXCLUDED.focus, updated_at = now()`,
-        [tg.format, url, v]
-      );
       return { ok: true };
     }
   }

@@ -511,6 +511,7 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
                         <div
                             key={img.id}
                             id={`gallery-img-${index}`}
+                            data-framing={`tile:${img.path}`}
                             // Only allow dragging in admin mode
                             draggable={isAdminMode}
                             onDragStart={(e) => handleDragStart(e, index)}

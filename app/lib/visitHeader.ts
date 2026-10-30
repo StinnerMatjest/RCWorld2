@@ -44,12 +44,12 @@ export function ensureVisitHeaderColumns(): Promise<void> {
 
 /**
  * Formats stored in photo_framing. Position formats hold object-position
- * percentages "x y 1" (photo-break holds "desktop|phone"); curated-desktop
+ * percentages "x y 1"; curated-desktop
  * holds a focus point "cx cy zoom" for the 4:5 card of the photo strip, the
  * curated images on the park page on desktop and on the coaster page (placeCover).
  * The park page's phone deck uses the visit photo's own focus (visitgallery.focus).
  */
-export type PhotoFramingFormat = "gallery-tile" | "photo-break" | "list-item" | "list-cover" | "curated-desktop";
+export type PhotoFramingFormat = "gallery-tile" | "list-item" | "list-cover" | "curated-desktop";
 
 /** Store (or with null, clear) framings of one format, by photo URL. */
 export async function setPhotoFramings(format: PhotoFramingFormat, entries: [string, string | null][]): Promise<void> {

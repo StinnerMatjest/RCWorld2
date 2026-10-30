@@ -25,17 +25,47 @@ import { cutSrcSet, cutSizes, CARD_FRAME_HEIGHT } from "@/app/lib/cardCutGeometr
 // arrive); left/top 50% + a percentage translate put the focus point at the
 // frame centre for any drawn size. applyFocusToImg replaces all of it with the
 // same numbers in px after hydration.
+//
+// The photo stops at the card's edges: a framing set on the narrow phone card
+// may go right up to an edge of the photo, and a wider card then shows a
+// little more of the inside instead of an empty strip (and a tall photo framed
+// on a wide card, drawn shorter on a narrow one, keeps its bottom edge down).
+// The same clamp as applyFocusToImg and FocusedImage. Only framings that need
+// it get the clamped form; every other card keeps the translate, which places
+// it to the sub-pixel exactly as before.
 function ssrPlacement(size: ImageSize, focusStr: string): React.CSSProperties {
   const { cx, cy, zoom } = parseFocusStr(focusStr);
-  const heightLimitedWidth = CARD_FRAME_HEIGHT * zoom * size.w / size.h;
+  const a = size.w / size.h;
+  const heightLimitedWidth = CARD_FRAME_HEIGHT * zoom * a;
+  const width = `max(${(100 * zoom).toFixed(3)}%, ${heightLimitedWidth.toFixed(2)}px)`;
+  const base = { width, height: "auto", aspectRatio: `${size.w} / ${size.h}` };
+  if (!reachesCardEdge(size, cx, cy, zoom)) {
+    return { ...base, left: "50%", top: "50%", transform: `translate(${(-cx * 100).toFixed(3)}%, ${(-cy * 100).toFixed(3)}%)` };
+  }
+  // top's percentages are of the frame's height, so the drawn height is given
+  // from the frame's width in cqw (the card frames are inline-size containers).
+  const height = `max(${((100 * zoom) / a).toFixed(3)}cqw, ${(CARD_FRAME_HEIGHT * zoom).toFixed(2)}px)`;
   return {
-    width: `max(${(100 * zoom).toFixed(3)}%, ${heightLimitedWidth.toFixed(2)}px)`,
-    height: "auto",
-    aspectRatio: `${size.w} / ${size.h}`,
-    left: "50%",
-    top: "50%",
-    transform: `translate(${(-cx * 100).toFixed(3)}%, ${(-cy * 100).toFixed(3)}%)`,
+    ...base,
+    left: `clamp(calc(100% - ${width}), calc(50% - ${cx.toFixed(4)} * ${width}), 0px)`,
+    top: `clamp(calc(100% - ${height}), calc(50% - ${cy.toFixed(4)} * ${height}), 0px)`,
   };
+}
+
+// Card frames are 250 (narrowest phone) to 400 CSS px wide (desktop grid).
+const CARD_W_MIN = 250, CARD_W_MAX = 400;
+/** True when, centred on its focus point, the photo would leave an empty strip on some card width. */
+function reachesCardEdge(size: ImageSize, cx: number, cy: number, zoom: number): boolean {
+  const a = size.w / size.h;
+  // The drawn size is max(W, height x aspect) x zoom wide, so the offsets are linear
+  // in W apart from one bend: checking both ends and the bend covers every width.
+  const bend = CARD_FRAME_HEIGHT * a;
+  return [CARD_W_MIN, CARD_W_MAX, ...(bend > CARD_W_MIN && bend < CARD_W_MAX ? [bend] : [])].some((W) => {
+    const dw = Math.max(W, bend) * zoom, dh = dw / a;
+    const left = W / 2 - cx * dw, top = CARD_FRAME_HEIGHT / 2 - cy * dh;
+    // Half a pixel of slack: framings made by the card cut carry rounding of a few hundredths.
+    return left > 0.5 || left + dw < W - 0.5 || top > 0.5 || top + dh < CARD_FRAME_HEIGHT - 0.5;
+  });
 }
 
 // What a card slot shows: either the original photo (picked by size) or its
@@ -189,7 +219,7 @@ const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager 
   const teaserSources = entrySources(teaser);
   return (
     <div className="mx-auto w-full max-w-[400px] py-3 md:py-4">
-      <div className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg" data-framing={`card:${park.id}`} data-framing-math="focused">
+      <div className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg [container-type:inline-size]" data-framing={`card:${park.id}`} data-framing-math="focused">
         {!imgReady && (
           <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute inset-0 animate-[shimmer_1.8s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
@@ -296,10 +326,12 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     const dh = img.naturalHeight * cs * zoom;
     img.style.width = `${dw}px`;
     img.style.height = `${dh}px`;
-    img.style.left = `${c.clientWidth / 2 - cx * dw}px`;
-    img.style.top = `${c.clientHeight / 2 - cy * dh}px`;
+    // The photo stops at the card's edges (see ssrPlacement).
+    img.style.left = `${Math.min(0, Math.max(c.clientWidth - dw, c.clientWidth / 2 - cx * dw))}px`;
+    img.style.top = `${Math.min(0, Math.max(c.clientHeight - dh, c.clientHeight / 2 - cy * dh))}px`;
     // Drop the server-side CSS placement (see ssrPlacement) now that px values are set.
     img.style.transform = ""; img.style.minWidth = ""; img.style.minHeight = ""; img.style.aspectRatio = "";
+    img.dataset.px = "1";
     return cs * zoom * (typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1);
   }, []);
 
@@ -425,7 +457,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
     const c = imageContainerRef.current;
     if (!c) return;
     const ro = new ResizeObserver(() => {
-      if (slotARef.current && !slotARef.current.style.transform.startsWith("translate")) applyFocusToImg(slotARef.current, slotAFocusRef.current);
+      if (slotARef.current?.dataset.px === "1") applyFocusToImg(slotARef.current, slotAFocusRef.current);
     });
     ro.observe(c);
     return () => ro.disconnect();
@@ -436,7 +468,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
       <div
         className="mx-auto w-full max-w-[400px] py-3 md:py-4 [@media(hover:hover)]:hover:scale-105 transition-transform duration-300 ease-in-out will-change-transform"
       >
-        <div ref={imageContainerRef} className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg" data-framing={`card:${park.id}`} data-framing-math="card">
+        <div ref={imageContainerRef} className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg [container-type:inline-size]" data-framing={`card:${park.id}`} data-framing-math="card">
           {/* Shimmer placeholder while the header image is still on its way */}
           {!imgReady && (
             <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">

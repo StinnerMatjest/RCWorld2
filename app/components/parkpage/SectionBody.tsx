@@ -117,6 +117,7 @@ export function SectionBody({
           <SectionImage
             src={url}
             alt={altLabel}
+            framing={`section:${url}`}
             cx={pan.cx}
             cy={pan.cy}
             mcx={panPhone?.cx}

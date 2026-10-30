@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { pool } from "@/app/lib/db";
 import { diffFields, logChange } from "@/app/lib/changelog";
+import { ensureParkTextsUnique } from "@/app/lib/parkTextsIndex";
 
 // parktexts rows hang off a rating; resolve the owning park for the changelog.
 async function ratingContext(visitId: number | string) {
@@ -80,7 +81,10 @@ export async function POST(req: NextRequest) {
 
   try {
     let result;
-    // One row per (visit, category): a POST for a section that already exists updates it.
+    // One row per (visit, category): a POST for a section that already exists updates it,
+    // and the unique index turns a second insert racing this one into the same update.
+    const unique = await ensureParkTextsUnique();
+    const onConflict = (cols: string[]) => (unique ? `ON CONFLICT (visit_id, category) DO UPDATE SET ${cols.map((c) => `${c} = EXCLUDED.${c}`).join(", ")}` : "");
     const existing = await pool.query(
       `SELECT id FROM parktexts WHERE visit_id = $1 AND category = $2 ORDER BY id LIMIT 1`,
       [ratingId, category]
@@ -97,6 +101,7 @@ export async function POST(req: NextRequest) {
         : await pool.query(
           `INSERT INTO parktexts (visit_id, category, text, image_url, image_layout, is_spoiler)
            VALUES ($1, $2, $3, $4, $5, $6)
+           ${onConflict(["text", "image_url", "image_layout", "is_spoiler"])}
            RETURNING category, text, image_url AS "imageUrl", image_layout AS "imageLayout", is_spoiler AS "isSpoiler", visit_id AS "ratingId"`,
           [ratingId, category, text ?? "", imageUrl ?? null, imageLayout ?? null, isSpoiler ?? false]
         );
@@ -110,6 +115,7 @@ export async function POST(req: NextRequest) {
         : await pool.query(
           `INSERT INTO parktexts (visit_id, category, text, image_url)
            VALUES ($1, $2, $3, $4)
+           ${onConflict(["text", "image_url"])}
            RETURNING category, text, image_url AS "imageUrl", visit_id AS "ratingId"`,
           [ratingId, category, text ?? "", imageUrl ?? null]
         );

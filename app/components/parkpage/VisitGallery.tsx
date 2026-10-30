@@ -540,6 +540,7 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
               <div
                 key={img.id}
                 id={`gallery-img-${index}`}
+                data-framing={`tile:${img.path}`}
                 draggable={isAdminMode && !isSavingOrder}
                 onDragStart={(e) => handleDragStart(e, index)}
                 onDragOver={(e) => handleDragOver(e, index)}

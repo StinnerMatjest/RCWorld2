@@ -50,8 +50,8 @@ export interface ParkHeaderModalProps {
 
 /** Home cards are 500 CSS px tall on every screen (min-h-[500px]). */
 const CARD_H = 500;
-/** Widest home card anywhere (grid cards stop at max-w-[400px]). */
-const CARD_MAX_ASPECT = 400 / CARD_H;
+/** Narrowest home card (phones 320 CSS px wide): a tall photo framed on a wider card must still reach its bottom. */
+const CARD_MIN_ASPECT = 250 / CARD_H;
 /** Phone strip card width (HomeClient: w-[78vw] min-[400px]:w-[72vw] min-[480px]:w-[68vw] min-[560px]:w-[64vw] max-w-sm). */
 function phoneCardWidth(vw: number): number {
   const f = vw < 400 ? 0.78 : vw < 480 ? 0.72 : vw < 560 ? 0.68 : 0.64;
@@ -107,14 +107,16 @@ export interface CropEditorProps {
   children?: React.ReactNode;
   maxZoom?: number;
   /**
-   * Keep the photo covering a frame this wide (width / height) even when the
-   * editor itself is narrower, so a crop made on one screen never shows an
-   * empty edge on a wider one.
+   * The narrowest frame the crop is also shown in (width / height, same
+   * height): up and down the photo is kept covering that one too. A tall
+   * photo is drawn shorter in a narrower frame, so a crop made on a wide
+   * screen could otherwise leave a strip at its top or bottom there. Across,
+   * a wider frame needs nothing: the pages stop the photo at the frame's edge.
    */
-  clampAspect?: number;
+  minAspect?: number;
 }
 
-export function CropEditor({ src, aspectRatio, focusStr, onCommit, onChange, editorRef, className = "", style, children, maxZoom = 4, clampAspect }: CropEditorProps) {
+export function CropEditor({ src, aspectRatio, focusStr, onCommit, onChange, editorRef, className = "", style, children, maxZoom = 4, minAspect }: CropEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const commitRef = useRef(onCommit);
@@ -144,20 +146,28 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, onChange, edi
   function clampTxy(dtx: number, dty: number, s = totalScale()) {
     const c = containerRef.current;
     if (!c) return { tx: dtx, ty: dty };
-    const frameW = clampAspect ? Math.max(c.clientWidth, c.clientHeight * clampAspect) : c.clientWidth;
-    const mx = Math.max(0, (nw.current * s - frameW) / 2);
-    const my = Math.max(0, (nh.current * s - c.clientHeight) / 2);
+    const mx = Math.max(0, (nw.current * s - c.clientWidth) / 2);
+    let my = Math.max(0, (nh.current * s - c.clientHeight) / 2);
+    if (minAspect && c.clientHeight * minAspect < c.clientWidth) {
+      // Drawn height in the narrowest frame, and the share of it that may stay outside.
+      const H = c.clientHeight;
+      const dhN = nh.current * Math.max((H * minAspect) / nw.current, H / nh.current) * zoom.current;
+      my = Math.min(my, Math.max(0, (dhN - H) / (2 * dhN)) * nh.current * s);
+    }
     return { tx: clamp(dtx, -mx, mx), ty: clamp(dty, -my, my) };
   }
 
+  // Drawn the way the pages draw it: the photo stops at the frame's edges, so a
+  // crop made for another frame shape shows here as it shows there.
   function applyDOM(s = totalScale()) {
     const img = imgRef.current;
     const c = containerRef.current;
     if (!img || !c || !nw.current) return;
     const w = nw.current * s, h = nh.current * s;
+    const mx = Math.max(0, (w - c.clientWidth) / 2), my = Math.max(0, (h - c.clientHeight) / 2);
     img.style.width = `${w}px`;
     img.style.height = `${h}px`;
-    img.style.transform = `translate(${(c.clientWidth - w) / 2 + tx.current}px,${(c.clientHeight - h) / 2 + ty.current}px)`;
+    img.style.transform = `translate(${(c.clientWidth - w) / 2 + clamp(tx.current, -mx, mx)}px,${(c.clientHeight - h) / 2 + clamp(ty.current, -my, my)}px)`;
   }
 
   function toFocusStr() {
@@ -465,10 +475,11 @@ function LiveFrame({ src, focus, w, h, scale, className = "", children }: {
 
   let imgStyle: React.CSSProperties = { visibility: "hidden" };
   if (nat && nat.src === src) {
+    // The pages stop the photo at the frame's edges (FocusedImage, the home card).
     const { cx, cy, zoom } = parseFocusStr(focus);
     const cs = Math.max(w / nat.w, h / nat.h);
     const dw = nat.w * cs * zoom, dh = nat.h * cs * zoom;
-    imgStyle = { width: dw, height: dh, left: w / 2 - cx * dw, top: h / 2 - cy * dh };
+    imgStyle = { width: dw, height: dh, left: Math.min(0, Math.max(w - dw, w / 2 - cx * dw)), top: Math.min(0, Math.max(h - dh, h / 2 - cy * dh)) };
   }
   return (
     <div className={`relative shrink-0 overflow-hidden bg-slate-900 ${className}`} style={{ width: w * scale, height: h * scale }}>
@@ -676,8 +687,10 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   const cardChanged = cardPath !== initial.cardPath || cardFocus !== initial.cardFocus;
 
   // Card frame: the home card exactly as this screen draws it, shrunk only if
-  // the modal is too short to show it at its real size.
+  // the modal is too short to show it at its real size. It is framed on the
+  // phone card: this phone's own, or ours on a bigger screen.
   const [cardW, setCardW] = useState(360);
+  const phoneCardW = isMobile ? cardW : PHONE_CARD_W;
   // The page header is the full viewport width; its height is the aspect for
   // the breakpoint (4:5, 16:9 from 640, 21:9 from 1024) capped at 82vh / 68vh,
   // exactly as .park-hero-frame and ParkHero's max-h classes size it. The editor
@@ -949,32 +962,32 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
               <div ref={cardAreaRef} className="flex-1 min-h-0 overflow-y-auto">
                 <div className="min-h-full flex flex-col items-center justify-center gap-5 p-6">
                   <div className="flex items-end justify-center gap-8">
+                    {/* The card is framed on the phone card; wider cards show a little more
+                        of the photo and stop it at their edges (HomeClient). */}
                     <figure className="flex flex-col items-center gap-2">
                       <CropEditor
-                        key={`c-${effectiveCardPath}-${Math.round(cardW)}`}
+                        key={`c-${effectiveCardPath}-${Math.round(phoneCardW)}`}
                         editorRef={cardEditorRef}
                         src={effectiveCardPath}
                         focusStr={cardFocus}
                         onCommit={setCardFocus}
                         onChange={live(setLiveCardFocus)}
-                        clampAspect={CARD_MAX_ASPECT}
+                        minAspect={CARD_MIN_ASPECT}
                         className="rounded-2xl shadow-md"
-                        style={{ width: cardW * cardScale, height: CARD_H * cardScale }}
+                        style={{ width: phoneCardW * cardScale, height: CARD_H * cardScale }}
                       >
-                        <ScaledLayer w={cardW} h={CARD_H} scale={cardScale}>
+                        <ScaledLayer w={phoneCardW} h={CARD_H} scale={cardScale}>
                           <CardFace parkName={parkName} parkCountry={parkCountry} rating={cardRating} />
                         </ScaledLayer>
                       </CropEditor>
-                      <figcaption className="text-xs text-slate-500">
-                        {isMobile ? "Phone" : "Home page on this screen"}
-                      </figcaption>
+                      <figcaption className="text-xs text-slate-500">Phone</figcaption>
                     </figure>
                     {!isMobile && (
                       <figure className="flex flex-col items-center gap-2">
-                        <LiveFrame src={effectiveCardPath} focus={liveCardFocus} w={PHONE_CARD_W} h={CARD_H} scale={cardScale} className="rounded-2xl shadow-md">
+                        <LiveFrame src={effectiveCardPath} focus={liveCardFocus} w={cardW} h={CARD_H} scale={cardScale} className="rounded-2xl shadow-md">
                           <CardFace parkName={parkName} parkCountry={parkCountry} rating={cardRating} />
                         </LiveFrame>
-                        <figcaption className="text-xs text-slate-500">Phone</figcaption>
+                        <figcaption className="text-xs text-slate-500">Home page on this screen</figcaption>
                       </figure>
                     )}
                   </div>
