@@ -356,7 +356,9 @@ export async function loadCleanup(): Promise<CleanupData> {
     const header = [...fullGallery].filter((g) => g.is_header).sort((x, y) => y.id - x.id)[0] ?? fullGallery[0];
     if (header) heroSlots(header.path, `coaster:${c.id}:hero`, `${c.name} · ${park.name}`, c.name, owner, header.focus_desktop, header.focus_mobile, (phone) => ({ t: "coaster-hero", rowId: header.id, phone }), { phoneFallsBack: false, rating: c.rating, page: "Coaster page cover" });
     // The coaster page's photo strip: the picked photos, or all of them.
-    const strip = gallery.some((g) => g.featured) ? gallery.filter((g) => g.featured) : gallery;
+    // As CoasterPhotoStrip: videos count, and with fewer than two to show the page hides the strip.
+    const shownInStrip = fullGallery.some((g) => g.featured) ? fullGallery.filter((g) => g.featured) : fullGallery;
+    const strip = shownInStrip.length >= 2 ? shownInStrip.filter((g) => !isVideo(g.path)) : [];
     for (const g of strip) addSlot(g.path, { id: `strip:${g.path}`, kind: "coaster-strip", label: "Photo strip card (coaster page)", where: `${c.name} · ${park.name}`, aspect: "4 / 5", mode: "focus", maxZoom: 1, face: "caption", faceText: g.description || "", value: pfGet("coaster-strip", g.path), target: { t: "photo", format: "coaster-strip" }, owner });
     for (const g of gallery) addSlot(g.path, { id: `tile:${g.path}`, kind: "tile", label: "Gallery tile", where: `${c.name} · Gallery`, aspect: TILE, previews: COASTER_TILE_PREVIEWS, mode: "position", maxZoom: 1, value: pfGet("gallery-tile", g.path), target: { t: "photo", format: "gallery-tile" }, owner });
 
