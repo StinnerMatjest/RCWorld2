@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { positionCss } from "@/app/lib/framing";
 import Image from "next/image";
 import { useAdminMode } from "../../context/AdminModeContext";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
@@ -18,6 +19,8 @@ type GalleryImage = {
     path: string;
     description: string;
     is_header: boolean;
+    /** Position of the photo in its gallery tile ("x y 1"); null = centred. */
+    tile_focus?: string | null;
 };
 
 const CoasterImageManagerModal = ({
@@ -551,6 +554,7 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
                                     width={400} height={300}
                                     sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
                                     quality={85}
+                                    style={{ objectPosition: positionCss(img.tile_focus) }}
                                     className="rounded-xl object-cover h-40 md:h-48 w-full transition-transform duration-500 group-hover:scale-105 pointer-events-none"
                                 />
                             )}

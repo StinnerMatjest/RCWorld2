@@ -17,6 +17,8 @@ export interface Park {
   slug: string;
   imageFocus?: string;
   headerFocus?: string;
+  /** The hero's tall phone framing; absent = the wide framing. */
+  headerFocusMobile?: string | null;
   /** Cut of the card photo for the current framing; absent until generated or when stale. */
   cardCut?: CardCut;
   cardImages?: {
@@ -48,6 +50,8 @@ export interface Visit {
   /** This visit's own header photo and crop; absent = the park's header. */
   headerImagepath?: string | null;
   headerFocus?: string | null;
+  /** The visit hero's tall phone framing; absent = the wide one. */
+  headerFocusMobile?: string | null;
   headerImageSize?: ImageSize;
 }
 
@@ -321,6 +325,9 @@ export interface RankingListItem {
   image1: string;     // The first image URL
   textBlock2?: string; // Optional second paragraph
   image2?: string;     // Optional second image URL
+  /** Framings (object-position "x y 1") of the two photos in their 4:3 frames. */
+  image1Focus?: string | null;
+  image2Focus?: string | null;
 }
 
 export type ChecklistItem = {

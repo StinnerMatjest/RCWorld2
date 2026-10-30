@@ -4,12 +4,17 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link";
 import { getRatingHex } from "@/app/utils/design";
 import TaskRunner from "./TaskRunner";
-import { CATEGORIES, isFraming, KIND_LABEL, PEOPLE, PERSON_KEY, randomTask, sortQueue, taskTitle, taskWhere, thumb, type CleanupData, type CleanupKind, type CleanupPerson, type CleanupTask } from "./shared";
+import { CATEGORIES, categoryKeys, inCategory, KIND_LABEL, openCount, openSlots, PEOPLE, PERSON_KEY, randomTask, slotSummary, sortQueue, taskTitle, taskWhere, thumb, type Category, type CleanupData, type CleanupPerson, type CleanupTask } from "./shared";
 
 type View =
   | { name: "overview" }
   | { name: "park"; parkId: number }
-  | { name: "run"; kinds?: CleanupKind[]; parkId?: number; startKey?: string; random?: boolean };
+  | { name: "run"; cat?: string; parkId?: number; startKey?: string; random?: boolean };
+
+const catById = (id?: string) => CATEGORIES.find((c) => c.id === id);
+const bumpDone = (t: { done: number; total: number } | undefined) => ({ total: t?.total ?? 1, done: (t?.done ?? 0) + 1 });
+/** Open never-framed formats in these tasks (for a photo category). */
+const freshCount = (ts: CleanupTask[], c: Category) => (c.slots ? ts.reduce((n, t) => n + openSlots(t, c.slots).filter((s) => s.fresh).length, 0) : 0);
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : String(+n.toFixed(2)));
 const pct = (d: number, t: number) => (t ? Math.round((100 * d) / t) : 100);
@@ -43,16 +48,34 @@ export default function CleanupClient() {
 
   // After a fix the page updates itself at once and syncs with the server a little later.
   const syncTimer = useRef<number | undefined>(undefined);
+  const sync = () => { window.clearTimeout(syncTimer.current); syncTimer.current = window.setTimeout(() => load(true), 4000); };
   const onDone = (t: CleanupTask) => {
     setData((d) => {
       if (!d) return d;
-      const totals = { ...d.totals, [t.kind]: { ...(d.totals[t.kind] ?? { done: 0, total: 1 }), done: (d.totals[t.kind]?.done ?? 0) + 1 } };
+      const totals = { ...d.totals, [t.kind]: bumpDone(d.totals[t.kind]) };
       const parks = d.parks.map((p) => (p.id !== t.parkId || !t.quick ? p : { ...p, done: p.done + 1, open: { ...p.open, [t.kind]: Math.max(0, (p.open[t.kind] ?? 1) - 1) } }));
       const scores = person ? { ...d.scores, [person]: { total: d.scores[person].total + 1, week: d.scores[person].week + 1 } } : d.scores;
       return { ...d, tasks: d.tasks.filter((x) => x.key !== t.key), totals, parks, scores };
     });
-    window.clearTimeout(syncTimer.current);
-    syncTimer.current = window.setTimeout(() => load(true), 4000);
+    sync();
+  };
+  // One format of a photo saved or checked; the photo leaves the list when all are.
+  const onSlot = (t: CleanupTask, slotId: string) => {
+    setData((d) => {
+      if (!d) return d;
+      const cur = d.tasks.find((x) => x.key === t.key);
+      const slot = cur?.slots?.find((s) => s.id === slotId);
+      if (!cur || !slot || slot.done) return d;
+      const slots = cur.slots!.map((s) => (s.id === slotId ? { ...s, done: true } : s));
+      const all = slots.every((s) => s.done);
+      const k = `slot:${slot.kind}`;
+      const totals = { ...d.totals, [k]: bumpDone(d.totals[k]), ...(all ? { photo: bumpDone(d.totals.photo) } : {}) };
+      const parks = d.parks.map((p) => (p.id !== cur.parkId ? p : { ...p, done: p.done + 1, open: { ...p.open, [k]: Math.max(0, (p.open[k] ?? 1) - 1) } }));
+      const scores = person ? { ...d.scores, [person]: { total: d.scores[person].total + 1, week: d.scores[person].week + 1 } } : d.scores;
+      const tasks = all ? d.tasks.filter((x) => x.key !== t.key) : d.tasks.map((x) => (x.key === t.key ? { ...x, slots } : x));
+      return { ...d, tasks, totals, parks, scores };
+    });
+    sync();
   };
 
   const quick = useMemo(() => (data?.tasks ?? []).filter((t) => t.quick), [data]);
@@ -72,21 +95,26 @@ export default function CleanupClient() {
   }
 
   const parksById = new Map(data.parks.map((p) => [p.id, p]));
-  const openQuick = quick.length;
-  const quickTotal = data.parks.reduce((s, p) => s + p.total, 0);
+  // Counted in formats for photos and in tasks for the rest, as on the tiles.
+  const openQuick = CATEGORIES.reduce((s, c) => s + openCount(quick, c), 0);
+  const quickTotal = CATEGORIES.reduce((s, c) => s + categoryKeys(c).reduce((n, k) => n + (data.totals[k]?.total ?? 0), 0), 0);
 
   if (view.name === "run") {
-    const queue = sortQueue(quick.filter((t) => (!view.kinds || view.kinds.includes(t.kind)) && (view.parkId == null || t.parkId === view.parkId)));
+    const cat = catById(view.cat);
+    const queue = sortQueue(quick.filter((t) => (!cat || inCategory(t, cat)) && (view.parkId == null || t.parkId === view.parkId)));
     return (
       <>
         <TaskRunner
-          key={`${view.kinds?.join() ?? "all"}-${view.parkId ?? ""}-${view.random ? "r" : ""}`}
+          key={`${view.cat ?? "all"}-${view.parkId ?? ""}-${view.random ? "r" : ""}`}
           queue={view.random ? quick : queue}
           startKey={view.startKey}
           random={view.random}
+          only={cat?.slots}
           person={person}
           openCount={openQuick}
+          parks={parksById}
           onDone={onDone}
+          onSlot={onSlot}
           onExit={() => setView(view.parkId != null ? { name: "park", parkId: view.parkId } : { name: "overview" })}
           pickRandom={(not) => randomTask(quick, not)}
           needPerson={() => setAskPerson(true)}
@@ -126,7 +154,7 @@ export default function CleanupClient() {
             <div>
               <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-brand">{park.country}</p>
               <h1 className="mt-1 text-3xl font-bold text-white md:text-5xl">{park.name}</h1>
-              <p className="mt-2 text-sm text-slate-300">{pct(park.done, park.total)}% ready · {park.total - park.done} quick fixes open</p>
+              <p className="mt-2 text-sm text-slate-300">{pct(park.done, park.total)}% ready · {park.total - park.done} open</p>
               <Bar value={pct(park.done, park.total)} className="mt-3 w-56" />
             </div>
             <button type="button" onClick={() => setView({ name: "run", parkId: park.id })} disabled={park.total === park.done}
@@ -134,23 +162,27 @@ export default function CleanupClient() {
           </div>
         </div>
         {CATEGORIES.map((c) => {
-          const list = tasks.filter((t) => c.kinds.includes(t.kind));
+          const list = tasks.filter((t) => inCategory(t, c));
           if (!list.length) return null;
           return (
             <section key={c.id} className="mt-9">
-              <div className="mb-3 flex items-baseline justify-between"><h2 className="text-xl font-bold text-white">{c.title} <span className="text-slate-500">· {list.length}</span></h2>
-                <button type="button" onClick={() => setView({ name: "run", parkId: park.id, kinds: c.kinds })} className="text-xs font-bold uppercase tracking-widest text-brand hover:text-brand-light cursor-pointer">Do these</button></div>
+              <div className="mb-3 flex items-baseline justify-between"><h2 className="text-xl font-bold text-white">{c.title} <span className="text-slate-500">· {openCount(list, c)}</span></h2>
+                <button type="button" onClick={() => setView({ name: "run", parkId: park.id, cat: c.id })} className="text-xs font-bold uppercase tracking-widest text-brand hover:text-brand-light cursor-pointer">Do these</button></div>
               <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5 lg:grid-cols-8 2xl:grid-cols-10">
-                {list.map((t) => (
-                  <button key={t.key} type="button" onClick={() => setView({ name: "run", parkId: park.id, kinds: c.kinds, startKey: t.key })} className="text-left cursor-pointer">
-                    <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-slate-800">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      {t.image ? <img src={thumb(t.image)} alt="" loading="lazy" className="h-full w-full object-cover" /> : <span className="absolute inset-0 flex items-center justify-center p-2 text-center text-[11px] font-bold uppercase tracking-widest text-slate-500">{t.section?.heading ?? "No photo"}</span>}
-                      {isFraming(t.kind) && <span className={`absolute left-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${t.state === "never" ? "bg-brand text-white" : "bg-slate-950/70 text-slate-200"}`}>{t.state === "never" ? "New" : "Check"}</span>}
-                    </div>
-                    <div className="mt-1.5 truncate text-xs text-slate-300">{t.coasterName ?? t.label ?? KIND_LABEL[t.kind]}</div>
-                  </button>
-                ))}
+                {list.map((t) => {
+                  const open = c.slots ? openSlots(t, c.slots) : [];
+                  const fresh = open.some((s) => s.fresh);
+                  return (
+                    <button key={t.key} type="button" onClick={() => setView({ name: "run", parkId: park.id, cat: c.id, startKey: t.key })} className="text-left cursor-pointer">
+                      <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-slate-800">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        {t.image ? <img src={thumb(t.image)} alt="" loading="lazy" className="h-full w-full object-cover" /> : <span className="absolute inset-0 flex items-center justify-center p-2 text-center text-[11px] font-bold uppercase tracking-widest text-slate-500">{t.section?.heading ?? "No photo"}</span>}
+                        {c.slots && <span className={`absolute left-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${fresh ? "bg-brand text-white" : "bg-slate-950/70 text-slate-200"}`}>{fresh ? "New" : "Check"}{open.length > 1 ? ` · ${open.length}` : ""}</span>}
+                      </div>
+                      <div className="mt-1.5 truncate text-xs text-slate-300">{c.slots ? slotSummary(t, c.slots) : t.coasterName ?? t.label ?? KIND_LABEL[t.kind]}</div>
+                    </button>
+                  );
+                })}
               </div>
             </section>
           );
@@ -161,7 +193,7 @@ export default function CleanupClient() {
   }
 
   // ─── overview ───
-  const nextImg = next?.image ?? (next ? parksById.get(next.parkId)?.card : null);
+  const nextImg = next?.image ?? (next?.parkId != null ? parksById.get(next.parkId)?.card : null);
   return (
     <div className="mx-auto max-w-[1560px] px-4 pb-16 pt-2 md:px-12">
       <div className="mb-6 mt-2 flex flex-col gap-4 md:mb-7 md:flex-row md:items-end md:justify-between">
@@ -182,7 +214,7 @@ export default function CleanupClient() {
             <div className="min-w-0">
               <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-brand">Next quick fix · {KIND_LABEL[next.kind]}</p>
               <h2 className="mt-2.5 max-w-[640px] text-[30px] font-bold leading-[1.02] tracking-tight text-white md:text-[46px]">{taskTitle(next)}</h2>
-              <p className="mt-2 text-[15px] text-slate-300">{taskWhere(next)}{isFraming(next.kind) ? (next.state === "never" ? " · never framed" : " · framed before, check it") : ""}</p>
+              <p className="mt-2 text-[15px] text-slate-300">{taskWhere(next)}{next.kind === "photo" ? ` · ${slotSummary(next)}` : ""}</p>
               <div className="mt-5 flex gap-2.5">
                 <button type="button" onClick={() => setView({ name: "run", random: true, startKey: next.key })} className="flex-1 rounded-xl bg-brand px-7 py-3.5 text-[15px] font-bold text-white hover:bg-brand-light md:flex-none cursor-pointer">Start</button>
                 <button type="button" onClick={() => setNextKey(randomTask(quick, new Set([next.key]))?.key ?? null)} className="flex-1 whitespace-nowrap rounded-xl border border-white/25 bg-slate-950/50 px-5 py-3.5 text-[15px] font-bold text-white hover:border-white/50 md:flex-none cursor-pointer">⤨ Shuffle</button>
@@ -190,7 +222,7 @@ export default function CleanupClient() {
             </div>
             <div className="hidden text-right md:block">
               <div className="text-[64px] font-bold leading-none tracking-tight text-white">{openQuick}</div>
-              <div className="mt-1.5 text-sm text-slate-300">quick fixes left</div>
+              <div className="mt-1.5 text-sm text-slate-300">quick fixes left · photos count once per format</div>
               <Bar value={pct(quickTotal - openQuick, quickTotal)} className="ml-auto mt-3 w-60" />
             </div>
           </div>
@@ -198,22 +230,24 @@ export default function CleanupClient() {
       )}
 
       <div className="mb-3.5 flex items-baseline justify-between"><h2 className="text-[22px] font-bold text-white">Quick fixes</h2><span className="text-xs text-slate-500">Random picks only come from these</span></div>
-      <div className="mb-10 grid auto-cols-[44%] grid-flow-col gap-3 overflow-x-auto pb-1 md:grid-flow-row md:grid-cols-7 md:overflow-visible">
+      <div className="mb-10 grid auto-cols-[44%] grid-flow-col gap-3 overflow-x-auto pb-1 md:grid-flow-row md:grid-cols-5 md:overflow-visible xl:grid-cols-9">
         {CATEGORIES.map((c) => {
-          const open = quick.filter((t) => c.kinds.includes(t.kind));
-          const done = c.kinds.reduce((s, k) => s + (data.totals[k]?.done ?? 0), 0);
-          const total = c.kinds.reduce((s, k) => s + (data.totals[k]?.total ?? 0), 0);
-          const img = (open.find((t) => t.image && t.state === "never") ?? open.find((t) => t.image))?.image ?? (open[0] ? parksById.get(open[0].parkId)?.card ?? null : null);
-          const fresh = open.filter((t) => isFraming(t.kind) && t.state === "never").length;
+          const tasksIn = quick.filter((t) => inCategory(t, c));
+          const n = openCount(quick, c);
+          const done = categoryKeys(c).reduce((s, k) => s + (data.totals[k]?.done ?? 0), 0);
+          const total = categoryKeys(c).reduce((s, k) => s + (data.totals[k]?.total ?? 0), 0);
+          const firstImg = tasksIn.find((t) => t.image && c.slots && openSlots(t, c.slots).some((s) => s.fresh)) ?? tasksIn.find((t) => t.image);
+          const img = firstImg?.image ?? (tasksIn[0]?.parkId != null ? parksById.get(tasksIn[0].parkId)?.card ?? null : null);
+          const fresh = freshCount(quick, c);
           return (
-            <button key={c.id} type="button" onClick={() => setView({ name: "run", kinds: c.kinds })} disabled={!open.length}
+            <button key={c.id} type="button" onClick={() => setView({ name: "run", cat: c.id })} disabled={!n}
               className="relative aspect-[4/5] overflow-hidden rounded-[18px] bg-slate-950 text-left cursor-pointer disabled:cursor-default">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {img && <img src={thumb(img)} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />}
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/35 to-slate-950/15" />
               <span className="absolute left-3.5 top-3.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-white drop-shadow">{c.title}</span>
               <span className="absolute inset-x-3.5 bottom-3.5">
-                <span className="block text-[40px] font-bold leading-none tracking-tight text-white">{open.length}</span>
+                <span className="block text-[40px] font-bold leading-none tracking-tight text-white">{n}</span>
                 <span className="mt-1 block text-[13px] text-slate-300">{c.verb}</span>
                 <Bar value={pct(done, total)} className="mt-2.5" />
                 <span className="mt-1.5 block text-[11px] text-slate-400">{fresh ? `${fresh} never framed · ` : ""}{done} of {total} done</span>
@@ -226,7 +260,7 @@ export default function CleanupClient() {
       <div className="mb-3.5 flex items-baseline justify-between"><h2 className="text-[22px] font-bold text-white">Parks</h2><span className="text-xs text-slate-500">Least finished first</span></div>
       <div className="mb-11 grid grid-cols-2 gap-2.5 md:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] md:gap-4">
         {[...data.parks].sort((a, b) => a.done / (a.total || 1) - b.done / (b.total || 1)).map((p) => {
-          const chips = CATEGORIES.map((c) => ({ c, n: c.kinds.reduce((s, k) => s + (p.open[k] ?? 0), 0) })).filter((x) => x.n);
+          const chips = CATEGORIES.map((c) => ({ c, n: categoryKeys(c).reduce((s, k) => s + (p.open[k] ?? 0), 0) })).filter((x) => x.n);
           return (
             <button key={p.id} type="button" onClick={() => setView({ name: "park", parkId: p.id })} className="overflow-hidden rounded-2xl border border-white/5 bg-[#111a2e] text-left hover:border-white/15 cursor-pointer">
               <div className="relative aspect-video bg-slate-950">

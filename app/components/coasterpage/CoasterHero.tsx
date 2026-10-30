@@ -33,9 +33,9 @@ const formatScore = (rating: number | string | null | undefined) => {
  * assumes a phone) still hydrates cleanly.
  */
 function useDesktop() {
-  const [desktop, setDesktop] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches);
+  const [desktop, setDesktop] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches);
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
+    const mq = window.matchMedia("(min-width: 640px)");
     const update = () => setDesktop(mq.matches);
     update();
     mq.addEventListener("change", update);

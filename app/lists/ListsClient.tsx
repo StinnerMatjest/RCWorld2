@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { positionCss } from "@/app/lib/framing";
 import Link from "next/link";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import { useAdminMode } from "@/app/context/AdminModeContext";
@@ -12,6 +13,8 @@ interface RankingListSummary {
     introText: string;
     createdAt: string;
     imageUrl?: string;
+    /** Position of the cover photo in its wide frame ("x y 1"). */
+    coverFocus?: string | null;
     published: boolean;
     needsReview?: boolean;
     reviewReason?: string;
@@ -153,6 +156,7 @@ const RankingsPage = ({ initialLists }: { initialLists?: RankingListSummary[] })
                                         <img
                                             src={list.imageUrl}
                                             alt={list.title}
+                                            style={{ objectPosition: positionCss(list.coverFocus) }}
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                         />
                                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-80" />

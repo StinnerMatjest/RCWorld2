@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
 import { revalidateContent } from "@/app/lib/revalidate";
+import { photoFramings } from "@/app/lib/visitHeader";
 
 export async function GET(
     req: NextRequest,
@@ -40,6 +41,7 @@ export async function GET(
             [list.id]
         );
 
+        const itemFrames = await photoFramings("list-item", itemsResult.rows.flatMap((r) => [r.image_1, r.image_2]));
         const rankingList = {
             id: list.id,
             slug: list.slug,
@@ -58,8 +60,10 @@ export async function GET(
                 subtitle: row.subtitle,
                 textBlock1: row.text_block_1,
                 image1: row.image_1,
+                image1Focus: row.image_1 ? itemFrames[row.image_1] ?? null : null,
                 textBlock2: row.text_block_2,
                 image2: row.image_2,
+                image2Focus: row.image_2 ? itemFrames[row.image_2] ?? null : null,
             })),
         };
 

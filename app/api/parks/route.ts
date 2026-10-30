@@ -1,5 +1,6 @@
 import { slugify } from "@/app/lib/slug";
 import { pool } from "@/app/lib/db";
+import { ensureVisitHeaderColumns } from "@/app/lib/visitHeader";
 import { getImageSizes } from "@/app/lib/imageDims";
 import { validCut } from "@/app/lib/cardCut";
 import { revalidateContent } from "@/app/lib/revalidate";
@@ -24,10 +25,12 @@ export async function GET() {
         slug,
         image_focus AS "imageFocus",
         header_focus AS "headerFocus",
+        header_focus_mobile AS "headerFocusMobile",
         card_images AS "cardImages",
         card_cut AS "cardCut"
       FROM parks
     `;
+    await ensureVisitHeaderColumns();
     const result = await pool.query(query);
 
     // Pixel sizes of every photo referenced, so cards can pick the exact file.

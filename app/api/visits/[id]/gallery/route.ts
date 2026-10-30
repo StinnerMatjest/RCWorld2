@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { pool } from "@/app/lib/db";
 import { getParkName, logChange } from "@/app/lib/changelog";
+import { photoFramings } from "@/app/lib/visitHeader";
 
 // The photo deck / strip at the top of the park page shows the photos flagged
 // here (none flagged = every photo), each framed by its focus ("cx cy zoom",
@@ -38,7 +39,8 @@ export async function GET(
             [visitId]
         );
 
-        return NextResponse.json({ gallery: res.rows });
+        const tiles = await photoFramings("gallery-tile", res.rows.map((r) => r.path));
+        return NextResponse.json({ gallery: res.rows.map((r) => ({ ...r, tile_focus: tiles[r.path] ?? null })) });
     } catch (error) {
         console.error("Failed to fetch visit gallery:", error);
         return NextResponse.json({ error: "Failed to fetch gallery images" }, { status: 500 });

@@ -26,6 +26,10 @@ export interface CoasterGalleryImage {
   featured?: boolean;
   /** Framing in the 4:5 deck card / strip tile ("cx cy zoom"); null or absent = plain cover. */
   focus?: string | null;
+  /** Position of the photo in its gallery tile ("x y 1"); null = centred. */
+  tile_focus?: string | null;
+  /** Position as a photo break between review sections ("desktop|phone"); null = centred. */
+  break_focus?: string | null;
 }
 
 /** A neighbour in a ranking list or a sibling coaster at the same park. */

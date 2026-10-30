@@ -8,12 +8,16 @@ import styles from "./SectionImage.module.css";
 // The frame is a bit taller on mobile and shorter on desktop (responsive aspect),
 // driven by the --aspect-m / --aspect-d custom properties.
 export function SectionImage({
-  src, alt, cx, cy, mobileAspect, desktopAspect, sizes,
+  src, alt, cx, cy, mcx, mcy, mobileAspect, desktopAspect, sizes,
 }: {
   src: string;
   alt: string;
+  /** Position in the desktop frame (object-position, 0-1). */
   cx: number;
   cy: number;
+  /** Position in the phone frame; absent = the desktop position. */
+  mcx?: number;
+  mcy?: number;
   mobileAspect: string;
   desktopAspect: string;
   sizes: string;
@@ -21,7 +25,7 @@ export function SectionImage({
   return (
     <div
       className={`${styles.frame} relative w-full overflow-hidden rounded-2xl`}
-      style={{ "--aspect-m": mobileAspect, "--aspect-d": desktopAspect } as CSSProperties}
+      style={{ "--aspect-m": mobileAspect, "--aspect-d": desktopAspect, "--pos-d": `${cx * 100}% ${cy * 100}%`, "--pos-m": `${(mcx ?? cx) * 100}% ${(mcy ?? cy) * 100}%` } as CSSProperties}
     >
       <R2Image
         src={src}
@@ -29,8 +33,7 @@ export function SectionImage({
         fill
         sizes={sizes}
         quality={90}
-        style={{ objectPosition: `${cx * 100}% ${cy * 100}%` }}
-        className="object-cover rounded-2xl"
+        className={`object-cover rounded-2xl ${styles.pos}`}
       />
     </div>
   );

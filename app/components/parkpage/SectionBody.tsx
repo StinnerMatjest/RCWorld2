@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { splitMedia, parseFocusStr } from "../FocusedImage";
+import { splitFocusPair } from "@/app/lib/framing";
 import { SectionImage } from "../SectionImage";
 import { SECTION_IMAGE_ASPECT, resolveSectionLayout } from "@/app/utils/sectionImageAspect";
 import { MarkdownText } from "../MarkdownText";
@@ -88,7 +89,10 @@ export function SectionBody({
 
   const renderMedia = (entry: string, index: number, isHalf = false) => {
     const { url, focus } = splitMedia(entry);
-    const pan = parseFocusStr(focus);
+    // "desktop|phone": each frame shape has its own position (phone falls back to desktop).
+    const pair = splitFocusPair(focus);
+    const pan = parseFocusStr(pair.desktop);
+    const panPhone = pair.phone ? parseFocusStr(pair.phone) : null;
     const a = resolved.mode === "row" && resolved.tall ? SECTION_IMAGE_ASPECT.tall : (isRow || isHalf) ? SECTION_IMAGE_ASPECT.row : SECTION_IMAGE_ASPECT.full;
     const clickable = !!onMediaClick;
     const caption = captions?.[url];
@@ -115,6 +119,8 @@ export function SectionBody({
             alt={altLabel}
             cx={pan.cx}
             cy={pan.cy}
+            mcx={panPhone?.cx}
+            mcy={panPhone?.cy}
             mobileAspect={a.mobile}
             desktopAspect={a.desktop}
             sizes={isRow

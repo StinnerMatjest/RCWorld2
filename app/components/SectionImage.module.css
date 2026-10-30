@@ -5,8 +5,16 @@
   aspect-ratio: var(--aspect-m);
 }
 
+/* Position of the photo in the frame: its own value per frame shape. */
+.pos {
+  object-position: var(--pos-m);
+}
+
 @media (min-width: 768px) {
   .frame {
     aspect-ratio: var(--aspect-d);
+  }
+  .pos {
+    object-position: var(--pos-d);
   }
 }

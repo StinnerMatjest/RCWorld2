@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
 import { revalidateContent } from "@/app/lib/revalidate";
+import { photoFramings } from "@/app/lib/visitHeader";
 
 type GalleryRow = {
   id: number; title: string; path: string; description: string; is_header: boolean;
@@ -62,7 +63,10 @@ export async function GET(
       `SELECT ${COLS} FROM coastergallery WHERE coaster_id = $1 ORDER BY sort_order ASC, id ASC`,
       [coasterId]
     );
-    const gallery = galleryRes.rows;
+    const paths = galleryRes.rows.map((r) => r.path);
+    const [tiles, breaks, strip] = await Promise.all([photoFramings("gallery-tile", paths), photoFramings("photo-break", paths), photoFramings("coaster-strip", paths)]);
+    // focus = framing in the photo strip's 4:5 card (CoasterPhotoStrip).
+    const gallery = galleryRes.rows.map((r) => ({ ...r, focus: strip[r.path] ?? null, tile_focus: tiles[r.path] ?? null, break_focus: breaks[r.path] ?? null }));
     const headerImage = activeHeader?.path || null;
     const headerFocus = {
       mobile: activeHeader?.focus_mobile ?? null,

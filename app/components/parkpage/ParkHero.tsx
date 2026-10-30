@@ -31,11 +31,14 @@ function heroSources(src: string, size: { w: number; h: number }): { srcSet: str
 // breakpoint), and the translate is clamped per breakpoint so a focus point
 // saved for a frame of another shape never leaves a gap at an edge: the
 // phone's values go in --hero-tx-m/--hero-ty-m, the desktop's in -d (globals.css).
-function heroPlacement(size: { w: number; h: number }, focusStr?: string | null): React.CSSProperties {
-  const { cx, cy, zoom } = parseFocusStr(focusStr);
+function heroPlacement(size: { w: number; h: number }, focusStr?: string | null, phoneFocusStr?: string | null): React.CSSProperties {
   const a = size.w / size.h;
+  // Each frame shape has its own framing, so its own zoom: the drawn width
+  // goes in a CSS variable per breakpoint (.park-hero-img, globals.css).
+  const widthFor = (f: string | null | undefined) => { const z = parseFocusStr(f).zoom; return `max(${(100 * z).toFixed(3)}%, calc(var(--frame-h) * ${(z * a).toFixed(4)}))`; };
   // Frame aspects: 4:5 on phones, 16:9 from sm, 21:9 from lg (the vh caps are handled after hydration).
-  const clampFor = (frameAspect: number) => {
+  const clampFor = (frameAspect: number, f: string | null | undefined = focusStr) => {
+    const { cx, cy, zoom } = parseFocusStr(f);
     // Drawn size relative to the frame: cover, then zoom.
     const dw = (a > frameAspect ? frameAspect ? (a / frameAspect) : 1 : 1) * zoom; // in frame widths
     const dh = (a > frameAspect ? 1 : frameAspect / a) * zoom;                  // in frame heights
@@ -43,11 +46,12 @@ function heroPlacement(size: { w: number; h: number }, focusStr?: string | null)
     const ky = dh > 1 ? Math.min(Math.max(cy, 1 / (2 * dh)), 1 - 1 / (2 * dh)) : 0.5;
     return { tx: (-kx * 100).toFixed(3) + "%", ty: (-ky * 100).toFixed(3) + "%" };
   };
-  const m = clampFor(4 / 5);
+  const m = clampFor(4 / 5, phoneFocusStr || focusStr);
   const t = clampFor(16 / 9);
   const d = clampFor(21 / 9);
   return {
-    width: `max(${(100 * zoom).toFixed(3)}%, calc(var(--frame-h) * ${(zoom * a).toFixed(4)}))`,
+    ["--hero-w-m" as string]: widthFor(phoneFocusStr || focusStr),
+    ["--hero-w-d" as string]: widthFor(focusStr),
     height: "auto",
     aspectRatio: `${size.w} / ${size.h}`,
     left: "50%",
@@ -56,6 +60,18 @@ function heroPlacement(size: { w: number; h: number }, focusStr?: string | null)
     ["--hero-tx-s" as string]: t.tx, ["--hero-ty-s" as string]: t.ty,
     ["--hero-tx-d" as string]: d.tx, ["--hero-ty-d" as string]: d.ty,
   } as React.CSSProperties;
+}
+
+/** True from 640 px, where the hero is wide (16:9, then 21:9). Read synchronously so the right framing is used from the first client render. */
+function useWideHero(): boolean {
+  const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)");
+    const set = () => setWide(mq.matches); set();
+    mq.addEventListener("change", set);
+    return () => mq.removeEventListener("change", set);
+  }, []);
+  return wide;
 }
 
 interface ParkHeroProps {
@@ -80,6 +96,9 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
   const ownHeader = visit?.headerImagepath || null;
   const headerSrc = ownHeader ?? park.imagepath;
   const headerFocus = (ownHeader ? visit?.headerFocus : park.headerFocus) ?? undefined;
+  // The tall phone frame has its own framing (falls back to the wide one).
+  const headerFocusMobile = (ownHeader ? visit?.headerFocusMobile : park.headerFocusMobile) || headerFocus;
+  const wideHero = useWideHero();
   const headerSize = ownHeader ? visit?.headerImageSize : park.imageSize;
   // The photo is never painted half-arrived: it stays invisible until the
   // whole file is in, then fades up over 700 ms. The inline script after the
@@ -119,8 +138,8 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
               key={headerSrc}
               src={headerSrc}
               alt={park.name}
-              focusStr={headerFocus}
-              placement={headerSize ? heroPlacement(headerSize, headerFocus) : undefined}
+              focusStr={wideHero ? headerFocus : headerFocusMobile}
+              placement={headerSize ? heroPlacement(headerSize, headerFocus, headerFocusMobile) : undefined}
               {...(headerSize ? heroSources(headerSrc, headerSize) : {})}
               className="absolute inset-0"
               imgClassName={`park-hero-img hero-reveal ${imageLoaded ? "is-loaded" : ""}`}
@@ -194,6 +213,7 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
           visitCount={visitCount}
           currentImagePath={headerSrc}
           currentHeaderFocus={headerFocus}
+          currentHeaderFocusMobile={(ownHeader ? visit?.headerFocusMobile : park.headerFocusMobile) ?? null}
           parkImagePath={park.imagepath}
           currentCardImagepath={park.cardImagepath}
           currentFocus={park.imageFocus}

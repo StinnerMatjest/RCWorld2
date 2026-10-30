@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { parseFocusStr, splitMedia } from "../FocusedImage";
+import { withPhoneOf } from "@/app/lib/framing";
 import {
   sectionImageFrame,
   normalizeSectionLayout,
@@ -332,7 +333,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   }, [patch, selectedCat]);
   const updateFocus = useCallback((index: number, focus: string) => patch(c => {
     const focuses = [...c.focuses];
-    focuses[index] = focus;
+    focuses[index] = withPhoneOf(focus, c.focuses[index]);
     return { ...c, focuses };
   }), [patch]);
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { positionCss } from "@/app/lib/framing";
 import { R2Image } from "../R2Image";
 import ImageUploaderModal from "@/app/components/ImageUploaderModal";
 import { useAdminMode } from "../../context/AdminModeContext";
@@ -45,6 +46,8 @@ export type VisitGalleryImage = {
   description: string;
   /** Shown in the deck / strip at the top of the page (none flagged = all shown). */
   featured?: boolean;
+  /** Position of the photo in its gallery tile ("x y 1"); null = centred. */
+  tile_focus?: string | null;
   /** Framing in the 4:5 deck card / strip tile ("cx cy zoom"); null or absent = plain cover. */
   focus?: string | null;
 };
@@ -577,6 +580,7 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
                     alt={img.title || "Gallery"}
                     width={400}
                     height={300}
+                    style={{ objectPosition: positionCss(img.tile_focus) }}
                     className="rounded-xl object-cover h-40 md:h-48 w-full transition-transform duration-500 group-hover:scale-105 pointer-events-none"
                   />
                 )}

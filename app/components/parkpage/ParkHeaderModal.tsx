@@ -29,6 +29,8 @@ export interface ParkHeaderModalProps {
   /** Header shown for that visit today: its own, or the park's. */
   currentImagePath: string | null;
   currentHeaderFocus?: string;
+  /** Its own framing for the tall phone hero; null = it follows the wide one. */
+  currentHeaderFocusMobile?: string | null;
   /** The park's own header, which the home card falls back to. */
   parkImagePath?: string | null;
   currentCardImagepath?: string | null;
@@ -336,7 +338,7 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, onChange, edi
  * ScaledLayer sized like the real page frame, so the text falls on the same
  * part of the photo as on the page, which is how a crop is judged.
  */
-function HeaderFace({ parkName, city, country, continent, phone, hint, overall = null, ranks = null }: {
+export function HeaderFace({ parkName, city, country, continent, phone, hint, overall = null, ranks = null }: {
   parkName: string; city?: string; country?: string; continent?: string; phone: boolean; hint?: boolean;
   overall?: number | null; ranks?: ParkRanks | null;
 }) {
@@ -387,7 +389,7 @@ function HeaderFace({ parkName, city, country, continent, phone, hint, overall =
 const avg2 = (a: number, b: number) => (Number(a) + Number(b)) / 2;
 
 /** The home card's text and gradients, copied from FullBleedRatingCard at real size. */
-function CardFace({ parkName, parkCountry, rating }: { parkName: string; parkCountry?: string; rating?: Visit | null }) {
+export function CardFace({ parkName, parkCountry, rating }: { parkName: string; parkCountry?: string; rating?: Visit | null }) {
   const overall = rating ? Number(rating.overall) : 8.5;
   const groups = rating
     ? [
@@ -431,7 +433,7 @@ function CardFace({ parkName, parkCountry, rating }: { parkName: string; parkCou
 }
 
 /** Draws children at their real size (w × h CSS px), shrunk to fit a frame scaled by `scale`. */
-function ScaledLayer({ w, h, scale, children }: { w: number; h: number; scale: number; children: React.ReactNode }) {
+export function ScaledLayer({ w, h, scale, children }: { w: number; h: number; scale: number; children: React.ReactNode }) {
   return (
     <div className="absolute left-0 top-0" style={{ width: w, height: h, transform: `scale(${scale})`, transformOrigin: "top left" }}>
       {children}
@@ -615,7 +617,7 @@ function GalleryView({
 const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   parkId, parkName, parkCountry, parkCity, parkContinent,
   visitId, visitDate, visitCount = 1,
-  currentImagePath, currentHeaderFocus, parkImagePath,
+  currentImagePath, currentHeaderFocus, currentHeaderFocusMobile = null, parkImagePath,
   currentCardImagepath, currentFocus, cardRating, heroOverall = null, heroRanks = null,
   onClose, onSuccess,
 }) => {
@@ -630,6 +632,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
     return () => window.removeEventListener("resize", check);
   }, []);
   const headerEditorRef = useRef<CropEditorHandle | null>(null);
+  const tallEditorRef = useRef<CropEditorHandle | null>(null);
   const cardEditorRef = useRef<CropEditorHandle | null>(null);
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -641,11 +644,14 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   const initial = useRef({
     headerPath: currentImagePath ?? "",
     headerFocus: currentHeaderFocus ?? "0.5 0.5 1",
+    headerFocusMobile: currentHeaderFocusMobile ?? null,
     cardPath: currentCardImagepath ?? null,
     cardFocus: currentFocus ?? "0.5 0.5 1",
   }).current;
   const [headerPath, setHeaderPath] = useState(initial.headerPath);
   const [headerFocus, setHeaderFocus] = useState(initial.headerFocus);
+  // The tall phone hero's own framing; null while it follows the wide one.
+  const [headerFocusMobile, setHeaderFocusMobile] = useState<string | null>(initial.headerFocusMobile);
   const [cardPath, setCardPath] = useState<string | null>(initial.cardPath);
   const [cardFocus, setCardFocus] = useState(initial.cardFocus);
   // Follow the drag live in the phone previews.
@@ -664,7 +670,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
 
   const focusNow = (ref: React.MutableRefObject<CropEditorHandle | null>, committed: string) =>
     ref.current?.touched?.() ? ref.current.getFocus() : committed;
-  const headerChanged = headerPath !== initial.headerPath || headerFocus !== initial.headerFocus;
+  const headerChanged = headerPath !== initial.headerPath || headerFocus !== initial.headerFocus || headerFocusMobile !== initial.headerFocusMobile;
   const cardChanged = cardPath !== initial.cardPath || cardFocus !== initial.cardFocus;
 
   // Card frame: the home card exactly as this screen draws it, shrunk only if
@@ -678,6 +684,8 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   const [pageH, setPageH] = useState(1920 * 9 / 21);
   const pageFrameH = (w: number, h: number) =>
     w >= 1024 ? Math.min(w * 9 / 21, h * 0.68) : w >= 640 ? Math.min(w * 9 / 16, h * 0.82) : Math.min(w * 5 / 4, h * 0.82);
+  // Below 640 px the page hero is the tall phone frame, so the editor edits the tall framing.
+  const editsTall = pageW < 640;
   const headerWrapRef = useRef<HTMLDivElement>(null);
   const [headerFrameW, setHeaderFrameW] = useState(0);
   // Follow the frame's real width: on phones it widens once the phone layout kicks in.
@@ -717,6 +725,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   function handleGalleryClick(img: GalleryImage) {
     if (mode === "header") {
       setHeaderPath(img.path);
+      setHeaderFocusMobile(null); // a tall framing belongs to the old photo
     } else {
       setCardPath(img.path === parkHeader ? null : img.path);
     }
@@ -741,6 +750,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
       if (xhr.status >= 200 && xhr.status < 300) {
         const { imagePath } = JSON.parse(xhr.responseText);
         setHeaderPath(imagePath);
+        setHeaderFocusMobile(null);
         setImages(prev => [{ id: Date.now(), title: `${parkName}-header`, path: imagePath, visit_id: visitId ?? undefined, visit_date: visitDate ?? undefined }, ...prev]);
         setGalleryOpen(false);
       } else alert("Upload failed.");
@@ -753,9 +763,14 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   // One save for everything changed, whichever tab is open: switching tabs
   // used to drop the other tab's unsaved photo.
   async function save() {
-    const hFocus = focusNow(headerEditorRef, headerFocus);
+    // On a phone the main editor holds the tall framing; on wider screens the wide one,
+    // with the tall one in its own editor beside it (or following the wide one).
+    const hFocus = editsTall ? headerFocus : focusNow(headerEditorRef, headerFocus);
+    const tFocus = editsTall
+      ? (headerEditorRef.current?.touched?.() ? headerEditorRef.current.getFocus() : headerFocusMobile)
+      : headerFocusMobile === null ? null : focusNow(tallEditorRef, headerFocusMobile);
     const cFocus = focusNow(cardEditorRef, cardFocus);
-    const doHeader = headerPath !== initial.headerPath || hFocus !== initial.headerFocus;
+    const doHeader = headerPath !== initial.headerPath || hFocus !== initial.headerFocus || tFocus !== initial.headerFocusMobile;
     const doCard = cardPath !== initial.cardPath || cFocus !== initial.cardFocus;
     if (!doHeader && !doCard) { onClose(); return; }
     setSaving(true);
@@ -765,12 +780,12 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
         const res = visitId
           ? await fetch(`/api/visits/${visitId}/header`, {
               method: "PATCH", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ imagepath: headerPath, focus: hFocus }),
+              body: JSON.stringify({ imagepath: headerPath, focus: hFocus, focusMobile: tFocus }),
             })
           : await fetch(`/api/park/${parkId}`, {
               method: "PATCH", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                imagepath: headerPath, headerFocus: hFocus,
+                imagepath: headerPath, headerFocus: hFocus, headerFocusMobile: tFocus,
                 // A card without its own photo follows the header; the old crop was for the old photo.
                 ...(!doCard && cardPath === null && headerPath !== parkHeader ? { imageFocus: "0.5 0.5 1" } : {}),
               }),
@@ -802,7 +817,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
         Change image
       </button>
       {extra}
-      <button onClick={save} disabled={saving || (!headerChanged && !cardChanged && !headerEditorRef.current?.touched?.() && !cardEditorRef.current?.touched?.())}
+      <button onClick={save} disabled={saving || (!headerChanged && !cardChanged && !headerEditorRef.current?.touched?.() && !tallEditorRef.current?.touched?.() && !cardEditorRef.current?.touched?.())}
         className="flex-1 min-w-[10rem] py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors cursor-pointer disabled:cursor-default">
         {saving ? "Saving…" : headerChanged && cardChanged ? "Save header and card" : "Save changes"}
       </button>
@@ -865,13 +880,13 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                   {/* On phones the frame runs edge to edge like the page itself. */}
                   <div ref={headerWrapRef} className={isMobile ? "-mx-6" : ""}>
                     <CropEditor
-                      key={`h-${headerPath}-${isMobile}`}
+                      key={`h-${headerPath}-${isMobile}-${editsTall}`}
                       editorRef={headerEditorRef}
                       src={headerPath}
                       aspectRatio={`${Math.round(pageW)}/${Math.round(pageH)}`}
-                      focusStr={headerFocus}
-                      onCommit={setHeaderFocus}
-                      onChange={live(setLiveHeaderFocus)}
+                      focusStr={editsTall ? headerFocusMobile ?? headerFocus : headerFocus}
+                      onCommit={editsTall ? setHeaderFocusMobile : setHeaderFocus}
+                      onChange={editsTall ? undefined : live(setLiveHeaderFocus)}
                       className={isMobile ? "w-full" : "w-full rounded-2xl"}
                     >
                       {headerFrameW > 0 && (
@@ -881,15 +896,41 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                       )}
                     </CropEditor>
                   </div>
+                  {isMobile && editsTall && (
+                    <p className="text-xs text-slate-500 -mt-2 px-1">The tall phone framing. The wide desktop framing is set on a computer or in the clean-up tool.</p>
+                  )}
                   {!isMobile && (
                     <p className="text-xs text-slate-500 -mt-3">Header on this screen, {Math.round(pageW)} × {Math.round(pageH)}. Phones below.</p>
                   )}
-                  {!isMobile && (
+                  {!isMobile && !editsTall && (
                     <figure className="flex flex-col gap-1.5">
-                      <LiveFrame src={headerPath} focus={liveHeaderFocus} w={PHONE_HERO.w} h={PHONE_HERO.h} scale={1} className="rounded-xl">
-                        <HeaderFace parkName={parkName} city={parkCity} country={parkCountry} continent={parkContinent} phone overall={heroOverall} ranks={heroRanks} />
-                      </LiveFrame>
-                      <figcaption className="text-xs text-slate-500">Phone</figcaption>
+                      {/* The tall phone hero: follows the wide framing until it gets its own. */}
+                      {headerFocusMobile === null ? (
+                        <LiveFrame src={headerPath} focus={liveHeaderFocus} w={PHONE_HERO.w} h={PHONE_HERO.h} scale={1} className="rounded-xl">
+                          <HeaderFace parkName={parkName} city={parkCity} country={parkCountry} continent={parkContinent} phone overall={heroOverall} ranks={heroRanks} />
+                        </LiveFrame>
+                      ) : (
+                        <CropEditor
+                          key={`t-${headerPath}`}
+                          editorRef={tallEditorRef}
+                          src={headerPath}
+                          focusStr={headerFocusMobile}
+                          onCommit={setHeaderFocusMobile}
+                          className="rounded-xl"
+                          style={{ width: PHONE_HERO.w, height: PHONE_HERO.h }}
+                        >
+                          <ScaledLayer w={PHONE_HERO.w} h={PHONE_HERO.h} scale={1}>
+                            <HeaderFace parkName={parkName} city={parkCity} country={parkCountry} continent={parkContinent} phone overall={heroOverall} ranks={heroRanks} />
+                          </ScaledLayer>
+                        </CropEditor>
+                      )}
+                      <figcaption className="flex flex-wrap items-center gap-x-3 text-xs text-slate-500">
+                        <span>Phone · {headerFocusMobile === null ? "follows the wide framing" : "its own framing, drag to adjust"}</span>
+                        <button type="button" onClick={() => setHeaderFocusMobile(headerFocusMobile === null ? liveHeaderFocus : null)}
+                          className="font-bold text-blue-400 hover:text-blue-300 cursor-pointer">
+                          {headerFocusMobile === null ? "Frame the phone separately" : "Follow the wide framing"}
+                        </button>
+                      </figcaption>
                     </figure>
                   )}
                   {saveRow()}

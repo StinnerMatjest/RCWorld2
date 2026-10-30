@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { positionCss } from "@/app/lib/framing";
 import type { RankingListItem } from "@/app/types";
 
 interface Props {
@@ -41,6 +42,7 @@ const ListItem: React.FC<Props> = ({ item }) => {
                 <img
                   src={item.image1}
                   alt={`${item.title} - view 1`}
+                  style={{ objectPosition: positionCss(item.image1Focus) }}
                   className="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out"
                   loading="lazy"
                 />
@@ -57,6 +59,7 @@ const ListItem: React.FC<Props> = ({ item }) => {
                 <img
                   src={item.image2}
                   alt={`${item.title} - view 2`}
+                  style={{ objectPosition: positionCss(item.image2Focus) }}
                   className="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out"
                   loading="lazy"
                 />

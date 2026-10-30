@@ -6,7 +6,16 @@ import CoasterReviewEditor from "./CoasterReviewEditor";
 import { SectionBody, mediaCaptions } from "../parkpage/SectionBody";
 import { SectionImage } from "../SectionImage";
 import { SECTION_IMAGE_ASPECT, usesLegacyRow } from "@/app/utils/sectionImageAspect";
-import { splitMedia } from "../FocusedImage";
+import { splitMedia, parseFocusStr } from "../FocusedImage";
+import { splitFocusPair } from "@/app/lib/framing";
+
+/** A photo break's positions ("desktop|phone"), centred when never set. */
+function breakPosition(v: string | null | undefined) {
+  const pair = splitFocusPair(v);
+  const d = parseFocusStr(pair.desktop);
+  const m = pair.phone ? parseFocusStr(pair.phone) : null;
+  return { cx: d.cx, cy: d.cy, mcx: m?.cx, mcy: m?.cy };
+}
 import type { CoasterTextEntry, CoasterGalleryImage } from "./coasterPageTypes";
 
 export type { CoasterTextEntry } from "./coasterPageTypes";
@@ -124,8 +133,7 @@ const CoasterText: React.FC<Props> = ({ coasterId, coasterName, initialTexts, re
                       <SectionImage
                         src={photoBreak.path}
                         alt={photoBreak.description || photoBreak.title || coasterName}
-                        cx={0.5}
-                        cy={0.5}
+                        {...breakPosition(photoBreak.break_focus)}
                         mobileAspect={SECTION_IMAGE_ASPECT.full.mobile}
                         desktopAspect={SECTION_IMAGE_ASPECT.full.desktop}
                         sizes="(min-width: 1024px) 60vw, 100vw"

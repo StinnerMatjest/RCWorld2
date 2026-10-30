@@ -8,8 +8,8 @@ import AuthenticationModal from "./AuthenticationModal";
 const AdminToggle = () => {
   const { isAdminMode, toggleAdminMode, welcomeMessage } = useAdminMode();
   const pathname = usePathname();
-  // Rankle's mobile bet sheet docks to the bottom edge; keep the toggle out of its way
-  const hideOnMobile = pathname?.startsWith("/games/rankle");
+  // Rankle's mobile bet sheet and the clean-up tool's Save bar dock to the bottom edge; keep the toggle out of their way
+  const hideOnMobile = pathname?.startsWith("/games/rankle") || pathname?.startsWith("/cleanup");
 
   const [unlocked, setUnlocked] = useState(false);
   const [showAuth, setShowAuth] = useState(false);

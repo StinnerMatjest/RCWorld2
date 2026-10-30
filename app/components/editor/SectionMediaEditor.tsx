@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { withPhoneOf } from "@/app/lib/framing";
 import { parseFocusStr } from "../FocusedImage";
 import {
   sectionImageFrame,
@@ -442,7 +443,7 @@ export function SectionMediaPanel({
   });
   const updateFocus = (index: number, focus: string) => patch((c) => {
     const focuses = [...c.focuses];
-    focuses[index] = focus;
+    focuses[index] = withPhoneOf(focus, c.focuses[index]);
     return { ...c, focuses };
   });
 

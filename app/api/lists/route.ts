@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
 import { revalidateContent } from "@/app/lib/revalidate";
+import { photoFramings } from "@/app/lib/visitHeader";
 
 export async function GET() {
     try {
@@ -23,6 +24,7 @@ export async function GET() {
 
         const result = await pool.query(query);
 
+        const covers = await photoFramings("list-cover", result.rows.map((r) => r.image_url));
         const rankingLists = result.rows.map((row) => ({
             id: row.id,
             slug: row.slug,
@@ -30,6 +32,7 @@ export async function GET() {
             introText: row.intro_text,
             createdAt: row.created_at,
             imageUrl: row.image_url,
+            coverFocus: row.image_url ? covers[row.image_url] ?? null : null,
             published: row.published,
             needsReview: row.needsReview,
             reviewReason: row.reviewReason,
