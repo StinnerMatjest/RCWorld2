@@ -1,85 +1,56 @@
 import { variantUrl } from "@/app/lib/imageVariants";
-import type { CleanupData, CleanupKind, CleanupPerson, CleanupTask, FrameSlot, SlotKind } from "@/app/lib/cleanup";
+import type { CleanupData, CleanupKind, CleanupPerson, CleanupTask, FramePlace, FrameSlot, PlaceKind, SlotView } from "@/app/lib/cleanup";
+import { groupOf } from "@/app/lib/cleanupGroup";
 
-export type { CleanupData, CleanupKind, CleanupPerson, CleanupTask, FrameSlot, SlotKind };
+export type { CleanupData, CleanupKind, CleanupPerson, CleanupTask, FramePlace, FrameSlot, PlaceKind, SlotView };
+export { groupOf };
 export const PEOPLE: CleanupPerson[] = ["Jannik", "Nicklas"];
 export const PERSON_KEY = "parkrating_cleanup_person";
 
-/** A tile on the overview: a group of photo formats, or a kind of other quick fix. */
-export interface Category { id: string; title: string; verb: string; slots?: SlotKind[]; kinds?: CleanupKind[] }
-export const CATEGORIES: Category[] = [
-  { id: "covers", title: "Page covers", verb: "phone and desktop to frame", slots: ["hero-phone", "hero-desktop"] },
-  { id: "cards", title: "Front page cards", verb: "to frame", slots: ["card"] },
-  { id: "curated", title: "Curated & strips", verb: "cards to frame", slots: ["curated", "coaster-strip"] },
-  { id: "breaks", title: "Photo breaks", verb: "to frame", slots: ["break-phone", "break-desktop"] },
-  { id: "lists", title: "List photos", verb: "to frame", slots: ["list-item", "list-cover"] },
-  { id: "curated-pick", title: "Curated picks", verb: "parks to pick for", kinds: ["curated-pick"] },
-  { id: "section-needs-photo", title: "Sections", verb: "without a photo", kinds: ["section-needs-photo"] },
-  { id: "caption", title: "Captions", verb: "to fix", kinds: ["caption"] },
+/** A row on the overview: one or more task groups (see groupOf). */
+export interface Category { id: string; title: string; groups: string[]; /** Opens a list of links instead of the runner. */ list?: boolean }
+export const FRAMING: Category[] = [
+  { id: "card", title: "Front page cards", groups: ["place:card"] },
+  { id: "park-cover", title: "Park page covers", groups: ["place:park-cover"] },
+  { id: "coaster-cover", title: "Coaster page covers", groups: ["place:coaster-cover"] },
+  { id: "curated", title: "Curated images", groups: ["place:curated", "place:coaster-curated"] },
+  { id: "break", title: "Photo breaks", groups: ["place:break"] },
+  { id: "list-photo", title: "List photos", groups: ["place:list-photo"] },
 ];
+export const QUICK: Category[] = [
+  { id: "caption", title: "Captions", groups: ["caption"] },
+  { id: "curated-pick", title: "Curated images to pick", groups: ["curated-pick"] },
+];
+export const ON_PAGE: Category[] = [
+  { id: "section-needs-photo", title: "Review sections without a photo", groups: ["section-needs-photo"], list: true },
+  { id: "coaster-review", title: "Reviews to write", groups: ["coaster-review"], list: true },
+  { id: "coaster-photos", title: "Coasters without photos", groups: ["coaster-photos"], list: true },
+];
+export const CATEGORIES = [...FRAMING, ...QUICK, ...ON_PAGE];
+export const categoryOf = (t: CleanupTask) => CATEGORIES.find((c) => c.groups.includes(groupOf(t)));
 
-/** Short names for a format, as on the tabs. */
-export const SLOT_SHORT: Record<SlotKind, string> = {
-  "hero-phone": "Cover · phone", "hero-desktop": "Cover · desktop", card: "Front page card", curated: "Curated card", "coaster-strip": "Strip card",
-  section: "Review", "section-phone": "Review · phone", "section-desktop": "Review · desktop", "break-phone": "Break · phone", "break-desktop": "Break · desktop",
-  tile: "Gallery tile", "list-item": "List photo", "list-cover": "List cover",
+/** What a framing place is called, by kind. */
+export const PLACE_TITLE: Record<PlaceKind, string> = {
+  card: "Front page card", "park-cover": "Park page cover", "coaster-cover": "Coaster page cover",
+  curated: "Curated image", "coaster-curated": "Curated image", break: "Photo break", "list-photo": "List photo",
 };
 
-export const KIND_LABEL: Record<CleanupKind, string> = {
-  photo: "Framing", caption: "Caption", "curated-pick": "Curated photos", "section-needs-photo": "Review section",
-  "coaster-review": "Review to write", "coaster-photos": "Photos missing",
-};
-
-/** The slots still open, optionally only those of some formats. */
-export const openSlots = (t: CleanupTask, only?: SlotKind[]) => (t.slots ?? []).filter((s) => !s.done && (!only || only.includes(s.kind)));
-
-export function taskTitle(t: CleanupTask, only?: SlotKind[]): string {
-  switch (t.kind) {
-    case "photo": {
-      const open = openSlots(t, only);
-      const name = t.coasterName ?? t.parkName;
-      if (open.some((s) => s.kind === "hero-phone" || s.kind === "hero-desktop")) return `Frame ${name}'s page cover`;
-      if (open.some((s) => s.kind === "card")) return `Frame ${t.parkName}'s front page card`;
-      return "Frame this photo";
-    }
-    case "caption": return "Caption this photo";
-    case "curated-pick": return `Pick ${t.parkName}'s curated photos`;
-    case "section-needs-photo": return `Add a photo to ${t.section?.heading ?? "this section"}`;
-    case "coaster-review": return `Write ${t.coasterName}'s review`;
-    case "coaster-photos": return `Photos for ${t.coasterName}`;
-  }
-}
-
-export function taskWhere(t: CleanupTask): string {
-  const bits = [t.coasterName ? `${t.coasterName} · ${t.parkName}` : t.parkName];
-  if (t.visitDate) bits.push(fmtDate(t.visitDate));
-  return bits.join(" · ");
-}
-
-/** "Cover · phone, Cover · desktop and 2 more" */
-export function slotSummary(t: CleanupTask, only?: SlotKind[]): string {
-  const names = openSlots(t, only).map((s) => SLOT_SHORT[s.kind]);
-  if (names.length <= 3) return names.join(", ");
-  return `${names.slice(0, 2).join(", ")} and ${names.length - 2} more`;
-}
-
-export const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { month: "short", year: "numeric", timeZone: "UTC" });
-export const pageUrl = (t: CleanupTask) =>
-  t.coasterSlug ? `/coasters/${t.coasterSlug}` : t.parkSlug ? `/park/${t.parkSlug}${t.visitId ? `?visit=${t.visitId}` : ""}` : t.listSlug ? `/lists/${t.listSlug}` : "/lists";
+export const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 export const thumb = (src: string | null | undefined, w = 480) => (src ? variantUrl(src, w) : "");
 
 /**
- * Random picks favour what visitors see first: heroes and front-page cards,
- * then curated cards, review photos, captions and picks, then tiles and lists.
+ * Random picks favour what visitors see first: front page cards and covers,
+ * then curated images, captions and picks, then photo breaks and list photos.
  * Never framed before already framed within each.
  */
-const FIRST: SlotKind[] = ["hero-phone", "hero-desktop", "card"];
-const LAST: SlotKind[] = ["tile", "list-item", "list-cover"];
+const TIER: Record<string, number> = {
+  "place:card": 0, "place:park-cover": 0, "place:coaster-cover": 1, "place:curated": 2, "place:coaster-curated": 3,
+  caption: 2, "curated-pick": 2, "place:break": 4, "place:list-photo": 5,
+};
 export function priority(t: CleanupTask): number {
-  if (t.kind !== "photo") return 2;
-  const open = openSlots(t);
-  const tier = open.some((s) => FIRST.includes(s.kind)) ? 0 : open.some((s) => !LAST.includes(s.kind)) ? 2 : 4;
-  return tier + (open.some((s) => s.fresh) ? 0 : 1);
+  const tier = TIER[groupOf(t)] ?? 6;
+  const fresh = t.place ? t.place.slots.some((s) => !s.done && s.fresh) : true;
+  return tier * 2 + (fresh ? 0 : 1);
 }
 export function sortQueue(ts: CleanupTask[]): CleanupTask[] {
   return [...ts].sort((a, b) => priority(a) - priority(b) || a.parkName.localeCompare(b.parkName) || a.key.localeCompare(b.key));
@@ -95,15 +66,24 @@ export function randomTask(ts: CleanupTask[], not: Set<string>): CleanupTask | n
   return from[Math.floor(Math.random() * from.length)];
 }
 
-/** Does this task belong in a category (a photo with an open format of it, or a task of its kind)? */
-export const inCategory = (t: CleanupTask, c: Category) => (c.slots ? t.kind === "photo" && openSlots(t, c.slots).length > 0 : !!c.kinds?.includes(t.kind));
-/** Open items of a category in these tasks: formats for photo groups, tasks otherwise. */
-export const openCount = (ts: CleanupTask[], c: Category) => (c.slots ? ts.reduce((n, t) => n + openSlots(t, c.slots).length, 0) : ts.filter((t) => c.kinds?.includes(t.kind)).length);
-export const categoryKeys = (c: Category) => (c.slots ? c.slots.map((s) => `slot:${s}`) : c.kinds ?? []);
+/** Open count, done and total of a category in these tasks and totals. */
+export function categoryStats(c: Category, tasks: CleanupTask[], totals: CleanupData["totals"]) {
+  const open = tasks.filter((t) => c.groups.includes(groupOf(t))).length;
+  const done = c.groups.reduce((s, g) => s + (totals[g]?.done ?? 0), 0);
+  const total = c.groups.reduce((s, g) => s + (totals[g]?.total ?? 0), 0);
+  return { open, done, total };
+}
 
 export async function api(action: string, key: string, person: CleanupPerson, extra: Record<string, unknown> = {}) {
   const res = await fetch("/api/cleanup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, key, person, ...extra }) });
   const body = await res.json().catch(() => ({}));
   if (!res.ok || !body.ok) throw new Error(body.error || (res.status === 401 ? "Log in to admin mode again." : `Failed (${res.status})`));
   return body as { ok: true; already?: boolean };
+}
+
+/** A save through one of the site's own endpoints (the ones its editors use). */
+export async function send(url: string, method: string, body: unknown) {
+  const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(res.status === 401 ? "Log in to admin mode again." : `Not saved (${res.status})`);
+  return res.json().catch(() => ({}));
 }

@@ -189,7 +189,7 @@ const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager 
   const teaserSources = entrySources(teaser);
   return (
     <div className="mx-auto w-full max-w-[400px] py-3 md:py-4">
-      <div className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
+      <div className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg" data-framing={`card:${park.id}`} data-framing-math="focused">
         {!imgReady && (
           <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute inset-0 animate-[shimmer_1.8s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
@@ -205,7 +205,7 @@ const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager 
           size={teaserSources ? undefined : teaser.size}
           assumedScreen={ASSUMED_SCREEN[assumedScreen]}
           className="absolute inset-0"
-          imgClassName="opacity-85"
+          imgClassName="opacity-85 framing-photo"
           priority={eager}
           variants={!park.cardCut}
           onLoad={() => {
@@ -436,7 +436,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
       <div
         className="mx-auto w-full max-w-[400px] py-3 md:py-4 [@media(hover:hover)]:hover:scale-105 transition-transform duration-300 ease-in-out will-change-transform"
       >
-        <div ref={imageContainerRef} className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg">
+        <div ref={imageContainerRef} className="relative rounded-2xl overflow-hidden min-h-[500px] bg-gray-900 shadow-md dark:shadow-lg" data-framing={`card:${park.id}`} data-framing-math="card">
           {/* Shimmer placeholder while the header image is still on its way */}
           {!imgReady && (
             <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -457,7 +457,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
             // The first card is the page's largest paint: fetch it ahead of everything
             // else; the other eager cards must not compete with it for the line.
             {...(first ? { fetchPriority: "high" as const } : eager ? { fetchPriority: "low" as const } : {})}
-            className="absolute max-w-none select-none"
+            className="absolute max-w-none select-none framing-photo"
             style={header.size ? { ...ssrPlacement(header.size, header.focus), opacity: eager || !defer ? 0.95 : 0 } : { opacity: 0 }}
             data-placed={header.size ? "1" : undefined}
             draggable={false}

@@ -7,6 +7,7 @@ import Header from "./components/Header";
 import AdminToggle from "./components/admin/AdminToggle";
 import Footer from "./components/Footer";
 import Script from "next/script";
+import Analytics from "./components/Analytics";
 
 export const metadata = {
   metadataBase: new URL("https://parkrating.com"),
@@ -96,15 +97,7 @@ export default async function RootLayout({
   const headerStatus = await getHeaderStatus();
   return (
     <html lang="en" className="dark">
-      <head>
-        {/* Umami Cloud analytics */}
-        <Script
-          src="https://cloud.umami.is/script.js"
-          data-website-id="acd51e6e-baaa-4194-aaf1-41851db17222"
-          strategy="afterInteractive"
-          defer
-        />
-      </head>
+      <head />
       <body
         className={`${roboto.variable} antialiased min-h-screen flex flex-col bg-[#0f172a] text-slate-200`}
       >
@@ -112,6 +105,8 @@ export default async function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd) }}
         />
+        {/* Umami Cloud analytics (not inside the clean-up tool's previews) */}
+        <Analytics />
         <AdminModeProvider>
           <ParksProvider>
             <SearchProvider>

@@ -20,6 +20,7 @@ import PhotoViewer from "@/app/components/parkpage/PhotoViewer";
 import type { Park, Visit, RatingWarningType, RollerCoaster } from "@/app/types";
 import type { ParkRanks } from "@/app/utils/parkRanks";
 import { useAdminMode } from "@/app/context/AdminModeContext";
+import { isFramingPreview } from "@/app/lib/framingPreview";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 
 type ParkPageClientProps = {
@@ -93,6 +94,13 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
   const [sectionLayouts, setSectionLayouts] = useState<Record<string, string>>(initialSectionLayouts);
   const [sectionSpoilers, setSectionSpoilers] = useState<Record<string, boolean>>(initialSectionSpoilers);
   const { isAdminMode } = useAdminMode();
+  // The clean-up tool's preview opens the deck on the photo it frames (?framing-deck=<photo id>).
+  const [deckStart, setDeckStart] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    if (!isFramingPreview()) return;
+    const id = Number(new URLSearchParams(window.location.search).get("framing-deck"));
+    if (Number.isFinite(id) && id > 0) setDeckStart(id);
+  }, []);
 
   // --- Admin menu & delete flow ---
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -423,6 +431,7 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
               onOpen={(img) => openPhoto(img.path)}
               isAdminMode={isAdminMode}
               onEdit={() => setStripEditorOpen(true)}
+              startAt={deckStart}
             />
           )}
           <ParkCoasterList {...coasterListProps} cap={7} />
@@ -511,6 +520,8 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
           gallery={galleryImages}
           endpoint={`/api/visits/${activeRatingId}/gallery`}
           focusEditing
+          // Desktop shows the strip, phones the deck: each has its own framing.
+          framing={window.innerWidth >= 1024 ? "desktop" : "mobile"}
           emptyNote="Nothing picked: the page shows the first 12 photos."
           onClose={() => setStripEditorOpen(false)}
           onSaved={refreshGallery}

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { isFramingPreview } from "@/app/lib/framingPreview";
 
 type AdminModeContextValue = {
   isAdminMode: boolean;
@@ -29,6 +30,9 @@ export const AdminModeProvider: React.FC<{ children: React.ReactNode }> = ({
   // whose saves all get rejected with 401.
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // The clean-up tool's preview shows the page as visitors see it, and must
+    // not touch the stored preference it shares with the tool.
+    if (isFramingPreview()) { setHydrated(true); return; }
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
       if (stored === "1") {
@@ -51,6 +55,7 @@ export const AdminModeProvider: React.FC<{ children: React.ReactNode }> = ({
   // Persist changes
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (isFramingPreview()) return;
     try {
       if (isAdminMode) {
         window.localStorage.setItem(STORAGE_KEY, "1");

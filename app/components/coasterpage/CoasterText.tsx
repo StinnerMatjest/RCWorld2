@@ -129,6 +129,8 @@ const CoasterText: React.FC<Props> = ({ coasterId, coasterName, initialTexts, re
                     <div
                       className={`w-full rounded-2xl overflow-hidden shadow-sm relative group ${onMediaClick ? "cursor-zoom-in" : ""}`}
                       onClick={onMediaClick ? () => onMediaClick(photoBreak.path) : undefined}
+                      data-framing={`break:${photoBreak.path}`}
+                      data-framing-math="position"
                     >
                       <SectionImage
                         src={photoBreak.path}

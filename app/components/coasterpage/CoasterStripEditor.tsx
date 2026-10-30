@@ -19,8 +19,14 @@ interface Props {
   onSaved: () => void;
   /** Gallery API that takes PATCH {featuredIds} and PUT {reorderedIds}. Defaults to the coaster's. */
   endpoint?: string;
-  /** Lets each picked photo be framed for its 4:5 card (the API must take PATCH {focus}). */
+  /** Lets each picked photo be framed for its 4:5 card (the API must take PATCH {focus} / {stripFocus}). */
   focusEditing?: boolean;
+  /**
+   * Which framing the editor sets: "mobile" = the park page's phone deck
+   * (focus), "desktop" = the strip on the park page on desktop and on the
+   * coaster page (strip_focus, kept per photo). Default mobile.
+   */
+  framing?: "mobile" | "desktop";
   /** What the page shows when nothing is picked. */
   emptyNote?: string;
 }
@@ -63,7 +69,10 @@ const Icon = {
  * each with move-earlier / move-later buttons (and drag on desktop), framing
  * and remove; below, every photo of the gallery, where a tap adds or removes.
  */
-export default function CoasterStripEditor({ coasterId, coasterName, gallery, onClose, onSaved, endpoint, focusEditing = false, emptyNote }: Props) {
+export default function CoasterStripEditor({ coasterId, coasterName, gallery, onClose, onSaved, endpoint, focusEditing = false, framing = "mobile", emptyNote }: Props) {
+  const desktopFraming = framing === "desktop";
+  // The framing as the page shows it now: the strip falls back to the deck's.
+  const shownFocus = (g: CoasterGalleryImage) => (desktopFraming ? g.strip_focus || g.focus : g.focus) ?? null;
   useScrollLock();
   const api = endpoint ?? `/api/coasters/${coasterId}/gallery`;
 
@@ -77,13 +86,14 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
   const [error, setError] = useState<string | null>(null);
 
   // Framing per photo ("cx cy zoom"); only the changed ones are sent.
-  const [focusMap, setFocusMap] = useState<Record<number, string | null>>(() => Object.fromEntries(photos.map((g) => [g.id, g.focus ?? null])));
+  const [focusMap, setFocusMap] = useState<Record<number, string | null>>(() => Object.fromEntries(photos.map((g) => [g.id, shownFocus(g)])));
   const [focusEdit, setFocusEdit] = useState<CoasterGalleryImage | null>(null);
   const [focusDraft, setFocusDraft] = useState<string>(DEFAULT_FOCUS);
   const focusEditRef = useRef<CoasterGalleryImage | null>(null);
   focusEditRef.current = focusEdit;
   const openFocus = (img: CoasterGalleryImage) => { setFocusDraft(focusMap[img.id] || DEFAULT_FOCUS); setFocusEdit(img); };
-  const doneFocus = () => { if (focusEdit) setFocusMap((m) => ({ ...m, [focusEdit.id]: hasCustomFocus(focusDraft) ? focusDraft : null })); setFocusEdit(null); };
+  // A centred desktop framing is stored as such, so it does not fall back to the deck's.
+  const doneFocus = () => { if (focusEdit) setFocusMap((m) => ({ ...m, [focusEdit.id]: hasCustomFocus(focusDraft) || desktopFraming ? focusDraft : null })); setFocusEdit(null); };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { if (focusEditRef.current) setFocusEdit(null); else onClose(); } };
@@ -119,7 +129,7 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
       const focus: Record<number, string | null> = {};
       if (focusEditing) {
         for (const img of photos) {
-          const was = img.focus ?? null, now = focusMap[img.id] ?? null;
+          const was = shownFocus(img), now = focusMap[img.id] ?? null;
           if (was !== now) focus[img.id] = now;
         }
       }
@@ -127,7 +137,7 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
         fetch(api, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ featuredIds: order, ...(Object.keys(focus).length ? { focus } : {}) }),
+          body: JSON.stringify({ featuredIds: order, ...(Object.keys(focus).length ? (desktopFraming ? { stripFocus: focus } : { focus }) : {}) }),
         }),
       ];
       // The page shows the picked photos in gallery order, so the chosen order is
@@ -286,7 +296,11 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
                   <div className="absolute top-3 right-3 text-white/40 text-[9px] font-bold uppercase tracking-widest pointer-events-none">Drag to frame</div>
                 </CropEditor>
               </div>
-              <p className="text-xs text-slate-500 text-center">The card as it shows on a phone; the desktop strip uses the same framing. Drag only, no zoom.</p>
+              <p className="text-xs text-slate-500 text-center">
+                {desktopFraming
+                  ? "The card in the desktop strip (the coaster page shows the same). Phones have their own framing. Drag only, no zoom."
+                  : "The card in the phone deck. The desktop strip has its own framing. Drag only, no zoom."}
+              </p>
             </div>
             <div className="flex items-center gap-3 p-4 border-t border-slate-800 flex-shrink-0">
               <button type="button" onClick={() => setFocusDraft(DEFAULT_FOCUS)} className="px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-700 text-slate-300 hover:border-slate-500 transition-all cursor-pointer">Reset</button>

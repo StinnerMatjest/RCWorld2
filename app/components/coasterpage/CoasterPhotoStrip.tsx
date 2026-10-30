@@ -21,6 +21,8 @@ interface Props {
 }
 
 const isVideo = (src: string) => /\.(mp4|webm|ogg)$/i.test(src);
+/** The strip card's framing: the curated image's desktop framing, else its phone-deck one. */
+const stripFocus = (img: CoasterGalleryImage) => img.strip_focus || img.focus;
 
 /**
  * A swipeable film strip of photos right under the hero, so the pictures come
@@ -102,7 +104,9 @@ export default function CoasterPhotoStrip({ images, coasterName, onOpen, isAdmin
               onClick={() => onOpen(img.path)}
               className="relative flex-shrink-0 snap-start w-[62vw] max-w-[260px] sm:w-56 lg:w-64 aspect-[4/5] rounded-2xl overflow-hidden bg-slate-900 group/item cursor-zoom-in"
               title={img.description || img.title}
-              {...(hasCustomFocus(img.focus) ? { "data-focus": img.focus as string } : {})}
+              {...(hasCustomFocus(stripFocus(img)) ? { "data-focus": stripFocus(img) as string } : {})}
+              data-framing={`strip:${img.path}`}
+              data-framing-math="cover"
             >
               {isVideo(img.path) ? (
                 <video src={img.path} className="absolute inset-0 w-full h-full object-cover" muted playsInline preload="metadata" />
@@ -116,8 +120,8 @@ export default function CoasterPhotoStrip({ images, coasterName, onOpen, isAdmin
                   // source pixels to fill it. The hint asks for that, so the
                   // browser never picks a variant it would have to enlarge.
                   sizes="(min-width: 1024px) 570px, (min-width: 640px) 500px, 138vw"
-                  className="object-cover transition-transform duration-500 group-hover/item:scale-[1.03]"
-                  onLoad={(e) => { if (hasCustomFocus(img.focus)) placeCover(e.currentTarget, img.focus); }}
+                  className="object-cover transition-transform duration-500 group-hover/item:scale-[1.03] framing-photo"
+                  onLoad={(e) => { const f = stripFocus(img); if (hasCustomFocus(f)) placeCover(e.currentTarget, f); }}
                 />
               )}
               {img.description && (

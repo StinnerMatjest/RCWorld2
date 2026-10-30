@@ -128,6 +128,8 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
       <section
         ref={frameRef}
         className="park-hero-frame relative w-full overflow-hidden bg-slate-950 aspect-[4/5] sm:aspect-[16/9] lg:aspect-[21/9] max-h-[82vh] lg:max-h-[68vh]"
+        data-framing="park-cover"
+        data-framing-math="focused"
       >
         <div
           className={`absolute inset-0 ${onOpenPhoto && headerSrc ? "cursor-zoom-in" : ""}`}
@@ -142,7 +144,7 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
               placement={headerSize ? heroPlacement(headerSize, headerFocus, headerFocusMobile) : undefined}
               {...(headerSize ? heroSources(headerSrc, headerSize) : {})}
               className="absolute inset-0"
-              imgClassName={`park-hero-img hero-reveal ${imageLoaded ? "is-loaded" : ""}`}
+              imgClassName={`park-hero-img hero-reveal framing-photo ${imageLoaded ? "is-loaded" : ""}`}
               priority
               // The inline script below may add is-loaded before React hydrates.
               suppressHydrationWarning

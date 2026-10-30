@@ -29,13 +29,18 @@ export function placeCover(img: HTMLImageElement, focus: string | null | undefin
   if (!c || !nw || !nh) return;
   const W = c.clientWidth, H = c.clientHeight;
   if (!W || !H) return;
+  img.style.objectPosition = coverPosition(W, H, nw, nh, focus);
+}
+
+/** placeCover's object-position for a W x H frame and an nw x nh photo (also used by the clean-up tool's preview). */
+export function coverPosition(W: number, H: number, nw: number, nh: number, focus: string | null | undefined): string {
   const { cx, cy } = parseFocusStr(focus);
   const cs = Math.max(W / nw, H / nh);
   const dw = nw * cs, dh = nh * cs;
   const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
   const x = dw > W + 0.5 ? clamp01((W / 2 - cx * dw) / (W - dw)) : 0.5;
   const y = dh > H + 0.5 ? clamp01((H / 2 - cy * dh) / (H - dh)) : 0.5;
-  img.style.objectPosition = `${(x * 100).toFixed(3)}% ${(y * 100).toFixed(3)}%`;
+  return `${(x * 100).toFixed(3)}% ${(y * 100).toFixed(3)}%`;
 }
 
 /**

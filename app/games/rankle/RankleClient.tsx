@@ -9,6 +9,7 @@ import type { GameStats } from "@/app/types";
 import { RankleResultModal } from "./ResultModal";
 import { buildConnectionsShareGrid, type ConnectionsColor } from "@/app/components/connections/ResultModal";
 import { AllInRound, type AllInResolution } from "./AllInRound";
+import { FocusedImage } from "@/app/components/FocusedImage";
 
 // deterministic PRNG: same seed -> same round sequence for every player
 function mulberry32(seed: number) {
@@ -64,6 +65,9 @@ export type ApiCoaster = {
   country: string | null;
   /** Header photo from /api/coasters; null when the coaster has none. */
   image?: string | null;
+  /** The cover's framings ("cx cy zoom"): the cards use the phone one, the bonus question the desktop one. */
+  imageFocusMobile?: string | null;
+  imageFocusDesktop?: string | null;
   specs: {
     height: number | null;
     speed: number | null;
@@ -1370,8 +1374,8 @@ export default function RankleClient() {
                     >
                       {filled && c && (
                         <>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={img ?? ""} alt={c.name} className="absolute inset-0 w-full h-full object-cover" />
+                          {/* The coaster page's phone cover framing: the cards are tall like it. */}
+                          <FocusedImage src={img ?? ""} alt={c.name} focusStr={c.imageFocusMobile} className="absolute inset-0" priority />
                           <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent px-4 pt-3 pb-12 pointer-events-none">
                             <div className="flex items-center gap-2">
                               {c.country && (

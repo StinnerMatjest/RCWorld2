@@ -64,9 +64,17 @@ export async function GET(
       [coasterId]
     );
     const paths = galleryRes.rows.map((r) => r.path);
-    const [tiles, breaks, strip] = await Promise.all([photoFramings("gallery-tile", paths), photoFramings("photo-break", paths), photoFramings("coaster-strip", paths)]);
-    // focus = framing in the photo strip's 4:5 card (CoasterPhotoStrip).
-    const gallery = galleryRes.rows.map((r) => ({ ...r, focus: strip[r.path] ?? null, tile_focus: tiles[r.path] ?? null, break_focus: breaks[r.path] ?? null }));
+    const [tiles, breaks, strip, curated] = await Promise.all([
+      photoFramings("gallery-tile", paths),
+      photoFramings("photo-break", paths),
+      photoFramings("curated-desktop", paths),
+      // The same photo curated on its park page: its phone-deck framing, newest visit first.
+      pool.query(`SELECT DISTINCT ON (path) path, focus FROM visitgallery WHERE path = ANY($1::text[]) AND focus IS NOT NULL ORDER BY path, visit_id DESC`, [paths])
+        .then((r) => Object.fromEntries(r.rows.map((x) => [x.path, x.focus as string]))),
+    ]);
+    // The photo strip's 4:5 card (CoasterPhotoStrip) uses strip_focus, the curated image's
+    // desktop framing shared with the park page, else focus (that photo's park-deck framing).
+    const gallery = galleryRes.rows.map((r) => ({ ...r, focus: curated[r.path] ?? null, strip_focus: strip[r.path] ?? null, tile_focus: tiles[r.path] ?? null, break_focus: breaks[r.path] ?? null }));
     const headerImage = activeHeader?.path || null;
     const headerFocus = {
       mobile: activeHeader?.focus_mobile ?? null,

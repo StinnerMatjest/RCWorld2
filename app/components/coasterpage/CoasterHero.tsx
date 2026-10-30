@@ -63,7 +63,7 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
   const modelId = coaster.rideModel?.id || coaster.rideModelId;
 
   return (
-    <section className="relative w-full overflow-hidden bg-slate-950 aspect-[4/5] sm:aspect-[16/9] lg:aspect-[21/9] max-h-[82vh] lg:max-h-[68vh]">
+    <section className="relative w-full overflow-hidden bg-slate-950 aspect-[4/5] sm:aspect-[16/9] lg:aspect-[21/9] max-h-[82vh] lg:max-h-[68vh]" data-framing="coaster-cover" data-framing-math="focused">
       {headerImage ? (
         <div
           className={`absolute inset-0 transition-opacity duration-700 ease-out ${photoIn ? "opacity-100" : "opacity-0"} ${onOpenPhoto ? "cursor-zoom-in" : ""}`}
@@ -80,6 +80,7 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
             priority
             variants
             className="absolute inset-0"
+            imgClassName="framing-photo"
             onLoad={() => setPhotoIn(true)}
           />
         </div>

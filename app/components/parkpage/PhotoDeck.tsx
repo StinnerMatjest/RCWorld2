@@ -17,6 +17,8 @@ interface Props {
   onOpen: (image: VisitGalleryImage) => void;
   isAdminMode?: boolean;
   onEdit?: () => void;
+  /** Photo id to open the pile on (the clean-up tool's preview); default the first. */
+  startAt?: number;
 }
 
 /** How many cards of the pile are drawn. */
@@ -61,7 +63,7 @@ const goToGallery = (e: React.MouseEvent) => {
   if (g) { e.preventDefault(); g.scrollIntoView({ behavior: "smooth", block: "start" }); }
 };
 
-export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = false, onEdit }: Props) {
+export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = false, onEdit, startAt }: Props) {
   const shown = useMemo(() => {
     const photos = images.filter((g) => !isVideo(g.path));
     const picked = photos.filter((g) => g.featured);
@@ -70,12 +72,14 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
 
   // The pile as indexes into `shown`; the first is on top. Indexes that no
   // longer exist (the gallery changed under us) are dropped on read.
-  const [order, setOrder] = useState<number[]>(() => shown.map((_, i) => i));
+  // Opened on startAt's photo when given, as if the ones before it had been swiped away.
+  const startIdx = useMemo(() => (startAt == null ? 0 : Math.max(0, shown.findIndex((g) => g.id === startAt))), [shown, startAt]);
+  const [order, setOrder] = useState<number[]>(() => shown.map((_, i) => (i + startIdx) % shown.length));
   useEffect(() => {
-    setOrder(shown.map((_, i) => i));
+    setOrder(shown.map((_, i) => (i + startIdx) % shown.length));
     flyingRef.current = []; setFlyingState([]);
     raisedRef.current = null; setRaisedState(null);
-  }, [shown]);
+  }, [shown, startIdx]);
   const pile = order.filter((i) => i < shown.length);
   // Swipes in either direction, for the gallery nudge.
   const [swipes, setSwipes] = useState(0);
@@ -347,6 +351,8 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
               // through its own motion value.
               style={{ x: mv.x, rotate: mv.rotate, y: place.y, zIndex, ...layer, ...fade }}
               {...(hasCustomFocus(img.focus) ? { "data-focus": img.focus as string } : {})}
+              data-framing={`deck:${img.id}`}
+              data-framing-math="cover"
             >
               {/* decode() keeps the bitmap ready, so a rebuilt layer never waits on a decode. */}
               <R2Image
@@ -362,7 +368,7 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
                 loading={isTop ? "eager" : "lazy"}
                 fetchPriority="low"
                 draggable={false}
-                className="object-cover rounded-2xl pointer-events-none"
+                className="object-cover rounded-2xl pointer-events-none framing-photo"
                 // A saved framing places the photo as the editor showed it (the card
                 // carries data-focus; see the mount effect for already-loaded photos).
                 onLoad={(e) => { const el = e.currentTarget; if (hasCustomFocus(img.focus)) placeCover(el, img.focus); if (el.decode) el.decode().catch(() => {}); }}

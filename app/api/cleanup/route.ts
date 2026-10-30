@@ -2,16 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminRequest } from "@/app/lib/adminAuth";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { logChange } from "@/app/lib/changelog";
-import { addSectionPhoto, CLEANUP_PEOPLE, creditTask, wasCredited, loadCleanup, setCaption, writeSlot, type CleanupData, type CleanupPerson, type CleanupTask } from "@/app/lib/cleanup";
+import { CLEANUP_PEOPLE, creditTask, wasCredited, loadCleanup, setCaption, writeSlot, type CleanupData, type CleanupPerson, type CleanupTask } from "@/app/lib/cleanup";
 
 // GET  /api/cleanup                                  -> CleanupData (open tasks, totals, parks, scores)
 // POST /api/cleanup { action, key, person, ... }     -> { ok } (the page updates itself and refetches quietly)
-//   frame        { slot, value }  save one format's framing of a photo, where the site reads it
-//   ok           { slot? }        "Looks right": checked by eye, nothing changed
-//                                 (a photo's format with slot; a caption or a section without slot)
-//   caption      { text }         set the caption (every row showing this photo)
-//   section-add  { url }          give a review section its first photo
-//   done                          a curated pick saved through the picker: credit it once
+//   place     { items: [{ slot, value? }] }  a place's framings: with value saved where the site
+//                                            reads it, without value checked as is ("Looks right")
+//   ok                                       a caption or a review section: fine as it is
+//   caption   { text }                       set the caption (every row showing this photo)
+//   done                                     a curated pick saved through the picker: credit it once
 // Writes are admin-only through the middleware; reads are gated here.
 
 const NO_STORE = { headers: { "Cache-Control": "no-store" } };
@@ -19,7 +18,7 @@ const NO_STORE = { headers: { "Cache-Control": "no-store" } };
 // Working out every task takes a couple of seconds, too slow to repeat on each
 // save. Saves look their task up in the last list (at most two minutes old) and
 // keep it current; every write still checks the photo is where the list says,
-// and a credit is only logged once per format and photo (creditTask).
+// and a credit is only logged once per framing and photo (creditTask).
 let snapshot: { at: number; data: CleanupData } | null = null;
 async function freshList(): Promise<CleanupData> {
   const data = await loadCleanup();
@@ -42,10 +41,9 @@ export async function GET(req: NextRequest) {
 
 /** "x y zoom", each a plain decimal: x and y in 0..1, zoom 1..4. */
 const VALUE_RE = /^(0(\.\d+)?|1(\.0+)?) (0(\.\d+)?|1(\.0+)?) [1-4](\.\d+)?$/;
-const entityOf = (table: "parktexts" | "coastertext") => (table === "parktexts" ? "park_text" : "coaster_text") as "park_text" | "coaster_text";
 
 export async function POST(req: NextRequest) {
-  let body: { action?: string; key?: string; person?: string; text?: string; value?: string; slot?: string; url?: string };
+  let body: { action?: string; key?: string; person?: string; text?: string; items?: unknown };
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Bad JSON" }, { status: 400 }); }
   const { action, key } = body;
   const person = body.person as CleanupPerson;
@@ -67,34 +65,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, already: true }, NO_STORE);
     }
 
-    if (task.kind === "photo") {
-      const url = task.image!;
-      const slot = task.slots?.find((s) => s.id === body.slot);
-      if (!slot) return NextResponse.json({ ok: false, error: "That format is gone. Reload." }, { status: 409 });
-      if (action === "frame") {
-        const value = String(body.value ?? "");
-        if (!VALUE_RE.test(value)) return NextResponse.json({ ok: false, error: "Bad framing" }, { status: 400 });
-        // Position formats have no zoom.
-        const v = slot.mode === "position" ? value.replace(/ [\d.]+$/, " 1") : value;
-        const res = await writeSlot(url, slot, v);
-        if (!res.ok) return NextResponse.json({ ok: false, error: "That photo changed meanwhile. Reload." }, { status: 409 });
-        // A format already checked can be adjusted again without a second credit.
-        if (!slot.done) await creditTask(`frame:${slot.id}`, slot.kind, person, "saved", url);
-        logChange({
-          parkId: res.parkId ?? task.parkId, entityType: slot.target.t === "section" ? entityOf(slot.target.table) : "image",
-          entityId: slot.target.t === "section" ? slot.target.rowId : null, label: slot.where, action: "update",
-          summary: `Framed ${slot.label.toLowerCase()} (clean-up)`, details: { focus: { old: slot.value, new: v } },
-        });
-        revalidateContent();
-        slot.value = v;
-        slot.fresh = false;
-      } else if (action === "ok") {
-        if (!slot.done) await creditTask(`frame:${slot.id}`, slot.kind, person, "looks-right", url);
-      } else {
-        return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+    if (task.kind === "frame") {
+      if (action !== "place" || !task.place || !task.image) return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+      const items = Array.isArray(body.items) ? (body.items as { slot?: unknown; value?: unknown }[]) : [];
+      const slots = task.place.slots;
+      // Check everything before writing anything.
+      const work = items.map((it) => ({ slot: slots.find((s) => s.id === it.slot), value: it.value == null ? null : String(it.value) }));
+      if (!work.length || work.some((w) => !w.slot)) return NextResponse.json({ ok: false, error: "That place changed. Reload." }, { status: 409 });
+      if (work.some((w) => w.value !== null && !VALUE_RE.test(w.value))) return NextResponse.json({ ok: false, error: "Bad framing" }, { status: 400 });
+      let wrote = false;
+      for (const { slot, value } of work) {
+        const s = slot!;
+        if (value !== null) {
+          // Formats without zoom store 1.
+          const v = s.maxZoom <= 1 ? value.replace(/ [\d.]+$/, " 1") : value;
+          const res = await writeSlot(task.image, s, v);
+          if (!res.ok) return NextResponse.json({ ok: false, error: "That photo changed meanwhile. Reload." }, { status: 409 });
+          wrote = true;
+          // A framing already checked can be adjusted again without a second credit.
+          if (!s.done) await creditTask(`frame:${s.id}`, s.kind, person, "saved", task.image);
+          logChange({
+            parkId: res.parkId ?? task.parkId, entityType: "image", entityId: task.imageId ?? null,
+            label: task.coasterName ?? task.place.title, action: "update",
+            summary: `Framed ${task.place.kind.replace("-", " ")} · ${s.label.toLowerCase()} (clean-up)`, details: { focus: { old: s.value, new: v } },
+          });
+          s.value = v;
+          s.fresh = false;
+        } else if (!s.done) {
+          await creditTask(`frame:${s.id}`, s.kind, person, "looks-right", task.image);
+        }
+        s.done = true;
       }
-      slot.done = true;
-      if (task.slots!.every((s) => s.done)) dropTask(task.key);
+      if (wrote) revalidateContent();
+      if (slots.every((s) => s.done)) dropTask(task.key);
       return NextResponse.json({ ok: true }, NO_STORE);
     }
 
@@ -110,14 +113,6 @@ export async function POST(req: NextRequest) {
       if (!n) return NextResponse.json({ ok: false, error: "That photo changed meanwhile. Reload." }, { status: 409 });
       await creditTask(key, task.kind, person, "caption");
       logChange({ parkId: task.parkId, entityType: "image", entityId: task.imageId ?? null, label: task.parkName, action: "update", summary: `Caption "${text}" (clean-up)`, details: { description: { old: task.caption?.current ?? "", new: text } } });
-      revalidateContent();
-    } else if (action === "section-add") {
-      const url = String(body.url ?? "");
-      if (task.kind !== "section-needs-photo" || !task.section || !/^https:\/\/\S+$/.test(url)) return NextResponse.json({ ok: false, error: "Pick a photo" }, { status: 400 });
-      const ok = await addSectionPhoto(task.section.table, task.section.rowId, url);
-      if (!ok) return NextResponse.json({ ok: false, error: "That section got a photo meanwhile. Reload." }, { status: 409 });
-      await creditTask(key, task.kind, person, "photo-added");
-      logChange({ parkId: task.parkId, entityType: entityOf(task.section.table), entityId: task.section.rowId, label: task.coasterName ?? task.parkName, action: "update", summary: `Added a photo to ${task.section.heading} (clean-up)` });
       revalidateContent();
     } else if (action === "done") {
       // Verified: a fix saved elsewhere passes only when the task is gone from the list.

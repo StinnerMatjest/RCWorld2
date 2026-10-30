@@ -35,6 +35,8 @@ export async function GET() {
         rs.duration_sec AS duration,
         rs.notes,
         img.path AS image,
+        img.focus_mobile AS image_focus_mobile,
+        img.focus_desktop AS image_focus_desktop,
         (rv.coaster_id IS NOT NULL) AS has_review,
         p.name AS park_name,
         p.country AS park_country,
@@ -45,13 +47,14 @@ export async function GET() {
       JOIN parks p ON rc.park_id = p.id
       LEFT JOIN manufacturers m ON rc.manufacturer_id = m.id
       LEFT JOIN rollercoasterspecs rs ON rs.coaster_id = rc.id
-      -- Best gallery photo for the coaster: explicit headers first, then oldest image fallback.
+      -- The coaster's cover as its page shows it: the newest header photo, else the
+      -- first photo in gallery order; with the cover's phone and desktop framings.
       LEFT JOIN LATERAL (
-        SELECT cg.path
+        SELECT cg.path, cg.focus_mobile, cg.focus_desktop
         FROM coastergallery cg
         WHERE cg.coaster_id = rc.id
           AND cg.path <> ''
-        ORDER BY cg.is_header DESC, cg.id ASC
+        ORDER BY cg.is_header DESC, (CASE WHEN cg.is_header THEN cg.id END) DESC NULLS LAST, cg.sort_order ASC NULLS LAST, cg.id ASC
         LIMIT 1
       ) img ON TRUE
       -- Whether a written review exists (drives indexing, sitemap and link lists).
@@ -66,7 +69,7 @@ export async function GET() {
         rc.id, rc.name, rc.year, rc.manufacturer_id, m.name, rc.ride_model_id, rc.model, rc.scale, rc.haveridden, 
         rc.isbestcoaster, rc.ridecount, rc.rating, rc.tie_rank, rc.park_id, rc.slug,
         rs.type, rs.classification, rs.length, rs.height, rs.drop, rs.speed,
-        rs.inversions, rs.vertical_angle, rs.gforce, rs.duration_sec, rs.notes, img.path, rv.coaster_id, p.name, p.slug, p.country
+        rs.inversions, rs.vertical_angle, rs.gforce, rs.duration_sec, rs.notes, img.path, img.focus_mobile, img.focus_desktop, rv.coaster_id, p.name, p.slug, p.country
       ORDER BY p.name, rc.name;
     `;
 
@@ -93,6 +96,8 @@ export async function GET() {
       parkName: row.park_name,
       country: row.park_country ?? "Unknown",
       image: row.image ?? null,
+      imageFocusMobile: row.image_focus_mobile ?? null,
+      imageFocusDesktop: row.image_focus_desktop ?? null,
       lastVisitDate: row.last_visit_date,
       visitCount: Number(row.visit_count) || 0,
       specs: {

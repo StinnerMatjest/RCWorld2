@@ -41,10 +41,29 @@ export function ensureVisitHeaderColumns(): Promise<void> {
 
 /**
  * Formats stored in photo_framing. Position formats hold object-position
- * percentages "x y 1" (photo-break holds "desktop|phone"); coaster-strip holds
- * a focus point "cx cy zoom" for the 4:5 strip card (placeCover).
+ * percentages "x y 1" (photo-break holds "desktop|phone"); curated-desktop
+ * holds a focus point "cx cy zoom" for the 4:5 card of the photo strip, the
+ * curated images on the park page on desktop and on the coaster page (placeCover).
+ * The park page's phone deck uses the visit photo's own focus (visitgallery.focus).
  */
-export type PhotoFramingFormat = "gallery-tile" | "photo-break" | "list-item" | "list-cover" | "coaster-strip";
+export type PhotoFramingFormat = "gallery-tile" | "photo-break" | "list-item" | "list-cover" | "curated-desktop";
+
+/** Store (or with null, clear) framings of one format, by photo URL. */
+export async function setPhotoFramings(format: PhotoFramingFormat, entries: [string, string | null][]): Promise<void> {
+  if (!entries.length) return;
+  await ensureVisitHeaderColumns();
+  const set = entries.filter(([, v]) => v);
+  const clear = entries.filter(([, v]) => !v).map(([u]) => u);
+  if (set.length) {
+    await pool.query(
+      `INSERT INTO photo_framing (format, url, focus)
+       SELECT $1, u, f FROM unnest($2::text[], $3::text[]) AS o(u, f)
+       ON CONFLICT (format, url) DO UPDATE SET focus = EXCLUDED.focus, updated_at = now()`,
+      [format, set.map(([u]) => u), set.map(([, v]) => v)]
+    );
+  }
+  if (clear.length) await pool.query(`DELETE FROM photo_framing WHERE format = $1 AND url = ANY($2::text[])`, [format, clear]);
+}
 
 /** The framings of these photos for one format, by URL. */
 export async function photoFramings(format: PhotoFramingFormat, urls: (string | null | undefined)[]): Promise<Record<string, string>> {

@@ -24,8 +24,10 @@ export interface CoasterGalleryImage {
   focus_desktop?: string | null;
   /** Shown in the photo strip at the top of the page (none flagged = all shown). */
   featured?: boolean;
-  /** Framing in the 4:5 deck card / strip tile ("cx cy zoom"); null or absent = plain cover. */
+  /** Curated image framing on phones, in the park page's 4:5 deck card ("cx cy zoom"); null or absent = plain cover. */
   focus?: string | null;
+  /** Curated image framing on desktop, in the 4:5 strip card (park page desktop, coaster page); null = use focus. */
+  strip_focus?: string | null;
   /** Position of the photo in its gallery tile ("x y 1"); null = centred. */
   tile_focus?: string | null;
   /** Position as a photo break between review sections ("desktop|phone"); null = centred. */
