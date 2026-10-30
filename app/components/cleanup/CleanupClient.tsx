@@ -16,7 +16,7 @@ type Tab = "categories" | "parks" | "done";
 type View =
   | { name: "overview" }
   | { name: "park"; parkId: number }
-  | { name: "list"; cat: string; parkId?: number }
+  | { name: "list"; cat: string; parkId?: number; /** A part of the whole: all its lists on one page. */ pillar?: string }
   | { name: "run"; cat?: string; parkId?: number; startKey?: string; random?: boolean; pillar?: string; done?: boolean; from?: View };
 
 const pct = (d: number, t: number) => (t ? Math.floor((100 * d) / t) : 100);
@@ -190,24 +190,52 @@ export default function CleanupClient() {
 
   // ─── lists: fixed on the page, not in the tool ───
   if (view.name === "list") {
-    const cat = catById(view.cat)!;
-    const rows = data.tasks.filter((t) => cat.groups.includes(groupOf(t)) && (view.parkId == null || t.parkId === view.parkId))
+    const pillar = PILLARS.find((p) => p.id === view.pillar);
+    const cats = pillar ? pillar.cats.map((id) => catById(id)!).filter((c) => c.list) : [catById(view.cat)!];
+    const rowsOf = (cat: Category) => data.tasks.filter((t) => cat.groups.includes(groupOf(t)) && (view.parkId == null || t.parkId === view.parkId))
       .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || a.parkName.localeCompare(b.parkName) || (a.coasterName ?? "").localeCompare(b.coasterName ?? ""));
-    const section = SECTIONS.find((s) => s.rows.includes(cat))!;
+    const lists = cats.map((cat) => ({ cat, rows: rowsOf(cat) }));
+    const blurb = (cat: Category) => cat.id === "review-photos" || cat.id === "coaster-review-photos" ? "Fewer than half of the written sections have a photo. Add some on the page, or check it off if it is fine." : cat.id === "park-review" ? "Visits not published yet, and published visits without review text." : cat.id === "coaster-review" ? "Coasters ridden without a review text." : SECTIONS.find((s) => s.rows.includes(cat))!.blurb;
+    const rowsList = (rows: CleanupTask[]) => (
+      <div className="divide-y divide-white/5 border-t border-white/10">
+        {rows.map((t) => <ListRow key={t.key} t={t} person={person} needPerson={() => setAskPerson(true)} onDone={() => onDone([t], 1)} />)}
+        {!rows.length && <p className="py-10 text-center text-slate-500">Nothing left here.</p>}
+      </div>
+    );
     return (
       <div className="mx-auto max-w-[1100px] px-4 pb-16 pt-4 md:px-8">
         {back(view.parkId != null ? { name: "park", parkId: view.parkId } : { name: "overview" })}
-        <div className="mb-6 mt-4 flex items-end justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-white md:text-3xl">{cat.title}</h1>
-            <p className="mt-1 text-sm text-slate-400">{cat.id === "review-photos" ? "Fewer than half of the written sections have a photo. Add some on the page, or check it off if it is fine." : cat.id === "park-review" ? "Visits not published yet, and published visits without review text." : section.blurb}</p>
-          </div>
-          <span className="text-2xl font-bold tabular-nums text-white">{rows.length}</span>
-        </div>
-        <div className="divide-y divide-white/5 border-t border-white/10">
-          {rows.map((t) => <ListRow key={t.key} t={t} person={person} needPerson={() => setAskPerson(true)} onDone={() => onDone([t], 1)} />)}
-          {!rows.length && <p className="py-10 text-center text-slate-500">Nothing left here.</p>}
-        </div>
+        {pillar ? (
+          <>
+            <div className="mt-4 flex items-end justify-between gap-4">
+              <h1 className="text-2xl font-bold text-white md:text-3xl">{pillar.title} to write</h1>
+              <span className="text-2xl font-bold tabular-nums text-white">{lists.reduce((n, l) => n + l.rows.length, 0)}</span>
+            </div>
+            {lists.map(({ cat, rows }) => (
+              <section key={cat.id} className="mt-10">
+                <div className="mb-4 flex items-end justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">{cat.title}</h2>
+                    <p className="mt-1 text-sm text-slate-400">{blurb(cat)}</p>
+                  </div>
+                  <span className="text-xl font-bold tabular-nums text-slate-300">{rows.length}</span>
+                </div>
+                {rowsList(rows)}
+              </section>
+            ))}
+          </>
+        ) : (
+          <>
+            <div className="mb-6 mt-4 flex items-end justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-white md:text-3xl">{cats[0].title}</h1>
+                <p className="mt-1 text-sm text-slate-400">{blurb(cats[0])}</p>
+              </div>
+              <span className="text-2xl font-bold tabular-nums text-white">{lists[0].rows.length}</span>
+            </div>
+            {rowsList(lists[0].rows)}
+          </>
+        )}
         {who}
       </div>
     );
@@ -267,8 +295,9 @@ export default function CleanupClient() {
   const openPillar = (id: string) => {
     const p = pillars.find((x) => x.id === id)!;
     if (p.runnable) { startRandom(id); return; }
-    const list = p.cats.map((c) => catById(c)!).find((c) => categoryStats(c, data.tasks, data.totals).open > 0);
-    if (list) openCat(list);
+    const lists = p.cats.map((c) => catById(c)!).filter((c) => categoryStats(c, data.tasks, data.totals).open > 0);
+    if (lists.length > 1) setView({ name: "list", cat: lists[0].id, pillar: id });
+    else if (lists.length) openCat(lists[0]);
   };
   const openDone = (t: DoneTask) => setView({ name: "run", done: true, startKey: t.key, from: { name: "overview" } });
   const reopen = async (t: DoneTask) => {
@@ -453,7 +482,7 @@ const pctHex = (v: number) => getRatingHex(v / 10);
 function CategoryRows({ data, parkId, onOpen }: { data: CleanupData; parkId?: number; onOpen: (c: Category) => void }) {
   const tasks = parkId == null ? data.tasks : data.tasks.filter((t) => t.parkId === parkId);
   return (
-    <div className="grid gap-x-6 gap-y-10 lg:grid-cols-3">
+    <div className="grid gap-x-10 gap-y-10 lg:grid-cols-3">
       {SECTIONS.map((sec) => {
         const rows = sec.rows.map((c) => ({ c, s: categoryStats(c, tasks, data.totals) })).filter((r) => parkId == null || r.s.open > 0);
         if (!rows.length) return null;
@@ -462,30 +491,24 @@ function CategoryRows({ data, parkId, onOpen }: { data: CleanupData; parkId?: nu
           <section key={sec.id} className="min-w-0">
             <h2 className="text-xl font-bold text-white">{sec.title}</h2>
             <p className="mt-1 text-sm text-slate-400">{sec.blurb}</p>
-            <div className="mt-4 space-y-2.5">
+            <div className="mt-4 divide-y divide-white/[0.07] border-t border-white/[0.07]">
               {rows.map(({ c, s }) => {
-                const next = photos.get(c.id);
                 const v = pct(s.done, s.total);
                 return (
-                  <button key={c.id} type="button" onClick={() => onOpen(c)} disabled={!s.open}
-                    className="group flex w-full items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 pr-4 text-left transition-colors hover:border-white/25 disabled:cursor-default disabled:hover:border-white/10 cursor-pointer">
+                  <button key={c.id} type="button" onClick={() => onOpen(c)} disabled={!s.open} className="group flex w-full items-center gap-4 py-3 text-left cursor-pointer disabled:cursor-default">
                     {s.open
-                      ? <Photo src={next} sizes="96px" className="h-[72px] w-24 flex-none rounded-xl" />
-                      : <span className="flex h-[72px] w-24 flex-none items-center justify-center rounded-xl bg-green-500/10 text-2xl text-green-300">✓</span>}
+                      ? <Photo src={photos.get(c.id)} sizes="88px" className="h-16 w-[88px] flex-none rounded-lg" />
+                      : <span className="flex h-16 w-[88px] flex-none items-center justify-center rounded-lg bg-green-500/10 text-2xl text-green-300">✓</span>}
                     <span className="min-w-0 flex-1">
-                      <span className="flex items-baseline justify-between gap-3">
-                        <span className="truncate text-[16px] font-bold text-white">{c.title}</span>
-                        {parkId == null
-                          ? <span className="text-2xl font-bold tabular-nums" style={{ color: pctHex(v) }}>{v}%</span>
-                          : <span className="text-2xl font-bold tabular-nums text-white">{s.open}</span>}
-                      </span>
+                      <span className="block truncate text-[17px] font-bold text-white group-hover:text-slate-200">{c.title}</span>
                       {parkId == null && s.total > 0 && (
-                        <span className="mt-2 block h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                          <span className="block h-full rounded-full" style={{ width: `${v}%`, backgroundColor: pctHex(v) }} />
-                        </span>
+                        <span className="mt-2 block h-[3px] w-full overflow-hidden rounded-full bg-white/[0.08]"><span className="block h-full" style={{ width: `${v}%`, backgroundColor: pctHex(v) }} /></span>
                       )}
-                      {parkId != null && <span className="mt-0.5 block text-xs text-slate-500">to go</span>}
+                      {parkId == null && <span className="mt-1.5 block text-[13px] tabular-nums text-slate-400">{s.open ? `${nf.format(s.open)} to go` : "All done"}</span>}
                     </span>
+                    {parkId == null
+                      ? <span className="w-[72px] flex-none text-right text-[28px] font-bold leading-none tabular-nums" style={{ color: pctHex(v) }}>{v}%</span>
+                      : <span className="flex-none text-right leading-none"><span className="block text-[28px] font-bold tabular-nums text-white">{s.open}</span><span className="mt-1 block text-xs text-slate-500">to go</span></span>}
                   </button>
                 );
               })}
@@ -545,7 +568,7 @@ function DoneList({ done, onOpen, onReopen }: { done: DoneTask[]; onOpen: (t: Do
   const groups: { label: string; items: DoneTask[] }[] = [];
   for (const t of done) { const l = day(t.doneAt); const g = groups.at(-1); if (g?.label === l) g.items.push(t); else groups.push({ label: l, items: [t] }); }
   const canOpen = (t: DoneTask) => !!t.place || t.kind === "caption";
-  const canReopen = (t: DoneTask) => !!t.place || ["caption", "review-photos", "park-review"].includes(t.kind);
+  const canReopen = (t: DoneTask) => !!t.place || ["caption", "review-photos", "coaster-review-photos", "park-review"].includes(t.kind);
   return (
     <div className="space-y-10">
       {groups.map((g) => (
@@ -589,7 +612,7 @@ function ListRow({ t, person, needPerson, onDone }: { t: CleanupTask; person: Cl
     setBusy(true); setErr(null);
     try { await api("ok", t.key, person); onDone(); } catch (e) { setErr(e instanceof Error ? e.message : "Failed"); setBusy(false); }
   };
-  const detail = t.kind === "review-photos" && t.sections ? `${t.sections.withPhoto} of ${t.sections.total} sections have a photo`
+  const detail = (t.kind === "review-photos" || t.kind === "coaster-review-photos") && t.sections ? `${t.sections.withPhoto} of ${t.sections.total} sections have a photo`
     : t.kind === "park-review" ? `${t.draft ? "Not published" : "Published without text"}${t.visitDate ? ` · visit of ${fmtDate(t.visitDate)}` : ""}`
     : t.coasterName ? t.parkName : "";
   return (
@@ -604,7 +627,7 @@ function ListRow({ t, person, needPerson, onDone }: { t: CleanupTask; person: Cl
         {err && <p className="text-xs text-red-400">{err}</p>}
       </div>
       <div className="flex items-center gap-3 text-sm">
-        {t.kind === "review-photos" && <button type="button" onClick={check} disabled={busy} className="text-slate-400 hover:text-white disabled:opacity-40 cursor-pointer">Good as it is</button>}
+        {(t.kind === "review-photos" || t.kind === "coaster-review-photos") && <button type="button" onClick={check} disabled={busy} className="text-slate-400 hover:text-white disabled:opacity-40 cursor-pointer">Good as it is</button>}
         {t.kind === "park-review" && !t.draft && <button type="button" onClick={check} disabled={busy} className="text-slate-400 hover:text-white disabled:opacity-40 cursor-pointer">Not needed</button>}
         <Link href={t.pageUrl} target="_blank" className="rounded-lg border border-slate-700 px-3 py-1.5 font-bold text-slate-200 hover:border-slate-500">Open ↗</Link>
       </div>

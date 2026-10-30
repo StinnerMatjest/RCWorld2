@@ -669,7 +669,6 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   const [cardFocus, setCardFocus] = useState(initial.cardFocus);
   // Follow the drag live in the phone previews.
   const [liveHeaderFocus, setLiveHeaderFocus] = useState(initial.headerFocus);
-  const [liveCardFocus, setLiveCardFocus] = useState(initial.cardFocus);
   const rafRef = useRef(0);
   const live = (set: (f: string) => void) => (f: string) => {
     cancelAnimationFrame(rafRef.current);
@@ -962,7 +961,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
               <div ref={cardAreaRef} className="flex-1 min-h-0 overflow-y-auto">
                 <div className="min-h-full flex flex-col items-center justify-center gap-5 p-6">
                   <div className="flex items-end justify-center gap-8">
-                    {/* The card is framed on the phone card; wider cards show a little more
+                    {/* One card: framed on the phone card; wider cards show a little more
                         of the photo and stop it at their edges (HomeClient). */}
                     <figure className="flex flex-col items-center gap-2">
                       <CropEditor
@@ -971,7 +970,6 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                         src={effectiveCardPath}
                         focusStr={cardFocus}
                         onCommit={setCardFocus}
-                        onChange={live(setLiveCardFocus)}
                         minAspect={CARD_MIN_ASPECT}
                         className="rounded-2xl shadow-md"
                         style={{ width: phoneCardW * cardScale, height: CARD_H * cardScale }}
@@ -982,14 +980,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                       </CropEditor>
                       <figcaption className="text-xs text-slate-500">Phone</figcaption>
                     </figure>
-                    {!isMobile && (
-                      <figure className="flex flex-col items-center gap-2">
-                        <LiveFrame src={effectiveCardPath} focus={liveCardFocus} w={cardW} h={CARD_H} scale={cardScale} className="rounded-2xl shadow-md">
-                          <CardFace parkName={parkName} parkCountry={parkCountry} rating={cardRating} />
-                        </LiveFrame>
-                        <figcaption className="text-xs text-slate-500">Home page on this screen</figcaption>
-                      </figure>
-                    )}
+
                   </div>
                   <div className="w-full max-w-2xl">
                     {saveRow(cardPath && (

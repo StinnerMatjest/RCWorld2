@@ -179,7 +179,9 @@ function clampCentre(c: number, frame: number, drawn: number) {
   return clamp(c, half, 1 - half);
 }
 
-export default function LivePreview({ page, target, viewport, photo, size, value = "0.5 0.5 1", onChange, maxZoom = 1, minAspect, maxW, maxH, maxScale = 1, onFrame, label, badge }: {
+export type Lift = { left: number; top: number; width: number; height: number };
+
+export default function LivePreview({ page, target, viewport, photo, size, value = "0.5 0.5 1", onChange, maxZoom = 1, minAspect, maxW, maxH, maxScale = 1, onFrame, lift = null, label, badge }: {
   page: string;
   target: string;
   viewport: Viewport;
@@ -199,6 +201,8 @@ export default function LivePreview({ page, target, viewport, photo, size, value
   maxScale?: number;
   /** The frame's size on its page, once found (for laying out several previews). */
   onFrame?: (w: number, h: number) => void;
+  /** Shown big in a window at this place on the screen (the same element moves, the page stays loaded). */
+  lift?: Lift | null;
   label?: React.ReactNode;
   badge?: React.ReactNode;
 }) {
@@ -327,7 +331,8 @@ export default function LivePreview({ page, target, viewport, photo, size, value
   // A new value (a drag here, a drag in another view of the same framing, an undo) is applied at once.
   useEffect(() => { const f = foundRef.current; if (f && editable && photo) applyPlacement(f, photo, size, value); }, [value, photo, size, editable]);
 
-  const scale = rect ? Math.min(maxScale, maxW / rect.w, maxH / rect.h) : 1;
+  const fitW = lift ? lift.width - 32 : maxW, fitH = lift ? lift.height - 64 : maxH;
+  const scale = rect ? Math.min(lift ? 3 : maxScale, fitW / rect.w, fitH / rect.h) : 1;
   // The frame's own size goes up; an enlarged preview asks for a sharper file.
   const onFrameRef = useRef(onFrame);
   onFrameRef.current = onFrame;
@@ -416,11 +421,12 @@ export default function LivePreview({ page, target, viewport, photo, size, value
     return () => el.removeEventListener("wheel", stop);
   }, [maxZoom, status, editable]);
 
-  const boxW = rect ? rect.w * scale : Math.min(maxW, maxH * 0.8);
-  const boxH = rect ? rect.h * scale : Math.min(maxH, boxW * 1.25);
+  const boxW = rect ? rect.w * scale : Math.min(fitW, fitH * 0.8);
+  const boxH = rect ? rect.h * scale : Math.min(fitH, boxW * 1.25);
   return (
-    <figure className="flex min-w-0 flex-col gap-2">
-      {(label || badge) && <figcaption className="flex min-h-[24px] items-center justify-between gap-3 text-sm">{label}{badge}</figcaption>}
+    <figure className={`flex min-w-0 flex-col gap-2 ${lift ? "fixed z-[70] items-center justify-center rounded-3xl border border-white/15 bg-[#0f172a] p-4 shadow-2xl" : ""}`}
+      style={lift ? { left: lift.left, top: lift.top, width: lift.width, height: lift.height } : undefined}>
+      {(label || badge) && <figcaption className="flex min-h-[24px] items-center justify-between gap-3 text-sm" style={lift ? { width: boxW } : undefined}>{label}{lift ? <span className="text-xs text-slate-500">Move out or press Esc to close</span> : badge}</figcaption>}
       <div className="relative overflow-hidden rounded-xl bg-slate-900 transition-[width,height] duration-200" style={{ width: boxW, height: boxH }}>
         <iframe
           ref={iframeRef}

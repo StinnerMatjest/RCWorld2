@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { parseFocusStr } from "@/app/components/FocusedImage";
 import type { CoasterGalleryImage } from "@/app/components/coasterpage/coasterPageTypes";
-import LivePreview, { focusValue, previewViewport } from "./LivePreview";
+import LivePreview, { focusValue, previewViewport, type Lift } from "./LivePreview";
 import { fmtDate, photoSources, PLACE_TITLE, send, thumb, type CleanupTask, type FramePlace, type FrameSlot, type PhotoUse, type SlotView } from "./shared";
 
 const CoasterStripEditor = dynamic(() => import("@/app/components/coasterpage/CoasterStripEditor"), { ssr: false });
@@ -21,6 +22,24 @@ export function Btn({ children, onClick, primary, disabled, title, submit, small
   return (
     <button type={submit ? "submit" : "button"} onClick={onClick} disabled={disabled} title={title}
       className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-bold transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${small ? "px-3.5 py-2 text-[13px]" : "px-5 py-2.5 text-sm"} ${primary ? "bg-brand text-white hover:bg-brand-light" : "border border-slate-700 text-slate-200 hover:border-slate-500"}`}>
+      {children}
+    </button>
+  );
+}
+
+/**
+ * The runner's two arrows: a bar with a point at the end it goes to, forward
+ * (orange: save and on to the next task) and back (to the last task, as it was).
+ */
+export function ArrowBtn({ dir, children, onClick, disabled, title, submit, small }: { dir: "next" | "back"; children: React.ReactNode; onClick?: () => void; disabled?: boolean; title?: string; submit?: boolean; small?: boolean }) {
+  const pt = small ? 16 : 22;
+  const clip = dir === "next"
+    ? `polygon(0 0, calc(100% - ${pt}px) 0, 100% 50%, calc(100% - ${pt}px) 100%, 0 100%)`
+    : `polygon(${pt}px 0, 100% 0, 100% 100%, ${pt}px 100%, 0 50%)`;
+  const next = dir === "next";
+  return (
+    <button type={submit ? "submit" : "button"} onClick={onClick} disabled={disabled} title={title} style={{ clipPath: clip }}
+      className={`inline-flex items-center justify-center gap-2.5 whitespace-nowrap font-bold transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${small ? "h-11 text-sm" : "h-14 text-base"} ${next ? `rounded-l-xl bg-brand text-white hover:bg-brand-light ${small ? "pl-5 pr-8" : "min-w-[200px] pl-7 pr-11"}` : `rounded-r-xl bg-slate-700 text-slate-100 hover:bg-slate-600 ${small ? "pl-7 pr-4" : "pl-10 pr-6"}`}`}>
       {children}
     </button>
   );
@@ -225,7 +244,8 @@ type Box = { w: number; h: number };
  * Sizes for the previews of one row so they fill the room: all as tall as fits,
  * side by side. A phone frame never ends up smaller than its real size while
  * the height allows it (a tall phone beside a wide desktop): then the phones
- * come first at full height and the desktops share what is left of the row.
+ * come at their real size and the desktops share what is left of the row
+ * (resting the mouse on one shows it big).
  */
 function fitRow(frames: Box[], screens: ("phone" | "desktop")[], W: number, H: number, gap = 24): Box[] {
   const n = frames.length, gaps = gap * (n - 1);
@@ -238,7 +258,7 @@ function fitRow(frames: Box[], screens: ("phone" | "desktop")[], W: number, H: n
   const out = frames.map(() => ({ w: 0, h: 0 }));
   let used = 0;
   all.filter((i) => screens[i] === "phone").forEach((i) => {
-    const sc = Math.min(MAX_UP, H / frames[i].h);
+    const sc = Math.min(1, H / frames[i].h);
     out[i] = { w: frames[i].w * sc, h: frames[i].h * sc };
     used += out[i].w;
   });
@@ -268,6 +288,34 @@ function SlotPreviews({ task, values, onValue, width, maxH, phoneScreen, fill = 
   const [frames, setFrames] = useState<Record<string, Box>>({});
   const viewKey = (v: SlotView) => `${v.screen}|${v.page.split("#")[0]}|${v.target}`;
   const live = views.filter((x): x is { s: FrameSlot; v: SlotView } => !!x.v);
+  // Resting the mouse on a preview opens it big over the stage, to place the photo exactly;
+  // moving out of it (or Esc) closes it. The preview itself moves, so its page stays loaded.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [big, setBig] = useState<{ key: string; at: Lift } | null>(null);
+  const openT = useRef<number | undefined>(undefined), closeT = useRef<number | undefined>(undefined);
+  const openBig = (k: string, box: Box) => {
+    const r = rootRef.current?.getBoundingClientRect(); if (!r) return;
+    const area = rootRef.current!.closest("[data-lift-area]")?.getBoundingClientRect();
+    const left = Math.max(8, (area?.left ?? r.left) - 12), top = Math.max(8, (area?.top ?? r.top) - 12);
+    const at = { left, top, width: r.right + 12 - left, height: window.innerHeight - top - 12 };
+    // Only when the window shows it clearly bigger (a card already as tall as the screen allows stays put).
+    const f = frames[k];
+    if (f && Math.min(3, (at.width - 32) / f.w, (at.height - 64) / f.h) < (box.w / f.w) * 1.15) return;
+    setBig({ key: k, at });
+  };
+  useEffect(() => {
+    if (!big) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setBig(null); };
+    // A drag that ends outside the window closes it too (leaving it mid-drag does not).
+    const up = (e: PointerEvent) => {
+      const a = big.at;
+      if (e.clientX < a.left || e.clientX > a.left + a.width || e.clientY < a.top || e.clientY > a.top + a.height) setBig(null);
+    };
+    window.addEventListener("keydown", esc);
+    window.addEventListener("pointerup", up);
+    return () => { window.removeEventListener("keydown", esc); window.removeEventListener("pointerup", up); };
+  }, [big]);
+  useEffect(() => () => { window.clearTimeout(openT.current); window.clearTimeout(closeT.current); }, []);
   const boxes = fill && !narrow && live.length === views.length
     ? fitRow(live.map(({ v }) => frames[viewKey(v)] ?? (v.screen === "phone" ? { w: 384, h: 480 } : { w: 1600, h: 600 })), live.map(({ v }) => v.screen), width, maxH)
     : null;
@@ -285,16 +333,31 @@ function SlotPreviews({ task, values, onValue, width, maxH, phoneScreen, fill = 
     );
   };
   return (
-    <div className={`flex gap-6 ${narrow ? "flex-col" : "flex-row flex-wrap items-start"}`}>
+    <div ref={rootRef} className={`flex gap-6 ${narrow ? "flex-col" : `flex-row flex-wrap items-start ${fill ? "justify-end" : ""}`}`}>
       {views.map(({ s, v }, vi) => {
         const k = vkey(task, s);
         const value = values[k] ?? startValue(s);
         const set = (val: string) => onValue(task, s, val);
         if (!v) return <PlainFrame key={k} photo={s.photo} size={s.size} aspect={s.aspect ?? "4 / 3"} value={value} onChange={set} maxW={narrow ? width : 560} maxH={maxH} label={label(s, v)} />;
         const box = boxes?.[vi];
+        const bk = viewKey(v);
+        const lifted = !!box && big?.key === bk;
         return (
+          // The wrapper keeps the preview's place while it is lifted; leaving it (the lifted window is inside it) closes.
+          <div key={`${v.screen}|${v.page.split("#")[0]}`} style={box ? { width: box.w, minHeight: box.h + 32 } : undefined}
+            onMouseEnter={() => window.clearTimeout(closeT.current)}
+            onMouseMove={(e) => {
+              if (!box || lifted || e.buttons) return;
+              window.clearTimeout(openT.current);
+              openT.current = window.setTimeout(() => openBig(bk, box), 450);
+            }}
+            // Dragging in the small preview right away keeps it small.
+            onPointerDown={() => window.clearTimeout(openT.current)}
+            onMouseLeave={(e) => {
+              window.clearTimeout(openT.current);
+              if (lifted && e.buttons === 0) closeT.current = window.setTimeout(() => setBig(null), 120);
+            }}>
           <LivePreview
-            key={`${v.screen}|${v.page.split("#")[0]}`}
             page={v.page}
             target={v.target}
             viewport={previewViewport(v.screen)}
@@ -308,8 +371,10 @@ function SlotPreviews({ task, values, onValue, width, maxH, phoneScreen, fill = 
             maxH={box ? box.h : maxH}
             maxScale={box ? MAX_UP : 1}
             onFrame={(w, h) => setFrames((m) => (m[viewKey(v)]?.w === w && m[viewKey(v)]?.h === h ? m : { ...m, [viewKey(v)]: { w, h } }))}
+            lift={lifted ? big!.at : null}
             label={label(s, v)}
           />
+          </div>
         );
       })}
     </div>
@@ -374,7 +439,7 @@ function ReadPreviews({ use, width, maxH }: { use: PhotoUse; width: number; maxH
 
 // ─── a place ─────────────────────────────────────────────────────────────────
 
-export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, onePager = false, advances = true }: {
+export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, onePager = false, advances = true, side = null, back = null }: {
   task: CleanupTask;
   /** Other framing places of this place's photos (open or done). */
   related: CleanupTask[];
@@ -387,6 +452,10 @@ export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, 
   onePager?: boolean;
   /** A save moves on to the next task (not when looking at a finished one again). */
   advances?: boolean;
+  /** The runner's left column: the list of where the photo is shown goes there. */
+  side?: HTMLElement | null;
+  /** The runner's back arrow, first in the bar. */
+  back?: React.ReactNode;
 }) {
   const place = task.place!;
   const [values, setValues] = useState<Values>({});
@@ -466,12 +535,13 @@ export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, 
   const hint = (
     <p className="text-xs text-slate-500">
       {place.slots.some((s) => s.maxZoom > 1) ? "Drag to move · scroll or pinch to zoom" : "Drag to move"}
+      {onePager && <span className="mt-1 block">Rest the mouse on a preview to see it big</span>}
       {place.note && <span className="mt-1 block">{place.note}</span>}
     </p>
   );
   return (
     <div className={onePager ? "flex h-full min-h-0 flex-col" : ""}>
-      <div className={onePager ? "flex min-h-0 flex-1 gap-6" : ""}>
+      <div className={onePager ? "flex min-h-0 flex-1" : ""}>
         {/* The stage: this place's previews stay loaded while another use is looked at. */}
         <div ref={stageRef} className={`relative min-w-0 ${onePager ? "min-h-0 flex-1" : ""}`}>
           <div className={shown ? "pointer-events-none absolute inset-x-0 top-0 opacity-0" : ""} aria-hidden={!!shown}>
@@ -482,22 +552,24 @@ export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, 
             : <ReadPreviews key={shown.id} use={shown.read!} width={width} maxH={maxH} />)}
           {!onePager && <div className="mt-3">{hint}</div>}
         </div>
-        {(uses.length > 0 || onePager) && (
-          <aside className={onePager ? "flex w-[300px] shrink-0 flex-col gap-4 overflow-y-auto pb-1 pr-1" : "mt-8"}>
-            <UsesList here={here} uses={uses} sel={sel} onSel={setSel} values={values} />
-            {onePager && hint}
-          </aside>
-        )}
+        {side
+          ? createPortal(<div className="flex flex-col gap-4"><UsesList here={here} uses={uses} sel={sel} onSel={setSel} values={values} />{hint}</div>, side)
+          : !onePager && uses.length > 0 && (
+            <aside className="mt-8">
+              <UsesList here={here} uses={uses} sel={sel} onSel={setSel} values={values} />
+            </aside>
+          )}
       </div>
 
       <div className={`z-40 flex items-center gap-2.5 ${onePager ? "mt-4 shrink-0" : "fixed inset-x-0 bottom-0 border-t border-white/10 bg-[#0f172a]/95 px-4 py-3 backdrop-blur md:static md:mt-8 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"}`}>
+        {back}
         {ch && <Btn onClick={() => setChanging(true)}>Change photo</Btn>}
         {ch?.t === "coaster-curated" && <Btn onClick={openPicker}>Picks</Btn>}
         {anyChanged && <button type="button" onClick={() => setValues({})} className="px-2 text-sm text-slate-400 hover:text-white cursor-pointer">Reset</button>}
         <span className="flex-1" />
-        <Btn primary onClick={save} disabled={busy || (!anyChanged && !todo.length)}>
-          {busy ? "Saving…" : anyChanged ? (advances ? "Save and next ›" : "Save") : todo.length ? (advances ? "Looks right, next ›" : "✓ Looks right") : "✓ Checked"}
-        </Btn>
+        {advances && (anyChanged || todo.length > 0)
+          ? <ArrowBtn dir="next" onClick={save} disabled={busy} small={!onePager}>{busy ? "Saving…" : anyChanged ? "Save" : "Looks right"}<span className="text-xl leading-none">→</span></ArrowBtn>
+          : <Btn primary onClick={save} disabled={busy || (!anyChanged && !todo.length)}>{busy ? "Saving…" : anyChanged ? "Save" : todo.length ? "✓ Looks right" : "✓ Checked"}</Btn>}
       </div>
 
       {changing && <ChangePhoto task={task} place={place} onClose={() => setChanging(false)} onChanged={(k) => { setChanging(false); onChanged(k); }} />}

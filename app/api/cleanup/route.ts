@@ -44,11 +44,11 @@ function settle(task: CleanupTask, person: CleanupPerson) {
   d.done = [{ ...task, doneAt: new Date().toISOString(), doneBy: person }, ...d.done.filter((t) => t.key !== task.key)];
 }
 
-// A save can be taken back for a little while (the page offers it for a few seconds).
+// A save can be taken back for a while (the runner's back arrow goes back through the last saves).
 const undoable = new Map<string, { at: number; person: CleanupPerson; ops: UndoOp[] }>();
 function keepUndo(person: CleanupPerson, ops: UndoOp[]): string | undefined {
   const now = Date.now();
-  for (const [k, u] of undoable) if (now - u.at > 120_000) undoable.delete(k);
+  for (const [k, u] of undoable) if (now - u.at > 15 * 60_000) undoable.delete(k);
   if (!ops.length) return undefined;
   const token = randomUUID();
   undoable.set(token, { at: now, person, ops });

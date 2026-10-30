@@ -36,7 +36,8 @@ export const ON_PAGE: Section = {
   rows: [
     { id: "park-review", title: "Park reviews to write", groups: ["park-review"], list: true },
     { id: "coaster-review", title: "Coaster reviews to write", groups: ["coaster-review"], list: true },
-    { id: "review-photos", title: "Reviews short on photos", groups: ["review-photos"], list: true },
+    { id: "review-photos", title: "Park reviews short on photos", groups: ["review-photos"], list: true },
+    { id: "coaster-review-photos", title: "Coaster reviews short on photos", groups: ["coaster-review-photos"], list: true },
     { id: "coaster-photos", title: "Coasters without photos", groups: ["coaster-photos"], list: true },
   ],
 };
@@ -47,7 +48,7 @@ export const categoryOf = (t: CleanupTask) => CATEGORIES.find((c) => c.groups.in
 /** The three parts of "how complete": a group of categories each. */
 export const PILLARS: { id: string; title: string; cats: string[] }[] = [
   { id: "framing", title: "Framing", cats: FRAMING.rows.map((r) => r.id) },
-  { id: "photos", title: "Photos", cats: ["caption", "curated-pick", "coaster-pick", "review-photos", "coaster-photos"] },
+  { id: "photos", title: "Photos", cats: ["caption", "curated-pick", "coaster-pick", "review-photos", "coaster-review-photos", "coaster-photos"] },
   { id: "reviews", title: "Reviews", cats: ["park-review", "coaster-review"] },
 ];
 
@@ -58,7 +59,7 @@ export const PLACE_TITLE: Record<PlaceKind, string> = {
 };
 export const KIND_TITLE: Record<CleanupKind, string> = {
   frame: "Framing", caption: "Caption", "curated-pick": "Pick Curated Gallery", "coaster-pick": "Pick Curated Gallery",
-  "review-photos": "Review Short on Photos", "park-review": "Park Review to Write", "coaster-review": "Coaster Review to Write", "coaster-photos": "Coaster Without Photos",
+  "review-photos": "Park Review Short on Photos", "coaster-review-photos": "Coaster Review Short on Photos", "park-review": "Park Review to Write", "coaster-review": "Coaster Review to Write", "coaster-photos": "Coaster Without Photos",
 };
 export const taskTitle = (t: CleanupTask) => (t.place ? PLACE_TITLE[t.place.kind] : KIND_TITLE[t.kind]);
 /** The park or coaster (or list) a task is about. */

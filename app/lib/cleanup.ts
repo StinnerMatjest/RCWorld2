@@ -30,11 +30,11 @@ export type CleanupPerson = typeof CLEANUP_PEOPLE[number];
 
 export type CleanupKind =
   | "frame" | "caption" | "curated-pick" | "coaster-pick"
-  | "review-photos" | "park-review" | "coaster-review" | "coaster-photos";
+  | "review-photos" | "coaster-review-photos" | "park-review" | "coaster-review" | "coaster-photos";
 /** Fixed on the page itself (a review to write, photos to place, a visit to make): listed with a link, never handed out by the runner. */
-export const PAGE_KINDS: CleanupKind[] = ["review-photos", "park-review", "coaster-review", "coaster-photos"];
+export const PAGE_KINDS: CleanupKind[] = ["review-photos", "coaster-review-photos", "park-review", "coaster-review", "coaster-photos"];
 /** Can be checked off as fine as it is. */
-export const CHECKABLE_KINDS: CleanupKind[] = ["caption", "review-photos", "park-review"];
+export const CHECKABLE_KINDS: CleanupKind[] = ["caption", "review-photos", "coaster-review-photos", "park-review"];
 
 export type PlaceKind = "card" | "park-cover" | "coaster-cover" | "curated" | "coaster-curated" | "review-photo" | "list-photo";
 export type SlotKind = "card" | "cover-phone" | "cover-desktop" | "curated-phone" | "curated-desktop" | "section-phone" | "section-desktop" | "list-item" | "list-cover";
@@ -521,7 +521,7 @@ export async function loadCleanup(): Promise<CleanupData> {
     const withPhoto = written.filter((t) => splitSectionMedia(t.image_url).length > 0).length;
     if (written.length >= 2 && gallery.length) {
       const key = `review-photos:c${c.id}`;
-      push({ ...b, key, kind: "review-photos", image: header && !isVideo(header.path) ? header.path : null, pageUrl: coasterPage, sections: { total: written.length, withPhoto }, fingerprint: "ok", done: withPhoto * 2 >= written.length || checked(key, "ok") });
+      push({ ...b, key, kind: "coaster-review-photos", image: header && !isVideo(header.path) ? header.path : null, pageUrl: coasterPage, sections: { total: written.length, withPhoto }, fingerprint: "ok", done: withPhoto * 2 >= written.length || checked(key, "ok") });
     }
 
     for (const t of texts) {
