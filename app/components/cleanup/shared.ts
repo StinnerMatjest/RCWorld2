@@ -24,7 +24,7 @@ export const FRAMING: Section = {
   ],
 };
 export const QUICK: Section = {
-  id: "quick", title: "Quick fixes", blurb: "Small things to fill in.",
+  id: "quick", title: "Gallery & Captions", blurb: "Curated photos to pick and captions to fix.",
   rows: [
     { id: "caption", title: "Captions", groups: ["caption"] },
     { id: "curated-pick", title: "Pick Curated Gallery · parks", groups: ["curated-pick"] },
@@ -32,7 +32,7 @@ export const QUICK: Section = {
   ],
 };
 export const ON_PAGE: Section = {
-  id: "page", title: "Fix on the page", blurb: "Open the page and fix it there.",
+  id: "page", title: "Other Fixes", blurb: "Open the page and fix it there.",
   rows: [
     { id: "park-review", title: "Park reviews to write", groups: ["park-review"], list: true },
     { id: "coaster-review", title: "Coaster reviews to write", groups: ["coaster-review"], list: true },
@@ -53,12 +53,12 @@ export const PILLARS: { id: string; title: string; cats: string[] }[] = [
 
 /** What a framing place is called, by kind. */
 export const PLACE_TITLE: Record<PlaceKind, string> = {
-  card: "Frontpage", "park-cover": "Park page cover", "coaster-cover": "Coaster page cover",
-  curated: "Curated Gallery", "coaster-curated": "Curated Gallery", "review-photo": "Review photo", "list-photo": "List photo",
+  card: "Front Page Card", "park-cover": "Park Page Cover", "coaster-cover": "Coaster Page Cover",
+  curated: "Curated Gallery", "coaster-curated": "Curated Gallery", "review-photo": "Review Photo", "list-photo": "List Photo",
 };
 export const KIND_TITLE: Record<CleanupKind, string> = {
   frame: "Framing", caption: "Caption", "curated-pick": "Pick Curated Gallery", "coaster-pick": "Pick Curated Gallery",
-  "review-photos": "Review short on photos", "park-review": "Park review to write", "coaster-review": "Coaster review to write", "coaster-photos": "Coaster without photos",
+  "review-photos": "Review Short on Photos", "park-review": "Park Review to Write", "coaster-review": "Coaster Review to Write", "coaster-photos": "Coaster Without Photos",
 };
 export const taskTitle = (t: CleanupTask) => (t.place ? PLACE_TITLE[t.place.kind] : KIND_TITLE[t.kind]);
 /** The park or coaster (or list) a task is about. */

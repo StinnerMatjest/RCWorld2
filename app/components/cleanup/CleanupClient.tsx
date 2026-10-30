@@ -23,8 +23,8 @@ const pct = (d: number, t: number) => (t ? Math.floor((100 * d) / t) : 100);
 const fmtScore = (n: number) => (Number.isInteger(n) ? String(n) : String(+n.toFixed(2)));
 const nf = new Intl.NumberFormat("en-GB");
 
-function Bar({ value, className = "" }: { value: number; className?: string }) {
-  return <div className={`h-1.5 w-full overflow-hidden rounded-full bg-white/10 ${className}`}><div className="h-full rounded-full bg-brand transition-[width] duration-500" style={{ width: `${Math.max(0, Math.min(100, value))}%` }} /></div>;
+function Bar({ value, className = "", hex }: { value: number; className?: string; /** Fill colour; the brand orange without one. */ hex?: string }) {
+  return <div className={`h-1.5 w-full overflow-hidden rounded-full bg-white/10 ${className}`}><div className={`h-full rounded-full transition-[width] duration-500 ${hex ? "" : "bg-brand"}`} style={{ width: `${Math.max(0, Math.min(100, value))}%`, ...(hex ? { backgroundColor: hex } : {}) }} /></div>;
 }
 
 /**
@@ -135,7 +135,7 @@ export default function CleanupClient() {
   if (error === "login") {
     return (
       <div className="mx-auto max-w-xl px-6 py-24 text-center">
-        <h1 className="text-3xl font-bold text-white">Clean-up</h1>
+        <h1 className="text-3xl font-bold text-white">Admin</h1>
         <p className="mt-3 text-slate-400">This tool is for admins. Log in to admin mode, then come back here.</p>
       </div>
     );
@@ -178,15 +178,15 @@ export default function CleanupClient() {
     <div className="flex items-center gap-2">
       {PEOPLE.map((p) => (
         <button key={p} type="button" onClick={() => choose(p)} title={`${data.scores[p].week} this week`}
-          className={`flex items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-3.5 text-sm transition-colors cursor-pointer ${person === p ? "border-brand bg-brand/10 text-white" : "border-slate-700 text-slate-300 hover:border-slate-500"} ${askPerson && !person ? "animate-pulse" : ""}`}>
-          <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${person === p ? "bg-brand text-white" : "bg-slate-700 text-slate-200"}`}>{p[0]}</span>
+          className={`flex items-center gap-2 rounded-xl border py-1.5 pl-1.5 pr-3.5 text-sm transition-colors cursor-pointer ${person === p ? "border-brand bg-brand/10 text-white" : "border-slate-700 text-slate-300 hover:border-slate-500"} ${askPerson && !person ? "animate-pulse" : ""}`}>
+          <span className={`flex h-6 w-6 items-center justify-center rounded-lg text-xs font-bold ${person === p ? "bg-brand text-white" : "bg-slate-700 text-slate-200"}`}>{p[0]}</span>
           <span className="font-semibold">{p}</span>
           <span className="tabular-nums text-slate-400">{data.scores[p].total}</span>
         </button>
       ))}
     </div>
   );
-  const back = (to: View = { name: "overview" }) => <button onClick={() => setView(to)} className="text-sm text-slate-400 hover:text-white cursor-pointer">‹ Clean-up</button>;
+  const back = (to: View = { name: "overview" }) => <button onClick={() => setView(to)} className="text-sm text-slate-400 hover:text-white cursor-pointer">‹ Admin</button>;
 
   // ─── lists: fixed on the page, not in the tool ───
   if (view.name === "list") {
@@ -220,7 +220,7 @@ export default function CleanupClient() {
     const open = quick.filter((t) => t.parkId === park.id).length;
     const left = park.total - park.done;
     return (
-      <div className="mx-auto max-w-[1100px] px-4 pb-16 pt-4 md:px-8">
+      <div className="mx-auto max-w-[1440px] px-4 pb-16 pt-4 md:px-8">
         {back()}
         <div className="relative mt-4 overflow-hidden rounded-3xl bg-slate-900">
           <Photo src={park.card} focus={park.cardFocus} sizes="(min-width: 1100px) 1100px, 100vw" className="absolute inset-0 h-full w-full opacity-45" />
@@ -291,15 +291,16 @@ export default function CleanupClient() {
       : <CategoryRows data={data} onOpen={(c) => openCat(c)} />;
 
   return (
-    <div className="mx-auto max-w-[1200px] px-4 pb-20 pt-4 md:px-8">
+    <div className="mx-auto max-w-[1440px] px-4 pb-20 pt-4 md:px-8">
       <div className="mb-6 mt-2 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">Clean-up</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">Admin</h1>
         {people}
       </div>
 
       <HeroPoster data={data} done={totalDone} total={total} pillars={pillars} onPillar={openPillar} onRandom={quick.length ? () => startRandom() : undefined} />
 
       <ReviewsToWrite tasks={data.tasks.filter((t) => t.kind === "park-review")} />
+      <Tiebreaks groups={data.tiebreaks ?? []} />
 
       <div className="mb-8 mt-10">{tabs}</div>
       {body}
@@ -343,9 +344,9 @@ function HeroPoster({ data, done, total, pillars, onPillar, onRandom }: { data: 
           <button key={p.id} type="button" onClick={() => onPillar(p.id)} disabled={!p.left} className="group rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-left transition-colors hover:border-white/25 disabled:cursor-default cursor-pointer">
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-lg font-bold text-white">{p.title}</span>
-              <span className="text-3xl font-bold tabular-nums text-white">{pct(p.done, p.total)}<span className="text-lg text-brand">%</span></span>
+              <span className="text-3xl font-bold tabular-nums" style={{ color: pctHex(pct(p.done, p.total)) }}>{pct(p.done, p.total)}%</span>
             </div>
-            <Bar value={pct(p.done, p.total)} className="mt-3" />
+            <Bar value={pct(p.done, p.total)} hex={pctHex(pct(p.done, p.total))} className="mt-3" />
             <div className="mt-4 flex items-center justify-between gap-3">
               <span className="text-sm">
                 <span className="block text-slate-400">{p.left ? `${nf.format(p.left)} to go` : "All done"}</span>
@@ -395,6 +396,42 @@ function ReviewsToWrite({ tasks }: { tasks: CleanupTask[] }) {
   );
 }
 
+/** Tied scores whose order is not settled on the site yet, each a way into the tiebreak tool. */
+function Tiebreaks({ groups }: { groups: CleanupData["tiebreaks"] }) {
+  if (!groups.length) {
+    return (
+      <p className="mt-8 text-sm text-slate-400">
+        <span className="font-bold text-green-300">✓ All tiebreaks are settled.</span>{" "}
+        <Link href="/tiebreak" className="font-bold text-brand hover:text-brand-light">Open Tiebreak ›</Link>
+      </p>
+    );
+  }
+  return (
+    <section className="mt-10">
+      <div className="flex items-baseline justify-between gap-4">
+        <h2 className="text-xl font-bold text-white">Tiebreaks to settle</h2>
+        <Link href="/tiebreak" className="text-sm font-bold text-brand hover:text-brand-light">Open Tiebreak ›</Link>
+      </div>
+      <div className="-mx-4 mt-4 flex gap-3 overflow-x-auto px-4 pb-1 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 xl:grid-cols-4">
+        {groups.map((g) => (
+          <Link key={g.score} href={`/tiebreak#/g/${g.score}`}
+            className="group flex w-[260px] flex-none items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-3 transition-colors hover:border-white/25 md:w-auto">
+            <span className="w-16 flex-none text-center text-4xl font-bold leading-none tabular-nums" style={{ color: getRatingHex(g.score) }}>{fmtScore(g.score)}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-bold text-white">{g.ready ? "Ready to submit" : `${g.count - g.placed} to settle`}</span>
+              <span className="block text-xs text-slate-400">{g.placed} of {g.count} listed</span>
+              <span className="mt-2 flex -space-x-2">
+                {g.thumbs.slice(0, 5).map((t) => <Photo key={t} src={t} sizes="28px" className="h-7 w-7 rounded-full ring-2 ring-[#0f172a]" />)}
+              </span>
+            </span>
+            <span className="text-slate-500 transition-colors group-hover:text-white">›</span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // ─── categories ──────────────────────────────────────────────────────────────
 
 /** Each group with its line, then a row per category: the next photo, what is left, how far along. */
@@ -410,34 +447,45 @@ function nextPhotos(rows: { c: Category; s: ReturnType<typeof categoryStats> }[]
   return out;
 }
 
+/** A percentage in the site's rating colours: 0-100 % read as a score of 0-10. */
+const pctHex = (v: number) => getRatingHex(v / 10);
+
 function CategoryRows({ data, parkId, onOpen }: { data: CleanupData; parkId?: number; onOpen: (c: Category) => void }) {
   const tasks = parkId == null ? data.tasks : data.tasks.filter((t) => t.parkId === parkId);
   return (
-    <div className="space-y-12">
+    <div className="grid gap-x-6 gap-y-10 lg:grid-cols-3">
       {SECTIONS.map((sec) => {
         const rows = sec.rows.map((c) => ({ c, s: categoryStats(c, tasks, data.totals) })).filter((r) => parkId == null || r.s.open > 0);
         if (!rows.length) return null;
         const photos = nextPhotos(rows);
         return (
-          <section key={sec.id}>
+          <section key={sec.id} className="min-w-0">
             <h2 className="text-xl font-bold text-white">{sec.title}</h2>
             <p className="mt-1 text-sm text-slate-400">{sec.blurb}</p>
-            <div className="mt-4 divide-y divide-white/5 border-y border-white/10">
+            <div className="mt-4 space-y-2.5">
               {rows.map(({ c, s }) => {
                 const next = photos.get(c.id);
+                const v = pct(s.done, s.total);
                 return (
                   <button key={c.id} type="button" onClick={() => onOpen(c)} disabled={!s.open}
-                    className="grid w-full grid-cols-[minmax(0,1fr)_auto_16px] items-center gap-4 px-2 py-3 text-left transition-colors hover:bg-white/[0.03] disabled:cursor-default disabled:hover:bg-transparent cursor-pointer md:grid-cols-[minmax(0,1fr)_220px_72px_16px]">
-                    <span className="flex min-w-0 items-center gap-4">
-                      {(s.open ? <Photo src={next} sizes="44px" className="h-14 w-11 flex-none rounded-lg" /> : <span className="flex h-14 w-11 flex-none items-center justify-center rounded-lg bg-green-500/10 text-green-300">✓</span>)}
-                      <span className="min-w-0">
-                        <span className="block truncate text-[15px] font-semibold text-white">{c.title}</span>
-                        <span className="block truncate text-xs text-slate-500">{s.open ? `${s.open} to go` : "All done"}{parkId == null && s.total ? ` · ${pct(s.done, s.total)}% done` : ""}</span>
+                    className="group flex w-full items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 pr-4 text-left transition-colors hover:border-white/25 disabled:cursor-default disabled:hover:border-white/10 cursor-pointer">
+                    {s.open
+                      ? <Photo src={next} sizes="96px" className="h-[72px] w-24 flex-none rounded-xl" />
+                      : <span className="flex h-[72px] w-24 flex-none items-center justify-center rounded-xl bg-green-500/10 text-2xl text-green-300">✓</span>}
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-baseline justify-between gap-3">
+                        <span className="truncate text-[16px] font-bold text-white">{c.title}</span>
+                        {parkId == null
+                          ? <span className="text-2xl font-bold tabular-nums" style={{ color: pctHex(v) }}>{v}%</span>
+                          : <span className="text-2xl font-bold tabular-nums text-white">{s.open}</span>}
                       </span>
+                      {parkId == null && s.total > 0 && (
+                        <span className="mt-2 block h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                          <span className="block h-full rounded-full" style={{ width: `${v}%`, backgroundColor: pctHex(v) }} />
+                        </span>
+                      )}
+                      {parkId != null && <span className="mt-0.5 block text-xs text-slate-500">to go</span>}
                     </span>
-                    <span className="hidden items-center gap-3 md:flex">{parkId == null && s.total > 0 && <><Bar value={pct(s.done, s.total)} /><span className="w-16 shrink-0 text-right text-xs tabular-nums text-slate-500">{s.done}/{s.total}</span></>}</span>
-                    <span className={`text-right text-xl font-bold tabular-nums ${s.open ? "text-white" : "text-slate-600"}`}>{s.open || "–"}</span>
-                    <span className="text-right text-slate-500">{s.open ? "›" : ""}</span>
                   </button>
                 );
               })}
@@ -469,9 +517,9 @@ function ParkCards({ data, onOpen }: { data: CleanupData; onOpen: (id: number) =
                 <span className="flex items-center gap-2"><Image src={getParkFlag(p.country)} alt="" width={18} height={12} className="shrink-0 rounded-sm" unoptimized /><span className="truncate text-[15px] font-bold leading-tight text-white drop-shadow-md">{p.name}</span></span>
               </div>
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-3.5 pb-3.5 pt-14">
-                <span className="block text-4xl font-bold leading-none text-white drop-shadow-md md:text-5xl">{pct(p.done, p.total)}<span className="text-xl text-brand md:text-2xl">%</span></span>
+                <span className="block text-4xl font-bold leading-none drop-shadow-md md:text-5xl" style={{ color: pctHex(pct(p.done, p.total)) }}>{pct(p.done, p.total)}%</span>
                 <span className="mt-1.5 block text-xs text-slate-300">{left ? `${left} task${left === 1 ? "" : "s"} to go` : "✓ Finished"}</span>
-                <Bar value={pct(p.done, p.total)} className="mt-2.5 !h-1" />
+                <Bar value={pct(p.done, p.total)} hex={pctHex(pct(p.done, p.total))} className="mt-2.5 !h-1" />
               </div>
             </button>
           );

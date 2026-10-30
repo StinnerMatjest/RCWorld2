@@ -27,6 +27,20 @@ export function splitFocusPair(value: string | null | undefined): { desktop: str
   return { desktop: value.slice(0, i) || null, phone: value.slice(i + 1) || null };
 }
 export const joinFocusPair = (desktop: string, phone: string | null | undefined) => (phone ? `${desktop}|${phone}` : desktop);
+
+/** From review sections' stored media ("url|desktop|phone,…"), each photo's desktop position (the first section it is in). */
+export function reviewPositions(stored: (string | null | undefined)[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const v of stored) {
+    for (const e of String(v || "").split(",").map((x) => x.trim()).filter(Boolean)) {
+      const i = e.indexOf("|");
+      if (i < 0) continue;
+      const url = e.slice(0, i), desktop = splitFocusPair(e.slice(i + 1)).desktop;
+      if (desktop && !(url in out)) out[url] = desktop;
+    }
+  }
+  return out;
+}
 export function withPhoneOf(newDesktop: string, old: string | null | undefined): string {
   return joinFocusPair(splitFocusPair(newDesktop).desktop ?? newDesktop, splitFocusPair(old).phone);
 }

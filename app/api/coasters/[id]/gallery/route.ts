@@ -3,6 +3,7 @@ import { pool } from "@/app/lib/db";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { photoFramings } from "@/app/lib/visitHeader";
 import { getImageSizes } from "@/app/lib/imageDims";
+import { reviewPositions } from "@/app/lib/framing";
 
 type GalleryRow = {
   id: number; title: string; path: string; description: string; is_header: boolean;
@@ -66,16 +67,18 @@ export async function GET(
       [coasterId]
     );
     const paths = galleryRes.rows.map((r) => r.path);
-    const [tiles, strip, curated] = await Promise.all([
+    const [tiles, strip, curated, review] = await Promise.all([
       photoFramings("gallery-tile", paths),
       photoFramings("curated-desktop", paths),
       // The same photo curated on its park page: its phone-deck framing, newest visit first.
       pool.query(`SELECT DISTINCT ON (path) path, focus FROM visitgallery WHERE path = ANY($1::text[]) AND focus IS NOT NULL ORDER BY path, visit_id DESC`, [paths])
         .then((r) => Object.fromEntries(r.rows.map((x) => [x.path, x.focus as string]))),
+      // Where each photo sits in the coaster's review (a gallery tile falls back to it).
+      pool.query(`SELECT image_url FROM coastertext WHERE coaster_id = $1`, [coasterId]).then((r) => reviewPositions(r.rows.map((x) => x.image_url))),
     ]);
     // The photo strip's 4:5 card (CoasterPhotoStrip) uses strip_focus, the curated image's
     // desktop framing shared with the park page, else focus (that photo's park-deck framing).
-    const gallery = galleryRes.rows.map((r) => ({ ...r, focus: curated[r.path] ?? null, strip_focus: strip[r.path] ?? null, tile_focus: tiles[r.path] ?? null }));
+    const gallery = galleryRes.rows.map((r) => ({ ...r, focus: curated[r.path] ?? null, strip_focus: strip[r.path] ?? null, tile_focus: tiles[r.path] ?? null, review_pos: review[r.path] ?? null }));
     const headerImage = activeHeader?.path || null;
     // The cover's own phone photo (newest flagged row); its focus_mobile is the phone framing.
     const phoneRow = galleryRes.rows.filter((r) => r.is_header_mobile && r.path !== headerImage).sort((x, y) => y.id - x.id)[0] ?? null;

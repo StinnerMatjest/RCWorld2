@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { positionCss } from "@/app/lib/framing";
+import { placeCover, replaceCovers, tileFraming } from "@/app/lib/coverPlacement";
 import Image from "next/image";
 import { useAdminMode } from "../../context/AdminModeContext";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
@@ -19,8 +19,12 @@ type GalleryImage = {
     path: string;
     description: string;
     is_header: boolean;
-    /** Position of the photo in its gallery tile ("x y 1"); null = centred. */
+    /** Position of the photo in its gallery tile ("x y 1"); null = the photo's framing elsewhere (tileFraming). */
     tile_focus?: string | null;
+    /** The photo's curated framings and its place in the review, which a tile without its own position follows. */
+    focus?: string | null;
+    strip_focus?: string | null;
+    review_pos?: string | null;
 };
 
 const CoasterImageManagerModal = ({
@@ -244,6 +248,15 @@ const CoasterImageManagerModal = ({
 const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName, parkId }) => {
     const { isAdminMode } = useAdminMode();
     const [images, setImages] = useState<GalleryImage[]>([]);
+    // Tiles framed by a focus point are placed for their size: after each render
+    // (photos that were already in) and when the window changes size.
+    const gridRef = useRef<HTMLDivElement>(null);
+    useEffect(() => { if (gridRef.current) replaceCovers(gridRef.current); });
+    useEffect(() => {
+      const again = () => { if (gridRef.current) replaceCovers(gridRef.current); };
+      window.addEventListener("resize", again);
+      return () => window.removeEventListener("resize", again);
+    }, []);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [direction, setDirection] = useState<"left" | "right" | null>(null);
@@ -506,12 +519,13 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
                     No images found for this coaster.
                 </p>
             ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div ref={gridRef} className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {images.map((img, index) => (
                         <div
                             key={img.id}
                             id={`gallery-img-${index}`}
                             data-framing={`tile:${img.path}`}
+                            data-focus={tileFraming(img).focus}
                             // Only allow dragging in admin mode
                             draggable={isAdminMode}
                             onDragStart={(e) => handleDragStart(e, index)}
@@ -555,7 +569,8 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
                                     width={400} height={300}
                                     sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
                                     quality={85}
-                                    style={{ objectPosition: positionCss(img.tile_focus) }}
+                                    style={{ objectPosition: tileFraming(img).position }}
+                                    onLoad={tileFraming(img).focus ? (e) => placeCover(e.currentTarget, tileFraming(img).focus) : undefined}
                                     className="rounded-xl object-cover h-40 md:h-48 w-full transition-transform duration-500 group-hover:scale-105 pointer-events-none"
                                 />
                             )}

@@ -209,7 +209,7 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
   if (!task) {
     return (
       <div className="mx-auto max-w-[1400px] px-4 pb-16 pt-6 md:px-10">
-        <button onClick={onExit} className="text-sm text-slate-400 hover:text-white cursor-pointer">‹ Clean-up</button>
+        <button onClick={onExit} className="text-sm text-slate-400 hover:text-white cursor-pointer">‹ Admin</button>
         <div className="mt-16 text-center">
           <p className="text-2xl font-bold text-white">Nothing left here</p>
           <div className="mt-6"><Btn primary onClick={onExit}>Back to the overview</Btn></div>
@@ -221,29 +221,46 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
 
   const place = task.place;
   const heading = taskName(task);
-  const sub = place ? place.subtitle : task.coasterName ? task.parkName : task.visitDate ? fmtDate(task.visitDate) : undefined;
+  const detail: { label?: string; value: string } | null = place?.category
+    ? { label: place.category.label, value: place.category.value }
+    : place?.subtitle ? { value: place.subtitle }
+    : task.coasterName ? { value: task.parkName }
+    : task.visitDate ? { label: "Visit", value: fmtDate(task.visitDate) } : null;
   const done = data.done.find((t) => t.key === task.key);
 
   return (
     <div ref={rootRef} className={`mx-auto max-w-[1880px] px-4 pt-4 md:px-10 ${onePager ? "flex flex-col pb-4" : "pb-28 md:pb-16"}`} style={onePager ? { height: onePagerH } : undefined}>
-      <div className="flex shrink-0 items-center gap-4 whitespace-nowrap text-sm">
-        <button onClick={onExit} className="text-slate-400 hover:text-white cursor-pointer">‹ Clean-up</button>
-        <span className="hidden min-w-0 truncate text-slate-500 sm:block">{title}{idx >= 0 ? ` · ${idx + 1} of ${queue.length}` : ""}</span>
-        <span className="flex-1" />
-        {error && <span className="min-w-0 truncate rounded-lg bg-red-950/60 px-3 py-1 text-red-300">{error}</span>}
-        <Link href={task.pageUrl} target="_blank" className="whitespace-nowrap text-slate-400 hover:text-white">Open page ↗</Link>
-        {!isDone && <button type="button" onClick={skip} className="whitespace-nowrap text-slate-400 hover:text-white cursor-pointer">Skip ›</button>}
+      {/* What is being edited, unmistakably: the park or coaster, the kind of task, and where. */}
+      <div className="flex shrink-0 items-start gap-6">
+        <div className="min-w-0 flex-1">
+          <button onClick={onExit} className="text-sm text-slate-400 hover:text-white cursor-pointer">‹ Admin</button>
+          <h1 className={`mt-2 truncate font-bold leading-none tracking-tight text-white ${onePager ? "text-5xl" : "text-4xl"}`}>{heading}</h1>
+          <p className="mt-2.5 text-2xl font-semibold leading-tight text-slate-100">{taskTitle(task)}</p>
+          {detail && (
+            <p className="mt-1.5 text-lg leading-tight text-slate-300">
+              {detail.label && <span className="mr-2 text-slate-500">{detail.label}</span>}{detail.value}
+            </p>
+          )}
+          {done && <p className="mt-1.5 text-sm text-green-300">✓ Done by {done.doneBy}, {fmtDate(done.doneAt)}</p>}
+        </div>
+        <div className="shrink-0 text-right">
+          <div className="flex items-center justify-end gap-5 whitespace-nowrap text-sm">
+            <Link href={task.pageUrl} target="_blank" className="text-slate-400 hover:text-white">Open page ↗</Link>
+            {!isDone && <button type="button" onClick={skip} className="text-slate-400 hover:text-white cursor-pointer">Skip ›</button>}
+          </div>
+          {idx >= 0 && (
+            <p className="mt-3 text-4xl font-bold leading-none tabular-nums text-white">
+              {idx + 1}<span className="text-2xl text-slate-500"> / {queue.length}</span>
+            </p>
+          )}
+          <p className="mt-1.5 text-sm text-slate-400">{title}</p>
+          {error && <p className="mt-2 max-w-sm truncate text-sm text-red-300">{error}</p>}
+        </div>
       </div>
 
-      <div className={`shrink-0 ${onePager ? "mb-4 mt-2 flex items-baseline gap-3" : "mb-5 mt-4"}`}>
-        <p className="text-[13px] font-bold text-brand">{taskTitle(task)}{done && <span className="ml-2 font-normal text-green-300">✓ Done by {done.doneBy}, {fmtDate(done.doneAt)}</span>}</p>
-        <h1 className={`font-bold leading-tight text-white ${onePager ? "min-w-0 truncate text-2xl" : "mt-1 text-2xl md:text-3xl"}`}>{heading}</h1>
-        {sub && <p className={`text-sm text-slate-400 ${onePager ? "truncate" : "mt-0.5"}`}>{sub}</p>}
-      </div>
-
-      <div className={onePager ? "min-h-0 flex-1" : ""}>
+      <div className={onePager ? "mt-5 min-h-0 flex-1" : "mt-6"}>
         {place && (
-          <PlaceFramer task={task} related={related} readUses={readUses} busy={busy} onePager={onePager}
+          <PlaceFramer task={task} related={related} readUses={readUses} busy={busy} onePager={onePager} advances={!isDone}
             onSave={(items) => {
               const saved: SavedItem[] = items.map((i) => ({ task: i.task ?? task.key, slot: i.slot, value: i.value }));
               const finished = [task, ...related].filter((t) => t.place!.slots.every((s) => s.done || saved.some((i) => i.task === t.key && i.slot === s.id)));
@@ -263,16 +280,15 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
 
       {upcoming.length > 0 && (
         <div className={`shrink-0 ${onePager ? "mt-4 border-t border-white/10 pt-3" : "mt-12"}`}>
-          <div className="mb-2 flex items-baseline justify-between"><h2 className="text-sm font-bold text-white">Up next</h2><span className="text-xs text-slate-500">Tap one to jump to it</span></div>
+          <div className="mb-2 flex items-baseline justify-between"><h2 className="text-base font-bold text-white">Up next</h2><span className="text-xs text-slate-500">Tap one to jump to it</span></div>
           <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1">
             {upcoming.map((t) => (
-              <button key={t.key} type="button" onClick={() => setKey(t.key)} className={`group flex-none text-left cursor-pointer ${onePager ? "w-[76px]" : "w-[96px] md:w-[120px]"}`}>
-                <div className="aspect-[4/5] overflow-hidden rounded-lg bg-slate-800 ring-brand transition group-hover:ring-2">
+              <button key={t.key} type="button" onClick={() => setKey(t.key)} className="group w-[150px] flex-none text-left cursor-pointer md:w-[176px]">
+                <div className="aspect-[16/10] overflow-hidden rounded-xl bg-slate-800 ring-brand transition group-hover:ring-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {t.image && <img src={thumb(t.image)} alt="" loading="lazy" className="h-full w-full object-cover opacity-90 transition-opacity group-hover:opacity-100" />}
                 </div>
-                <div className="mt-1 truncate text-[11px] font-semibold text-slate-200">{taskName(t)}</div>
-                {!onePager && <div className="truncate text-[11px] text-slate-500">{taskTitle(t)}</div>}
+                <div className="mt-1.5 truncate text-[13px] font-semibold text-slate-100">{taskName(t)}</div>
               </button>
             ))}
           </div>

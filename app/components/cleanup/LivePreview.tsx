@@ -40,7 +40,7 @@ const withPreviewParam = (page: string) => `${page.split("#")[0]}${page.includes
  * ours: the file this preview put in the photo (the page's own src may not be what shows, with
  * a srcset); coming: a sharper file loading in the background, swapped in once it is there.
  */
-interface Found { frame: HTMLElement; img: HTMLImageElement; math: PlaceMath; doc: Document; win: Window; last?: { key: string; css: string }; ours?: string; coming?: string }
+interface Found { frame: HTMLElement; img: HTMLImageElement; math: PlaceMath; doc: Document; win: Window; last?: { key: string; css: string }; ours?: string; coming?: string; /** The preview is enlarged by this much on screen: the file needs that many more pixels. */ boost?: number }
 
 /**
  * Centre the frame on the page's screen: its own horizontal scrollers (the
@@ -82,7 +82,7 @@ const isFileOf = (photo: string, u: string | null): u is string => !!u && (u ===
  */
 function pickSrc(photo: string, size: { w: number; h: number } | undefined, f: Found, value: string, current: string | null): string {
   if (!isR2Image(photo)) return photo;
-  const dpr = f.win.devicePixelRatio || window.devicePixelRatio || 1;
+  const dpr = (f.win.devicePixelRatio || window.devicePixelRatio || 1) * Math.max(1, f.boost ?? 1);
   let want: string;
   if (size?.w && size.h) {
     const g = geometry(f, value, size.w, size.h);
@@ -179,7 +179,7 @@ function clampCentre(c: number, frame: number, drawn: number) {
   return clamp(c, half, 1 - half);
 }
 
-export default function LivePreview({ page, target, viewport, photo, size, value = "0.5 0.5 1", onChange, maxZoom = 1, minAspect, maxW, maxH, label, badge }: {
+export default function LivePreview({ page, target, viewport, photo, size, value = "0.5 0.5 1", onChange, maxZoom = 1, minAspect, maxW, maxH, maxScale = 1, onFrame, label, badge }: {
   page: string;
   target: string;
   viewport: Viewport;
@@ -193,9 +193,12 @@ export default function LivePreview({ page, target, viewport, photo, size, value
   maxZoom?: number;
   /** Narrowest frame of this place (width / height): up and down the photo also covers that one. */
   minAspect?: number;
-  /** Largest size the frame may take on screen. */
+  /** Largest size the frame may take on screen, and how far past its real size it may be enlarged to get there. */
   maxW: number;
   maxH: number;
+  maxScale?: number;
+  /** The frame's size on its page, once found (for laying out several previews). */
+  onFrame?: (w: number, h: number) => void;
   label?: React.ReactNode;
   badge?: React.ReactNode;
 }) {
@@ -224,7 +227,8 @@ export default function LivePreview({ page, target, viewport, photo, size, value
       const doc = iframe.contentDocument;
       if (!doc) return;
       const style = doc.createElement("style");
-      style.textContent = `nextjs-portal{display:none!important}[aria-label^="Admin mode"]{display:none!important}html{scroll-behavior:auto!important}.framing-photo{transition:none!important}`;
+      // No scrollbar: phones have none taking width, and a desktop one would narrow the page.
+      style.textContent = `nextjs-portal{display:none!important}[aria-label^="Admin mode"]{display:none!important}html{scroll-behavior:auto!important;scrollbar-width:none}html::-webkit-scrollbar{display:none}.framing-photo{transition:none!important}`;
       doc.head.appendChild(style);
       setDocReady(++n);
     };
@@ -323,7 +327,17 @@ export default function LivePreview({ page, target, viewport, photo, size, value
   // A new value (a drag here, a drag in another view of the same framing, an undo) is applied at once.
   useEffect(() => { const f = foundRef.current; if (f && editable && photo) applyPlacement(f, photo, size, value); }, [value, photo, size, editable]);
 
-  const scale = rect ? Math.min(1, maxW / rect.w, maxH / rect.h) : 1;
+  const scale = rect ? Math.min(maxScale, maxW / rect.w, maxH / rect.h) : 1;
+  // The frame's own size goes up; an enlarged preview asks for a sharper file.
+  const onFrameRef = useRef(onFrame);
+  onFrameRef.current = onFrame;
+  useEffect(() => { if (rect) onFrameRef.current?.(Math.round(rect.w), Math.round(rect.h)); }, [rect]);
+  useEffect(() => {
+    const f = foundRef.current;
+    if (!f) return;
+    f.boost = scale;
+    if (editable && photo) applyPlacement(f, photo, size, value);
+  }, [scale]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Pan and zoom, in page pixels.
   const drag = useRef<{ x: number; y: number; cx: number; cy: number; z: number; pid: number } | null>(null);

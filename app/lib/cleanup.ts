@@ -23,6 +23,7 @@ import { ensureParkTextsUnique } from "@/app/lib/parkTextsIndex";
 import { regenerateParkCuts } from "@/app/lib/cardCut";
 import { groupOf } from "@/app/lib/cleanupGroup";
 import { joinFocusPair, splitFocusPair } from "@/app/lib/framing";
+import { overview as tiebreakOverview } from "@/app/lib/tiebreakStore";
 
 export const CLEANUP_PEOPLE = ["Jannik", "Nicklas"] as const;
 export type CleanupPerson = typeof CLEANUP_PEOPLE[number];
@@ -98,6 +99,8 @@ export interface FramePlace {
   title: string;
   /** "Visit of 12 Jul 2025", the park of a coaster, a caption, … */
   subtitle?: string;
+  /** Where in a review the photo sits ("Category" · "Water rides"), shown big while framing it. */
+  category?: { label: string; value: string };
   slots: FrameSlot[];
   change: ChangeSpec | null;
   /** Shown beside the framing: where else this framing is used. */
@@ -156,6 +159,8 @@ export interface CleanupData {
   scores: Record<CleanupPerson, { total: number; week: number }>;
   /** Uses of the framed photos that are not framed in the tool, by photo. */
   uses: Record<string, PhotoUse[]>;
+  /** Tied score groups whose order is not settled on the site yet (the tiebreak tool). */
+  tiebreaks: { score: number; count: number; placed: number; ready: boolean; thumbs: string[] }[];
 }
 
 
@@ -436,7 +441,8 @@ export async function loadCleanup(): Promise<CleanupData> {
           addPlace({
             ...base(parkId), key: `review-photo:p${t.id}:${i}`, kind: "frame", image: m.url, visitId: v.id, visitDate: dateOf(v.date), pageUrl: page,
             place: {
-              kind: "review-photo", title: p.name, subtitle: `Review · ${SECTION_LABEL[t.category] ?? t.category}${vi === 0 ? "" : ` · ${dateLabel(v.date)}`}`, change: null,
+              kind: "review-photo", title: p.name, subtitle: `${SECTION_LABEL[t.category] ?? t.category}${vi === 0 ? "" : ` · visit of ${dateLabel(v.date)}`}`, change: null,
+              category: { label: "Category", value: `${SECTION_LABEL[t.category] ?? t.category}${vi === 0 ? "" : ` · visit of ${dateLabel(v.date)}`}` },
               note: "Change the photo itself in the review editor.",
               slots: sectionSlots({ idBase: `section:p${t.id}:${i}`, photo: m.url, focus: m.focus, page, table: "parktexts", rowId: t.id, index: i }),
             },
@@ -525,7 +531,8 @@ export async function loadCleanup(): Promise<CleanupData> {
         addPlace({
           ...b, key: `review-photo:c${t.id}:${i}`, kind: "frame", image: m.url, pageUrl: page,
           place: {
-            kind: "review-photo", title: c.name, subtitle: `Review · ${t.headline || "Section"} · ${park.name}`, change: null,
+            kind: "review-photo", title: c.name, subtitle: `${t.headline || "Section"} · ${park.name}`, change: null,
+            category: { label: "Section", value: `${t.headline || "Untitled"} · ${park.name}` },
             note: "Change the photo itself in the review editor.",
             slots: sectionSlots({ idBase: `section:c${t.id}:${i}`, photo: m.url, focus: m.focus, page, table: "coastertext", rowId: t.id, index: i }),
           },
@@ -583,20 +590,9 @@ export async function loadCleanup(): Promise<CleanupData> {
     push({ ...d, place: { ...d.place, slots }, fingerprint: d.image as string, points: slots.length, done: slots.every((s) => s.done) });
   }
 
-  // Other uses of the framed photos, shown as the page draws them: gallery tiles.
-  const framed = new Set(places.flatMap((p) => p.place.slots.map((s) => s.photo)));
+  // Uses of the framed photos that the tool shows as the page draws them. None at the moment:
+  // review photos are framed here, and gallery tiles follow the photo's framing (the galleries).
   const uses: Record<string, PhotoUse[]> = {};
-  const addUse = (url: string, u: PhotoUse) => { if (framed.has(url)) (uses[url] ??= []).push(u); };
-  for (const [parkId, visits] of publishedByPark) {
-    const p = parks.get(parkId)!;
-    visits.forEach((v, vi) => {
-      const where = vi === 0 ? p.name : `${p.name} · ${dateLabel(v.date)}`;
-      for (const g of galleryByVisit.get(v.id) ?? []) addUse(g.path, { label: "Gallery", where, page: parkPage(parkId, v.id), target: `tile:${g.path}` });
-    });
-  }
-  for (const c of coasters) {
-    for (const g of galleryByCoaster.get(c.id) ?? []) addUse(g.path, { label: "Gallery", where: c.name, page: `/coasters/${c.slug}`, target: `tile:${g.path}` });
-  }
 
   // Who finished what in the tool, and when: the newest of a task's marks and credits.
   const doneInfo = (t: CleanupTask): { at: Date; by: string } | null => {
@@ -638,7 +634,12 @@ export async function loadCleanup(): Promise<CleanupData> {
 
   const scores = Object.fromEntries(CLEANUP_PEOPLE.map((n) => [n, { total: 0, week: 0 }])) as CleanupData["scores"];
   for (const r of scoresR.rows) if ((CLEANUP_PEOPLE as readonly string[]).includes(r.person)) scores[r.person as CleanupPerson] = { total: r.total, week: r.week };
-  return { tasks, done, totals, parks: [...parkAgg.values()].filter((p) => p.total > 0), scores, uses };
+  // Tiebreaks not settled: not every coaster listed, or the list not on the site yet ("ready").
+  const groups = await tiebreakOverview().catch((err) => { console.error("tiebreak overview failed", err); return []; });
+  const tiebreaks = (groups as { score: number; count: number; placed: number; on_site: boolean; thumbs: string[] }[])
+    .filter((g) => g.score > 0 && !(g.placed === g.count && g.on_site)) // 0 = not scored, no tie to settle
+    .map((g) => ({ score: g.score, count: g.count, placed: g.placed, ready: g.placed === g.count, thumbs: g.thumbs }));
+  return { tasks, done, totals, parks: [...parkAgg.values()].filter((p) => p.total > 0), scores, uses, tiebreaks };
 }
 
 // ─── actions ─────────────────────────────────────────────────────────────────

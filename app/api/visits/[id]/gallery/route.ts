@@ -3,6 +3,7 @@ import { revalidateContent } from "@/app/lib/revalidate";
 import { pool } from "@/app/lib/db";
 import { getParkName, logChange } from "@/app/lib/changelog";
 import { photoFramings, setPhotoFramings } from "@/app/lib/visitHeader";
+import { reviewPositions } from "@/app/lib/framing";
 
 // The photo deck / strip at the top of the park page shows the photos flagged
 // here (none flagged = every photo), each framed by its focus ("cx cy zoom",
@@ -40,9 +41,13 @@ export async function GET(
         );
 
         const paths = res.rows.map((r) => r.path);
-        const [tiles, strip] = await Promise.all([photoFramings("gallery-tile", paths), photoFramings("curated-desktop", paths)]);
-        // focus = the phone deck's framing; strip_focus = the desktop strip's (null = it uses focus).
-        return NextResponse.json({ gallery: res.rows.map((r) => ({ ...r, tile_focus: tiles[r.path] ?? null, strip_focus: strip[r.path] ?? null })) });
+        const [tiles, strip, review] = await Promise.all([
+            photoFramings("gallery-tile", paths), photoFramings("curated-desktop", paths),
+            pool.query(`SELECT image_url FROM parktexts WHERE visit_id = $1`, [visitId]).then((r) => reviewPositions(r.rows.map((x) => x.image_url))),
+        ]);
+        // focus = the phone deck's framing; strip_focus = the desktop strip's (null = it uses focus);
+        // review_pos = where the photo sits in a review section (a gallery tile falls back to these).
+        return NextResponse.json({ gallery: res.rows.map((r) => ({ ...r, tile_focus: tiles[r.path] ?? null, strip_focus: strip[r.path] ?? null, review_pos: review[r.path] ?? null })) });
     } catch (error) {
         console.error("Failed to fetch visit gallery:", error);
         return NextResponse.json({ error: "Failed to fetch gallery images" }, { status: 500 });

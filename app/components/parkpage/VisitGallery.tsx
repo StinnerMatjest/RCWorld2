@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { positionCss } from "@/app/lib/framing";
+import { placeCover, replaceCovers, tileFraming } from "@/app/lib/coverPlacement";
 import { R2Image } from "../R2Image";
 import ImageUploaderModal from "@/app/components/ImageUploaderModal";
 import { useAdminMode } from "../../context/AdminModeContext";
@@ -50,6 +50,9 @@ export type VisitGalleryImage = {
   tile_focus?: string | null;
   /** Framing in the 4:5 deck card / strip tile ("cx cy zoom"); null or absent = plain cover. */
   focus?: string | null;
+  /** The desktop strip's own framing, and where the photo sits in the review (tiles fall back to these). */
+  strip_focus?: string | null;
+  review_pos?: string | null;
 };
 
 interface GalleryProps {
@@ -169,6 +172,15 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
   const { isAdminMode } = useAdminMode();
 
   const [images, setImages] = useState<VisitGalleryImage[]>(initialImages);
+  // Tiles framed by a focus point are placed for their size: after each render
+  // (photos that were already in) and when the window changes size.
+  const gridRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (gridRef.current) replaceCovers(gridRef.current); });
+  useEffect(() => {
+    const again = () => { if (gridRef.current) replaceCovers(gridRef.current); };
+    window.addEventListener("resize", again);
+    return () => window.removeEventListener("resize", again);
+  }, []);
   const [innerIndex, setInnerIndex] = useState<number | null>(null);
   const controlled = controlledIndex !== undefined;
   const selectedIndex = controlled ? controlledIndex : innerIndex;
@@ -531,8 +543,9 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
           </p>
         )
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div ref={gridRef} className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {images.map((img, index) => {
+            const tile = tileFraming(img);
             const isDraggingThis = draggedIndex === index;
             const isDragOverThis = dragOverIndex === index;
 
@@ -541,6 +554,7 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
                 key={img.id}
                 id={`gallery-img-${index}`}
                 data-framing={`tile:${img.path}`}
+                data-focus={tile.focus}
                 draggable={isAdminMode && !isSavingOrder}
                 onDragStart={(e) => handleDragStart(e, index)}
                 onDragOver={(e) => handleDragOver(e, index)}
@@ -581,7 +595,8 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
                     alt={img.title || "Gallery"}
                     width={400}
                     height={300}
-                    style={{ objectPosition: positionCss(img.tile_focus) }}
+                    style={{ objectPosition: tile.position }}
+                    onLoad={tile.focus ? (e) => placeCover(e.currentTarget, tile.focus) : undefined}
                     className="rounded-xl object-cover h-40 md:h-48 w-full transition-transform duration-500 group-hover:scale-105 pointer-events-none"
                   />
                 )}

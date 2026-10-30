@@ -32,6 +32,8 @@ export interface CoasterGalleryImage {
   strip_focus?: string | null;
   /** Position of the photo in its gallery tile ("x y 1"); null = centred. */
   tile_focus?: string | null;
+  /** Where the photo sits in the coaster's review (a tile without its own position uses it). */
+  review_pos?: string | null;
 }
 
 /** A neighbour in a ranking list or a sibling coaster at the same park. */

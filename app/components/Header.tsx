@@ -124,8 +124,8 @@ const Header = ({ initialStatus = null }: { initialStatus?: HeaderStatus | null 
           </div>}
         </div>
 
-        {/* Parks Under Review */}
-        {underReviewParks.length > 0 && !overlay && (
+        {/* Parks Under Review (not on the admin page and clean-up tool, which need the room) */}
+        {underReviewParks.length > 0 && !overlay && pathname !== "/admin" && !pathname?.startsWith("/cleanup") && (
           <div className="hidden md:flex absolute bottom-1 left-0 w-full justify-center pointer-events-none z-0">
             {/* 3. Locked to a clean, readable dark mode slate text state */}
             <span

@@ -1,4 +1,5 @@
 import { parseFocusStr } from "@/app/components/FocusedImage";
+import { positionCss } from "@/app/lib/framing";
 
 export const DEFAULT_FOCUS = "0.5 0.5 1";
 
@@ -41,6 +42,20 @@ export function coverPosition(W: number, H: number, nw: number, nh: number, focu
   const x = dw > W + 0.5 ? clamp01((W / 2 - cx * dw) / (W - dw)) : 0.5;
   const y = dh > H + 0.5 ? clamp01((H / 2 - cy * dh) / (H - dh)) : 0.5;
   return `${(x * 100).toFixed(3)}% ${(y * 100).toFixed(3)}%`;
+}
+
+/**
+ * How a gallery tile frames its photo: its own position when it has one, else
+ * the photo's curated framing (a focus point, placed with placeCover once the
+ * photo is in), else where it sits in a review, else the centre. So a photo
+ * framed anywhere on the page is never framed again just for its tile.
+ */
+export function tileFraming(img: { tile_focus?: string | null; focus?: string | null; strip_focus?: string | null; review_pos?: string | null }): { position?: string; focus?: string } {
+  if (img.tile_focus) return { position: positionCss(img.tile_focus) };
+  const f = [img.focus, img.strip_focus].find((x) => hasCustomFocus(x));
+  if (f) return { focus: f };
+  if (img.review_pos) return { position: positionCss(img.review_pos) };
+  return {};
 }
 
 /**

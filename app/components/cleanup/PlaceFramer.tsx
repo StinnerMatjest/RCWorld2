@@ -39,16 +39,8 @@ export function useSize(ref: React.RefObject<HTMLElement | null>) {
   return size;
 }
 
-function Status({ slot, changed }: { slot: FrameSlot; changed: boolean }) {
-  const cls = "rounded-full px-2 py-0.5 text-[11px] font-bold";
-  if (changed) return <span className={`${cls} bg-brand/20 text-orange-200`}>Changed</span>;
-  if (slot.done) return <span className={`${cls} bg-green-500/15 text-green-300`}>✓ Checked</span>;
-  if (slot.fresh) return <span className={`${cls} bg-brand/15 text-orange-300`} title={slot.fallbackFrom ? `Not set yet: shows the ${slot.fallbackFrom} framing` : "Not set yet: shows the centre"}>New</span>;
-  return <span className={`${cls} bg-slate-800 text-slate-300`}>Framed before</span>;
-}
-
 /** A photo with no text on it (list photos): a plain frame of its shape, dragged with object-position. */
-function PlainFrame({ photo, size, aspect, value, onChange, maxW, maxH, label, badge }: { photo: string; size?: { w: number; h: number }; aspect: string; value: string; onChange: (v: string) => void; maxW: number; maxH: number; label: React.ReactNode; badge: React.ReactNode }) {
+function PlainFrame({ photo, size, aspect, value, onChange, maxW, maxH, label }: { photo: string; size?: { w: number; h: number }; aspect: string; value: string; onChange: (v: string) => void; maxW: number; maxH: number; label: React.ReactNode }) {
   const ref = useRef<HTMLImageElement>(null);
   const drag = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
   const [a, b] = aspect.split("/").map(parseFloat);
@@ -57,7 +49,7 @@ function PlainFrame({ photo, size, aspect, value, onChange, maxW, maxH, label, b
   const src = photoSources(photo, size);
   return (
     <figure className="flex min-w-0 flex-col gap-2">
-      <figcaption className="flex min-h-[24px] items-center justify-between gap-3 text-sm">{label}{badge}</figcaption>
+      <figcaption className="flex min-h-[24px] items-center justify-between gap-3 text-sm">{label}</figcaption>
       <div className="relative cursor-grab touch-none select-none overflow-hidden rounded-2xl bg-slate-900 active:cursor-grabbing" style={{ width: w, aspectRatio: aspect }}
         onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, cx, cy }; e.preventDefault(); }}
         onPointerMove={(e) => {
@@ -226,10 +218,44 @@ function ChangePhoto({ task, place, onClose, onChanged }: { task: CleanupTask; p
  * real size where it fits, desktops in the rest of the row. Previews are keyed
  * by page and screen, so the next place on the same page reuses the loaded page.
  */
-function SlotPreviews({ task, values, onValue, width, maxH, phoneScreen }: {
+/** How far a preview may be enlarged past the page's own size to fill the screen. */
+const MAX_UP = 2.5;
+type Box = { w: number; h: number };
+/**
+ * Sizes for the previews of one row so they fill the room: all as tall as fits,
+ * side by side. A phone frame never ends up smaller than its real size while
+ * the height allows it (a tall phone beside a wide desktop): then the phones
+ * come first at full height and the desktops share what is left of the row.
+ */
+function fitRow(frames: Box[], screens: ("phone" | "desktop")[], W: number, H: number, gap = 24): Box[] {
+  const n = frames.length, gaps = gap * (n - 1);
+  const ar = frames.map((f) => f.w / f.h);
+  const capped = (h: number, idx: number[]) => Math.max(80, Math.min(h, ...idx.map((i) => frames[i].h * MAX_UP)));
+  const all = frames.map((_, i) => i);
+  const h = capped(Math.min(H, (W - gaps) / ar.reduce((a, b) => a + b, 0)), all);
+  const even = frames.map((_, i) => ({ w: ar[i] * h, h }));
+  if (all.every((i) => screens[i] !== "phone" || even[i].h >= Math.min(frames[i].h, H) - 0.5)) return even;
+  const out = frames.map(() => ({ w: 0, h: 0 }));
+  let used = 0;
+  all.filter((i) => screens[i] === "phone").forEach((i) => {
+    const sc = Math.min(MAX_UP, H / frames[i].h);
+    out[i] = { w: frames[i].w * sc, h: frames[i].h * sc };
+    used += out[i].w;
+  });
+  const desks = all.filter((i) => screens[i] !== "phone");
+  if (desks.length) {
+    const hd = capped(Math.min(H, (W - used - gaps) / desks.reduce((a, i) => a + ar[i], 0)), desks);
+    desks.forEach((i) => { out[i] = { w: ar[i] * hd, h: hd }; });
+  }
+  return out;
+}
+
+function SlotPreviews({ task, values, onValue, width, maxH, phoneScreen, fill = false }: {
   task: CleanupTask; values: Values; onValue: (t: CleanupTask, s: FrameSlot, v: string) => void; width: number; maxH: number;
   /** A cover with its own phone photo shows a way back to the desktop one. */
   phoneScreen?: React.ReactNode;
+  /** Enlarge the previews to fill width x maxH (one screen on desktop). */
+  fill?: boolean;
 }) {
   const place = task.place!;
   const views: { s: FrameSlot; v: SlotView | null }[] = place.slots.flatMap((s): { s: FrameSlot; v: SlotView | null }[] => (s.views.length ? s.views.map((v) => ({ s, v })) : [{ s, v: null }]));
@@ -238,6 +264,13 @@ function SlotPreviews({ task, values, onValue, width, maxH, phoneScreen }: {
   const narrow = width < 760;
   const phoneW = narrow ? width : Math.min(400, maxH * 0.8);
   const desktopW = narrow ? width : Math.max(280, (width - phones * (Math.min(phoneW, maxH * 0.8) + 24) - 24 * Math.max(0, desktops - 1)) / Math.max(1, desktops));
+  // Each frame's size on its page, as the previews report it; until then a typical one.
+  const [frames, setFrames] = useState<Record<string, Box>>({});
+  const viewKey = (v: SlotView) => `${v.screen}|${v.page.split("#")[0]}|${v.target}`;
+  const live = views.filter((x): x is { s: FrameSlot; v: SlotView } => !!x.v);
+  const boxes = fill && !narrow && live.length === views.length
+    ? fitRow(live.map(({ v }) => frames[viewKey(v)] ?? (v.screen === "phone" ? { w: 384, h: 480 } : { w: 1600, h: 600 })), live.map(({ v }) => v.screen), width, maxH)
+    : null;
   const label = (s: FrameSlot, v: SlotView | null) => {
     const multi = s.views.length > 1;
     const screen = v ? (v.screen === "phone" ? "Phone" : "Desktop") : s.label;
@@ -253,13 +286,12 @@ function SlotPreviews({ task, values, onValue, width, maxH, phoneScreen }: {
   };
   return (
     <div className={`flex gap-6 ${narrow ? "flex-col" : "flex-row flex-wrap items-start"}`}>
-      {views.map(({ s, v }) => {
+      {views.map(({ s, v }, vi) => {
         const k = vkey(task, s);
         const value = values[k] ?? startValue(s);
-        const changed = value !== startValue(s);
-        const badge = <Status slot={s} changed={changed} />;
         const set = (val: string) => onValue(task, s, val);
-        if (!v) return <PlainFrame key={k} photo={s.photo} size={s.size} aspect={s.aspect ?? "4 / 3"} value={value} onChange={set} maxW={narrow ? width : 560} maxH={maxH} label={label(s, v)} badge={badge} />;
+        if (!v) return <PlainFrame key={k} photo={s.photo} size={s.size} aspect={s.aspect ?? "4 / 3"} value={value} onChange={set} maxW={narrow ? width : 560} maxH={maxH} label={label(s, v)} />;
+        const box = boxes?.[vi];
         return (
           <LivePreview
             key={`${v.screen}|${v.page.split("#")[0]}`}
@@ -272,10 +304,11 @@ function SlotPreviews({ task, values, onValue, width, maxH, phoneScreen }: {
             onChange={set}
             maxZoom={s.maxZoom}
             minAspect={s.minAspect}
-            maxW={v.screen === "phone" ? phoneW : desktopW}
-            maxH={maxH}
+            maxW={box ? box.w : v.screen === "phone" ? phoneW : desktopW}
+            maxH={box ? box.h : maxH}
+            maxScale={box ? MAX_UP : 1}
+            onFrame={(w, h) => setFrames((m) => (m[viewKey(v)]?.w === w && m[viewKey(v)]?.h === h ? m : { ...m, [viewKey(v)]: { w, h } }))}
             label={label(s, v)}
-            badge={badge}
           />
         );
       })}
@@ -341,7 +374,7 @@ function ReadPreviews({ use, width, maxH }: { use: PhotoUse; width: number; maxH
 
 // ─── a place ─────────────────────────────────────────────────────────────────
 
-export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, onePager = false }: {
+export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, onePager = false, advances = true }: {
   task: CleanupTask;
   /** Other framing places of this place's photos (open or done). */
   related: CleanupTask[];
@@ -352,6 +385,8 @@ export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, 
   onChanged: (newKey: string | null) => void;
   /** Desktop: everything on one screen, the previews sized to the room left. */
   onePager?: boolean;
+  /** A save moves on to the next task (not when looking at a finished one again). */
+  advances?: boolean;
 }) {
   const place = task.place!;
   const [values, setValues] = useState<Values>({});
@@ -439,11 +474,11 @@ export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, 
       <div className={onePager ? "flex min-h-0 flex-1 gap-6" : ""}>
         {/* The stage: this place's previews stay loaded while another use is looked at. */}
         <div ref={stageRef} className={`relative min-w-0 ${onePager ? "min-h-0 flex-1" : ""}`}>
-          <div className={shown ? "pointer-events-none invisible absolute inset-x-0 top-0" : ""} aria-hidden={!!shown}>
-            <SlotPreviews task={task} values={values} onValue={onValue} width={width} maxH={maxH} phoneScreen={dropLink} />
+          <div className={shown ? "pointer-events-none absolute inset-x-0 top-0 opacity-0" : ""} aria-hidden={!!shown}>
+            <SlotPreviews task={task} values={values} onValue={onValue} width={width} maxH={maxH} phoneScreen={dropLink} fill={onePager} />
           </div>
           {shown && (shown.place
-            ? <SlotPreviews key={shown.id} task={shown.place} values={values} onValue={onValue} width={width} maxH={maxH} />
+            ? <SlotPreviews key={shown.id} task={shown.place} values={values} onValue={onValue} width={width} maxH={maxH} fill={onePager} />
             : <ReadPreviews key={shown.id} use={shown.read!} width={width} maxH={maxH} />)}
           {!onePager && <div className="mt-3">{hint}</div>}
         </div>
@@ -461,7 +496,7 @@ export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, 
         {anyChanged && <button type="button" onClick={() => setValues({})} className="px-2 text-sm text-slate-400 hover:text-white cursor-pointer">Reset</button>}
         <span className="flex-1" />
         <Btn primary onClick={save} disabled={busy || (!anyChanged && !todo.length)}>
-          {busy ? "Saving…" : anyChanged ? "Save" : todo.length ? "✓ Looks right" : "✓ Checked"}
+          {busy ? "Saving…" : anyChanged ? (advances ? "Save and next ›" : "Save") : todo.length ? (advances ? "Looks right, next ›" : "✓ Looks right") : "✓ Checked"}
         </Btn>
       </div>
 
