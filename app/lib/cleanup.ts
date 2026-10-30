@@ -16,6 +16,7 @@
 // Everything missing counts one point: a framing slot, a caption, a pick, a
 // review. The overview's figures are those points.
 
+import { randomUUID } from "node:crypto";
 import { pool } from "@/app/lib/db";
 import { getImageSizes, type ImageSize } from "@/app/lib/imageDims";
 import { ensureVisitHeaderColumns } from "@/app/lib/visitHeader";
@@ -191,6 +192,12 @@ export function ensureCleanupTables(): Promise<void> {
         );
         CREATE INDEX IF NOT EXISTS cleanup_log_person_idx ON cleanup_log (person, created_at);
         CREATE INDEX IF NOT EXISTS cleanup_log_key_idx ON cleanup_log (task_key);
+        CREATE TABLE IF NOT EXISTS cleanup_undo (
+          token TEXT PRIMARY KEY,
+          person TEXT NOT NULL,
+          ops JSONB NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        );
       `),
     ])
       .then(() => undefined)
@@ -699,6 +706,26 @@ export async function reopenTask(keys: string[]): Promise<void> {
   await ensureCleanupTables();
   await pool.query(`DELETE FROM cleanup_marks WHERE task_key = ANY($1::text[])`, [keys]);
   await pool.query(`DELETE FROM cleanup_log WHERE task_key = ANY($1::text[])`, [keys]);
+}
+
+/**
+ * What a save changed, kept so the runner's back arrow can take it back within a
+ * sitting (12 hours). In the database, so a server restart or a reload of the
+ * code does not lose it. Returns the token, or nothing when nothing changed.
+ */
+export async function keepUndo(person: CleanupPerson, ops: UndoOp[]): Promise<string | undefined> {
+  if (!ops.length) return undefined;
+  await ensureCleanupTables();
+  const token = randomUUID();
+  await pool.query(`INSERT INTO cleanup_undo (token, person, ops) VALUES ($1, $2, $3)`, [token, person, JSON.stringify(ops)]);
+  void pool.query(`DELETE FROM cleanup_undo WHERE created_at < now() - interval '2 days'`).catch(() => {});
+  return token;
+}
+/** The changes behind a token, once (taken out); null when too old, unknown or someone else's. */
+export async function takeUndo(token: string, person: CleanupPerson): Promise<UndoOp[] | null> {
+  await ensureCleanupTables();
+  const r = await pool.query(`DELETE FROM cleanup_undo WHERE token = $1 AND person = $2 AND created_at > now() - interval '12 hours' RETURNING ops`, [token, person]);
+  return r.rowCount ? (r.rows[0].ops as UndoOp[]) : null;
 }
 
 /** Undo a write a moment after it was made: values, marks and credits go back to how they were. */

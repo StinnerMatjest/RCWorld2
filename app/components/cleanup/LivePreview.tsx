@@ -62,7 +62,9 @@ function bringIntoView(el: HTMLElement, win: Window, vp: Viewport) {
 /** Box the photo is fitted into, and how big it is drawn there, for a value. */
 function geometry(f: Found, value: string, nw = f.img.naturalWidth || 1, nh = f.img.naturalHeight || 1) {
   const { img, math } = f;
-  const box = math === "position" ? img : img.parentElement ?? img;
+  // The frame is the photo's parent, past a <picture> (a cover with its own phone photo), which has no box.
+  const parent = img.parentElement?.tagName === "PICTURE" ? img.parentElement.parentElement : img.parentElement;
+  const box = math === "position" ? img : parent ?? img;
   const W = box.clientWidth, H = box.clientHeight;
   const { cx, cy, zoom } = parseFocusStr(value);
   const z = math === "cover" ? 1 : zoom; // placeCover (deck, strip) has no zoom

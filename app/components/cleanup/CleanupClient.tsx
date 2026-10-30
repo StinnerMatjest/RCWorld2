@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { getParkFlag, getRatingHex } from "@/app/utils/design";
 import { coverPosition, hasCustomFocus } from "@/app/lib/coverPlacement";
+import { stepUp } from "@/app/components/R2Image";
 import TaskRunner, { type SavedItem } from "./TaskRunner";
 import {
   api, CATEGORIES, categoryOf, categoryStats, fmtDate, groupOf, openPoints, PEOPLE, PERSON_KEY, PILLARS, randomQueue, SECTIONS, sortQueue,
@@ -28,25 +29,41 @@ function Bar({ value, className = "", hex }: { value: number; className?: string
 }
 
 /**
- * A photo cover-cropped into its box, from the stored size that is sharp at
- * `sizes` on this screen. With a focus point it sits where the page frames it
- * (the front page card's framing), stopping at the box's edges.
+ * A photo cover-cropped into its box, always sharp: the file is chosen for the
+ * box as measured on this screen (a landscape photo filling a portrait box is
+ * drawn wider than the box), and once in, a photo drawn wider still steps up to
+ * the stored size or original that covers it. With a focus point it sits where
+ * the page frames it (the front page card's framing), stopping at the box's edges.
  */
-function Photo({ src, className = "", sizes = "120px", focus }: { src: string | null | undefined; className?: string; sizes?: string; focus?: string | null }) {
+function Photo({ src, className = "", focus }: { src: string | null | undefined; className?: string; focus?: string | null }) {
   const ref = useRef<HTMLImageElement>(null);
+  const [hint, setHint] = useState(0);
+  useLayoutEffect(() => {
+    const img = ref.current;
+    if (!img) return;
+    // As wide as the box, or as a 3:2 photo filling its height; only ever growing.
+    const measure = () => { const w = Math.ceil(Math.max(img.clientWidth, img.clientHeight * 1.5)); if (w) setHint((h) => Math.max(h, w)); };
+    measure();
+    const ro = new ResizeObserver(measure); ro.observe(img);
+    return () => ro.disconnect();
+  }, [src]);
   useEffect(() => {
     const img = ref.current;
-    if (!img || !focus || !hasCustomFocus(focus)) return;
-    const place = () => { if (img.naturalWidth && img.clientWidth) img.style.objectPosition = coverPosition(img.clientWidth, img.clientHeight, img.naturalWidth, img.naturalHeight, focus); };
-    place();
-    img.addEventListener("load", place);
-    const ro = new ResizeObserver(place); ro.observe(img);
-    return () => { img.removeEventListener("load", place); ro.disconnect(); };
+    if (!img) return;
+    const done = () => {
+      stepUp(img);
+      if (focus && hasCustomFocus(focus) && img.naturalWidth && img.clientWidth) img.style.objectPosition = coverPosition(img.clientWidth, img.clientHeight, img.naturalWidth, img.naturalHeight, focus);
+    };
+    if (img.complete) done();
+    img.addEventListener("load", done);
+    const ro = new ResizeObserver(done); ro.observe(img);
+    return () => { img.removeEventListener("load", done); ro.disconnect(); };
   }, [focus, src]);
   if (!src) return <div className={`bg-slate-800 ${className}`} />;
   const s = photoSources(src);
+  // No file until the box is measured (a hidden photo loads once it shows).
   // eslint-disable-next-line @next/next/no-img-element
-  return <img ref={ref} src={s.src} srcSet={s.srcSet} sizes={sizes} alt="" loading="lazy" decoding="async" className={`object-cover ${className}`} />;
+  return <img ref={ref} src={hint ? s.src : undefined} srcSet={hint ? s.srcSet : undefined} sizes={hint ? `${hint}px` : undefined} alt="" loading="lazy" decoding="async" className={`object-cover ${className}`} />;
 }
 
 export default function CleanupClient() {
@@ -251,7 +268,7 @@ export default function CleanupClient() {
       <div className="mx-auto max-w-[1440px] px-4 pb-16 pt-4 md:px-8">
         {back()}
         <div className="relative mt-4 overflow-hidden rounded-3xl bg-slate-900">
-          <Photo src={park.card} focus={park.cardFocus} sizes="(min-width: 1100px) 1100px, 100vw" className="absolute inset-0 h-full w-full opacity-45" />
+          <Photo src={park.card} focus={park.cardFocus} className="absolute inset-0 h-full w-full opacity-45" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/60 to-transparent" />
           <div className="relative flex min-h-[260px] flex-col justify-end gap-4 p-6 md:min-h-[300px] md:flex-row md:items-end md:justify-between md:p-8">
             <div className="min-w-0">
@@ -352,7 +369,7 @@ function HeroPoster({ data, done, total, pillars, onPillar, onRandom }: { data: 
     <>
       <div className="relative overflow-hidden rounded-3xl bg-slate-900">
         <div className="grid grid-cols-3 md:grid-cols-6">
-          {photos.map((p, i) => <Photo key={p.id} src={p.card} focus={p.cardFocus} sizes="(min-width: 768px) 200px, 34vw" className={`aspect-[3/4] w-full ${i >= 3 ? "hidden md:block" : ""}`} />)}
+          {photos.map((p, i) => <Photo key={p.id} src={p.card} focus={p.cardFocus} className={`aspect-[3/4] w-full ${i >= 3 ? "hidden md:block" : ""}`} />)}
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/70 to-[#0f172a]/20" />
         <div className="absolute inset-x-0 bottom-0 flex flex-col gap-5 p-6 md:flex-row md:items-end md:justify-between md:p-10">
@@ -382,7 +399,7 @@ function HeroPoster({ data, done, total, pillars, onPillar, onRandom }: { data: 
                 {p.left > 0 && <span className="mt-0.5 block font-bold text-brand group-hover:text-brand-light">{p.runnable ? "Random task ›" : "Open the list ›"}</span>}
               </span>
               <span className="flex -space-x-2">
-                {p.photos.map((src) => <Photo key={src} src={src} sizes="32px" className="h-10 w-8 rounded-md ring-2 ring-[#0f172a]" />)}
+                {p.photos.map((src) => <Photo key={src} src={src} className="h-10 w-8 rounded-md ring-2 ring-[#0f172a]" />)}
               </span>
             </div>
           </button>
@@ -409,7 +426,7 @@ function ReviewsToWrite({ tasks }: { tasks: CleanupTask[] }) {
         {list.map((t) => (
           <Link key={t.key} href={t.pageUrl} target="_blank"
             className="group relative flex h-28 w-[280px] flex-none items-end overflow-hidden rounded-2xl bg-slate-900 md:w-auto">
-            <Photo src={t.image} sizes="(min-width: 768px) 380px, 280px" className="absolute inset-0 h-full w-full opacity-70 transition-opacity group-hover:opacity-90" />
+            <Photo src={t.image} className="absolute inset-0 h-full w-full opacity-70 transition-opacity group-hover:opacity-90" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
             <div className="relative flex w-full items-end justify-between gap-3 p-4">
               <span className="min-w-0">
@@ -450,7 +467,7 @@ function Tiebreaks({ groups }: { groups: CleanupData["tiebreaks"] }) {
               <span className="block text-[15px] font-bold text-white">{g.ready ? "Ready to submit" : `${g.count - g.placed} to settle`}</span>
               <span className="block text-xs text-slate-400">{g.placed} of {g.count} listed</span>
               <span className="mt-2 flex -space-x-2">
-                {g.thumbs.slice(0, 5).map((t) => <Photo key={t} src={t} sizes="28px" className="h-7 w-7 rounded-full ring-2 ring-[#0f172a]" />)}
+                {g.thumbs.slice(0, 5).map((t) => <Photo key={t} src={t} className="h-7 w-7 rounded-full ring-2 ring-[#0f172a]" />)}
               </span>
             </span>
             <span className="text-slate-500 transition-colors group-hover:text-white">›</span>
@@ -497,7 +514,7 @@ function CategoryRows({ data, parkId, onOpen }: { data: CleanupData; parkId?: nu
                 return (
                   <button key={c.id} type="button" onClick={() => onOpen(c)} disabled={!s.open} className="group flex w-full items-center gap-4 py-3 text-left cursor-pointer disabled:cursor-default">
                     {s.open
-                      ? <Photo src={photos.get(c.id)} sizes="88px" className="h-16 w-[88px] flex-none rounded-lg" />
+                      ? <Photo src={photos.get(c.id)} className="h-16 w-[88px] flex-none rounded-lg" />
                       : <span className="flex h-16 w-[88px] flex-none items-center justify-center rounded-lg bg-green-500/10 text-2xl text-green-300">✓</span>}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[17px] font-bold text-white group-hover:text-slate-200">{c.title}</span>
@@ -535,7 +552,7 @@ function ParkCards({ data, onOpen }: { data: CleanupData; onOpen: (id: number) =
           return (
             <button key={p.id} type="button" onClick={() => onOpen(p.id)}
               className="group relative aspect-[4/5] overflow-hidden rounded-2xl bg-slate-900 text-left shadow-md transition-transform duration-300 [@media(hover:hover)]:hover:scale-[1.03] cursor-pointer">
-              <Photo src={p.card} focus={p.cardFocus} sizes="(min-width: 1024px) 280px, (min-width: 640px) 33vw, 50vw" className="absolute inset-0 h-full w-full opacity-90" />
+              <Photo src={p.card} focus={p.cardFocus} className="absolute inset-0 h-full w-full opacity-90" />
               <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/70 to-transparent px-3.5 pb-10 pt-3.5">
                 <span className="flex items-center gap-2"><Image src={getParkFlag(p.country)} alt="" width={18} height={12} className="shrink-0 rounded-sm" unoptimized /><span className="truncate text-[15px] font-bold leading-tight text-white drop-shadow-md">{p.name}</span></span>
               </div>
@@ -577,7 +594,7 @@ function DoneList({ done, onOpen, onReopen }: { done: DoneTask[]; onOpen: (t: Do
           <div className="divide-y divide-white/5 border-y border-white/10">
             {g.items.map((t) => (
               <div key={t.key} className="flex items-center gap-4 px-2 py-3">
-                <Photo src={t.image} sizes="44px" className="h-14 w-11 flex-none rounded-lg" />
+                <Photo src={t.image} className="h-14 w-11 flex-none rounded-lg" />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[15px] font-semibold text-white">{taskName(t)}</div>
                   <div className="truncate text-xs text-slate-500">{taskTitle(t)}{t.place?.subtitle ? ` · ${t.place.subtitle}` : ""}{t.kind === "caption" && t.caption?.current ? ` · “${t.caption.current}”` : ""}</div>
@@ -617,7 +634,7 @@ function ListRow({ t, person, needPerson, onDone }: { t: CleanupTask; person: Cl
     : t.coasterName ? t.parkName : "";
   return (
     <div className="flex items-center gap-4 px-2 py-3">
-      {t.image ? <Photo src={t.image} sizes="48px" className="h-12 w-12 flex-none rounded-lg" /> : null}
+      {t.image ? <Photo src={t.image} className="h-12 w-12 flex-none rounded-lg" /> : null}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2 truncate text-[15px]">
           <span className="font-semibold text-white">{t.coasterName ?? t.parkName}</span>

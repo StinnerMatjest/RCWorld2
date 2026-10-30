@@ -115,8 +115,8 @@ function useOnePager(ref: React.RefObject<HTMLElement | null>): number | null {
 /** A framing saved (with value) or checked as it is, by task and slot. */
 export type SavedItem = { task: string; slot: string; value?: string };
 
-/** A task left behind: the back arrow returns to it, taking back its save if it was saved. */
-type Step = { key: string; undo?: string };
+/** A task left behind: the back arrow returns to it, taking back its save (id: the save, see undos). */
+type Step = { key: string; id?: number };
 
 export default function TaskRunner({ queue, startKey, title, person, data, onDone, onReload, onExit, needPerson }: {
   /** The tasks to work through, in order (random fixes come shuffled). */
@@ -146,6 +146,12 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
   const [side, setSide] = useState<HTMLDivElement | null>(null);
   // The tasks left behind, oldest first.
   const [trail, setTrail] = useState<Step[]>([]);
+  // Saves run behind the work, one after another in order: each one's undo token (once it is in),
+  // and the tasks whose save is still on its way.
+  const undos = useRef(new Map<number, Promise<string | undefined>>());
+  const chain = useRef<Promise<unknown>>(Promise.resolve());
+  const saveId = useRef(0);
+  const [saving, setSaving] = useState<string[]>([]);
   const find = (k?: string) => (k ? queue.find((t) => t.key === k) ?? data.tasks.find((t) => t.key === k) ?? data.done.find((t) => t.key === k) : undefined);
   const task = find(key);
   const idx = task ? queue.findIndex((t) => t.key === task.key) : -1;
@@ -177,47 +183,57 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
   };
   /** On to another task, leaving this one on the trail. */
   const go = (k: string | undefined, step?: Step) => {
-    if (task && (k !== task.key || step?.undo)) setTrail((h) => [...h, step ?? { key: task.key }]);
+    if (task && (k !== task.key || step?.id)) setTrail((h) => [...h, step ?? { key: task.key }]);
     setKey(k);
   };
   const skip = () => { if (!task) return; skipped.current.add(task.key); go(next(task, new Set())); };
-  const run = async (fn: () => Promise<{ credited?: number; undo?: string }>, finishedNow: CleanupTask[], items?: SavedItem[]) => {
+  // A save goes on behind: the next task is up at once, the save follows the ones before it, and
+  // its task turns green in the strip when it is in (or says so here when it failed).
+  const run = (fn: () => Promise<{ credited?: number; undo?: string }>, finishedNow: CleanupTask[], items?: SavedItem[]) => {
     if (!task) return;
     if (!person) { needPerson(); return; }
-    setBusy(true); setError(null);
-    try {
-      const r = await fn();
+    setError(null);
+    const id = ++saveId.current, me = task, name = taskName(task);
+    const p = chain.current.then(fn);
+    chain.current = p.catch(() => {});
+    setSaving((v) => [...v, me.key]);
+    undos.current.set(id, p.then((r) => {
       const credits = r.credited ?? 0;
-      setToast({ text: credits ? `Saved · +${credits} ${person}` : "Saved", undo: r.undo, at: Date.now() });
-      const gone = new Set(finishedNow.map((t) => t.key));
-      go(isDone ? task.key : next(task, gone), { key: task.key, undo: r.undo });
+      setToast({ text: credits ? `Saved ${name} · +${credits} ${person}` : `Saved ${name}`, at: Date.now() });
       onDone(finishedNow, credits, items);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setBusy(false);
-    }
+      return r.undo;
+    }, (e) => {
+      setError(`${name} was not saved: ${e instanceof Error ? e.message : "something went wrong"}. Open it in the strip to try again.`);
+      return undefined;
+    }).finally(() => setSaving((v) => { const i = v.indexOf(me.key); return i < 0 ? v : [...v.slice(0, i), ...v.slice(i + 1)]; })));
+    const gone = new Set(finishedNow.map((t) => t.key));
+    // The last open task leads to "Nothing left here"; a finished one looked at again stays.
+    go(next(me, gone) ?? (isDone ? me.key : undefined), { key: me.key, id });
   };
-  // Back to the last task left behind, as it was: its save is taken back.
+  // Back to the last task left behind, as it was: its save (once it is in) is taken back.
   const back = async () => {
     const last = trail[trail.length - 1];
     if (!last || busy) return;
     setTrail((h) => h.slice(0, -1));
     setToast(null); setError(null);
-    if (last.undo && person) {
-      setBusy(true);
-      try {
-        await api("undo", undefined, person, { token: last.undo });
+    setKey(last.key);
+    const token = last.id ? undos.current.get(last.id) : undefined;
+    if (!token || !person) return;
+    setBusy(true);
+    try {
+      const t = await token;
+      if (t) {
+        await api("undo", undefined, person, { token: t });
+        undos.current.delete(last.id!);
         await onReload();
         setToast({ text: "Undone", at: Date.now() });
-      } catch (e) {
-        await onReload();
-        setError(e instanceof Error && e.message !== "Too late to undo" ? e.message : "Too late to take that save back; it stays saved");
-      } finally {
-        setBusy(false);
       }
+    } catch (e) {
+      await onReload();
+      setError(e instanceof Error && e.message !== "Too late to undo" ? e.message : "Too late to take that save back; it stays saved");
+    } finally {
+      setBusy(false);
     }
-    setKey(last.key);
   };
   const changedPhoto = async (newKey: string | null) => {
     const fresh = await onReload();
@@ -244,11 +260,11 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
       if (t) past.unshift(t);
     }
     return [
-      ...past.map((t) => ({ t, at: finished(t.key) ? "done" as const : "past" as const })),
+      ...past.map((t) => ({ t, at: saving.includes(t.key) ? "saving" as const : finished(t.key) ? "done" as const : "past" as const })),
       ...(task ? [{ t: task, at: "now" as const }] : []),
       ...upcoming.filter((t) => !seen.has(t.key)).map((t) => ({ t, at: "next" as const })),
     ];
-  }, [trail, task, upcoming, data]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [trail, task, upcoming, data, saving]); // eslint-disable-line react-hooks/exhaustive-deps
   const stripRef = useRef<HTMLDivElement>(null);
   const nowRef = useRef<HTMLButtonElement>(null);
   // Keep this task in view in the strip, with the one before it.
@@ -283,11 +299,13 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
     : task.coasterName ? { value: task.parkName }
     : task.visitDate ? { label: "Visit", value: fmtDate(task.visitDate) } : null;
   const done = data.done.find((t) => t.key === task.key);
-  const doneNow = new Set(trail.filter((h) => h.undo && finished(h.key)).map((h) => h.key)).size;
+  const doneNow = new Set(trail.filter((h) => h.id && finished(h.key)).map((h) => h.key)).size;
+  // Where the forward arrow goes when there is nothing to save (a finished task looked at again).
+  const nextKey = next(task, new Set());
   const lastName = trail.length ? (() => { const t = find(trail[trail.length - 1].key); return t ? taskName(t) : null; })() : null;
   const backBtn = (
     <ArrowBtn dir="back" onClick={() => void back()} disabled={busy || !trail.length} small={!onePager}
-      title={trail.length ? `Back to ${lastName ?? "the last task"}${trail[trail.length - 1].undo ? ", taking back its save" : ""}` : "Nothing to go back to"}>
+      title={trail.length ? `Back to ${lastName ?? "the last task"}${trail[trail.length - 1].id ? ", taking back its save" : ""}` : "Nothing to go back to"}>
       <span className="text-xl leading-none">←</span>Back
     </ArrowBtn>
   );
@@ -322,6 +340,7 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
         </p>
       )}
       {doneNow > 0 && <p className="mt-2 text-sm font-semibold text-green-300">✓ {doneNow} done now</p>}
+      {saving.length > 0 && <p className="mt-1 text-sm text-slate-400">Saving {saving.length > 1 ? `${saving.length} tasks` : ""}…</p>}
       <p className="mt-1.5 text-sm text-slate-400">{title}</p>
       {error && <p className={`mt-2 text-sm text-red-300 ${onePager ? "" : "max-w-sm truncate"}`}>{error}</p>}
     </>
@@ -329,8 +348,8 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
   const body = (
     <>
       {place && (
-        <PlaceFramer task={task} related={related} readUses={readUses} busy={busy} onePager={onePager} advances={!isDone}
-          side={onePager ? side : null} back={backBtn}
+        <PlaceFramer task={task} related={related} readUses={readUses} busy={busy || saving.includes(task.key)} onePager={onePager} advances={!isDone || !!nextKey}
+          side={onePager ? side : null} back={backBtn} onNext={nextKey ? () => go(nextKey) : undefined}
           onSave={(items) => {
             const saved: SavedItem[] = items.map((i) => ({ task: i.task ?? task.key, slot: i.slot, value: i.value }));
             const fin = [task, ...related].filter((t) => t.place!.slots.every((s) => s.done || saved.some((i) => i.task === t.key && i.slot === s.id)));
@@ -355,13 +374,16 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
       <div className={`relative aspect-[16/10] overflow-hidden rounded-xl bg-slate-800 ring-brand transition ${at === "now" ? "ring-[3px]" : "group-hover:ring-2"}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {t.image && <img src={thumb(t.image)} alt="" loading="lazy" className={`h-full w-full object-cover transition-opacity ${at === "past" ? "opacity-50" : "opacity-90 group-hover:opacity-100"}`} />}
+        {at === "saving" && (
+          <span className="absolute inset-0 flex items-center justify-center bg-black/45 text-xs font-bold text-white">Saving…</span>
+        )}
         {at === "done" && (
           <span className="absolute inset-0 flex items-center justify-center bg-green-600/45">
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500 text-xl font-bold text-white shadow-lg">✓</span>
           </span>
         )}
       </div>
-      <div className={`mt-1.5 truncate text-[13px] font-semibold ${at === "done" ? "text-green-300" : at === "now" ? "text-brand" : at === "past" ? "text-slate-500" : "text-slate-100"}`}>{taskName(t)}</div>
+      <div className={`mt-1.5 truncate text-[13px] font-semibold ${at === "done" ? "text-green-300" : at === "now" ? "text-brand" : at === "past" || at === "saving" ? "text-slate-500" : "text-slate-100"}`}>{taskName(t)}</div>
     </button>
   );
 

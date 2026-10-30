@@ -1,7 +1,7 @@
 "use client";
 
 import Image, { type ImageProps } from "next/image";
-import { useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { isR2Image, variantKey, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
 
 /**
@@ -16,13 +16,37 @@ import { isR2Image, variantKey, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
 type Props = ImageProps & {
   /** Browser fetch priority; "low" keeps a below-the-fold photo from racing the hero. */
   fetchPriority?: "high" | "low" | "auto";
-  /** Offer the original too (a zoomed-in photo can need more pixels than the largest stored size). */
+  /** Offer the original above the stored sizes (default): a photo drawn wider than 1920 device px needs it. */
   original?: boolean;
 };
 
+/**
+ * The sizes hints assume a photo about as wide as its box, but a wide photo in a
+ * narrower cover frame is drawn wider, a zoomed one wider still. Once the file is
+ * in, compare: a srcset image reports the width its hint gave it, so when it is
+ * drawn wider the hint grows to the drawn width and the browser fetches the
+ * stored size (or the original) that covers it. The next load matches and stops.
+ */
+export function stepUp(img: HTMLImageElement) {
+  // Only a srcset choice can step up (a lone src, such as the clean-up tool's preview sets, has nothing to pick).
+  if (!img.srcset || !img.naturalWidth || !img.naturalHeight || !img.clientWidth || !img.clientHeight) return;
+  const cs = getComputedStyle(img);
+  const z = cs.transform && cs.transform !== "none" ? new DOMMatrix(cs.transform).a : 1;
+  const a = img.naturalWidth / img.naturalHeight;
+  const box = cs.objectFit === "cover" ? Math.max(img.clientWidth, img.clientHeight * a)
+    : cs.objectFit === "contain" ? Math.min(img.clientWidth, img.clientHeight * a) : img.clientWidth;
+  const drawn = box * z;
+  const next = `${Math.ceil(drawn)}px`;
+  // Setting sizes, even to the same value, makes the browser fetch again: only when it grows.
+  if (drawn > img.naturalWidth * 1.04 && img.sizes !== next) img.sizes = next;
+}
+
 export function R2Image(props: Props) {
   const [fallback, setFallback] = useState(false);
-  const { fetchPriority, original, ...imageProps } = props;
+  const { fetchPriority, original = true, ...imageProps } = props;
+  // A photo that was in before hydration fired its load before React listened.
+  const ref = useRef<HTMLImageElement>(null);
+  useEffect(() => { const img = ref.current; if (img?.complete) stepUp(img); }, [props.src, props.sizes]);
   const { src, alt, fill, sizes, className, style, width, height, priority, loading, draggable, onLoad, onClick } = imageProps;
 
   if (fallback || typeof src !== "string" || !isR2Image(src)) {
@@ -40,6 +64,7 @@ export function R2Image(props: Props) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
+      ref={ref}
       src={variantKey(src, 1200)}
       srcSet={srcSet}
       sizes={sizesAttr}
@@ -54,7 +79,7 @@ export function R2Image(props: Props) {
       fetchPriority={fetchPriority}
       decoding="async"
       draggable={draggable}
-      onLoad={onLoad}
+      onLoad={(e) => { stepUp(e.currentTarget); onLoad?.(e); }}
       onClick={onClick}
       onError={() => setFallback(true)}
     />

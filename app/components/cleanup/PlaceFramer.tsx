@@ -436,7 +436,7 @@ function ReadPreviews({ use, width, maxH }: { use: PhotoUse; width: number; maxH
 
 // ─── a place ─────────────────────────────────────────────────────────────────
 
-export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, onePager = false, advances = true, side = null, back = null }: {
+export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, onePager = false, advances = true, side = null, back = null, onNext }: {
   task: CleanupTask;
   /** Other framing places of this place's photos (open or done). */
   related: CleanupTask[];
@@ -453,6 +453,8 @@ export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, 
   side?: HTMLElement | null;
   /** The runner's back arrow, first in the bar. */
   back?: React.ReactNode;
+  /** On to the next task without saving (when there is nothing to save here). */
+  onNext?: () => void;
 }) {
   const place = task.place!;
   const [values, setValues] = useState<Values>({});
@@ -570,8 +572,10 @@ export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, 
         {anyChanged && <button type="button" onClick={() => setValues({})} className="px-2 text-sm text-slate-400 hover:text-white cursor-pointer">Reset</button>}
         <span className="flex-1" />
         {advances && (anyChanged || todo.length > 0)
-          ? <ArrowBtn dir="next" onClick={save} disabled={busy} small={!onePager}>{busy ? "Saving…" : anyChanged ? "Save" : "Looks right"}<span className="text-xl leading-none">→</span></ArrowBtn>
-          : <Btn primary onClick={save} disabled={busy || (!anyChanged && !todo.length)}>{busy ? "Saving…" : anyChanged ? "Save" : todo.length ? "✓ Looks right" : "✓ Checked"}</Btn>}
+          ? <ArrowBtn dir="next" onClick={save} disabled={busy} small={!onePager}>{anyChanged ? "Save" : "Looks right"}<span className="text-xl leading-none">→</span></ArrowBtn>
+          : !anyChanged && !todo.length && onNext
+            ? <ArrowBtn dir="next" onClick={onNext} small={!onePager}>Next<span className="text-xl leading-none">→</span></ArrowBtn>
+            : <Btn primary onClick={save} disabled={busy || (!anyChanged && !todo.length)}>{busy ? "Saving…" : anyChanged ? "Save" : todo.length ? "✓ Looks right" : "✓ Checked"}</Btn>}
       </div>
 
       {changing && <ChangePhoto task={task} place={place} onClose={() => setChanging(false)} onChanged={(k) => { setChanging(false); onChanged(k); }} />}

@@ -1,10 +1,9 @@
-import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminRequest } from "@/app/lib/adminAuth";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { logChange } from "@/app/lib/changelog";
 import {
-  CHECKABLE_KINDS, CLEANUP_PEOPLE, creditTask, wasCredited, loadCleanup, reopenTask, setCaption, undoOps, writeSlot,
+  CHECKABLE_KINDS, CLEANUP_PEOPLE, creditTask, keepUndo, takeUndo, wasCredited, loadCleanup, reopenTask, setCaption, undoOps, writeSlot,
   type CleanupData, type CleanupPerson, type CleanupTask, type UndoOp,
 } from "@/app/lib/cleanup";
 
@@ -44,17 +43,6 @@ function settle(task: CleanupTask, person: CleanupPerson) {
   d.done = [{ ...task, doneAt: new Date().toISOString(), doneBy: person }, ...d.done.filter((t) => t.key !== task.key)];
 }
 
-// A save can be taken back for a while (the runner's back arrow goes back through the last saves).
-const undoable = new Map<string, { at: number; person: CleanupPerson; ops: UndoOp[] }>();
-function keepUndo(person: CleanupPerson, ops: UndoOp[]): string | undefined {
-  const now = Date.now();
-  for (const [k, u] of undoable) if (now - u.at > 15 * 60_000) undoable.delete(k);
-  if (!ops.length) return undefined;
-  const token = randomUUID();
-  undoable.set(token, { at: now, person, ops });
-  return token;
-}
-
 export async function GET(req: NextRequest) {
   if (!(await isAdminRequest(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
@@ -77,11 +65,10 @@ export async function POST(req: NextRequest) {
 
   try {
     if (action === "undo") {
-      const u = body.token ? undoable.get(body.token) : undefined;
-      if (!u || u.person !== person) return NextResponse.json({ ok: false, error: "Too late to undo" }, { status: 409 });
-      undoable.delete(body.token!);
-      const parkId = await undoOps(u.ops);
-      if (u.ops.some((o) => o.t === "slot" || o.t === "caption")) {
+      const ops = body.token ? await takeUndo(body.token, person as CleanupPerson) : null;
+      if (!ops) return NextResponse.json({ ok: false, error: "Too late to undo" }, { status: 409 });
+      const parkId = await undoOps(ops);
+      if (ops.some((o) => o.t === "slot" || o.t === "caption")) {
         revalidateContent();
         logChange({ parkId, entityType: "image", entityId: null, label: null, action: "update", summary: "Undid a clean-up save", details: {} });
       }
@@ -153,7 +140,7 @@ export async function POST(req: NextRequest) {
       }
       if (wrote) revalidateContent();
       for (const t of new Set(work.map((w) => w.task!))) if (t.place!.slots.every((s) => s.done)) settle(t, person);
-      return NextResponse.json({ ok: true, credited, undo: keepUndo(person, ops) }, NO_STORE);
+      return NextResponse.json({ ok: true, credited, undo: await keepUndo(person as CleanupPerson, ops) }, NO_STORE);
     }
 
     if (action === "ok") {
@@ -162,7 +149,7 @@ export async function POST(req: NextRequest) {
       if (!isOpen) return NextResponse.json({ ok: true, already: true }, NO_STORE);
       const c = await creditTask(key, task.kind, person, "looks-right", task.fingerprint);
       settle(task, person);
-      return NextResponse.json({ ok: true, credited: c.credited ? 1 : 0, undo: keepUndo(person, c.ops) }, NO_STORE);
+      return NextResponse.json({ ok: true, credited: c.credited ? 1 : 0, undo: await keepUndo(person as CleanupPerson, c.ops) }, NO_STORE);
     }
     if (action === "caption") {
       const text = String(body.text ?? "").trim().slice(0, 300);
@@ -179,7 +166,7 @@ export async function POST(req: NextRequest) {
       task.caption = { current: text, why: "" };
       task.fingerprint = text;
       settle(task, person);
-      return NextResponse.json({ ok: true, credited, undo: keepUndo(person, ops) }, NO_STORE);
+      return NextResponse.json({ ok: true, credited, undo: await keepUndo(person as CleanupPerson, ops) }, NO_STORE);
     }
     if (action === "done") {
       // Verified: a fix saved elsewhere passes only when the task is no longer open.
