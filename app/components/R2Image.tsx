@@ -16,18 +16,22 @@ import { isR2Image, variantKey, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
 type Props = ImageProps & {
   /** Browser fetch priority; "low" keeps a below-the-fold photo from racing the hero. */
   fetchPriority?: "high" | "low" | "auto";
+  /** Offer the original too (a zoomed-in photo can need more pixels than the largest stored size). */
+  original?: boolean;
 };
 
 export function R2Image(props: Props) {
   const [fallback, setFallback] = useState(false);
-  const { src, alt, fill, sizes, className, style, width, height, priority, loading, draggable, onLoad, onClick, fetchPriority } = props;
+  const { fetchPriority, original, ...imageProps } = props;
+  const { src, alt, fill, sizes, className, style, width, height, priority, loading, draggable, onLoad, onClick } = imageProps;
 
   if (fallback || typeof src !== "string" || !isR2Image(src)) {
-    const { fetchPriority: _fp, ...rest } = props;
-    return <Image {...rest} alt={alt} />;
+    return <Image {...imageProps} alt={alt} />;
   }
 
-  const srcSet = VARIANT_WIDTHS.map((w) => `${variantKey(src, w)} ${w}w`).join(", ");
+  // The original only when browsers can show it (an iPhone HEIC original cannot be).
+  const withOriginal = original && /\.(jpe?g|png|webp|avif|gif)$/i.test(src);
+  const srcSet = [...VARIANT_WIDTHS.map((w) => `${variantKey(src, w)} ${w}w`), ...(withOriginal ? [`${src} 4000w`] : [])].join(", ");
   const fillStyle: CSSProperties | undefined = fill
     ? { position: "absolute", inset: 0, width: "100%", height: "100%", ...style }
     : style;

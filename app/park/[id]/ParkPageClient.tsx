@@ -193,7 +193,10 @@ const ParkPage: React.FC<ParkPageClientProps> = ({
 
   const visibleRatings = ratings.filter((r) => isAdminMode || r.published);
   const selectedRating = visibleRatings.find((r) => r.id.toString() === visitId);
-  const activeVisit = selectedRating ?? visibleRatings[0];
+  // Without ?visit= everyone opens on the newest published visit, the one the server
+  // rendered: admin mode no longer swaps to a draft after loading (drafts are in the
+  // visit switcher). A park with only drafts opens on the newest draft for admins.
+  const activeVisit = selectedRating ?? visibleRatings.find((r) => r.published) ?? visibleRatings[0];
   const activeRatingId = activeVisit?.id;
 
   useEffect(() => {

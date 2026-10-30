@@ -4,7 +4,8 @@
 // was checked by eye", cleanup_log: who gets the credit).
 //
 // Framing is one task per place a photo fills on the site: a park's front
-// page card, a park or coaster page cover, a curated image, a list photo.
+// page card, a park or coaster page cover, a curated image, a photo in a
+// review, a list photo.
 // Each place has one or two framings (slots), usually phone and desktop, and
 // each slot frames one photo (a cover can have its own photo for phones). A
 // slot counts as done once someone checked it in the tool (saved or "Looks
@@ -21,6 +22,7 @@ import { ensureVisitHeaderColumns } from "@/app/lib/visitHeader";
 import { ensureParkTextsUnique } from "@/app/lib/parkTextsIndex";
 import { regenerateParkCuts } from "@/app/lib/cardCut";
 import { groupOf } from "@/app/lib/cleanupGroup";
+import { joinFocusPair, splitFocusPair } from "@/app/lib/framing";
 
 export const CLEANUP_PEOPLE = ["Jannik", "Nicklas"] as const;
 export type CleanupPerson = typeof CLEANUP_PEOPLE[number];
@@ -33,8 +35,8 @@ export const PAGE_KINDS: CleanupKind[] = ["review-photos", "park-review", "coast
 /** Can be checked off as fine as it is. */
 export const CHECKABLE_KINDS: CleanupKind[] = ["caption", "review-photos", "park-review"];
 
-export type PlaceKind = "card" | "park-cover" | "coaster-cover" | "curated" | "coaster-curated" | "list-photo";
-export type SlotKind = "card" | "cover-phone" | "cover-desktop" | "curated-phone" | "curated-desktop" | "list-item" | "list-cover";
+export type PlaceKind = "card" | "park-cover" | "coaster-cover" | "curated" | "coaster-curated" | "review-photo" | "list-photo";
+export type SlotKind = "card" | "cover-phone" | "cover-desktop" | "curated-phone" | "curated-desktop" | "section-phone" | "section-desktop" | "list-item" | "list-cover";
 
 /** Where a slot's framing is stored; the server writes it, never the page. */
 export type SlotTarget =
@@ -44,6 +46,8 @@ export type SlotTarget =
   | { t: "coaster-hero"; rowId: number; phone: boolean; own?: boolean }
   | { t: "card"; parkId: number }
   | { t: "curated"; rowId: number }
+  /** A photo in a review section: entry `index` of the row's media, its desktop or phone framing ("url|desktop|phone"). */
+  | { t: "section"; table: "parktexts" | "coastertext"; rowId: number; index: number; part: "desktop" | "phone" }
   | { t: "photo"; format: "curated-desktop" | "list-item" | "list-cover" };
 
 /** One screen on which a slot is shown: a real page, and the frame on it (data-framing). */
@@ -411,6 +415,37 @@ export async function loadCleanup(): Promise<CleanupData> {
     }
   }
 
+  // Photos in reviews: each photo in a section, framed for the phone and the desktop
+  // frame of its section (a phone framing falls back to the desktop one).
+  const sectionSlots = (o: { idBase: string; photo: string; focus: string | null; page: string; table: "parktexts" | "coastertext"; rowId: number; index: number }): SlotDraft[] => {
+    const pair = splitFocusPair(o.focus);
+    const target = `section:${o.photo}`;
+    return [
+      { id: `${o.idBase}:phone`, kind: "section-phone", label: "Phone", photo: o.photo, value: pair.phone, fallback: pair.desktop, fallbackFrom: "desktop", target: { t: "section", table: o.table, rowId: o.rowId, index: o.index, part: "phone" }, maxZoom: 4, views: [{ screen: "phone", page: o.page, target }] },
+      { id: `${o.idBase}:desktop`, kind: "section-desktop", label: "Desktop", photo: o.photo, value: pair.desktop, target: { t: "section", table: o.table, rowId: o.rowId, index: o.index, part: "desktop" }, maxZoom: 4, views: [{ screen: "desktop", page: o.page, target }] },
+    ];
+  };
+  for (const [parkId, visits] of publishedByPark) {
+    const p = parks.get(parkId)!;
+    visits.forEach((v, vi) => {
+      for (const t of textsByVisit.get(v.id) ?? []) {
+        const anchor = t.category === "description" ? "section-description" : `section-${t.category}`;
+        const page = `${parkPage(parkId, v.id)}#${anchor}`;
+        splitSectionMedia(t.image_url).forEach((m, i) => {
+          if (isVideo(m.url)) return;
+          addPlace({
+            ...base(parkId), key: `review-photo:p${t.id}:${i}`, kind: "frame", image: m.url, visitId: v.id, visitDate: dateOf(v.date), pageUrl: page,
+            place: {
+              kind: "review-photo", title: p.name, subtitle: `Review · ${SECTION_LABEL[t.category] ?? t.category}${vi === 0 ? "" : ` · ${dateLabel(v.date)}`}`, change: null,
+              note: "Change the photo itself in the review editor.",
+              slots: sectionSlots({ idBase: `section:p${t.id}:${i}`, photo: m.url, focus: m.focus, page, table: "parktexts", rowId: t.id, index: i }),
+            },
+          });
+        });
+      }
+    });
+  }
+
   // Coasters.
   const stripPlace = new Map<string, PlaceDraft>(places.filter((p) => p.place.kind === "curated").map((p) => [p.image as string, p]));
   const coasterCaptionSeen = new Set(vgR.rows.map((g) => g.path));
@@ -483,6 +518,21 @@ export async function loadCleanup(): Promise<CleanupData> {
       push({ ...b, key, kind: "review-photos", image: header && !isVideo(header.path) ? header.path : null, pageUrl: coasterPage, sections: { total: written.length, withPhoto }, fingerprint: "ok", done: withPhoto * 2 >= written.length || checked(key, "ok") });
     }
 
+    for (const t of texts) {
+      const page = `${coasterPage}#section-${t.id}`;
+      splitSectionMedia(t.image_url).forEach((m, i) => {
+        if (isVideo(m.url)) return;
+        addPlace({
+          ...b, key: `review-photo:c${t.id}:${i}`, kind: "frame", image: m.url, pageUrl: page,
+          place: {
+            kind: "review-photo", title: c.name, subtitle: `Review · ${t.headline || "Section"} · ${park.name}`, change: null,
+            note: "Change the photo itself in the review editor.",
+            slots: sectionSlots({ idBase: `section:c${t.id}:${i}`, photo: m.url, focus: m.focus, page, table: "coastertext", rowId: t.id, index: i }),
+          },
+        });
+      });
+    }
+
     const shared = new Map<string, number>();
     for (const g of gallery) { const s = String(g.description || "").trim().toLowerCase(); if (s) shared.set(s, (shared.get(s) ?? 0) + 1); }
     for (const g of gallery) {
@@ -533,7 +583,7 @@ export async function loadCleanup(): Promise<CleanupData> {
     push({ ...d, place: { ...d.place, slots }, fingerprint: d.image as string, points: slots.length, done: slots.every((s) => s.done) });
   }
 
-  // Other uses of the framed photos, shown as the page draws them: review sections and gallery tiles.
+  // Other uses of the framed photos, shown as the page draws them: gallery tiles.
   const framed = new Set(places.flatMap((p) => p.place.slots.map((s) => s.photo)));
   const uses: Record<string, PhotoUse[]> = {};
   const addUse = (url: string, u: PhotoUse) => { if (framed.has(url)) (uses[url] ??= []).push(u); };
@@ -541,17 +591,10 @@ export async function loadCleanup(): Promise<CleanupData> {
     const p = parks.get(parkId)!;
     visits.forEach((v, vi) => {
       const where = vi === 0 ? p.name : `${p.name} · ${dateLabel(v.date)}`;
-      for (const t of textsByVisit.get(v.id) ?? []) {
-        const anchor = t.category === "description" ? "section-description" : `section-${t.category}`;
-        for (const m of splitSectionMedia(t.image_url)) addUse(m.url, { label: `Review · ${SECTION_LABEL[t.category] ?? t.category}`, where, page: `${parkPage(parkId, v.id)}#${anchor}`, target: `section:${m.url}` });
-      }
       for (const g of galleryByVisit.get(v.id) ?? []) addUse(g.path, { label: "Gallery", where, page: parkPage(parkId, v.id), target: `tile:${g.path}` });
     });
   }
   for (const c of coasters) {
-    for (const t of textsByCoaster.get(c.id) ?? []) {
-      for (const m of splitSectionMedia(t.image_url)) addUse(m.url, { label: `Review · ${t.headline || "Section"}`, where: c.name, page: `/coasters/${c.slug}#section-${t.id}`, target: `section:${m.url}` });
-    }
     for (const g of galleryByCoaster.get(c.id) ?? []) addUse(g.path, { label: "Gallery", where: c.name, page: `/coasters/${c.slug}`, target: `tile:${g.path}` });
   }
 
@@ -690,6 +733,12 @@ export async function readSlot(photo: string, tg: SlotTarget): Promise<string | 
       return one(`SELECT image_focus AS v FROM parks WHERE id = $1 AND coalesce(nullif(card_imagepath, ''), imagepath) = $2`, [tg.parkId, photo]);
     case "curated":
       return one(`SELECT focus AS v FROM visitgallery WHERE id = $1 AND path = $2`, [tg.rowId, photo]);
+    case "section": {
+      const r = await pool.query(`SELECT image_url FROM ${tg.table} WHERE id = $1`, [tg.rowId]);
+      const entry = splitSectionMedia(r.rows[0]?.image_url)[tg.index];
+      if (!entry || entry.url !== photo) return undefined;
+      return splitFocusPair(entry.focus)[tg.part];
+    }
     case "photo": {
       const r = await pool.query(`SELECT focus AS v FROM photo_framing WHERE format = $1 AND url = $2`, [tg.format, photo]);
       return r.rowCount ? r.rows[0].v : null;
@@ -742,6 +791,23 @@ export async function writeSlot(photo: string, tg: SlotTarget, value: string | n
     case "curated": {
       const r = await pool.query(`UPDATE visitgallery SET focus = $1 WHERE id = $2 AND path = $3`, [value, tg.rowId, photo]);
       return { ok: (r.rowCount ?? 0) > 0 };
+    }
+    case "section": {
+      // The row keeps every photo of the section as "url|desktop|phone"; only this entry's part changes,
+      // and only while the row is still as read (an editor saving meanwhile wins).
+      const r = await pool.query(`SELECT image_url FROM ${tg.table} WHERE id = $1`, [tg.rowId]);
+      const before = r.rows[0]?.image_url as string | null | undefined;
+      const entries = String(before || "").split(",").map((x) => x.trim()).filter(Boolean);
+      const entry = splitSectionMedia(before)[tg.index];
+      if (!entry || entry.url !== photo) return { ok: false };
+      const pair = splitFocusPair(entry.focus);
+      const desktop = tg.part === "desktop" ? value : pair.desktop;
+      const phone = tg.part === "phone" ? value : pair.phone;
+      // The desktop framing is the entry's first part: the page needs one there for a phone one to follow.
+      const focus = desktop || phone ? joinFocusPair(desktop ?? "0.5000 0.5000 1.000", phone) : null;
+      entries[tg.index] = focus ? `${photo}|${focus}` : photo;
+      const w = await pool.query(`UPDATE ${tg.table} SET image_url = $1 WHERE id = $2 AND image_url = $3`, [entries.join(","), tg.rowId, before]);
+      return { ok: (w.rowCount ?? 0) > 0 };
     }
     case "photo": {
       if (value === null) {

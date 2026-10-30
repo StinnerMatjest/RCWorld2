@@ -53,7 +53,7 @@ function buildTiers(coasters: RollerCoaster[]): Tier[] {
 }
 
 /**
- * The park's coasters, grouped by tier under white headings with a dot in the
+ * The park's coasters, grouped by tier under quiet grey headings with a dot in the
  * tier colour. Each row: name, maker · year in grey,
  * the score at the right edge in its rating colour. Phones fold the list
  * after `cap` coasters: the next one shows through a fade, and a pill opens
@@ -108,8 +108,8 @@ export default function ParkCoasterList({ coasters, loading = false, cap = 0, is
 
   const Row = ({ c }: { c: RollerCoaster }) => (
     <li className="group grid grid-cols-[1fr_auto_auto] items-baseline gap-3 py-[2px] lg:py-[2px] lg:border-t lg:border-white/[0.06] lg:first:border-t-0">
-      {/* White name with a small orange chevron: the chevron is the "this opens" signal. */}
-      <Link href={`/coasters/${c.slug}`} className="min-w-0 flex items-center gap-1.5 text-[15px] lg:text-[18px] text-slate-200 hover:text-white active:opacity-60 transition-colors">
+      {/* The coaster is what stands out: white and bold, with a small orange chevron as the "this opens" signal. */}
+      <Link href={`/coasters/${c.slug}`} className="min-w-0 flex items-center gap-1.5 text-[15px] lg:text-[18px] font-semibold text-white hover:text-slate-200 active:opacity-60 transition-colors">
         <span className="truncate">{c.name}</span>
         <svg className="w-[11px] h-[11px] flex-none text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M9 5l7 7-7 7" /></svg>
       </Link>
@@ -128,12 +128,13 @@ export default function ParkCoasterList({ coasters, loading = false, cap = 0, is
     </li>
   );
 
-  // The heading is white; the tier's colour is only a small dot before it,
-  // so the list is not a rainbow and the scores stay the one thing in colour.
+  // The heading is quiet (small grey capitals) so the coasters under it stand out;
+  // the tier's colour is only a small dot before it, so the list is not a rainbow
+  // and the scores stay the one thing in colour.
   const TierHead = ({ tier }: { tier: Tier }) => (
     <div className="flex items-center gap-2 mt-5 lg:mt-6 first:mt-1 mb-1">
-      <span className="w-[7px] h-[7px] rounded-full flex-none" style={{ backgroundColor: tier.muted ? "#475569" : tier.hex }} aria-hidden />
-      <span className="text-[11px] lg:text-xs font-extrabold uppercase tracking-[0.14em] text-slate-300 lg:text-slate-200">{tier.label}</span>
+      <span className="w-[6px] h-[6px] rounded-full flex-none" style={{ backgroundColor: tier.muted ? "#475569" : tier.hex }} aria-hidden />
+      <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{tier.label}</span>
       <span className="flex-1 h-px bg-white/[0.08]" />
     </div>
   );

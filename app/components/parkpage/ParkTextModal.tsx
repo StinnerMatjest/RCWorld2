@@ -221,6 +221,8 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   // Slot the next gallery pick goes into (null = default behaviour: fill the next free slot).
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const [slotMenu, setSlotMenu] = useState<number | null>(null);
+  // Near the bottom of the window the menu opens upward, so every option stays in view.
+  const [menuUp, setMenuUp] = useState(false);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -774,7 +776,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                           onDragEnd={() => setDragFrom(null)}
                           onDragOver={(e) => { if (dragFrom !== null) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } }}
                           onDrop={(e) => { e.preventDefault(); if (dragFrom !== null) reorderImage(dragFrom, i); setDragFrom(null); }}
-                          onClick={() => { setSlotMenu(menuOpen ? null : i); setActiveSlot(null); }}
+                          onClick={(e) => { setMenuUp(window.innerHeight - e.currentTarget.getBoundingClientRect().bottom < 260); setSlotMenu(menuOpen ? null : i); setActiveSlot(null); }}
                           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSlotMenu(menuOpen ? null : i); } }}
                           title="Click for options · drag to reorder"
                           className={`${boxCls} group bg-slate-950 border-2 cursor-pointer transition-all ${picking ? "border-blue-500 ring-2 ring-blue-500/30" : menuOpen ? "border-blue-500" : dragFrom === i ? "border-slate-500 opacity-50" : "border-slate-700 hover:border-slate-500"}`}
@@ -798,7 +800,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
                         {menuOpen && (
                           <>
                             <div className="fixed inset-0 z-[1005]" onClick={() => setSlotMenu(null)} />
-                            <div className="absolute z-[1006] top-full left-0 mt-1.5 w-40 rounded-xl bg-slate-800 border border-slate-700 shadow-xl p-1 text-sm">
+                            <div className={`absolute z-[1006] left-0 w-40 rounded-xl bg-slate-800 border border-slate-700 shadow-xl p-1 text-sm ${menuUp ? "bottom-full mb-1.5" : "top-full mt-1.5"}`}>
                               <button onClick={() => { setSlotMenu(null); setCropIndex(i); }} className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-200 cursor-pointer">Position</button>
                               <button onClick={() => openCaptionEditor(url)} className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-200 cursor-pointer">
                                 {captions[url] ? "Edit caption…" : "Add caption…"}

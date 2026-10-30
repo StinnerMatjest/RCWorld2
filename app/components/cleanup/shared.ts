@@ -19,6 +19,7 @@ export const FRAMING: Section = {
     { id: "park-cover", title: "Park Page", groups: ["place:park-cover"] },
     { id: "coaster-cover", title: "Coaster Page", groups: ["place:coaster-cover"] },
     { id: "curated", title: "Curated Gallery", groups: ["place:curated", "place:coaster-curated"] },
+    { id: "review-photo", title: "Review Photos", groups: ["place:review-photo"] },
     { id: "list-photo", title: "List Photos", groups: ["place:list-photo"] },
   ],
 };
@@ -53,7 +54,7 @@ export const PILLARS: { id: string; title: string; cats: string[] }[] = [
 /** What a framing place is called, by kind. */
 export const PLACE_TITLE: Record<PlaceKind, string> = {
   card: "Frontpage", "park-cover": "Park page cover", "coaster-cover": "Coaster page cover",
-  curated: "Curated Gallery", "coaster-curated": "Curated Gallery", "list-photo": "List photo",
+  curated: "Curated Gallery", "coaster-curated": "Curated Gallery", "review-photo": "Review photo", "list-photo": "List photo",
 };
 export const KIND_TITLE: Record<CleanupKind, string> = {
   frame: "Framing", caption: "Caption", "curated-pick": "Pick Curated Gallery", "coaster-pick": "Pick Curated Gallery",
@@ -84,7 +85,7 @@ export function photoSources(src: string, size?: { w: number; h: number }): { sr
  */
 const TIER: Record<string, number> = {
   "place:card": 0, "place:park-cover": 0, "place:coaster-cover": 1, "place:curated": 2, "place:coaster-curated": 3,
-  caption: 2, "curated-pick": 2, "coaster-pick": 3, "place:list-photo": 5,
+  caption: 2, "curated-pick": 2, "coaster-pick": 3, "place:review-photo": 4, "place:list-photo": 5,
 };
 export function priority(t: CleanupTask): number {
   const tier = TIER[groupOf(t)] ?? 6;

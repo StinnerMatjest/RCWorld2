@@ -10,11 +10,21 @@
   object-position: var(--pos-m);
 }
 
+/* Zoomed in: scaled from the position point, so the frame never shows past the photo. */
+.zoom {
+  transform: scale(var(--z-m));
+  transform-origin: var(--pos-m);
+}
+
 @media (min-width: 768px) {
   .frame {
     aspect-ratio: var(--aspect-d);
   }
   .pos {
     object-position: var(--pos-d);
+  }
+  .zoom {
+    transform: scale(var(--z-d));
+    transform-origin: var(--pos-d);
   }
 }

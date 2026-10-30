@@ -122,6 +122,8 @@ export function SectionBody({
             cy={pan.cy}
             mcx={panPhone?.cx}
             mcy={panPhone?.cy}
+            zoom={pan.zoom}
+            mzoom={panPhone?.zoom}
             mobileAspect={a.mobile}
             desktopAspect={a.desktop}
             sizes={isRow

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { CoasterGalleryImage } from "@/app/components/coasterpage/coasterPageTypes";
@@ -13,17 +13,17 @@ const isVideo = (p: string) => /\.(mp4|webm|mov|ogg)$/i.test(p);
 
 // ─── caption ─────────────────────────────────────────────────────────────────
 
-function CaptionFixer({ task, busy, onSave, onOk }: { task: CleanupTask; busy: boolean; onSave: (text: string) => void; onOk: () => void }) {
+function CaptionFixer({ task, busy, onSave, onOk, fill = false }: { task: CleanupTask; busy: boolean; onSave: (text: string) => void; onOk: () => void; /** Fill the room left on one screen. */ fill?: boolean }) {
   const cur = task.caption?.current ?? "";
   const [text, setText] = useState(task.caption?.why === "No caption" ? "" : cur);
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => { ref.current?.focus({ preventScroll: true }); }, [task.key]);
   const src = photoSources(task.image!, task.size);
   return (
-    <div className="grid gap-6 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] md:items-start">
-      <div className="flex items-center justify-center overflow-hidden rounded-2xl bg-slate-950">
+    <div className={`grid gap-6 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] md:items-start ${fill ? "h-full" : ""}`}>
+      <div className={`flex items-center justify-center overflow-hidden rounded-2xl bg-slate-950 ${fill ? "h-full" : ""}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src.src} srcSet={src.srcSet} sizes="(min-width: 768px) 60vw, 100vw" alt="" className="max-h-[60vh] w-auto max-w-full object-contain" />
+        <img src={src.src} srcSet={src.srcSet} sizes="(min-width: 768px) 60vw, 100vw" alt="" className={`w-auto max-w-full object-contain ${fill ? "max-h-full" : "max-h-[60vh]"}`} />
       </div>
       <form onSubmit={(e) => { e.preventDefault(); if (text.trim() && !busy) onSave(text.trim()); }}>
         <p className="text-sm text-slate-400">{task.caption?.why || "Caption"}{cur ? <> · now “<span className="text-slate-200">{cur}</span>”</> : null}</p>
@@ -79,6 +79,29 @@ function CuratedPick({ task, busy, onPicked }: { task: CleanupTask; busy: boolea
 // ─── runner ──────────────────────────────────────────────────────────────────
 
 type Toast = { text: string; undo?: string; at: number };
+
+/**
+ * Desktop screens big enough to work on one screen without scrolling: the
+ * runner takes the height left under the site header and sizes the previews
+ * to it, with the save bar and Up next always in view.
+ */
+function useOnePager(ref: React.RefObject<HTMLElement | null>): number | null {
+  const [h, setH] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px) and (min-height: 640px)");
+    const measure = () => {
+      const el = ref.current;
+      if (!el || !mq.matches) { setH(null); return; }
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      setH(Math.max(560, window.innerHeight - top));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    mq.addEventListener("change", measure);
+    return () => { window.removeEventListener("resize", measure); mq.removeEventListener("change", measure); };
+  }, [ref]);
+  return h;
+}
 /** A framing saved (with value) or checked as it is, by task and slot. */
 export type SavedItem = { task: string; slot: string; value?: string };
 
@@ -103,6 +126,9 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const onePagerH = useOnePager(rootRef);
+  const onePager = onePagerH != null;
   // The task the last save was for: an undo comes back to it.
   const undoKey = useRef<string | undefined>(undefined);
   const find = (k?: string) => (k ? queue.find((t) => t.key === k) ?? data.tasks.find((t) => t.key === k) ?? data.done.find((t) => t.key === k) : undefined);
@@ -199,53 +225,54 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
   const done = data.done.find((t) => t.key === task.key);
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 pb-28 pt-4 md:px-10 md:pb-16">
-      <div className="flex items-center gap-4 whitespace-nowrap text-sm">
+    <div ref={rootRef} className={`mx-auto max-w-[1880px] px-4 pt-4 md:px-10 ${onePager ? "flex flex-col pb-4" : "pb-28 md:pb-16"}`} style={onePager ? { height: onePagerH } : undefined}>
+      <div className="flex shrink-0 items-center gap-4 whitespace-nowrap text-sm">
         <button onClick={onExit} className="text-slate-400 hover:text-white cursor-pointer">‹ Clean-up</button>
         <span className="hidden min-w-0 truncate text-slate-500 sm:block">{title}{idx >= 0 ? ` · ${idx + 1} of ${queue.length}` : ""}</span>
         <span className="flex-1" />
+        {error && <span className="min-w-0 truncate rounded-lg bg-red-950/60 px-3 py-1 text-red-300">{error}</span>}
         <Link href={task.pageUrl} target="_blank" className="whitespace-nowrap text-slate-400 hover:text-white">Open page ↗</Link>
         {!isDone && <button type="button" onClick={skip} className="whitespace-nowrap text-slate-400 hover:text-white cursor-pointer">Skip ›</button>}
       </div>
 
-      <div className="mb-5 mt-4">
+      <div className={`shrink-0 ${onePager ? "mb-4 mt-2 flex items-baseline gap-3" : "mb-5 mt-4"}`}>
         <p className="text-[13px] font-bold text-brand">{taskTitle(task)}{done && <span className="ml-2 font-normal text-green-300">✓ Done by {done.doneBy}, {fmtDate(done.doneAt)}</span>}</p>
-        <h1 className="mt-1 text-2xl font-bold leading-tight text-white md:text-3xl">{heading}</h1>
-        {sub && <p className="mt-0.5 text-sm text-slate-400">{sub}</p>}
+        <h1 className={`font-bold leading-tight text-white ${onePager ? "min-w-0 truncate text-2xl" : "mt-1 text-2xl md:text-3xl"}`}>{heading}</h1>
+        {sub && <p className={`text-sm text-slate-400 ${onePager ? "truncate" : "mt-0.5"}`}>{sub}</p>}
       </div>
 
-      {place && (
-        <PlaceFramer key={task.key} task={task} related={related} readUses={readUses} busy={busy}
-          onSave={(items) => {
-            const saved: SavedItem[] = items.map((i) => ({ task: i.task ?? task.key, slot: i.slot, value: i.value }));
-            const finished = [task, ...related].filter((t) => t.place!.slots.every((s) => s.done || saved.some((i) => i.task === t.key && i.slot === s.id)));
-            void run(() => api("place", task.key, person!, { items }), finished, saved);
-          }}
-          onChanged={(k) => { void changedPhoto(k); }} />
-      )}
-      {task.kind === "caption" && (
-        <CaptionFixer key={task.key} task={task} busy={busy}
-          onSave={(text) => void run(() => api("caption", task.key, person!, { text }), [task])}
-          onOk={() => void run(() => api("ok", task.key, person!), [task])} />
-      )}
-      {(task.kind === "curated-pick" || task.kind === "coaster-pick") && (
-        <CuratedPick key={task.key} task={task} busy={busy} onPicked={() => void run(() => api("done", task.key, person!), [task])} />
-      )}
-
-      {error && <p className="mt-4 rounded-xl border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-300">{error}</p>}
+      <div className={onePager ? "min-h-0 flex-1" : ""}>
+        {place && (
+          <PlaceFramer task={task} related={related} readUses={readUses} busy={busy} onePager={onePager}
+            onSave={(items) => {
+              const saved: SavedItem[] = items.map((i) => ({ task: i.task ?? task.key, slot: i.slot, value: i.value }));
+              const finished = [task, ...related].filter((t) => t.place!.slots.every((s) => s.done || saved.some((i) => i.task === t.key && i.slot === s.id)));
+              void run(() => api("place", task.key, person!, { items }), finished, saved);
+            }}
+            onChanged={(k) => { void changedPhoto(k); }} />
+        )}
+        {task.kind === "caption" && (
+          <CaptionFixer key={task.key} task={task} busy={busy} fill={onePager}
+            onSave={(text) => void run(() => api("caption", task.key, person!, { text }), [task])}
+            onOk={() => void run(() => api("ok", task.key, person!), [task])} />
+        )}
+        {(task.kind === "curated-pick" || task.kind === "coaster-pick") && (
+          <CuratedPick key={task.key} task={task} busy={busy} onPicked={() => void run(() => api("done", task.key, person!), [task])} />
+        )}
+      </div>
 
       {upcoming.length > 0 && (
-        <div className="mt-12">
-          <div className="mb-2.5 flex items-baseline justify-between"><h2 className="text-base font-bold text-white">Up next</h2><span className="text-xs text-slate-500">Tap one to jump to it</span></div>
+        <div className={`shrink-0 ${onePager ? "mt-4 border-t border-white/10 pt-3" : "mt-12"}`}>
+          <div className="mb-2 flex items-baseline justify-between"><h2 className="text-sm font-bold text-white">Up next</h2><span className="text-xs text-slate-500">Tap one to jump to it</span></div>
           <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1">
             {upcoming.map((t) => (
-              <button key={t.key} type="button" onClick={() => setKey(t.key)} className="group w-[96px] flex-none text-left cursor-pointer md:w-[120px]">
-                <div className="aspect-[4/5] overflow-hidden rounded-xl bg-slate-800 ring-brand transition group-hover:ring-2">
+              <button key={t.key} type="button" onClick={() => setKey(t.key)} className={`group flex-none text-left cursor-pointer ${onePager ? "w-[76px]" : "w-[96px] md:w-[120px]"}`}>
+                <div className="aspect-[4/5] overflow-hidden rounded-lg bg-slate-800 ring-brand transition group-hover:ring-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {t.image && <img src={thumb(t.image)} alt="" loading="lazy" className="h-full w-full object-cover opacity-90 transition-opacity group-hover:opacity-100" />}
                 </div>
-                <div className="mt-1.5 truncate text-xs font-semibold text-slate-200">{taskName(t)}</div>
-                <div className="truncate text-[11px] text-slate-500">{taskTitle(t)}</div>
+                <div className="mt-1 truncate text-[11px] font-semibold text-slate-200">{taskName(t)}</div>
+                {!onePager && <div className="truncate text-[11px] text-slate-500">{taskTitle(t)}</div>}
               </button>
             ))}
           </div>
@@ -260,7 +287,7 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
 /** "Saved · +2 Jannik  Undo", for a few seconds after a save. */
 function ToastBar({ toast, onUndo }: { toast: Toast; onUndo: () => void }) {
   return (
-    <div key={toast.at} className="fixed inset-x-4 bottom-24 z-50 mx-auto flex max-w-sm items-center gap-4 rounded-2xl border border-slate-700 bg-slate-900/95 px-4 py-3 text-sm shadow-2xl backdrop-blur md:bottom-8">
+    <div key={toast.at} className="fixed inset-x-4 bottom-24 z-50 mx-auto flex max-w-sm items-center gap-4 rounded-2xl border border-slate-700 bg-slate-900/95 px-4 py-3 text-sm shadow-2xl backdrop-blur md:bottom-8 lg:bottom-auto lg:left-auto lg:right-8 lg:top-8 lg:mx-0 lg:w-80">
       <span className="min-w-0 flex-1 truncate font-bold text-white">{toast.text}</span>
       {toast.undo && <button type="button" onClick={onUndo} className="font-bold text-brand hover:text-brand-light cursor-pointer">Undo</button>}
     </div>

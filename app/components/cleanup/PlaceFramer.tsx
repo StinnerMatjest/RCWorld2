@@ -26,16 +26,17 @@ export function Btn({ children, onClick, primary, disabled, title, submit, small
   );
 }
 
-export function useWidth(ref: React.RefObject<HTMLElement | null>) {
-  const [w, setW] = useState(0);
+/** Width and height of an element, kept up to date. */
+export function useSize(ref: React.RefObject<HTMLElement | null>) {
+  const [size, setSize] = useState({ w: 0, h: 0 });
   useEffect(() => {
     const el = ref.current; if (!el) return;
-    const update = () => setW(el.clientWidth);
+    const update = () => setSize((o) => (o.w === el.clientWidth && o.h === el.clientHeight ? o : { w: el.clientWidth, h: el.clientHeight }));
     update();
     const ro = new ResizeObserver(update); ro.observe(el);
     return () => ro.disconnect();
   }, [ref]);
-  return w;
+  return size;
 }
 
 function Status({ slot, changed }: { slot: FrameSlot; changed: boolean }) {
@@ -286,69 +287,61 @@ function SlotPreviews({ task, values, onValue, width, maxH, phoneScreen }: {
 
 type Use = { id: string; title: string; sub: string; place?: CleanupTask; read?: PhotoUse; photo: string };
 
+function statusOf(u: Use, values: Values) {
+  if (u.read) return { text: "Set on the page", cls: "text-slate-500" };
+  const slots = u.place!.place!.slots;
+  const changed = slots.some((s) => (values[vkey(u.place!, s)] ?? startValue(s)) !== startValue(s));
+  if (changed) return { text: "Changed", cls: "text-orange-300" };
+  return slots.every((s) => s.done) ? { text: "✓ Checked", cls: "text-green-300" } : { text: "Not checked", cls: "text-orange-300" };
+}
+
 /**
- * Every other place this photo is shown: the other framings (adjustable here,
- * saved with this place) and the frames the pages draw by themselves (review
- * sections, gallery tiles), shown as they are. One at a time, on the real page.
+ * This place and every other place its photo is shown, one under the other:
+ * the other framings (adjustable here, saved with this place) and the frames
+ * the pages draw by themselves (review sections, gallery tiles). The chosen
+ * one shows in the middle, on the real page.
  */
-function Elsewhere({ uses, values, onValue, width, maxH }: { uses: Use[]; values: Values; onValue: (t: CleanupTask, s: FrameSlot, v: string) => void; width: number; maxH: number }) {
-  const [sel, setSel] = useState<string | null>(null);
-  const use = uses.find((u) => u.id === sel) ?? null;
-  const status = (u: Use) => {
-    if (u.read) return { text: "Set on the page", cls: "text-slate-500" };
-    const slots = u.place!.place!.slots;
-    const changed = slots.some((s) => (values[vkey(u.place!, s)] ?? startValue(s)) !== startValue(s));
-    if (changed) return { text: "Changed", cls: "text-orange-300" };
-    return slots.every((s) => s.done) ? { text: "✓ Checked", cls: "text-green-300" } : { text: "Not checked", cls: "text-orange-300" };
-  };
-  const narrow = width < 760;
+function UsesList({ here, uses, sel, onSel, values }: { here: Use; uses: Use[]; sel: string | null; onSel: (id: string | null) => void; values: Values }) {
+  const item = (u: Use, on: boolean, st: { text: string; cls: string }, onClick: () => void) => (
+    <button key={u.id} type="button" onClick={onClick}
+      className={`flex w-full items-center gap-3 rounded-xl border p-2 pr-3 text-left transition-colors cursor-pointer ${on ? "border-brand bg-brand/10" : "border-white/10 bg-white/[0.03] hover:border-white/25"}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={thumb(u.photo)} alt="" loading="lazy" className="h-16 w-16 flex-none rounded-lg object-cover" />
+      <span className="min-w-0">
+        <span className="block text-[14px] font-bold leading-snug text-white">{u.title}</span>
+        <span className="block truncate text-xs text-slate-400">{u.sub}</span>
+        <span className={`block text-[11px] font-bold ${st.cls}`}>{st.text}</span>
+      </span>
+    </button>
+  );
   return (
-    <section className="mt-10">
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 className="text-base font-bold text-white">This photo elsewhere on the site</h2>
-        <span className="text-xs text-slate-500">{use ? (use.read ? "Shown as the page draws it" : "Drag to adjust; saved with this one") : "Tap one to see it"}</span>
-      </div>
-      <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1">
-        {uses.map((u) => {
-          const st = status(u);
-          const on = u.id === sel;
-          return (
-            <button key={u.id} type="button" onClick={() => setSel(on ? null : u.id)}
-              className={`flex w-[250px] flex-none items-center gap-3 rounded-xl border p-2 pr-3 text-left transition-colors cursor-pointer ${on ? "border-brand bg-brand/10" : "border-slate-800 bg-slate-900/60 hover:border-slate-600"}`}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={thumb(u.photo)} alt="" loading="lazy" className="h-12 w-12 flex-none rounded-lg object-cover" />
-              <span className="min-w-0">
-                <span className="block truncate text-[13px] font-bold text-white">{u.title}</span>
-                <span className="block truncate text-xs text-slate-400">{u.sub}</span>
-                <span className={`block text-[11px] font-bold ${st.cls}`}>{st.text}</span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      {use && (
-        <div className="mt-4">
-          {use.place ? (
-            <SlotPreviews task={use.place} values={values} onValue={onValue} width={width} maxH={maxH} />
-          ) : (
-            <div className={`flex gap-6 ${narrow ? "flex-col" : "flex-row items-start"}`}>
-              {(["phone", "desktop"] as const).map((screen) => (
-                <LivePreview key={`${screen}|${use.read!.page.split("#")[0]}`} page={use.read!.page} target={use.read!.target} viewport={previewViewport(screen)}
-                  maxW={narrow ? width : screen === "phone" ? Math.min(400, maxH * 0.8) : Math.max(280, width - Math.min(400, maxH * 0.8) - 24)} maxH={maxH}
-                  label={<span className="font-bold text-white">{screen === "phone" ? "Phone" : "Desktop"}</span>}
-                  badge={<a href={use.read!.page} target="_blank" rel="noreferrer" className="text-xs font-bold text-slate-400 hover:text-white">Change it on the page ↗</a>} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </section>
+    <div className="space-y-2">
+      {item(here, sel === null, { text: "Framing now", cls: "text-brand" }, () => onSel(null))}
+      {uses.length > 0 && <p className="px-1 pt-3 text-xs font-bold text-slate-400">Elsewhere on the site · {uses.length}</p>}
+      {uses.map((u) => item(u, sel === u.id, statusOf(u, values), () => onSel(sel === u.id ? null : u.id)))}
+    </div>
+  );
+}
+
+/** A use the page draws by itself: its frame on the phone and the desktop page, as visitors see it. */
+function ReadPreviews({ use, width, maxH }: { use: PhotoUse; width: number; maxH: number }) {
+  const narrow = width < 760;
+  const phoneW = narrow ? width : Math.min(400, maxH * 0.8);
+  return (
+    <div className={`flex gap-6 ${narrow ? "flex-col" : "flex-row items-start"}`}>
+      {(["phone", "desktop"] as const).map((screen) => (
+        <LivePreview key={`${screen}|${use.page.split("#")[0]}`} page={use.page} target={use.target} viewport={previewViewport(screen)}
+          maxW={narrow ? width : screen === "phone" ? phoneW : Math.max(280, width - phoneW - 24)} maxH={maxH}
+          label={<span className="font-bold text-white">{screen === "phone" ? "Phone" : "Desktop"} <span className="font-normal text-slate-500">· as the page draws it</span></span>}
+          badge={<a href={use.page} target="_blank" rel="noreferrer" className="text-xs font-bold text-slate-400 hover:text-white">Change it on the page ↗</a>} />
+      ))}
+    </div>
   );
 }
 
 // ─── a place ─────────────────────────────────────────────────────────────────
 
-export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged }: {
+export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, onePager = false }: {
   task: CleanupTask;
   /** Other framing places of this place's photos (open or done). */
   related: CleanupTask[];
@@ -357,14 +350,20 @@ export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged }
   busy: boolean;
   onSave: (items: { task?: string; slot: string; value?: string }[]) => void;
   onChanged: (newKey: string | null) => void;
+  /** Desktop: everything on one screen, the previews sized to the room left. */
+  onePager?: boolean;
 }) {
   const place = task.place!;
   const [values, setValues] = useState<Values>({});
   const [changing, setChanging] = useState(false);
   const [picker, setPicker] = useState<CoasterGalleryImage[] | null>(null);
   const [dropping, setDropping] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const width = useWidth(wrapRef);
+  const [sel, setSel] = useState<string | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const stage = useSize(stageRef);
+  // One framer for every task, so the next place on the same page keeps the loaded page; what
+  // was being edited here goes with the task.
+  useEffect(() => { setValues({}); setChanging(false); setPicker(null); setDropping(false); setSel(null); }, [task.key]);
   const all = useMemo(() => [task, ...related], [task, related]);
   const changedSlots = all.flatMap((t) => t.place!.slots.filter((s) => values[vkey(t, s)] !== undefined && values[vkey(t, s)] !== startValue(s)).map((s) => ({ t, s })));
   const anyChanged = changedSlots.length > 0;
@@ -383,9 +382,11 @@ export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged }
   };
   const onValue = (t: CleanupTask, s: FrameSlot, v: string) => setValues((m) => (m[vkey(t, s)] === v ? m : { ...m, [vkey(t, s)]: v }));
 
-  // Room per frame: phones keep their real size where it fits, desktops take the rest.
+  // Room per frame: on one screen, the height left over (less the label row); else a share of
+  // the window. Phones keep their real size where it fits, desktops take the rest of the row.
   const vh = typeof window !== "undefined" ? window.innerHeight : 900;
-  const maxH = Math.max(260, Math.min(560, vh * 0.58));
+  const maxH = onePager ? Math.max(200, stage.h - 36) : Math.max(260, Math.min(560, vh * 0.58));
+  const width = stage.w;
   const ch = place.change;
   const phoneOwn = ch && (ch.t === "park-header" || ch.t === "coaster-header") ? ch.phonePhoto : null;
 
@@ -399,6 +400,8 @@ export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged }
     const fromPages: Use[] = readUses.map((u) => ({ id: `${u.page}|${u.target}`, read: u, photo: u.target.replace(/^(section|tile):/, ""), title: u.label, sub: u.where }));
     return [...fromPlaces, ...fromPages];
   }, [place, related, readUses]);
+  const here: Use = { id: task.key, place: task, photo: task.image ?? "", title: PLACE_TITLE[place.kind], sub: [place.title, place.subtitle].filter(Boolean).join(" · ") };
+  const shown = uses.find((u) => u.id === sel) ?? null;
 
   // Back to the desktop photo on phones.
   const dropPhone = async () => {
@@ -425,18 +428,34 @@ export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged }
     setPicker(d.gallery ?? []);
   };
 
+  const hint = (
+    <p className="text-xs text-slate-500">
+      {place.slots.some((s) => s.maxZoom > 1) ? "Drag to move · scroll or pinch to zoom" : "Drag to move"}
+      {place.note && <span className="mt-1 block">{place.note}</span>}
+    </p>
+  );
   return (
-    <div ref={wrapRef}>
-      <SlotPreviews task={task} values={values} onValue={onValue} width={width} maxH={maxH} phoneScreen={dropLink} />
-
-      <div className="mt-3 text-xs text-slate-500">
-        {place.slots.some((s) => s.maxZoom > 1) ? "Drag to move · scroll or pinch to zoom" : "Drag to move"}
-        {place.note && <span className="mt-1 block">{place.note}</span>}
+    <div className={onePager ? "flex h-full min-h-0 flex-col" : ""}>
+      <div className={onePager ? "flex min-h-0 flex-1 gap-6" : ""}>
+        {/* The stage: this place's previews stay loaded while another use is looked at. */}
+        <div ref={stageRef} className={`relative min-w-0 ${onePager ? "min-h-0 flex-1" : ""}`}>
+          <div className={shown ? "pointer-events-none invisible absolute inset-x-0 top-0" : ""} aria-hidden={!!shown}>
+            <SlotPreviews task={task} values={values} onValue={onValue} width={width} maxH={maxH} phoneScreen={dropLink} />
+          </div>
+          {shown && (shown.place
+            ? <SlotPreviews key={shown.id} task={shown.place} values={values} onValue={onValue} width={width} maxH={maxH} />
+            : <ReadPreviews key={shown.id} use={shown.read!} width={width} maxH={maxH} />)}
+          {!onePager && <div className="mt-3">{hint}</div>}
+        </div>
+        {(uses.length > 0 || onePager) && (
+          <aside className={onePager ? "flex w-[300px] shrink-0 flex-col gap-4 overflow-y-auto pb-1 pr-1" : "mt-8"}>
+            <UsesList here={here} uses={uses} sel={sel} onSel={setSel} values={values} />
+            {onePager && hint}
+          </aside>
+        )}
       </div>
 
-      {uses.length > 0 && <Elsewhere uses={uses} values={values} onValue={onValue} width={width} maxH={Math.min(maxH, 440)} />}
-
-      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2.5 border-t border-white/10 bg-[#0f172a]/95 px-4 py-3 backdrop-blur md:static md:mt-8 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+      <div className={`z-40 flex items-center gap-2.5 ${onePager ? "mt-4 shrink-0" : "fixed inset-x-0 bottom-0 border-t border-white/10 bg-[#0f172a]/95 px-4 py-3 backdrop-blur md:static md:mt-8 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"}`}>
         {ch && <Btn onClick={() => setChanging(true)}>Change photo</Btn>}
         {ch?.t === "coaster-curated" && <Btn onClick={openPicker}>Picks</Btn>}
         {anyChanged && <button type="button" onClick={() => setValues({})} className="px-2 text-sm text-slate-400 hover:text-white cursor-pointer">Reset</button>}

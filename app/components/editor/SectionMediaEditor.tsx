@@ -221,17 +221,20 @@ export function SectionImageCropper({
   desktopAspect: string;
   value: string;
   onChange: (v: string) => void;
-  /** Position a clip using its cached still frame (see VideoThumb). */
+  /** Position a clip using its cached still frame (see VideoThumb). Clips do not zoom. */
   isVideo?: boolean;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLCanvasElement>(null);
   const init = parseFocusStr(value);
-  const [pos, setPos] = useState({ cx: init.cx, cy: init.cy });
+  const [pos, setPos] = useState({ cx: init.cx, cy: init.cy, z: isVideo ? 1 : init.zoom });
   const posRef = useRef(pos);
   posRef.current = pos;
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
   const drag = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ d: number; z: number } | null>(null);
+  const MAX_ZOOM = 4;
 
   useEffect(() => {
     if (isVideo) {
@@ -251,50 +254,87 @@ export function SectionImageCropper({
 
   useEffect(() => {
     const p = parseFocusStr(value);
-    setPos({ cx: p.cx, cy: p.cy });
-  }, [value, src]);
+    setPos({ cx: p.cx, cy: p.cy, z: isVideo ? 1 : p.zoom });
+  }, [value, src, isVideo]);
 
-  const clamp = (v: number) => Math.max(0, Math.min(1, v));
+  const clamp = (v: number, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, v));
   const ratio = (s: string) => {
     const [a, b] = s.split("/").map((n) => parseFloat(n.trim()));
     return a / (b || 1);
   };
+  const commit = (p = posRef.current) => onChange(`${p.cx.toFixed(4)} ${p.cy.toFixed(4)} ${p.z.toFixed(3)}`);
 
+  // The part of the photo a frame of aspect Af shows (fractions of the photo), at zoom z.
   const Ai = dims ? dims.w / dims.h : 1;
-  const win = (Af: number, cx: number, cy: number) =>
-    Ai >= Af
-      ? { left: cx * (1 - Af / Ai), top: 0, w: Af / Ai, h: 1 }
-      : { left: 0, top: cy * (1 - Ai / Af), w: 1, h: Ai / Af };
+  const win = (Af: number, cx: number, cy: number, z: number) => {
+    const w = (Ai >= Af ? Af / Ai : 1) / z, h = (Ai >= Af ? 1 : Ai / Af) / z;
+    return { left: cx * (1 - w), top: cy * (1 - h), w, h };
+  };
 
   const onDown = (e: React.PointerEvent) => {
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2 && !isVideo) {
+      const [a, b] = [...pointers.current.values()];
+      pinch.current = { d: Math.hypot(a.x - b.x, a.y - b.y), z: posRef.current.z };
+      drag.current = null;
+      return;
+    }
     drag.current = { x: e.clientX, y: e.clientY, cx: posRef.current.cx, cy: posRef.current.cy };
   };
   const onMove = (e: React.PointerEvent) => {
+    if (!pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch.current && pointers.current.size >= 2) {
+      const [a, b] = [...pointers.current.values()];
+      setPos((p) => ({ ...p, z: clamp(pinch.current!.z * (Math.hypot(a.x - b.x, a.y - b.y) / pinch.current!.d), 1, MAX_ZOOM) }));
+      return;
+    }
     const box = boxRef.current;
     if (!drag.current || !box || !dims) return;
-    const cw = box.clientWidth, ch = box.clientHeight;
-    const d = win(ratio(desktopAspect), drag.current.cx, drag.current.cy);
-    const m = win(ratio(mobileAspect), drag.current.cx, drag.current.cy);
+    const cw = box.clientWidth, ch = box.clientHeight, z = posRef.current.z;
+    const d = win(ratio(desktopAspect), drag.current.cx, drag.current.cy, z);
+    const m = win(ratio(mobileAspect), drag.current.cx, drag.current.cy, z);
     const dx = e.clientX - drag.current.x;
     const dy = e.clientY - drag.current.y;
+    // The photo follows the pointer in the desktop frame (its overflow there is
+    // the frame size times 1/w - 1); where the desktop frame shows the whole
+    // photo across, the drag moves the phone frame's box instead.
     let ncx = drag.current.cx, ncy = drag.current.cy;
-    if (1 - d.w > 0.0005) ncx = clamp(drag.current.cx - dx / (cw * (1 - d.w)));
+    if (1 - d.w > 0.0005) ncx = clamp(drag.current.cx - dx / (cw * (1 / d.w - 1)));
     else if (1 - m.w > 0.0005) ncx = clamp(drag.current.cx + dx / (cw * (1 - m.w)));
-    if (1 - d.h > 0.0005) ncy = clamp(drag.current.cy - dy / (ch * (1 - d.h)));
+    if (1 - d.h > 0.0005) ncy = clamp(drag.current.cy - dy / (ch * (1 / d.h - 1)));
     else if (1 - m.h > 0.0005) ncy = clamp(drag.current.cy + dy / (ch * (1 - m.h)));
-    setPos({ cx: ncx, cy: ncy });
+    setPos((p) => ({ ...p, cx: ncx, cy: ncy }));
   };
-  const onUp = () => {
+  const onUp = (e: React.PointerEvent) => {
+    pointers.current.delete(e.pointerId);
+    const wasPinch = !!pinch.current;
+    if (pointers.current.size < 2) pinch.current = null;
+    if (wasPinch && pointers.current.size === 0) { commit(); return; }
     if (!drag.current) return;
     drag.current = null;
-    onChange(`${posRef.current.cx.toFixed(4)} ${posRef.current.cy.toFixed(4)} 1`);
+    commit();
   };
+  // The wheel zooms the photo, not the dialog.
+  const wheelTimer = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el || isVideo) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      setPos((p) => ({ ...p, z: clamp(p.z * Math.exp(-e.deltaY * 0.0015), 1, MAX_ZOOM) }));
+      window.clearTimeout(wheelTimer.current);
+      wheelTimer.current = window.setTimeout(() => commit(), 250);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [isVideo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   let safe: { left: number; top: number; w: number; h: number } | null = null;
   if (dims) {
-    const d = win(ratio(desktopAspect), pos.cx, pos.cy);
-    const m = win(ratio(mobileAspect), pos.cx, pos.cy);
+    const d = win(ratio(desktopAspect), pos.cx, pos.cy, pos.z);
+    const m = win(ratio(mobileAspect), pos.cx, pos.cy, pos.z);
     const left = Math.max(d.left, m.left);
     const top = Math.max(d.top, m.top);
     const right = Math.min(d.left + d.w, m.left + m.w);
@@ -307,6 +347,11 @@ export function SectionImageCropper({
     };
   }
   const showSafe = !!safe && (safe.w < 0.995 || safe.h < 0.995);
+  // Drawn as the page draws it (SectionImage): cover, positioned, scaled from that point.
+  const place: React.CSSProperties = {
+    objectPosition: `${pos.cx * 100}% ${pos.cy * 100}%`,
+    ...(pos.z > 1.001 ? { transform: `scale(${pos.z})`, transformOrigin: `${pos.cx * 100}% ${pos.cy * 100}%` } : {}),
+  };
 
   return (
     <>
@@ -324,7 +369,7 @@ export function SectionImageCropper({
             ref={frameRef}
             aria-hidden
             className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
-            style={{ objectPosition: `${pos.cx * 100}% ${pos.cy * 100}%` }}
+            style={place}
           />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
@@ -333,7 +378,7 @@ export function SectionImageCropper({
             alt=""
             draggable={false}
             className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
-            style={{ objectPosition: `${pos.cx * 100}% ${pos.cy * 100}%` }}
+            style={place}
           />
         )}
         {showSafe && safe && (
@@ -349,10 +394,21 @@ export function SectionImageCropper({
           />
         )}
       </div>
+      {!isVideo && (
+        <div className="mx-auto mt-3 flex max-w-md items-center gap-3 text-xs text-slate-400">
+          <span>Zoom</span>
+          <input type="range" min={1} max={MAX_ZOOM} step={0.01} value={pos.z} aria-label="Zoom"
+            onChange={(e) => setPos((p) => ({ ...p, z: Number(e.target.value) }))}
+            onPointerUp={() => commit()} onKeyUp={() => commit()}
+            className="flex-1 accent-blue-500 cursor-pointer" />
+          <span className="w-10 text-right tabular-nums">{pos.z.toFixed(1)}×</span>
+          {pos.z > 1.001 && <button type="button" onClick={() => { const p = { ...posRef.current, z: 1 }; setPos(p); commit(p); }} className="font-bold text-blue-400 hover:text-blue-300 cursor-pointer">Reset</button>}
+        </div>
+      )}
       <p className="mt-2 text-center text-xs text-slate-400">
         {showSafe
-          ? "Drag to position. The bright box is what shows on every screen."
-          : "Drag to position the crop."}
+          ? "Drag to position, scroll or pinch to zoom. The bright box is what shows on every screen."
+          : isVideo ? "Drag to position the crop." : "Drag to position, scroll or pinch to zoom."}
       </p>
     </>
   );
@@ -407,6 +463,8 @@ export function SectionMediaPanel({
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const [cropIndex, setCropIndex] = useState<number | null>(null);
   const [slotMenu, setSlotMenu] = useState<number | null>(null);
+  // Near the bottom of the window the menu opens upward, so every option stays in view.
+  const [menuUp, setMenuUp] = useState(false);
 
   const patch = useCallback((fn: (d: MediaDraft) => MediaDraft) => onChange(fn(draft)), [draft, onChange]);
 
@@ -541,7 +599,7 @@ export function SectionMediaPanel({
               <div
                 role="button"
                 tabIndex={0}
-                onClick={() => { setSlotMenu(menuOpen ? null : i); setActiveSlot(null); }}
+                onClick={(e) => { setMenuUp(window.innerHeight - e.currentTarget.getBoundingClientRect().bottom < 260); setSlotMenu(menuOpen ? null : i); setActiveSlot(null); }}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSlotMenu(menuOpen ? null : i); } }}
                 title="Click for options"
                 className={`${boxCls} group bg-slate-950 border-2 cursor-pointer transition-all ${picking ? "border-blue-500 ring-2 ring-blue-500/30" : menuOpen ? "border-blue-500" : "border-slate-700 hover:border-slate-500"}`}
@@ -559,7 +617,7 @@ export function SectionMediaPanel({
               {menuOpen && (
                 <>
                   <div className="fixed inset-0 z-[1005]" onClick={() => setSlotMenu(null)} />
-                  <div className="absolute z-[1006] top-full left-0 mt-1.5 w-40 rounded-xl bg-slate-800 border border-slate-700 shadow-xl p-1 text-sm">
+                  <div className={`absolute z-[1006] left-0 w-40 rounded-xl bg-slate-800 border border-slate-700 shadow-xl p-1 text-sm ${menuUp ? "bottom-full mb-1.5" : "top-full mt-1.5"}`}>
                     <button type="button" onClick={() => { setSlotMenu(null); setCropIndex(i); }} className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-200 cursor-pointer">Position</button>
                     <button type="button" onClick={() => { setSlotMenu(null); setActiveSlot(i); }} className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-200 cursor-pointer">Replace…</button>
                     {i > 0 && (

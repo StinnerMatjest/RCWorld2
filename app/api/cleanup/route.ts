@@ -157,7 +157,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "ok") {
-      if (!CHECKABLE_KINDS.includes(task.kind)) return NextResponse.json({ ok: false, error: "This one needs doing" }, { status: 400 });
+      // A review not published yet leaves the list by being published, never by a check.
+      if (!CHECKABLE_KINDS.includes(task.kind) || (task.kind === "park-review" && task.draft)) return NextResponse.json({ ok: false, error: "This one needs doing" }, { status: 400 });
       if (!isOpen) return NextResponse.json({ ok: true, already: true }, NO_STORE);
       const c = await creditTask(key, task.kind, person, "looks-right", task.fingerprint);
       settle(task, person);

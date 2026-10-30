@@ -36,8 +36,11 @@ export function previewViewport(screen: "phone" | "desktop"): Viewport {
 
 const withPreviewParam = (page: string) => `${page.split("#")[0]}${page.includes("?") ? "&" : "?"}framing-preview=1`;
 
-/** ours: the file this preview put in the photo (the page's own src may not be what shows, with a srcset). */
-interface Found { frame: HTMLElement; img: HTMLImageElement; math: PlaceMath; doc: Document; win: Window; last?: { key: string; css: string }; ours?: string }
+/**
+ * ours: the file this preview put in the photo (the page's own src may not be what shows, with
+ * a srcset); coming: a sharper file loading in the background, swapped in once it is there.
+ */
+interface Found { frame: HTMLElement; img: HTMLImageElement; math: PlaceMath; doc: Document; win: Window; last?: { key: string; css: string }; ours?: string; coming?: string }
 
 /**
  * Centre the frame on the page's screen: its own horizontal scrollers (the
@@ -62,7 +65,7 @@ function geometry(f: Found, value: string, nw = f.img.naturalWidth || 1, nh = f.
   const box = math === "position" ? img : img.parentElement ?? img;
   const W = box.clientWidth, H = box.clientHeight;
   const { cx, cy, zoom } = parseFocusStr(value);
-  const z = math === "focused" || math === "card" ? zoom : 1;
+  const z = math === "cover" ? 1 : zoom; // placeCover (deck, strip) has no zoom
   const cs = Math.max(W / nw, H / nh);
   return { W, H, dw: nw * cs * z, dh: nh * cs * z, cx, cy, z };
 }
@@ -109,13 +112,36 @@ function applyPlacement(f: Found, photo: string, size: { w: number; h: number } 
   // The preview owns the photo: a phone source of a <picture> must not win over it.
   const pic = img.parentElement?.tagName === "PICTURE" ? img.parentElement : null;
   pic?.querySelectorAll("source").forEach((el) => el.remove());
-  const src = pickSrc(photo, size, f, value, f.ours ?? null);
-  if (img.getAttribute("src") !== src || img.hasAttribute("srcset")) {
+  const want = pickSrc(photo, size, f, value, f.ours ?? null);
+  if (!f.ours) {
+    // Taking over the page's photo (perhaps another crop of it): straight away.
     img.removeAttribute("srcset");
     img.removeAttribute("sizes");
-    img.setAttribute("src", src);
+    img.setAttribute("src", want);
+    f.ours = want;
+  } else {
+    // The page swapped its file meanwhile (a step-up of its own): back to ours.
+    if (img.hasAttribute("srcset") || img.getAttribute("src") !== f.ours) {
+      img.removeAttribute("srcset");
+      img.removeAttribute("sizes");
+      img.setAttribute("src", f.ours);
+    }
   }
-  f.ours = src;
+  if (want !== f.ours && want !== f.coming) {
+    // A sharper file for a bigger zoom: loaded aside, then swapped in from the cache, so
+    // the photo never goes blank while it arrives.
+    f.coming = want;
+    const pre = new Image();
+    pre.onload = () => {
+      if (f.coming !== want) return;
+      f.coming = undefined;
+      f.ours = want;
+      img.setAttribute("src", want); // the MutationObserver places it again once it shows
+    };
+    pre.onerror = () => { if (f.coming === want) f.coming = undefined; };
+    pre.src = want;
+  }
+  const src = f.ours;
   // Placed once its file is in: until then the old one (perhaps another crop) keeps its place.
   if (img.currentSrc && img.currentSrc !== new URL(src, f.doc.baseURI).href) return;
   if (!img.naturalWidth || !img.naturalHeight) return;
@@ -127,7 +153,11 @@ function applyPlacement(f: Found, photo: string, size: { w: number; h: number } 
     if (frame.dataset.focus !== value) frame.dataset.focus = value;
     s.objectPosition = hasCustomFocus(value) ? coverPosition(g.W, g.H, img.naturalWidth, img.naturalHeight, value) : "";
   } else if (math === "position") {
-    s.objectPosition = `${g.cx * 100}% ${g.cy * 100}%`;
+    // object-position, and a zoom scaled from that same point (SectionImage).
+    const at = `${g.cx * 100}% ${g.cy * 100}%`;
+    s.objectPosition = at;
+    s.transform = g.z > 1.001 ? `scale(${g.z})` : "none";
+    s.transformOrigin = g.z > 1.001 ? at : "";
   } else {
     s.width = `${g.dw}px`;
     s.height = `${g.dh}px`;
@@ -308,14 +338,14 @@ export default function LivePreview({ page, target, viewport, photo, size, value
   }, [minAspect]);
   const emit = useCallback((cx: number, cy: number, z: number) => {
     const f = foundRef.current; if (!f) return;
-    if (f.math === "position") { onChangeRef.current?.(focusValue(clamp(cx, 0, 1), clamp(cy, 0, 1), 1)); return; }
+    if (f.math === "position") { onChangeRef.current?.(focusValue(clamp(cx, 0, 1), clamp(cy, 0, 1), z)); return; }
     const g = geometry(f, focusValue(cx, cy, z));
     onChangeRef.current?.(focusValue(clampCentre(cx, g.W, g.dw), clampCentre(cy, g.H, narrowDh(f, z)), z));
   }, [narrowDh]);
   const visibleStart = () => {
     const f = foundRef.current; if (!f) return null;
     const g = geometry(f, live.current.value);
-    if (f.math === "position") return { cx: g.cx, cy: g.cy, z: 1 };
+    if (f.math === "position") return { cx: g.cx, cy: g.cy, z: g.z };
     // Start from what is on screen: a framing saved for another shape shows clamped.
     return { cx: clampCentre(g.cx, g.W, g.dw), cy: clampCentre(g.cy, g.H, g.dh), z: g.z };
   };
@@ -346,9 +376,9 @@ export default function LivePreview({ page, target, viewport, photo, size, value
     const dx = (e.clientX - d.x) / scale, dy = (e.clientY - d.y) / scale;
     const g = geometry(f, focusValue(d.cx, d.cy, d.z));
     if (f.math === "position") {
-      // object-position: the photo moves with the pointer across its overflow.
+      // object-position: the photo moves with the pointer across its overflow (drawn size at this zoom).
       const ox = g.dw - g.W, oy = g.dh - g.H;
-      emit(ox > 0.5 ? d.cx - dx / ox : d.cx, oy > 0.5 ? d.cy - dy / oy : d.cy, 1);
+      emit(ox > 0.5 ? d.cx - dx / ox : d.cx, oy > 0.5 ? d.cy - dy / oy : d.cy, d.z);
       return;
     }
     emit(d.cx - dx / g.dw, d.cy - dy / g.dh, d.z);
