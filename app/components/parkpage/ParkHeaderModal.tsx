@@ -31,6 +31,8 @@ export interface ParkHeaderModalProps {
   currentHeaderFocus?: string;
   /** Its own framing for the tall phone hero; null = it follows the wide one. */
   currentHeaderFocusMobile?: string | null;
+  /** The hero's own phone photo (set in the clean-up tool); the phone views show and frame that one. */
+  currentImagePathMobile?: string | null;
   /** The park's own header, which the home card falls back to. */
   parkImagePath?: string | null;
   currentCardImagepath?: string | null;
@@ -617,7 +619,7 @@ function GalleryView({
 const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   parkId, parkName, parkCountry, parkCity, parkContinent,
   visitId, visitDate, visitCount = 1,
-  currentImagePath, currentHeaderFocus, currentHeaderFocusMobile = null, parkImagePath,
+  currentImagePath, currentHeaderFocus, currentHeaderFocusMobile = null, currentImagePathMobile = null, parkImagePath,
   currentCardImagepath, currentFocus, cardRating, heroOverall = null, heroRanks = null,
   onClose, onSuccess,
 }) => {
@@ -686,6 +688,8 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
     w >= 1024 ? Math.min(w * 9 / 21, h * 0.68) : w >= 640 ? Math.min(w * 9 / 16, h * 0.82) : Math.min(w * 5 / 4, h * 0.82);
   // Below 640 px the page hero is the tall phone frame, so the editor edits the tall framing.
   const editsTall = pageW < 640;
+  // Phones show the hero's own phone photo when it has one: the phone views frame that photo.
+  const phonePhoto = currentImagePathMobile && currentImagePathMobile !== headerPath ? currentImagePathMobile : null;
   const headerWrapRef = useRef<HTMLDivElement>(null);
   const [headerFrameW, setHeaderFrameW] = useState(0);
   // Follow the frame's real width: on phones it widens once the phone layout kicks in.
@@ -725,7 +729,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
   function handleGalleryClick(img: GalleryImage) {
     if (mode === "header") {
       setHeaderPath(img.path);
-      setHeaderFocusMobile(null); // a tall framing belongs to the old photo
+      if (!currentImagePathMobile) setHeaderFocusMobile(null); // a tall framing belongs to the old photo (not to a phone photo of its own)
     } else {
       setCardPath(img.path === parkHeader ? null : img.path);
     }
@@ -750,7 +754,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
       if (xhr.status >= 200 && xhr.status < 300) {
         const { imagePath } = JSON.parse(xhr.responseText);
         setHeaderPath(imagePath);
-        setHeaderFocusMobile(null);
+        if (!currentImagePathMobile) setHeaderFocusMobile(null);
         setImages(prev => [{ id: Date.now(), title: `${parkName}-header`, path: imagePath, visit_id: visitId ?? undefined, visit_date: visitDate ?? undefined }, ...prev]);
         setGalleryOpen(false);
       } else alert("Upload failed.");
@@ -880,11 +884,11 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                   {/* On phones the frame runs edge to edge like the page itself. */}
                   <div ref={headerWrapRef} className={isMobile ? "-mx-6" : ""}>
                     <CropEditor
-                      key={`h-${headerPath}-${isMobile}-${editsTall}`}
+                      key={`h-${headerPath}-${isMobile}-${editsTall}-${phonePhoto ?? ""}`}
                       editorRef={headerEditorRef}
-                      src={headerPath}
+                      src={editsTall && phonePhoto ? phonePhoto : headerPath}
                       aspectRatio={`${Math.round(pageW)}/${Math.round(pageH)}`}
-                      focusStr={editsTall ? headerFocusMobile ?? headerFocus : headerFocus}
+                      focusStr={editsTall ? headerFocusMobile ?? (phonePhoto ? "0.5 0.5 1" : headerFocus) : headerFocus}
                       onCommit={editsTall ? setHeaderFocusMobile : setHeaderFocus}
                       onChange={editsTall ? undefined : live(setLiveHeaderFocus)}
                       className={isMobile ? "w-full" : "w-full rounded-2xl"}
@@ -904,17 +908,17 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                   )}
                   {!isMobile && !editsTall && (
                     <figure className="flex flex-col gap-1.5">
-                      {/* The tall phone hero: follows the wide framing until it gets its own. */}
-                      {headerFocusMobile === null ? (
+                      {/* The tall phone hero: follows the wide framing until it gets its own (always its own on a phone photo). */}
+                      {headerFocusMobile === null && !phonePhoto ? (
                         <LiveFrame src={headerPath} focus={liveHeaderFocus} w={PHONE_HERO.w} h={PHONE_HERO.h} scale={1} className="rounded-xl">
                           <HeaderFace parkName={parkName} city={parkCity} country={parkCountry} continent={parkContinent} phone overall={heroOverall} ranks={heroRanks} />
                         </LiveFrame>
                       ) : (
                         <CropEditor
-                          key={`t-${headerPath}`}
+                          key={`t-${phonePhoto ?? headerPath}`}
                           editorRef={tallEditorRef}
-                          src={headerPath}
-                          focusStr={headerFocusMobile}
+                          src={phonePhoto ?? headerPath}
+                          focusStr={headerFocusMobile ?? "0.5 0.5 1"}
                           onCommit={setHeaderFocusMobile}
                           className="rounded-xl"
                           style={{ width: PHONE_HERO.w, height: PHONE_HERO.h }}
@@ -925,11 +929,13 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                         </CropEditor>
                       )}
                       <figcaption className="flex flex-wrap items-center gap-x-3 text-xs text-slate-500">
-                        <span>Phone · {headerFocusMobile === null ? "follows the wide framing" : "its own framing, drag to adjust"}</span>
-                        <button type="button" onClick={() => setHeaderFocusMobile(headerFocusMobile === null ? liveHeaderFocus : null)}
-                          className="font-bold text-blue-400 hover:text-blue-300 cursor-pointer">
-                          {headerFocusMobile === null ? "Frame the phone separately" : "Follow the wide framing"}
-                        </button>
+                        <span>Phone · {phonePhoto ? "its own photo (change it in the clean-up tool), drag to adjust" : headerFocusMobile === null ? "follows the wide framing" : "its own framing, drag to adjust"}</span>
+                        {!phonePhoto && (
+                          <button type="button" onClick={() => setHeaderFocusMobile(headerFocusMobile === null ? liveHeaderFocus : null)}
+                            className="font-bold text-blue-400 hover:text-blue-300 cursor-pointer">
+                            {headerFocusMobile === null ? "Frame the phone separately" : "Follow the wide framing"}
+                          </button>
+                        )}
                       </figcaption>
                     </figure>
                   )}

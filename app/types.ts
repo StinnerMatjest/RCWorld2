@@ -17,8 +17,11 @@ export interface Park {
   slug: string;
   imageFocus?: string;
   headerFocus?: string;
-  /** The hero's tall phone framing; absent = the wide framing. */
+  /** The hero's tall phone framing; absent = the wide framing (or centred on a phone photo). */
   headerFocusMobile?: string | null;
+  /** The hero's own phone photo; absent = phones show imagepath too. */
+  imagepathMobile?: string | null;
+  imageMobileSize?: ImageSize;
   /** Cut of the card photo for the current framing; absent until generated or when stale. */
   cardCut?: CardCut;
   cardImages?: {
@@ -50,9 +53,12 @@ export interface Visit {
   /** This visit's own header photo and crop; absent = the park's header. */
   headerImagepath?: string | null;
   headerFocus?: string | null;
-  /** The visit hero's tall phone framing; absent = the wide one. */
+  /** The visit hero's tall phone framing; absent = the wide one (or centred on a phone photo). */
   headerFocusMobile?: string | null;
   headerImageSize?: ImageSize;
+  /** The visit hero's own phone photo; absent = phones show headerImagepath too. */
+  headerImagepathMobile?: string | null;
+  headerImageMobileSize?: ImageSize;
 }
 
 export interface RatingWarningType {

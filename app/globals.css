@@ -232,6 +232,9 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 .park-hero-img { width: var(--hero-w-m); transform: translate(var(--hero-tx-m, -50%), var(--hero-ty-m, -50%)); }
 @media (min-width: 640px) { .park-hero-img { width: var(--hero-w-d); transform: translate(var(--hero-tx-s, -50%), var(--hero-ty-s, -50%)); } }
 @media (min-width: 1024px) { .park-hero-img { transform: translate(var(--hero-tx-d, -50%), var(--hero-ty-d, -50%)); } }
+/* A cover with its own phone photo: each breakpoint draws a photo of its own shape. */
+.park-hero-img.hero-art { aspect-ratio: var(--hero-ar-m); }
+@media (min-width: 640px) { .park-hero-img.hero-art { aspect-ratio: var(--hero-ar-d); } }
 
 /* Park photo deck: a card or caption entering the pile fades in on the compositor. */
 /* The park hero's landing: invisible until the whole photo is in, then a fade. */

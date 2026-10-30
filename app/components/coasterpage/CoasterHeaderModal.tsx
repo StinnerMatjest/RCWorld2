@@ -6,6 +6,7 @@ import { CropEditor } from "../parkpage/ParkHeaderModal";
 import { ImagePickerGrid } from "../editor/SectionMediaEditor";
 import { mediaCaptions } from "../parkpage/SectionBody";
 import type { CoasterGalleryImage } from "./coasterPageTypes";
+import type { HeaderPhone } from "./CoasterHero";
 
 /** The hero's frames. Keep in step with CoasterHero. */
 export const HERO_ASPECT = { mobile: "4/5", desktop: "21/9" } as const;
@@ -17,6 +18,8 @@ interface Props {
   gallery: CoasterGalleryImage[];
   /** The current header row, if any. */
   current: { imageId: number | null; focusMobile: string | null; focusDesktop: string | null };
+  /** The cover's own phone photo: the phone tab then frames that photo (focusMobile is its framing). */
+  phone?: HeaderPhone;
   onClose: () => void;
   /** Called after a successful save so the page re-fetches the gallery. */
   onSaved: () => void;
@@ -27,7 +30,7 @@ interface Props {
  * zoom it once for the phone hero (portrait) and once for the desktop hero
  * (wide). Same drag/scroll/pinch editor as the park header.
  */
-export default function CoasterHeaderModal({ coasterId, coasterName, gallery, current, onClose, onSaved }: Props) {
+export default function CoasterHeaderModal({ coasterId, coasterName, gallery, current, phone = null, onClose, onSaved }: Props) {
   useScrollLock();
   const images = useMemo(() => gallery.filter((g) => !/\.(mp4|webm|ogg)$/i.test(g.path)), [gallery]);
   const [imageId, setImageId] = useState<number | null>(current.imageId ?? images[0]?.id ?? null);
@@ -48,7 +51,8 @@ export default function CoasterHeaderModal({ coasterId, coasterName, gallery, cu
     const img = images.find((g) => g.path === path);
     if (!img) return;
     setImageId(img.id);
-    setFocusMobile(img.focus_mobile ?? FOCUS_DEFAULT);
+    // A phone photo of its own keeps its framing; otherwise the phone frames this photo too.
+    if (!phone) setFocusMobile(img.focus_mobile ?? FOCUS_DEFAULT);
     setFocusDesktop(img.focus_desktop ?? FOCUS_DEFAULT);
     setPicking(false);
   };
@@ -69,11 +73,19 @@ export default function CoasterHeaderModal({ coasterId, coasterName, gallery, cu
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imageId: image.id,
-          focusMobile: mobileRef.current?.getFocus() ?? focusMobile,
+          ...(phone ? {} : { focusMobile: mobileRef.current?.getFocus() ?? focusMobile }),
           focusDesktop: desktopRef.current?.getFocus() ?? focusDesktop,
         }),
       });
       if (!res.ok) throw new Error(res.status === 401 ? "Session expired. Log in to admin mode again." : `Save failed (${res.status})`);
+      if (phone) {
+        const p = await fetch(`/api/coasters/${coasterId}/gallery`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phoneCover: true, imageId: phone.id, focusMobile: mobileRef.current?.getFocus() ?? focusMobile }),
+        });
+        if (!p.ok) throw new Error(`Phone framing not saved (${p.status})`);
+      }
       onSaved();
       onClose();
     } catch (err) {
@@ -109,7 +121,7 @@ export default function CoasterHeaderModal({ coasterId, coasterName, gallery, cu
           </div>
           {!picking && image && (
             <div className="flex items-center bg-slate-800 rounded-lg p-0.5 ml-2">
-              {frameButton("mobile", "📱 Phone")}
+              {frameButton("mobile", phone ? "📱 Phone (own photo)" : "📱 Phone")}
               {frameButton("desktop", "🖥️ Desktop")}
             </div>
           )}
@@ -142,9 +154,9 @@ export default function CoasterHeaderModal({ coasterId, coasterName, gallery, cu
               {frame === "mobile" ? (
                 <div className="h-full max-h-full" style={{ aspectRatio: HERO_ASPECT.mobile }}>
                   <CropEditor
-                    key={`m-${image.id}`}
+                    key={`m-${phone ? `p${phone.id}` : image.id}`}
                     editorRef={mobileRef}
-                    src={image.path}
+                    src={phone ? phone.path : image.path}
                     focusStr={focusMobile}
                     onCommit={setFocusMobile}
                     className="h-full w-full rounded-2xl"

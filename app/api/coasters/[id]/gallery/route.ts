@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { photoFramings } from "@/app/lib/visitHeader";
+import { getImageSizes } from "@/app/lib/imageDims";
 
 type GalleryRow = {
   id: number; title: string; path: string; description: string; is_header: boolean;
-  focus_mobile: string | null; focus_desktop: string | null; featured: boolean;
+  focus_mobile: string | null; focus_desktop: string | null; featured: boolean; is_header_mobile: boolean;
 };
 
 // The header photo is cropped separately for the phone hero (portrait) and the
@@ -18,14 +19,15 @@ function ensureFocusColumns(): Promise<void> {
       .query(`ALTER TABLE coastergallery
               ADD COLUMN IF NOT EXISTS focus_mobile TEXT,
               ADD COLUMN IF NOT EXISTS focus_desktop TEXT,
-              ADD COLUMN IF NOT EXISTS featured BOOLEAN NOT NULL DEFAULT false`)
+              ADD COLUMN IF NOT EXISTS featured BOOLEAN NOT NULL DEFAULT false,
+              ADD COLUMN IF NOT EXISTS is_header_mobile BOOLEAN NOT NULL DEFAULT false`)
       .then(() => undefined)
       .catch((err) => { focusColumns = null; throw err; });
   }
   return focusColumns;
 }
 
-const COLS = "id, title, path, description, is_header, focus_mobile, focus_desktop, featured";
+const COLS = "id, title, path, description, is_header, focus_mobile, focus_desktop, featured, is_header_mobile";
 
 export async function GET(
   req: NextRequest,
@@ -76,12 +78,15 @@ export async function GET(
     // desktop framing shared with the park page, else focus (that photo's park-deck framing).
     const gallery = galleryRes.rows.map((r) => ({ ...r, focus: curated[r.path] ?? null, strip_focus: strip[r.path] ?? null, tile_focus: tiles[r.path] ?? null, break_focus: breaks[r.path] ?? null }));
     const headerImage = activeHeader?.path || null;
+    // The cover's own phone photo (newest flagged row); its focus_mobile is the phone framing.
+    const phoneRow = galleryRes.rows.filter((r) => r.is_header_mobile && r.path !== headerImage).sort((x, y) => y.id - x.id)[0] ?? null;
     const headerFocus = {
-      mobile: activeHeader?.focus_mobile ?? null,
+      mobile: (phoneRow ? phoneRow.focus_mobile : activeHeader?.focus_mobile) ?? null,
       desktop: activeHeader?.focus_desktop ?? null,
     };
+    const headerPhone = phoneRow ? { id: phoneRow.id, path: phoneRow.path, size: (await getImageSizes([phoneRow.path]))[phoneRow.path] ?? null } : null;
 
-    return NextResponse.json({ headerImage, headerFocus, activeHeader, allActiveHeaders, gallery });
+    return NextResponse.json({ headerImage, headerFocus, headerPhone, activeHeader, allActiveHeaders, gallery });
   } catch (error) {
     console.error("Failed to fetch coaster gallery images", error);
     return NextResponse.json({ error: "Failed to fetch coaster gallery images" }, { status: 500 });
@@ -196,6 +201,24 @@ export async function PATCH(
         [coasterId, ids]
       );
       return NextResponse.json({ success: true, featuredIds: ids }, { status: 200 });
+    }
+
+    // The cover's own phone photo: { phoneCover: true, imageId, focusMobile? } sets it, { phoneCover: false } drops it.
+    // The desktop cover (is_header) is left as it is.
+    if (body.phoneCover === false) {
+      await client.query(`UPDATE coastergallery SET is_header_mobile = false WHERE coaster_id = $1`, [coasterId]);
+      return NextResponse.json({ success: true }, { status: 200 });
+    }
+    if (body.phoneCover === true) {
+      const phoneId = Number(body.imageId);
+      if (!phoneId) return NextResponse.json({ error: "Missing imageId" }, { status: 400 });
+      await client.query("BEGIN");
+      await client.query(`UPDATE coastergallery SET is_header_mobile = (id = $1) WHERE coaster_id = $2`, [phoneId, coasterId]);
+      if (body.focusMobile !== undefined) {
+        await client.query(`UPDATE coastergallery SET focus_mobile = $3 WHERE id = $1 AND coaster_id = $2`, [phoneId, coasterId, cleanFocus(body.focusMobile)]);
+      }
+      await client.query("COMMIT");
+      return NextResponse.json({ success: true }, { status: 200 });
     }
 
     const imageId = Number(body.imageId);

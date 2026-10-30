@@ -2,11 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { FocusedImage } from "../FocusedImage";
+import { FocusedImage, parseFocusStr } from "../FocusedImage";
+import { phoneSource } from "@/app/lib/heroSources";
 import { getRatingColor } from "@/app/utils/design";
 import type { RollerCoaster } from "@/app/types";
 
 export type HeaderFocus = { mobile: string | null; desktop: string | null };
+/** The cover's own phone photo (a gallery row); phones show it instead of headerImage. */
+export type HeaderPhone = { id: number; path: string; size: { w: number; h: number } | null } | null;
 
 interface Props {
   coaster: RollerCoaster;
@@ -15,6 +18,7 @@ interface Props {
   headerImage: string | null;
   /** Separate crops for the portrait phone hero and the wide desktop hero. */
   headerFocus?: HeaderFocus;
+  headerPhone?: HeaderPhone;
   isAdminMode: boolean;
   onPickHeader?: () => void;
   onOpenPhoto?: (url: string) => void;
@@ -50,7 +54,9 @@ function useDesktop() {
  * as the frame allows, the model, where it is, and the score the way the
  * home cards wear theirs: huge, in its rating colour, on the photo.
  */
-export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, headerFocus, isAdminMode, onPickHeader, onOpenPhoto }: Props) {
+export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, headerFocus, headerPhone = null, isAdminMode, onPickHeader, onOpenPhoto }: Props) {
+  // Phones show the cover's own phone photo when it has one (a <picture> source).
+  const phone = headerPhone && headerPhone.path !== headerImage ? headerPhone : null;
   const desktop = useDesktop();
   const focus = (desktop ? headerFocus?.desktop : headerFocus?.mobile) ?? "0.5 0.5 1";
   const [photoIn, setPhotoIn] = useState(false);
@@ -79,6 +85,7 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
             focusStr={focus}
             priority
             variants
+            {...(phone ? { pictureSources: [phoneSource(phone.path, phone.size ?? undefined, parseFocusStr(headerFocus?.mobile).zoom)] } : {})}
             className="absolute inset-0"
             imgClassName="framing-photo"
             onLoad={() => setPhotoIn(true)}

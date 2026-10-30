@@ -44,9 +44,10 @@ async function getAllCoasters(): Promise<any[]> {
 }
 
 type HeaderFocus = { mobile: string | null; desktop: string | null };
-const NO_GALLERY = { headerImage: null, headerFocus: { mobile: null, desktop: null }, gallery: [] as CoasterGalleryImage[] };
+type HeaderPhone = { id: number; path: string; size: { w: number; h: number } | null } | null;
+const NO_GALLERY = { headerImage: null, headerFocus: { mobile: null, desktop: null }, headerPhone: null as HeaderPhone, gallery: [] as CoasterGalleryImage[] };
 
-async function getGallery(id: string): Promise<{ headerImage: string | null; headerFocus: HeaderFocus; gallery: CoasterGalleryImage[] }> {
+async function getGallery(id: string): Promise<{ headerImage: string | null; headerFocus: HeaderFocus; headerPhone: HeaderPhone; gallery: CoasterGalleryImage[] }> {
   try {
     const res = await fetch(`${BASE}api/coasters/${id}/gallery`, { cache: "force-cache", next: { tags: ["content"] } });
     if (!res.ok) return NO_GALLERY;
@@ -54,6 +55,7 @@ async function getGallery(id: string): Promise<{ headerImage: string | null; hea
     return {
       headerImage: data.headerImage ?? null,
       headerFocus: { mobile: data.headerFocus?.mobile ?? null, desktop: data.headerFocus?.desktop ?? null },
+      headerPhone: data.headerPhone ?? null,
       gallery: Array.isArray(data.gallery) ? data.gallery : [],
     };
   } catch {
@@ -165,7 +167,7 @@ export default async function Page({ params }: PageProps) {
   const initParkSlug = coaster.parkSlug || null;
   const initParkId = coaster.parkId || null;
   const initTexts = [...coasterTexts].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
-  const [allCoasters, { headerImage, headerFocus, gallery }] = await Promise.all([getAllCoasters(), getGallery(String(coaster.id))]);
+  const [allCoasters, { headerImage, headerFocus, headerPhone, gallery }] = await Promise.all([getAllCoasters(), getGallery(String(coaster.id))]);
   const initialRanks = allCoasters.length ? computeCoasterRanks(allCoasters, coaster) : null;
   const ladder = allCoasters.length ? rankLadder(allCoasters, coaster.id) : [];
   const siblings = allCoasters.length ? parkSiblings(allCoasters, coaster) : [];
@@ -249,6 +251,7 @@ export default async function Page({ params }: PageProps) {
         initialRanks={initialRanks}
         initialHeaderImage={headerImage}
         initialHeaderFocus={headerFocus}
+        initialHeaderPhone={headerPhone}
         initialGallery={gallery}
         initialLadder={ladder}
         initialSiblings={siblings}

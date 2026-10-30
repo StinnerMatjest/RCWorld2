@@ -25,7 +25,7 @@ export async function PATCH(
   if (!Number.isInteger(visitId) || visitId <= 0) {
     return NextResponse.json({ error: "Invalid visit id" }, { status: 400 });
   }
-  let body: { imagepath?: unknown; focus?: unknown; focusMobile?: unknown; card?: unknown };
+  let body: { imagepath?: unknown; focus?: unknown; focusMobile?: unknown; imagepathMobile?: unknown; card?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -34,8 +34,10 @@ export async function PATCH(
   const imagepath = body.imagepath === null ? null : validImage(body.imagepath) ? body.imagepath : undefined;
   if (imagepath === undefined) return NextResponse.json({ error: "Invalid image" }, { status: 400 });
   const focus = typeof body.focus === "string" && body.focus.length <= 60 ? body.focus : null;
-  // The tall phone framing: given, or kept while the photo stays, or dropped with a new photo.
+  // The tall phone framing: given, or kept while the photo phones show stays, or dropped with a new one.
   const focusMobileGiven = body.focusMobile === null || (typeof body.focusMobile === "string" && body.focusMobile.length <= 60);
+  // The hero's own phone photo: given (null = phones show the header photo too), or kept.
+  const phoneGiven = body.imagepathMobile === null || validImage(body.imagepathMobile);
   // The home card shows the header unless it has a photo of its own. "follow"
   // drops that own photo too, so the new header is used for both.
   const cardFollows = body.card === "follow";
@@ -48,11 +50,13 @@ export async function PATCH(
   let syncedPark = false;
   let old: { header_imagepath: string | null; header_focus: string | null };
   let focusMobile: string | null = null;
+  let phone: string | null = null;
   try {
     await db.query("BEGIN");
     const v = await db.query(
-      `SELECT v.id, v.park_id, v.header_imagepath, v.header_focus, v.header_focus_mobile,
-              p.name, p.imagepath AS park_imagepath, p.header_focus AS park_header_focus, p.header_focus_mobile AS park_header_focus_mobile, p.card_imagepath,
+      `SELECT v.id, v.park_id, v.header_imagepath, v.header_focus, v.header_focus_mobile, v.header_imagepath_mobile,
+              p.name, p.imagepath AS park_imagepath, p.header_focus AS park_header_focus, p.header_focus_mobile AS park_header_focus_mobile,
+              p.imagepath_mobile AS park_imagepath_mobile, p.card_imagepath,
               (SELECT id FROM visits WHERE park_id = v.park_id ORDER BY date DESC, id DESC LIMIT 1) AS newest_id
        FROM visits v JOIN parks p ON p.id = v.park_id
        WHERE v.id = $1
@@ -67,33 +71,39 @@ export async function PATCH(
     parkId = row.park_id;
     parkName = row.name;
     old = { header_imagepath: row.header_imagepath, header_focus: row.header_focus };
-    focusMobile = focusMobileGiven ? (body.focusMobile as string | null) : imagepath && imagepath === row.header_imagepath ? row.header_focus_mobile ?? null : null;
+    phone = phoneGiven ? (body.imagepathMobile as string | null) : row.header_imagepath_mobile ?? null;
+    if (phone && phone === imagepath) phone = null; // the same photo is not a phone photo of its own
+    focusMobile = focusMobileGiven
+      ? (body.focusMobile as string | null)
+      : phone
+        ? (phone === row.header_imagepath_mobile ? row.header_focus_mobile ?? null : null)
+        : (!row.header_imagepath_mobile && imagepath && imagepath === row.header_imagepath ? row.header_focus_mobile ?? null : null);
 
     const isNewest = row.newest_id === visitId;
-    if (isNewest && imagepath && (imagepath !== row.park_imagepath || focus !== (row.park_header_focus ?? null) || focusMobile !== (row.park_header_focus_mobile ?? null))) {
+    if (isNewest && imagepath && (imagepath !== row.park_imagepath || focus !== (row.park_header_focus ?? null) || focusMobile !== (row.park_header_focus_mobile ?? null) || phone !== (row.park_imagepath_mobile ?? null))) {
       // Older visits keep the photo they show today.
       await db.query(
-        `UPDATE visits SET header_imagepath = $1, header_focus = $2, header_focus_mobile = $5
+        `UPDATE visits SET header_imagepath = $1, header_focus = $2, header_focus_mobile = $5, header_imagepath_mobile = $6
          WHERE park_id = $3 AND id <> $4 AND header_imagepath IS NULL`,
-        [row.park_imagepath, row.park_header_focus, parkId, visitId, row.park_header_focus_mobile ?? null]
+        [row.park_imagepath, row.park_header_focus, parkId, visitId, row.park_header_focus_mobile ?? null, row.park_imagepath_mobile ?? null]
       );
       // A card without its own photo follows the header; its crop was made
       // for the old photo, so it starts centred on the new one.
       const newPhoto = imagepath !== row.park_imagepath;
       const cardPath = cardFollows ? null : row.card_imagepath;
       const p = await db.query(
-        `UPDATE parks SET imagepath = $1, header_focus = $2, card_imagepath = $3, header_focus_mobile = $6,
+        `UPDATE parks SET imagepath = $1, header_focus = $2, card_imagepath = $3, header_focus_mobile = $6, imagepath_mobile = $7,
                 image_focus = CASE WHEN $5::boolean AND $3::text IS NULL THEN '0.5 0.5 1' ELSE image_focus END
          WHERE id = $4 RETURNING *`,
-        [imagepath, focus, cardPath, parkId, newPhoto, focusMobile]
+        [imagepath, focus, cardPath, parkId, newPhoto, focusMobile, phone]
       );
       parkAfter = p.rows[0];
       syncedPark = true;
     }
 
     await db.query(
-      `UPDATE visits SET header_imagepath = $1, header_focus = $2, header_focus_mobile = $4 WHERE id = $3`,
-      [imagepath, imagepath ? focus : null, visitId, imagepath ? focusMobile : null]
+      `UPDATE visits SET header_imagepath = $1, header_focus = $2, header_focus_mobile = $4, header_imagepath_mobile = $5 WHERE id = $3`,
+      [imagepath, imagepath ? focus : null, visitId, imagepath ? focusMobile : null, imagepath ? phone : null]
     );
     await db.query("COMMIT");
   } catch (error) {

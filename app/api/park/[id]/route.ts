@@ -34,11 +34,11 @@ export async function GET(
 
     const result = isNumeric
       ? await pool.query(
-        `SELECT id, name, continent, country, city, imagepath, card_imagepath AS "cardImagepath", slug, image_focus AS "imageFocus", header_focus AS "headerFocus", header_focus_mobile AS "headerFocusMobile", card_images AS "cardImages" FROM parks WHERE id = $1`,
+        `SELECT id, name, continent, country, city, imagepath, card_imagepath AS "cardImagepath", slug, image_focus AS "imageFocus", header_focus AS "headerFocus", header_focus_mobile AS "headerFocusMobile", imagepath_mobile AS "imagepathMobile", card_images AS "cardImages" FROM parks WHERE id = $1`,
         [Number(id)]
       )
       : await pool.query(
-        `SELECT id, name, continent, country, city, imagepath, card_imagepath AS "cardImagepath", slug, image_focus AS "imageFocus", header_focus AS "headerFocus", header_focus_mobile AS "headerFocusMobile", card_images AS "cardImages" FROM parks WHERE slug = $1`,
+        `SELECT id, name, continent, country, city, imagepath, card_imagepath AS "cardImagepath", slug, image_focus AS "imageFocus", header_focus AS "headerFocus", header_focus_mobile AS "headerFocusMobile", imagepath_mobile AS "imagepathMobile", card_images AS "cardImages" FROM parks WHERE slug = $1`,
         [id]
       );
 
@@ -48,8 +48,8 @@ export async function GET(
 
     // Header photo size lets the park page place the hero before hydration.
     const row = result.rows[0];
-    const sizes = await getImageSizes([row.imagepath]);
-    return NextResponse.json({ ...row, imageSize: sizes[row.imagepath] }, { status: 200 });
+    const sizes = await getImageSizes([row.imagepath, row.imagepathMobile]);
+    return NextResponse.json({ ...row, imageSize: sizes[row.imagepath], ...(row.imagepathMobile ? { imageMobileSize: sizes[row.imagepathMobile] } : {}) }, { status: 200 });
   } catch (error) {
     console.error("Database query error:", error);
     return NextResponse.json({ error: "Failed to fetch park" }, { status: 500 });
@@ -84,9 +84,15 @@ export async function PATCH(
     if (body.imagepath) { fields.push(`imagepath = $${queryIdx++}`); values.push(body.imagepath); }
     if (body.imageFocus !== undefined) { fields.push(`image_focus = $${queryIdx++}`); values.push(body.imageFocus); }
     if (body.headerFocus !== undefined) { fields.push(`header_focus = $${queryIdx++}`); values.push(body.headerFocus); }
-    // The phone framing belongs to the photo: a new hero photo starts without one (it then follows the wide framing).
+    // The hero's own phone photo (null = phones show imagepath too).
+    const phoneGiven = body.imagepathMobile === null || (typeof body.imagepathMobile === "string" && body.imagepathMobile.startsWith("https://") && body.imagepathMobile.length < 2000);
+    if (phoneGiven) { fields.push(`imagepath_mobile = $${queryIdx++}`); values.push(body.imagepathMobile); }
+    const phoneAfter = phoneGiven ? body.imagepathMobile : oldRow?.imagepath_mobile ?? null;
+    // The phone framing belongs to the photo phones show: a new one starts without (it then
+    // follows the wide framing, or sits centred on a phone photo of its own).
     if (body.headerFocusMobile !== undefined) { fields.push(`header_focus_mobile = $${queryIdx++}`); values.push(body.headerFocusMobile); }
-    else if (body.imagepath && oldRow && body.imagepath !== oldRow.imagepath) { fields.push(`header_focus_mobile = NULL`); }
+    else if (phoneGiven && oldRow && body.imagepathMobile !== oldRow.imagepath_mobile) { fields.push(`header_focus_mobile = NULL`); }
+    else if (!phoneAfter && body.imagepath && oldRow && body.imagepath !== oldRow.imagepath) { fields.push(`header_focus_mobile = NULL`); }
     if (body.cardImages !== undefined) { fields.push(`card_images = $${queryIdx++}`); values.push(JSON.stringify(body.cardImages)); }
     if (body.cardImagepath !== undefined) { fields.push(`card_imagepath = $${queryIdx++}`); values.push(body.cardImagepath); }
 

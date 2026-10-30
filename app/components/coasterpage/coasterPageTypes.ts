@@ -24,6 +24,8 @@ export interface CoasterGalleryImage {
   focus_desktop?: string | null;
   /** Shown in the photo strip at the top of the page (none flagged = all shown). */
   featured?: boolean;
+  /** The cover's own phone photo (phones show it instead of the header row). */
+  is_header_mobile?: boolean;
   /** Curated image framing on phones, in the park page's 4:5 deck card ("cx cy zoom"); null or absent = plain cover. */
   focus?: string | null;
   /** Curated image framing on desktop, in the 4:5 strip card (park page desktop, coaster page); null = use focus. */

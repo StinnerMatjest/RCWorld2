@@ -7,7 +7,7 @@ import type { RollerCoaster, RollerCoasterHighlights, RollerCoasterSpecs } from 
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import { computeCoasterRanks, type CoasterRankStats } from "@/app/utils/ranking";
 import BackToParkButton from "@/app/components/buttons/BackToParkButton";
-import CoasterHero, { type HeaderFocus } from "@/app/components/coasterpage/CoasterHero";
+import CoasterHero, { type HeaderFocus, type HeaderPhone } from "@/app/components/coasterpage/CoasterHero";
 import CoasterScoreRow from "@/app/components/coasterpage/CoasterScoreRow";
 import CoasterRankRail from "@/app/components/coasterpage/CoasterRankRail";
 import CoasterPhotoStrip from "@/app/components/coasterpage/CoasterPhotoStrip";
@@ -30,6 +30,8 @@ interface CoasterPageClientProps {
   initialRanks?: CoasterRankStats | null;
   initialHeaderImage?: string | null;
   initialHeaderFocus?: HeaderFocus;
+  /** The cover's own phone photo, if it has one. */
+  initialHeaderPhone?: HeaderPhone;
   initialGallery?: CoasterGalleryImage[];
   initialLadder?: CoasterMini[];
   initialSiblings?: CoasterMini[];
@@ -57,6 +59,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
   initialRanks = null,
   initialHeaderImage = null,
   initialHeaderFocus = NO_FOCUS,
+  initialHeaderPhone = null,
   initialGallery = [],
   initialLadder = [],
   initialSiblings = [],
@@ -72,6 +75,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
   const [ranks, setRanks] = useState<CoasterRankStats | null>(initialRanks);
   const [headerImage, setHeaderImage] = useState<string | null>(initialHeaderImage);
   const [headerFocus, setHeaderFocus] = useState<HeaderFocus>(initialHeaderFocus);
+  const [headerPhone, setHeaderPhone] = useState<HeaderPhone>(initialHeaderPhone);
   const [gallery, setGallery] = useState<CoasterGalleryImage[]>(initialGallery);
   const [coasterText, setCoasterText] = useState<CoasterTextEntry[]>(initialCoasterText);
   const [parkName, setParkName] = useState<string | null>(initialParkName);
@@ -96,6 +100,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
     const data = await res.json();
     setHeaderImage(data.headerImage ?? null);
     setHeaderFocus({ mobile: data.headerFocus?.mobile ?? null, desktop: data.headerFocus?.desktop ?? null });
+    setHeaderPhone(data.headerPhone ?? null);
     setGallery(Array.isArray(data.gallery) ? data.gallery : []);
   }, []);
 
@@ -206,6 +211,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
         parkSlug={parkSlug}
         headerImage={headerImage}
         headerFocus={headerFocus}
+        headerPhone={headerPhone}
         isAdminMode={isAdminMode}
         onPickHeader={() => setIsHeaderModalOpen(true)}
         onOpenPhoto={openPhoto}
@@ -272,7 +278,6 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
                 initialTexts={coasterText}
                 refreshTexts={refreshText}
                 galleryImages={gallery}
-                headerImage={headerImage}
                 onMediaClick={openPhoto}
               />
             </section>
@@ -321,6 +326,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
           coasterName={coaster.name}
           gallery={gallery}
           current={{ imageId: headerRow?.id ?? null, focusMobile: headerFocus.mobile, focusDesktop: headerFocus.desktop }}
+          phone={headerPhone}
           onClose={() => setIsHeaderModalOpen(false)}
           onSaved={() => loadGallery(coaster.id)}
         />

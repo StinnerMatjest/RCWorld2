@@ -41,6 +41,12 @@ export interface FocusedImageProps {
   placement?: React.CSSProperties;
   /** The img may differ from the server HTML at hydration (an inline script marked it loaded). */
   suppressHydrationWarning?: boolean;
+  /**
+   * Another photo for some screens (a cover with its own phone photo): the img
+   * is wrapped in a <picture> with these sources, so each screen downloads
+   * only its own photo. Without them nothing changes.
+   */
+  pictureSources?: { media: string; srcSet: string; sizes?: string }[];
 }
 
 // Rewrite an image URL to Next's optimizer endpoint — the same endpoint
@@ -81,7 +87,7 @@ export function splitMedia(entry: string): { url: string; focus: string } {
 // Renders an image absolutely positioned inside an overflow-hidden container,
 // matching exactly what CropEditor shows for the given focusStr.
 export function FocusedImage({
-  src, alt = "", focusStr, className = "", imgClassName = "", imgStyle, priority, onLoad: onLoadProp, optimizeWidth, staggerDelayMs = 0, variants = false, size, assumedScreen, srcSet, sizes, placement, suppressHydrationWarning,
+  src, alt = "", focusStr, className = "", imgClassName = "", imgStyle, priority, onLoad: onLoadProp, optimizeWidth, staggerDelayMs = 0, variants = false, size, assumedScreen, srcSet, sizes, placement, suppressHydrationWarning, pictureSources,
 }: FocusedImageProps) {
   const useVariants = variants && !srcSet && isR2Image(src);
   const sizeKnown = useVariants && !!size;
@@ -192,9 +198,8 @@ export function FocusedImage({
     return () => ro.disconnect();
   }, [focusStr, applyStyle]);
 
-  return (
-    <div ref={containerRef} className={`overflow-hidden ${className}`}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
+  const img = (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         ref={imgRef}
         srcSet={srcSet}
@@ -224,6 +229,15 @@ export function FocusedImage({
           onLoadProp?.();
         }}
       />
+  );
+  return (
+    <div ref={containerRef} className={`overflow-hidden ${className}`}>
+      {pictureSources?.length ? (
+        <picture>
+          {pictureSources.map((s) => <source key={s.media} media={s.media} srcSet={s.srcSet} sizes={s.sizes} />)}
+          {img}
+        </picture>
+      ) : img}
     </div>
   );
 }

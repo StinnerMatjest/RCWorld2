@@ -23,8 +23,11 @@ export function ensureVisitHeaderColumns(): Promise<void> {
         ALTER TABLE visits
           ADD COLUMN IF NOT EXISTS header_imagepath TEXT,
           ADD COLUMN IF NOT EXISTS header_focus TEXT,
-          ADD COLUMN IF NOT EXISTS header_focus_mobile TEXT;
-        ALTER TABLE parks ADD COLUMN IF NOT EXISTS header_focus_mobile TEXT;
+          ADD COLUMN IF NOT EXISTS header_focus_mobile TEXT,
+          ADD COLUMN IF NOT EXISTS header_imagepath_mobile TEXT;
+        ALTER TABLE parks
+          ADD COLUMN IF NOT EXISTS header_focus_mobile TEXT,
+          ADD COLUMN IF NOT EXISTS imagepath_mobile TEXT;
         CREATE TABLE IF NOT EXISTS photo_framing (
           format TEXT NOT NULL,
           url TEXT NOT NULL,

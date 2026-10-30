@@ -40,6 +40,7 @@ export async function GET(
         visits.header_imagepath,
         visits.header_focus,
         visits.header_focus_mobile,
+        visits.header_imagepath_mobile,
         visits.park_id,
         parks.id AS park_id,
         parks.name AS park_name,
@@ -67,7 +68,7 @@ export async function GET(
 
     await ensureVisitHeaderColumns();
     const result = await pool.query(query, [parkId]);
-    const headerSizes = await getImageSizes(result.rows.map((row) => row.header_imagepath));
+    const headerSizes = await getImageSizes(result.rows.flatMap((row) => [row.header_imagepath, row.header_imagepath_mobile]));
 
     const ratings: import("@/app/types").Visit[] = result.rows.map((row) => ({
       id: row.rating_id,
@@ -93,6 +94,8 @@ export async function GET(
       headerFocus: row.header_focus ?? null,
       headerFocusMobile: row.header_focus_mobile ?? null,
       headerImageSize: row.header_imagepath ? headerSizes[row.header_imagepath] : undefined,
+      headerImagepathMobile: row.header_imagepath_mobile ?? null,
+      headerImageMobileSize: row.header_imagepath_mobile ? headerSizes[row.header_imagepath_mobile] : undefined,
       parkId: row.park_id,
       warnings: row.warnings as import("@/app/types").RatingWarningType[],
     }));
