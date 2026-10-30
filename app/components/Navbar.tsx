@@ -91,6 +91,7 @@ const Navbar: React.FC = () => {
                   <Link href="/admin/social" className="flex items-center px-4 py-2.5 text-sm font-semibold text-pink-500 hover:bg-slate-800 transition-colors" onClick={() => setAdminDropOpen(false)}>SoMe</Link>
                   <Link href="/carousel" className="flex items-center px-4 py-2.5 text-sm font-semibold text-brand hover:bg-slate-800 transition-colors" onClick={() => setAdminDropOpen(false)}>Carousels</Link>
                   <Link href="/tiebreak" className="flex items-center px-4 py-2.5 text-sm font-semibold text-brand hover:bg-slate-800 transition-colors" onClick={() => setAdminDropOpen(false)}>Tiebreak</Link>
+                  <Link href="/cleanup" className="flex items-center px-4 py-2.5 text-sm font-semibold text-brand hover:bg-slate-800 transition-colors" onClick={() => setAdminDropOpen(false)}>Clean-up</Link>
                 </div>
               )}
             </div>
@@ -166,6 +167,7 @@ const Navbar: React.FC = () => {
                 </li>
                 <li>
                   <Link href="/tiebreak" className="flex items-center px-4 py-2.5 text-sm font-semibold text-brand hover:bg-slate-800 transition-colors" onClick={() => setMobileOpen(false)}>Tiebreak</Link>
+                  <Link href="/cleanup" className="flex items-center px-4 py-2.5 text-sm font-semibold text-brand hover:bg-slate-800 transition-colors" onClick={() => setMobileOpen(false)}>Clean-up</Link>
                 </li>
               </>
             )}
