@@ -85,7 +85,10 @@ export async function parkFeed(parkName: string): Promise<ParkFeed> {
   if (hit && Date.now() - hit.at < LIVE_TTL) return hit.feed;
 
   const [tpwList, qtList] = await Promise.all([themeparksWikiParks().catch(() => []), queueTimesParks().catch(() => [])]);
-  const tpw = findPark(parkName, tpwList), qt = findPark(parkName, qtList);
+  // "Legoland Korea Resort" is "LEGOLAND Korea" in the feeds: try without the generic words too.
+  const plain = parkName.replace(/\b(resort|theme park|amusement park|adventure park)\b/gi, " ").replace(/\s+/g, " ").trim();
+  const find = (list: ParkRef[]) => findPark(parkName, list) ?? (plain !== parkName ? findPark(plain, list) : null);
+  const tpw = find(tpwList), qt = find(qtList);
 
   type TpwLive = { timezone?: string; liveData?: { name: string; entityType: string; status?: string; queue?: { STANDBY?: { waitTime?: number | null } } }[] };
   type QtLive = { lands?: { rides: { name: string; is_open: boolean; wait_time: number }[] }[]; rides?: { name: string; is_open: boolean; wait_time: number }[] };
