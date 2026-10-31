@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
+import LazyVideo from "../LazyVideo";
 import { splitMedia, parseFocusStr } from "../FocusedImage";
 import { SectionImage } from "../SectionImage";
 import { SECTION_IMAGE_ASPECT, resolveSectionLayout } from "@/app/utils/sectionImageAspect";
@@ -14,30 +15,7 @@ export const isVideoUrl = (src: string) => /\.(mp4|webm|ogg)$/i.test(src);
  * page or editor preview with several clips is not decoding all of them at once.
  */
 function SectionVideo({ src, cx, cy }: { src: string; cx: number; cy: number }) {
-  const ref = useRef<HTMLVideoElement>(null);
-  // No address until the video comes near the screen: autoplay starts the download
-  // whatever preload says, so every review video (some are 70 MB) loaded with the page.
-  const [near, setNear] = useState(false);
-  useEffect(() => {
-    const video = ref.current;
-    if (!video) return;
-    if (typeof IntersectionObserver === "undefined") { setNear(true); return; }
-    const io = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) { setNear(true); video.play().catch(() => {}); }
-      else video.pause();
-    }, { rootMargin: "200px" });
-    io.observe(video);
-    return () => io.disconnect();
-  }, []);
-  return (
-    <video
-      ref={ref}
-      src={near ? src : undefined}
-      className="absolute inset-0 w-full h-full object-cover rounded-2xl"
-      style={{ objectPosition: `${cx * 100}% ${cy * 100}%` }}
-      muted loop autoPlay playsInline preload="metadata"
-    />
-  );
+  return <LazyVideo src={src} className="absolute inset-0 w-full h-full object-cover rounded-2xl" style={{ objectPosition: `${cx * 100}% ${cy * 100}%` }} />;
 }
 
 /** Gallery descriptions keyed by media URL, for the captions under section media. */
