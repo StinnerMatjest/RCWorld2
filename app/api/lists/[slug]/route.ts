@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminRequest } from "@/app/lib/adminAuth";
 import { pool } from "@/app/lib/db";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { photoFramings } from "@/app/lib/visitHeader";
@@ -32,6 +33,8 @@ export async function GET(
         }
 
         const list = listResult.rows[0];
+        // An unpublished list does not exist for visitors.
+        if (!list.published && !(await isAdminRequest(req))) return NextResponse.json({ error: "Ranking list not found" }, { status: 404 });
 
         const itemsResult = await pool.query(
             `SELECT id, rank, title, subtitle, text_block_1, image_1, text_block_2, image_2 

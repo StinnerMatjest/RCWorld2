@@ -1,5 +1,6 @@
 "use client";
 
+import LazyVideo from "@/app/components/LazyVideo";
 import React, { useState, useEffect, useRef } from "react";
 import { placeCover, replaceCovers, tileFraming } from "@/app/lib/coverPlacement";
 import { R2Image } from "../R2Image";
@@ -584,12 +585,8 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
                 )}
 
                 {isVideo(img.path) ? (
-                  <video
+                  <LazyVideo
                     src={img.path}
-                    muted
-                    autoPlay
-                    loop
-                    playsInline
                     className="rounded-xl object-cover h-40 md:h-48 w-full bg-black transition-transform duration-500 group-hover:scale-105 pointer-events-none"
                   />
                 ) : (

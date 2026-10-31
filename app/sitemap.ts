@@ -6,9 +6,11 @@ export default async function sitemap() {
   const baseUrl = "https://parkrating.com";
   const API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-  const [rankedRes, coastersRes] = await Promise.all([
+  const [rankedRes, coastersRes, listsRes] = await Promise.all([
     fetch(`${API}api/parks/ranked`, { cache: "force-cache", next: { tags: ["content"] } }),
     fetch(`${API}api/coasters`, { cache: "force-cache", next: { tags: ["content"] } }),
+    // Published lists only (the lists API shows drafts to admins alone).
+    fetch(`${API}api/lists`, { cache: "force-cache", next: { tags: ["content"] } }).catch(() => null),
   ]);
 
   const rankedData = await rankedRes.json();
@@ -28,11 +30,15 @@ export default async function sitemap() {
     url: `${baseUrl}/coasters/${coaster.slug}`,
   }));
 
+  const lists: { slug: string; published?: boolean }[] = listsRes?.ok ? ((await listsRes.json()).rankingLists ?? []) : [];
+  const listUrls = lists.filter((l) => l.published).map((l) => ({ url: `${baseUrl}/lists/${l.slug}` }));
+
   return [
     { url: baseUrl,                      lastModified: new Date() },
     { url: `${baseUrl}/parks`,           lastModified: new Date() },
     { url: `${baseUrl}/coasterLibrary`,  lastModified: new Date() },
     { url: `${baseUrl}/manufacturers`,   lastModified: new Date() },
+    { url: `${baseUrl}/lists`,           lastModified: new Date() },
     { url: `${baseUrl}/info` },
     { url: `${baseUrl}/about` },
     { url: `${baseUrl}/games` },
@@ -41,5 +47,6 @@ export default async function sitemap() {
     { url: `${baseUrl}/games/connections` },
     ...parkUrls,
     ...coasterUrls,
+    ...listUrls,
   ];
 }

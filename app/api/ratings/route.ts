@@ -2,10 +2,13 @@ import { pool } from "@/app/lib/db";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { getParkName, logChange } from "@/app/lib/changelog";
 import { seedParkTextsFromChecklist } from "@/app/lib/checklistNotes";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { isAdminRequest } from "@/app/lib/adminAuth";
 import { Visit, RatingWarningType } from "@/app/types";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Drafts (unpublished visits) only for admins.
+  const admin = await isAdminRequest(req);
   try {
     const query = `
       SELECT 
@@ -46,6 +49,7 @@ export async function GET() {
       FROM visits
       JOIN parks ON visits.park_id = parks.id
       LEFT JOIN ratingwarning ON ratingwarning.visit_id = visits.id
+      ${admin ? "" : "WHERE visits.published = TRUE"}
       GROUP BY visits.id, parks.id
       ORDER BY visits.date DESC;
     `;

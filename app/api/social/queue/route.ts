@@ -1,8 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
+import { isAdminRequest } from "@/app/lib/adminAuth";
 
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (!(await isAdminRequest(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const result = await pool.query(
     `SELECT * FROM social_posts WHERE status IN ('draft','scheduled') ORDER BY created_at DESC`
   );

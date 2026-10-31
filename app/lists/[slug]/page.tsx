@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { ADMIN_COOKIE, isAdminRequest } from "@/app/lib/adminAuth";
 import ListArticleClient from "./ListArticleClient";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -10,7 +12,11 @@ type PageProps = { params: Promise<{ slug: string }> };
 // (500s, network errors) throw instead, so the page errors with a 500 rather
 // than serving a crawler-deindexing 404 for a valid URL.
 async function getList(slug: string): Promise<any | null> {
-  const res = await fetch(`${BASE}api/lists/${slug}`, { cache: "force-cache", next: { tags: ["content"] } });
+  const jar = await cookies();
+  const admin = await isAdminRequest({ cookies: jar });
+  const res = admin
+    ? await fetch(`${BASE}api/lists/${slug}`, { cache: "no-store", headers: { cookie: `${ADMIN_COOKIE}=${jar.get(ADMIN_COOKIE)!.value}` } })
+    : await fetch(`${BASE}api/lists/${slug}`, { cache: "force-cache", next: { tags: ["content"] } });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Lists API returned ${res.status} for ${slug}`);
   const data = await res.json();
@@ -27,6 +33,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: `${list.title} | ParkRating`,
     description,
+    ...(list.published ? {} : { robots: { index: false, follow: false } }),
     alternates: { canonical: `https://parkrating.com/lists/${slug}` },
     openGraph: {
       title: `${list.title} | ParkRating`,

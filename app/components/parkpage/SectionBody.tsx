@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React from "react";
+import LazyVideo from "../LazyVideo";
 import { splitMedia, parseFocusStr } from "../FocusedImage";
 import { splitFocusPair } from "@/app/lib/framing";
 import { SectionImage } from "../SectionImage";
@@ -15,26 +16,7 @@ export const isVideoUrl = (src: string) => /\.(mp4|webm|ogg)$/i.test(src);
  * page or editor preview with several clips is not decoding all of them at once.
  */
 function SectionVideo({ src, cx, cy }: { src: string; cx: number; cy: number }) {
-  const ref = useRef<HTMLVideoElement>(null);
-  useEffect(() => {
-    const video = ref.current;
-    if (!video || typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) video.play().catch(() => {});
-      else video.pause();
-    }, { rootMargin: "200px" });
-    io.observe(video);
-    return () => io.disconnect();
-  }, []);
-  return (
-    <video
-      ref={ref}
-      src={src}
-      className="absolute inset-0 w-full h-full object-cover rounded-2xl"
-      style={{ objectPosition: `${cx * 100}% ${cy * 100}%` }}
-      muted loop autoPlay playsInline preload="metadata"
-    />
-  );
+  return <LazyVideo src={src} className="absolute inset-0 w-full h-full object-cover rounded-2xl" style={{ objectPosition: `${cx * 100}% ${cy * 100}%` }} />;
 }
 
 /** Gallery descriptions keyed by media URL, for the captions under section media. */

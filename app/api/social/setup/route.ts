@@ -1,8 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
+import { isAdminRequest } from "@/app/lib/adminAuth";
 
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (!(await isAdminRequest(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   await pool.query(`
     CREATE TABLE IF NOT EXISTS social_posts (
       id           SERIAL PRIMARY KEY,

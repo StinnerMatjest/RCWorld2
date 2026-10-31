@@ -1,5 +1,6 @@
 "use client";
 
+import LazyVideo from "@/app/components/LazyVideo";
 import React, { useState, useEffect, useRef } from "react";
 import { placeCover, replaceCovers, tileFraming } from "@/app/lib/coverPlacement";
 import Image from "next/image";
@@ -557,10 +558,9 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
                                 </div>
                             )}
                             {img.path.match(/\.(mp4|webm|ogg)$/i) ? (
-                                <video
+                                <LazyVideo
                                     src={img.path}
                                     className="rounded-xl object-cover h-40 md:h-48 w-full transition-transform duration-500 group-hover:scale-105 pointer-events-none"
-                                    muted autoPlay loop playsInline
                                 />
                             ) : (
                                 <Image

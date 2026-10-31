@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminRequest } from "@/app/lib/adminAuth";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { pool } from "@/app/lib/db";
 import { diffFields, logChange } from "@/app/lib/changelog";
@@ -42,7 +43,7 @@ export async function GET(
         pt.is_spoiler 
       FROM parktexts pt
       JOIN visits v ON v.id = pt.visit_id
-      WHERE v.park_id = $1
+      WHERE v.park_id = $1 ${(await isAdminRequest(req)) ? "" : "AND v.published = TRUE"}
     `;
     const params: any[] = [id];
 
