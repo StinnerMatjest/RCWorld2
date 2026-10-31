@@ -63,6 +63,12 @@ const goToGallery = (e: React.MouseEvent) => {
   if (g) { e.preventDefault(); g.scrollIntoView({ behavior: "smooth", block: "start" }); }
 };
 
+/** The size hint for a deck card's photo (see the R2Image below). */
+function deckSizes(g: VisitGalleryImage): string {
+  const k = g.w && g.h ? Math.max(1, 1.25 * (g.w / g.h)) : 2.23;
+  return `(min-width: 640px) 760px, min(${Math.ceil(78 * k)}vw, ${Math.ceil(340 * k)}px)`;
+}
+
 export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = false, onEdit, startAt }: Props) {
   const shown = useMemo(() => {
     const photos = images.filter((g) => !isVideo(g.path));
@@ -359,9 +365,10 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
                 src={img.path}
                 alt={img.description || `${parkName} photo`}
                 fill
-                // 4:5 card, mostly landscape photos scaled by height: ask for
-                // 2.2x the card width so no variant is ever enlarged.
-                sizes="(min-width: 640px) 760px, 174vw"
+                // The 4:5 card (78vw, at most 340px) is covered by the photo, so a photo of
+                // aspect a is drawn max(1, 1.25a) card widths wide: exact when its size is
+                // known; otherwise as for a wide photo (and it steps up after load if wider).
+                sizes={deckSizes(img)}
                 // The front card is eager so the pile is ready to swipe; the cards
                 // beneath wait for layout (lazy), so none of them is discovered by
                 // the preload scanner alongside the hero. All sit behind it in the queue.

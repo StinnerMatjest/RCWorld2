@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { pool } from "@/app/lib/db";
+import { getImageSizes } from "@/app/lib/imageDims";
 import { getParkName, logChange } from "@/app/lib/changelog";
 import { photoFramings, setPhotoFramings } from "@/app/lib/visitHeader";
 import { reviewPositions } from "@/app/lib/framing";
@@ -41,13 +42,15 @@ export async function GET(
         );
 
         const paths = res.rows.map((r) => r.path);
-        const [tiles, strip, review] = await Promise.all([
+        const [tiles, strip, review, dims] = await Promise.all([
             photoFramings("gallery-tile", paths), photoFramings("curated-desktop", paths),
             pool.query(`SELECT image_url FROM parktexts WHERE visit_id = $1`, [visitId]).then((r) => reviewPositions(r.rows.map((x) => x.image_url))),
+            getImageSizes(paths),
         ]);
         // focus = the phone deck's framing; strip_focus = the desktop strip's (null = it uses focus);
         // review_pos = where the photo sits in a review section (a gallery tile falls back to these).
-        return NextResponse.json({ gallery: res.rows.map((r) => ({ ...r, tile_focus: tiles[r.path] ?? null, strip_focus: strip[r.path] ?? null, review_pos: review[r.path] ?? null })) });
+        // w/h: the original's size, so a photo can ask for exactly the pixels its frame draws.
+        return NextResponse.json({ gallery: res.rows.map((r) => ({ ...r, tile_focus: tiles[r.path] ?? null, strip_focus: strip[r.path] ?? null, review_pos: review[r.path] ?? null, w: dims[r.path]?.w ?? null, h: dims[r.path]?.h ?? null })) });
     } catch (error) {
         console.error("Failed to fetch visit gallery:", error);
         return NextResponse.json({ error: "Failed to fetch gallery images" }, { status: 500 });

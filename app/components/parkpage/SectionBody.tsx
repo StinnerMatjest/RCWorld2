@@ -126,11 +126,14 @@ export function SectionBody({
             mzoom={panPhone?.zoom}
             mobileAspect={a.mobile}
             desktopAspect={a.desktop}
+            // The frame's width as measured on the park page (review column 47-49vw from 1024px,
+            // ~82vw on tablets, ~93vw on phones; beside the text ~21vw / ~36vw); a wider-drawn
+            // photo (cover, zoom) steps up after load.
             sizes={isRow
-              ? "(min-width: 768px) 30vw, 100vw"
+              ? "(min-width: 1024px) 22vw, (min-width: 768px) 37vw, 94vw"
               : isHalf
-                ? `(min-width: 768px) ${Math.round(60 / media.length)}vw, ${Math.round(100 / media.length)}vw`
-                : "(min-width: 768px) 60vw, 100vw"}
+                ? `(min-width: 1024px) ${Math.ceil(50 / media.length)}vw, (min-width: 768px) ${Math.ceil(83 / media.length)}vw, ${Math.ceil(94 / media.length)}vw`
+                : "(min-width: 1024px) 50vw, (min-width: 768px) 83vw, 94vw"}
           />
         )}
         {clickable && (

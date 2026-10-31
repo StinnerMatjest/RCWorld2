@@ -53,6 +53,9 @@ export type VisitGalleryImage = {
   /** The desktop strip's own framing, and where the photo sits in the review (tiles fall back to these). */
   strip_focus?: string | null;
   review_pos?: string | null;
+  /** The original's size (null when not recorded): lets a frame ask for exactly the pixels it draws. */
+  w?: number | null;
+  h?: number | null;
 };
 
 interface GalleryProps {

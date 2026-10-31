@@ -35,10 +35,12 @@ export function stepUp(img: HTMLImageElement) {
   const a = img.naturalWidth / img.naturalHeight;
   const box = cs.objectFit === "cover" ? Math.max(img.clientWidth, img.clientHeight * a)
     : cs.objectFit === "contain" ? Math.min(img.clientWidth, img.clientHeight * a) : img.clientWidth;
-  const drawn = box * z;
-  const next = `${Math.ceil(drawn)}px`;
+  // Hinted 4% under the drawn width (as the hero is): an enlargement that small is invisible,
+  // while a few px short would take the next file up, the original at many times the bytes.
+  const want = Math.ceil(box * z * 0.96);
+  const next = `${want}px`;
   // Setting sizes, even to the same value, makes the browser fetch again: only when it grows.
-  if (drawn > img.naturalWidth * 1.04 && img.sizes !== next) img.sizes = next;
+  if (want > img.naturalWidth && img.sizes !== next) img.sizes = next;
 }
 
 export function R2Image(props: Props) {
