@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminRequest } from "@/app/lib/adminAuth";
 import { pool } from "@/app/lib/db";
 import { revalidateContent } from "@/app/lib/revalidate";
-import { isAdminRequest } from "@/app/lib/adminAuth";
 
 export async function GET(
     req: NextRequest,
