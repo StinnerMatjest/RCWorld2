@@ -269,7 +269,50 @@ export function useChecklistSync(checklist: Checklist) {
     setNote(key: string, value: string) {
       enqueue({ t: "note", key, value }, { debounce: NOTE_DEBOUNCE_MS });
     },
+    /** One ride more or less; both phones' taps add up. */
+    ride(item: string, delta: 1 | -1) {
+      enqueue({ t: "ride", item, delta });
+    },
+    /** The horizontal (`checked`) or the vertical / 50 MP photo of a coaster. */
+    setPhoto(item: string, which: "h" | "v", value: boolean) {
+      enqueue({ t: "item", item, set: which === "h" ? { checked: value } : { photoV: value } });
+    },
+    addLine(key: string, text: string) {
+      if (text.trim()) enqueue({ t: "line", key, text: text.trim() });
+    },
+    editLine(key: string, from: string, to: string) {
+      enqueue({ t: "lineEdit", key, from, to: to.trim() });
+    },
+    /** Starts timing a queue (ending any other) and returns its id. */
+    queueStart(item: string, board: number | null) {
+      const qid = randomId();
+      enqueue({ t: "qstart", qid, item, board });
+      return qid;
+    },
+    queueBoard(qid: string, board: number | null) {
+      enqueue({ t: "qboard", qid, board });
+    },
+    /** Logs the queue with the real wait, and counts the ride. */
+    queueLog(qid: string, item: string, real: number, board: number | null) {
+      enqueue({ t: "qlog", qid, real, board });
+      enqueue({ t: "ride", item, delta: 1 });
+    },
+    queueCancel(qid: string) {
+      enqueue({ t: "qcancel", qid });
+    },
+    /** Which ride in the live feeds a coaster is ("" = none). */
+    link(item: string, ride: string) {
+      enqueue({ t: "link", item, ride });
+    },
     timer(t: "start" | "pause" | "resume" | "complete") {
+      if (t === "complete") {
+        let tz: string | undefined;
+        try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { tz = undefined; }
+        // A visit never started still completes: it starts now and ends now.
+        if (current().sessions.length === 0) enqueue({ t: "start" });
+        enqueue({ t: "complete", ...(tz ? { tz } : {}) });
+        return;
+      }
       enqueue({ t });
     },
     flushNow() {

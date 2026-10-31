@@ -347,6 +347,38 @@ export type ChecklistItem = {
   rideCount?: number;
   rideCountLastModified?: string;
   isExtra?: boolean;
+  /** Coasters: the vertical or 50 MP photo is taken (`checked` is the horizontal one). */
+  photoV?: boolean;
+};
+
+/** A queue timed in the park: the board's posted wait when we joined, and the real wait once logged. */
+export type ChecklistQueue = {
+  id: string;
+  /** The coaster's checklist item. */
+  item: string;
+  start: string;
+  board: number | null;
+  end?: string | null;
+  real?: number | null;
+  cancelled?: boolean;
+};
+
+/** A breakdown seen in the park's live ride status while the visit ran. */
+export type ChecklistDown = {
+  id: string;
+  ride: string;
+  item?: string | null;
+  from: string;
+  to?: string | null;
+};
+
+/** What the live ride status showed for a ride while the visit ran (for "closed all day"). */
+export type ChecklistRideSeen = {
+  open: boolean;
+  refurb?: boolean;
+  closedPolls: number;
+  firstClosed?: string | null;
+  lastClosed?: string | null;
 };
 
 export type ChecklistSession = {
@@ -371,6 +403,10 @@ export type Checklist = {
   notes?: Record<string, string> | null;
   // Count of saved changes; lets the page ignore a server copy older than one it already has
   rev?: number;
+  queues?: ChecklistQueue[] | null;
+  downtime?: ChecklistDown[] | null;
+  ride_seen?: Record<string, ChecklistRideSeen> | null;
+  live_links?: Record<string, string> | null;
 };
 
 // --- Directory Specific Types ---
