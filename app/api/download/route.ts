@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isR2Image } from "@/app/lib/imageVariants";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url).searchParams.get("url");
   if (!url) return NextResponse.json({ error: "Missing url" }, { status: 400 });
+  // Only our own photos: anything else would make this an open proxy for any address.
+  if (!isR2Image(url)) return NextResponse.json({ error: "Not one of our photos" }, { status: 400 });
 
   try {
     const res = await fetch(url);

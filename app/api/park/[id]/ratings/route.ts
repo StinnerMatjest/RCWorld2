@@ -1,14 +1,15 @@
 import { pool } from "@/app/lib/db";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { getParkName, logChange } from "@/app/lib/changelog";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { isAdminRequest } from "@/app/lib/adminAuth";
 import { Visit, RatingWarningType } from "@/app/types";
 import { revalidateTag } from "next/cache";
 import { ensureVisitHeaderColumns } from "@/app/lib/visitHeader";
 import { getImageSizes } from "@/app/lib/imageDims";
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -59,7 +60,7 @@ export async function GET(
       FROM visits
       JOIN parks ON visits.park_id = parks.id
       LEFT JOIN ratingwarning ON ratingwarning.visit_id = visits.id
-      WHERE visits.park_id = $1
+      WHERE visits.park_id = $1 ${(await isAdminRequest(request)) ? "" : "AND visits.published = TRUE"}
       GROUP BY visits.id, parks.id
       ORDER BY visits.date DESC;
     `;
