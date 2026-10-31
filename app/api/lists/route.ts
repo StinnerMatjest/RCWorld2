@@ -1,8 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { isAdminRequest } from "@/app/lib/adminAuth";
 import { pool } from "@/app/lib/db";
 import { revalidateContent } from "@/app/lib/revalidate";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+    // Unpublished lists only for admins.
+    const admin = await isAdminRequest(req);
     try {
         const query = `
           SELECT 
@@ -18,6 +21,7 @@ export async function GET() {
             linked_countries AS "linkedCountries",
             linked_park_ids AS "linkedParkIds"
           FROM rankinglists 
+          ${admin ? "" : "WHERE published = TRUE"}
           ORDER BY created_at DESC;
         `;
 

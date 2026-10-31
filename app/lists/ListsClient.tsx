@@ -43,6 +43,12 @@ const RankingsPage = ({ initialLists }: { initialLists?: RankingListSummary[] })
         fetchLists();
     }, [initialLists]);
 
+    // The server seeds published lists only; admin mode loads the drafts as well.
+    useEffect(() => {
+        if (!isAdminMode) return;
+        fetch("/api/lists").then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.rankingLists) setLists(d.rankingLists); }).catch(() => {});
+    }, [isAdminMode]);
+
     // Filter lists: Admins see everything, normal users only see published lists
     const visibleLists = isAdminMode ? lists : lists.filter(list => list.published);
 
