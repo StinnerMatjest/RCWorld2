@@ -6,6 +6,7 @@ import {
   CHECKABLE_KINDS, CLEANUP_PEOPLE, creditTask, keepUndo, takeUndo, wasCredited, loadCleanup, readSlot, reopenTask, setCaption, undoOps, writeSlot,
   type CleanupData, type CleanupPerson, type CleanupTask, type UndoOp,
 } from "@/app/lib/cleanup";
+import { capZoom } from "@/app/lib/zoomLimit";
 
 // GET  /api/cleanup                                  -> CleanupData (open and done tasks, points, parks, scores, uses)
 // POST /api/cleanup { action, key, person, ... }     -> { ok, undo? } (the page updates itself and refetches quietly)
@@ -112,8 +113,8 @@ export async function POST(req: NextRequest) {
       for (const { task: t, slot, value } of work) {
         const s = slot!, place = t!.place!;
         if (value !== null) {
-          // Formats without zoom store 1.
-          const v = s.maxZoom <= 1 ? value.replace(/ [\d.]+$/, " 1") : value;
+          // Formats without zoom store 1; past the photo's zoom limit it stops there.
+          const v = s.maxZoom <= 1 ? value.replace(/ [\d.]+$/, " 1") : capZoom(value, s.maxZoom);
           // What is there now, from the database (the task list can be a couple of minutes old).
           const there = await readSlot(s.photo, s.target);
           const old = there === undefined ? s.value : there;

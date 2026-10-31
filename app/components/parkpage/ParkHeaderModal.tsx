@@ -8,6 +8,7 @@ import { useScrollLock } from "@/app/hooks/useScrollLock";
 import type { Visit } from "@/app/types";
 import type { ParkRanks } from "@/app/utils/parkRanks";
 import { HeroStats } from "./HeroStats";
+import { SHARP, zoomLimit, type Box } from "@/app/lib/zoomLimit";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -111,9 +112,11 @@ export interface CropEditorProps {
    * a wider frame needs nothing: the pages stop the photo at the frame's edge.
    */
   minAspect?: number;
+  /** The frame on the sharpest screens it is shown on (zoomLimit): zoom stops before the photo turns soft. */
+  sharp?: Box;
 }
 
-export function CropEditor({ src, aspectRatio, focusStr, onCommit, onChange, editorRef, className = "", style, children, maxZoom = 4, minAspect }: CropEditorProps) {
+export function CropEditor({ src, aspectRatio, focusStr, onCommit, onChange, editorRef, className = "", style, children, maxZoom = 4, minAspect, sharp }: CropEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const commitRef = useRef(onCommit);
@@ -131,6 +134,7 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, onChange, edi
   const tx = useRef(0);
   const ty = useRef(0);
   const zoom = useRef(1);
+  const maxZ = useRef(maxZoom);
 
   function coverScale() {
     const c = containerRef.current;
@@ -201,8 +205,9 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, onChange, edi
       if (cancelled) return;
       nw.current = el.naturalWidth;
       nh.current = el.naturalHeight;
+      maxZ.current = sharp ? zoomLimit({ w: el.naturalWidth, h: el.naturalHeight }, [sharp], maxZoom) : maxZoom;
       const parts = (focusStr || "0.5 0.5 1").split(" ");
-      zoom.current = Math.max(1, parseFloat(parts[2] || "1") || 1);
+      zoom.current = clamp(parseFloat(parts[2] || "1") || 1, 1, maxZ.current);
       fromFocusStr(focusStr);
       applyDOM();
       changeRef.current?.(toFocusStr());
@@ -256,7 +261,7 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, onChange, edi
         const a = ptrs.get(ids[0])!, b = ptrs.get(ids[1])!;
         const d = Math.hypot(a.x - b.x, a.y - b.y);
         const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-        const newZ = clamp(pinch.z0 * (d / pinch.d0), 1, maxZoom);
+        const newZ = clamp(pinch.z0 * (d / pinch.d0), 1, maxZ.current);
         zoom.current = newZ;
         const { tx: ntx, ty: nty } = clampTxy(
           pinch.tx0 + (mx - pinch.mx0),
@@ -296,7 +301,7 @@ export function CropEditor({ src, aspectRatio, focusStr, onCommit, onChange, edi
 
     function onWheel(e: WheelEvent) {
       e.preventDefault();
-      zoom.current = clamp(zoom.current * (1 - e.deltaY * 0.001), 1, maxZoom);
+      zoom.current = clamp(zoom.current * (1 - e.deltaY * 0.001), 1, maxZ.current);
       const { tx: ntx, ty: nty } = clampTxy(tx.current, ty.current);
       tx.current = ntx; ty.current = nty;
       applyDOM();
@@ -851,6 +856,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                       aspectRatio={`${Math.round(pageW)}/${Math.round(pageH)}`}
                       focusStr={editsTall ? headerFocusMobile ?? (phonePhoto ? "0.5 0.5 1" : headerFocus) : headerFocus}
                       onCommit={editsTall ? setHeaderFocusMobile : setHeaderFocus}
+                      sharp={editsTall ? SHARP.coverPhone : SHARP.coverDesktop}
                       className={isMobile ? "w-full" : "w-full rounded-2xl"}
                     >
                       {headerFrameW > 0 && (
@@ -886,6 +892,7 @@ const ParkHeaderModal: React.FC<ParkHeaderModalProps> = ({
                         focusStr={cardFocus}
                         onCommit={setCardFocus}
                         minAspect={CARD_MIN_ASPECT}
+                        sharp={SHARP.card}
                         className="rounded-2xl shadow-md"
                         style={{ width: phoneCardW * cardScale, height: CARD_H * cardScale }}
                       >

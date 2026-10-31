@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { parseFocusStr } from "@/app/components/FocusedImage";
+import { capZoom } from "@/app/lib/zoomLimit";
 import type { CoasterGalleryImage } from "@/app/components/coasterpage/coasterPageTypes";
 import LivePreview, { focusValue, previewViewport, type Lift } from "./LivePreview";
 import { fmtDate, photoSources, PLACE_TITLE, send, thumb, type CleanupTask, type FramePlace, type FrameSlot, type PhotoUse, type SlotView } from "./shared";
@@ -466,7 +467,11 @@ export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, 
   const stage = useSize(stageRef);
   // One framer for every task, so the next place on the same page keeps the loaded page; what
   // was being edited here goes with the task.
-  useEffect(() => { setValues({}); setChanging(false); setPicker(null); setDropping(false); setSel(null); }, [task.key]);
+  // A framing zoomed past where its photo stays sharp opens at that zoom, so saving fixes it.
+  useEffect(() => {
+    setValues(Object.fromEntries(place.slots.filter((s) => capZoom(startValue(s), s.maxZoom) !== startValue(s)).map((s) => [vkey(task, s), capZoom(startValue(s), s.maxZoom)])));
+    setChanging(false); setPicker(null); setDropping(false); setSel(null);
+  }, [task.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const all = useMemo(() => [task, ...related], [task, related]);
   const changedSlots = all.flatMap((t) => t.place!.slots.filter((s) => values[vkey(t, s)] !== undefined && values[vkey(t, s)] !== startValue(s)).map((s) => ({ t, s })));
   const anyChanged = changedSlots.length > 0;
@@ -536,7 +541,7 @@ export function PlaceFramer({ task, related, readUses, busy, onSave, onChanged, 
 
   const hint = (
     <p className="text-xs text-slate-500">
-      {place.slots.some((s) => s.maxZoom > 1) ? "Drag to move · scroll or pinch to zoom" : "Drag to move"}
+      {place.slots.some((s) => s.maxZoom > 1) ? "Drag to move · scroll or pinch to zoom, up to where the photo stays sharp" : "Drag to move"}
       {onePager && <span className="mt-1 block">Double-click a preview for full screen</span>}
       {place.note && <span className="mt-1 block">{place.note}</span>}
     </p>

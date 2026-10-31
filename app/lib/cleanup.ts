@@ -26,6 +26,7 @@ import { groupOf } from "@/app/lib/cleanupGroup";
 import { joinFocusPair, splitFocusPair } from "@/app/lib/framing";
 import { overview as tiebreakOverview } from "@/app/lib/tiebreakStore";
 import { sectionImageFrame, type SectionFrame } from "@/app/utils/sectionImageAspect";
+import { SHARP, sectionBoxes, zoomLimit, type Box } from "@/app/lib/zoomLimit";
 
 export const CLEANUP_PEOPLE = ["Jannik", "Nicklas"] as const;
 export type CleanupPerson = typeof CLEANUP_PEOPLE[number];
@@ -254,7 +255,12 @@ const CARD_MIN_ASPECT = 250 / 500;
 
 // ─── compute ─────────────────────────────────────────────────────────────────
 
-type SlotDraft = Omit<FrameSlot, "fresh" | "done">;
+type SlotDraft = Omit<FrameSlot, "fresh" | "done"> & {
+  /** The frames it is drawn in, for its zoom limit (covers and cards: by kind). */
+  needs?: readonly Box[];
+};
+/** Frames of the covers and the card, for their zoom limit. */
+const NEEDS: Partial<Record<SlotKind, readonly Box[]>> = { "cover-phone": [SHARP.coverPhone], "cover-desktop": [SHARP.coverDesktop], card: [SHARP.card] };
 type PlaceDraft = Omit<CleanupTask, "quick" | "place" | "fingerprint" | "size" | "points"> & { place: Omit<FramePlace, "slots"> & { slots: SlotDraft[] } };
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -433,14 +439,15 @@ export async function loadCleanup(): Promise<CleanupData> {
   const sectionSlots = (o: { idBase: string; photo: string; focus: string | null; page: string; table: "parktexts" | "coastertext"; rowId: number; index: number; frame: SectionFrame }): SlotDraft[] => {
     const pair = splitFocusPair(o.focus);
     const target = `section:${o.photo}`;
+    const b = sectionBoxes(o.frame);
     // Beside the text the frame has one shape on every screen: one framing does both, while
     // the phone has none of its own (it follows the desktop one).
     if (o.frame.mobile === o.frame.desktop && !pair.phone) {
-      return [{ id: `${o.idBase}:desktop`, kind: "section-desktop", label: "Phone and desktop", photo: o.photo, value: pair.desktop, target: { t: "section", table: o.table, rowId: o.rowId, index: o.index, part: "desktop" }, maxZoom: 4, views: [{ screen: "desktop", page: o.page, target }] }];
+      return [{ id: `${o.idBase}:desktop`, kind: "section-desktop", label: "Phone and desktop", photo: o.photo, value: pair.desktop, target: { t: "section", table: o.table, rowId: o.rowId, index: o.index, part: "desktop" }, maxZoom: 4, needs: [b.phone, b.desktop], views: [{ screen: "desktop", page: o.page, target }] }];
     }
     return [
-      { id: `${o.idBase}:phone`, kind: "section-phone", label: "Phone", photo: o.photo, value: pair.phone, fallback: pair.desktop, fallbackFrom: "desktop", target: { t: "section", table: o.table, rowId: o.rowId, index: o.index, part: "phone" }, maxZoom: 4, views: [{ screen: "phone", page: o.page, target }] },
-      { id: `${o.idBase}:desktop`, kind: "section-desktop", label: "Desktop", photo: o.photo, value: pair.desktop, target: { t: "section", table: o.table, rowId: o.rowId, index: o.index, part: "desktop" }, maxZoom: 4, views: [{ screen: "desktop", page: o.page, target }] },
+      { id: `${o.idBase}:phone`, kind: "section-phone", label: "Phone", photo: o.photo, value: pair.phone, fallback: pair.desktop, fallbackFrom: "desktop", target: { t: "section", table: o.table, rowId: o.rowId, index: o.index, part: "phone" }, maxZoom: 4, needs: [b.phone], views: [{ screen: "phone", page: o.page, target }] },
+      { id: `${o.idBase}:desktop`, kind: "section-desktop", label: "Desktop", photo: o.photo, value: pair.desktop, target: { t: "section", table: o.table, rowId: o.rowId, index: o.index, part: "desktop" }, maxZoom: 4, needs: [b.desktop], views: [{ screen: "desktop", page: o.page, target }] },
     ];
   };
   for (const [parkId, visits] of publishedByPark) {
@@ -604,7 +611,12 @@ export async function loadCleanup(): Promise<CleanupData> {
 
   // Places become tasks: each slot is done when checked for its photo; one point per slot.
   for (const d of places) {
-    const slots: FrameSlot[] = d.place.slots.filter((s) => !isVideo(s.photo)).map((s) => ({ ...s, ...(sizes[s.photo] ? { size: sizes[s.photo] } : {}), fresh: !isRealFocus(s.value), done: checked(`frame:${s.id}`, s.photo) }));
+    const slots: FrameSlot[] = d.place.slots.filter((s) => !isVideo(s.photo)).map(({ needs, ...s }) => {
+      // Zoom stops where the photo would be drawn bigger than it is.
+      const frames = needs ?? NEEDS[s.kind];
+      const maxZoom = s.maxZoom > 1 && frames ? zoomLimit(sizes[s.photo], frames, s.maxZoom) : s.maxZoom;
+      return { ...s, ...(sizes[s.photo] ? { size: sizes[s.photo] } : {}), maxZoom, fresh: !isRealFocus(s.value), done: checked(`frame:${s.id}`, s.photo) };
+    });
     push({ ...d, place: { ...d.place, slots }, fingerprint: d.image as string, points: slots.length, done: slots.every((s) => s.done) });
   }
 

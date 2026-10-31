@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
 import { CropEditor } from "../parkpage/ParkHeaderModal";
+import { SHARP } from "@/app/lib/zoomLimit";
 import { ImagePickerGrid } from "../editor/SectionMediaEditor";
 import { mediaCaptions } from "../parkpage/SectionBody";
 import type { CoasterGalleryImage } from "./coasterPageTypes";
@@ -159,6 +160,7 @@ export default function CoasterHeaderModal({ coasterId, coasterName, gallery, cu
                     src={phone ? phone.path : image.path}
                     focusStr={focusMobile}
                     onCommit={setFocusMobile}
+                    sharp={SHARP.coverPhone}
                     className="h-full w-full rounded-2xl"
                   >
                     <div className="absolute inset-x-0 bottom-0 p-4 pointer-events-none bg-gradient-to-t from-[#0f172a] via-[#0f172a]/60 to-transparent">
@@ -175,6 +177,7 @@ export default function CoasterHeaderModal({ coasterId, coasterName, gallery, cu
                     src={image.path}
                     focusStr={focusDesktop}
                     onCommit={setFocusDesktop}
+                    sharp={SHARP.coverDesktop}
                     className="h-full w-full rounded-2xl"
                   >
                     <div className="absolute inset-x-0 bottom-0 p-5 pointer-events-none bg-gradient-to-t from-[#0f172a] via-[#0f172a]/60 to-transparent">

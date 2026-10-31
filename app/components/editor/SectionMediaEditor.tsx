@@ -15,6 +15,7 @@ import { isVideoUrl } from "../parkpage/SectionBody";
 import { VideoThumb, getVideoSnapshot } from "../VideoThumb";
 import { R2Image } from "../R2Image";
 import { variantUrl } from "@/app/lib/imageVariants";
+import { sectionBoxes, zoomLimit } from "@/app/lib/zoomLimit";
 
 /**
  * The pieces a review editor needs to attach gallery media to a section:
@@ -234,7 +235,11 @@ export function SectionImageCropper({
   const drag = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ d: number; z: number } | null>(null);
-  const MAX_ZOOM = 4;
+  // Zoom stops before the photo is drawn bigger than it is on the sharpest phone or desktop.
+  const boxes = sectionBoxes({ mobile: mobileAspect, desktop: desktopAspect });
+  const MAX_ZOOM = isVideo ? 1 : zoomLimit(dims, [boxes.phone, boxes.desktop]);
+  const maxRef = useRef(MAX_ZOOM);
+  maxRef.current = MAX_ZOOM;
 
   useEffect(() => {
     if (isVideo) {
@@ -251,6 +256,13 @@ export function SectionImageCropper({
     img.onload = () => setDims({ w: img.naturalWidth, h: img.naturalHeight });
     img.src = src;
   }, [src, isVideo]);
+
+  // A photo zoomed past its limit comes back to it once its size is known.
+  useEffect(() => {
+    if (!dims || posRef.current.z <= MAX_ZOOM) return;
+    const p = { ...posRef.current, z: MAX_ZOOM };
+    setPos(p); commit(p);
+  }, [dims]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const p = parseFocusStr(value);
@@ -287,7 +299,7 @@ export function SectionImageCropper({
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pinch.current && pointers.current.size >= 2) {
       const [a, b] = [...pointers.current.values()];
-      setPos((p) => ({ ...p, z: clamp(pinch.current!.z * (Math.hypot(a.x - b.x, a.y - b.y) / pinch.current!.d), 1, MAX_ZOOM) }));
+      setPos((p) => ({ ...p, z: clamp(pinch.current!.z * (Math.hypot(a.x - b.x, a.y - b.y) / pinch.current!.d), 1, maxRef.current) }));
       return;
     }
     const box = boxRef.current;
@@ -323,7 +335,8 @@ export function SectionImageCropper({
     if (!el || isVideo) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      setPos((p) => ({ ...p, z: clamp(p.z * Math.exp(-e.deltaY * 0.0015), 1, MAX_ZOOM) }));
+      if (maxRef.current <= 1) return;
+      setPos((p) => ({ ...p, z: clamp(p.z * Math.exp(-e.deltaY * 0.0015), 1, maxRef.current) }));
       window.clearTimeout(wheelTimer.current);
       wheelTimer.current = window.setTimeout(() => commit(), 250);
     };
@@ -394,7 +407,7 @@ export function SectionImageCropper({
           />
         )}
       </div>
-      {!isVideo && (
+      {MAX_ZOOM > 1 && (
         <div className="mx-auto mt-3 flex max-w-md items-center gap-3 text-xs text-slate-400">
           <span>Zoom</span>
           <input type="range" min={1} max={MAX_ZOOM} step={0.01} value={pos.z} aria-label="Zoom"
@@ -407,8 +420,8 @@ export function SectionImageCropper({
       )}
       <p className="mt-2 text-center text-xs text-slate-400">
         {showSafe
-          ? "Drag to position, scroll or pinch to zoom. The bright box is what shows on every screen."
-          : isVideo ? "Drag to position the crop." : "Drag to position, scroll or pinch to zoom."}
+          ? `Drag to position${MAX_ZOOM > 1 ? ", scroll or pinch to zoom" : ""}. The bright box is what shows on every screen.`
+          : MAX_ZOOM > 1 ? "Drag to position, scroll or pinch to zoom, up to where the photo stays sharp." : "Drag to position the crop."}
       </p>
     </>
   );
