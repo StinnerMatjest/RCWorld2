@@ -271,12 +271,14 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
         {/* ── Coaster Rides ── */}
         {coasterItems.length > 0 && (
           <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-            <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-200">
+            <h2 className="mb-1 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-200">
               🎢 Coaster Rides
               <span className="text-xs font-normal normal-case tracking-normal text-slate-500">
                 {coasterItems.filter(i => (i.rideCount || 0) > 0 && !i.skipped).length}/{coasterItems.filter(i => !i.skipped).length} ridden
               </span>
             </h2>
+            {/* Covers need the pixels: a horizontal photo, or 50 MP when it is upright. */}
+            <p className="mb-4 text-xs text-slate-400">📸 Remember to take a horizontal or 50 MP photo of each coaster.</p>
 
             <ul className="space-y-2">
               {coasterItems.map((item) => {
@@ -294,7 +296,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                     <button
                       onClick={() => toggleItem(item.id)}
                       disabled={!canEdit || isSkipped}
-                      title={isDone ? "Photo taken ✓" : "Mark photo taken"}
+                      title={isDone ? "Horizontal or 50 MP photo taken ✓" : "Mark horizontal or 50 MP photo taken"}
                       className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all disabled:opacity-30 ${isDone ? "border-emerald-500 bg-emerald-500" : "border-slate-600 hover:border-emerald-400"}`}
                     >
                       {isDone && (
