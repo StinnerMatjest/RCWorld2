@@ -1,4 +1,4 @@
-import { isR2Image, variantKey, variantUrl, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
+import { isR2Image, isWebFormat, variantKey, variantUrl, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
 import type { CleanupData, CleanupKind, CleanupPerson, CleanupTask, DoneTask, FramePlace, FrameSlot, PhotoUse, PlaceKind, SlotView } from "@/app/lib/cleanup";
 import { groupOf } from "@/app/lib/cleanupGroup";
 
@@ -76,7 +76,7 @@ export const thumb = (src: string | null | undefined, w = 480) => (src ? variant
 export function photoSources(src: string, size?: { w: number; h: number }): { src: string; srcSet?: string } {
   if (!isR2Image(src)) return { src };
   const widths = size?.w ? VARIANT_WIDTHS.filter((w) => w < size.w) : [...VARIANT_WIDTHS];
-  return { src: variantKey(src, 1200), srcSet: [...widths.map((w) => `${variantKey(src, w)} ${w}w`), `${src} ${size?.w || 4000}w`].join(", ") };
+  return { src: variantKey(src, 1200), srcSet: [...widths.map((w) => `${variantKey(src, w)} ${w}w`), ...(isWebFormat(src) ? [`${src} ${size?.w || 4000}w`] : [])].join(", ") };
 }
 
 /**
@@ -127,7 +127,7 @@ export async function api(action: string, key: string | undefined, person: Clean
   const res = await fetch("/api/cleanup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, key, person, ...extra }) });
   const body = await res.json().catch(() => ({}));
   if (!res.ok || !body.ok) throw new Error(body.error || (res.status === 401 ? "Log in to admin mode again." : `Failed (${res.status})`));
-  return body as { ok: true; already?: boolean; credited?: number; undo?: string };
+  return body as { ok: true; already?: boolean; credited?: number; undo?: string; kept?: number };
 }
 
 /** A save through one of the site's own endpoints (the ones its editors use). */

@@ -1,4 +1,4 @@
-import { isR2Image, variantKey, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
+import { isR2Image, isWebFormat, variantKey, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
 
 // Stored sizes plus the original, so the browser fetches the smallest file
 // whose pixels cover the hero on its screen. The frame is 100vw wide and
@@ -9,7 +9,7 @@ export function heroSources(src: string, size: { w: number; h: number }, zoom: {
   if (!isR2Image(src) || !size.w || !size.h) return undefined;
   const a = size.w / size.h;
   const parts = VARIANT_WIDTHS.filter((w) => w < size.w).map((w) => `${variantKey(src, w)} ${w}w`);
-  parts.push(`${src} ${size.w}w`);
+  if (isWebFormat(src)) parts.push(`${src} ${size.w}w`);
   // Hinted 4% under the drawn width: an enlargement that small is invisible,
   // while a 2 px shortfall would make the browser take the next stored size
   // at 2.5x the bytes (a 4:3 photo in the 4:5 phone frame on a 1.75x screen
@@ -29,7 +29,7 @@ export function phoneSource(src: string, size?: { w: number; h: number }, zoom =
   if (!isR2Image(src)) return { media, srcSet: src };
   if (!size?.w || !size?.h) {
     const parts = VARIANT_WIDTHS.map((w) => `${variantKey(src, w)} ${w}w`);
-    return { media, srcSet: [...parts, `${src} 4000w`].join(", "), sizes: `${Math.ceil(190 * Math.max(1, zoom))}vw` };
+    return { media, srcSet: [...parts, ...(isWebFormat(src) ? [`${src} 4000w`] : [])].join(", "), sizes: `${Math.ceil(190 * Math.max(1, zoom))}vw` };
   }
   const all = heroSources(src, size)!;
   return { media, srcSet: all.srcSet, sizes: `${Math.floor(Math.max(1, (5 / 4) * (size.w / size.h)) * Math.max(1, zoom) * 100 * 0.96)}vw` };

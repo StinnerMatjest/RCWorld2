@@ -230,8 +230,18 @@ export function FocusedImage({
         }}
       />
   );
+  // React adds the high-priority preload for an eager photo by itself, but not for one inside a
+  // <picture> (a cover with its own phone photo): one per screen here, so each device fetches
+  // only the file it shows, as early as before.
+  const preloads = priority && pictureSources?.length === 1 ? (
+    <>
+      <link rel="preload" as="image" imageSrcSet={pictureSources[0].srcSet} imageSizes={pictureSources[0].sizes} media={pictureSources[0].media} fetchPriority="high" />
+      {srcSet && <link rel="preload" as="image" imageSrcSet={srcSet} imageSizes={sizes} media={`not all and ${pictureSources[0].media}`} fetchPriority="high" />}
+    </>
+  ) : null;
   return (
     <div ref={containerRef} className={`overflow-hidden ${className}`}>
+      {preloads}
       {pictureSources?.length ? (
         <picture>
           {pictureSources.map((s) => <source key={s.media} media={s.media} srcSet={s.srcSet} sizes={s.sizes} />)}

@@ -17,6 +17,8 @@ export type VariantWidth = (typeof VARIANT_WIDTHS)[number];
 export const VARIANT_QUALITY: Record<VariantWidth, number> = { 480: 82, 1200: 88, 1920: 90 };
 
 const IMAGE_EXT = /\.(jpe?g|png|webp|heic|heif|avif|gif|tiff?)$/i;
+/** Formats every browser shows: an original in another format (an iPhone's HEIC) is never offered, only its stored sizes. */
+export const isWebFormat = (src: string): boolean => /\.(jpe?g|png|webp|avif|gif)$/i.test(src);
 const VARIANT_SUFFIX = /-w\d+\.webp$/i;
 
 /** True for images that live in the public R2 bucket (and are not already a variant). */

@@ -96,9 +96,25 @@ export async function regenerateParkCuts(park: ParkRow): Promise<{ made: number;
     if (park.card_cut?.for !== want) {
       const size = sizes[cardSrc];
       const cut = size ? await generateCardCut(cardSrc, focus, size) : null;
-      if (cut) made++;
-      await pool.query("UPDATE parks SET card_cut = $1 WHERE id = $2", [cut ? JSON.stringify(cut) : null, park.id]);
-      if (park.card_cut && park.card_cut.url !== cut?.url) { await deleteCardCut(park.card_cut); deleted++; }
+      // Making a cut takes a while: a save or an undo meanwhile may have changed the photo or its
+      // framing (and run for that one itself). Record it only while the park still shows what it
+      // was made for, and delete the cut it replaces as it is then; otherwise it is stale.
+      const r = await pool.query(
+        `WITH old AS (SELECT card_cut FROM parks WHERE id = $2 FOR UPDATE)
+         UPDATE parks SET card_cut = $1 FROM old
+          WHERE parks.id = $2
+            AND coalesce(nullif(parks.card_imagepath, ''), parks.imagepath) = $3
+            AND coalesce(nullif(parks.image_focus, ''), '0.5 0.5 1') = $4
+         RETURNING old.card_cut AS old_cut`,
+        [cut ? JSON.stringify(cut) : null, park.id, cardSrc, focus]
+      );
+      if (r.rowCount) {
+        if (cut) made++;
+        const old = r.rows[0].old_cut as CardCut | null;
+        if (old && old.url !== cut?.url) { await deleteCardCut(old); deleted++; }
+      } else if (cut) {
+        await deleteCardCut(cut);
+      }
     }
   } else if (park.card_cut) {
     await pool.query("UPDATE parks SET card_cut = NULL WHERE id = $1", [park.id]);

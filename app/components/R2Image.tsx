@@ -2,7 +2,7 @@
 
 import Image, { type ImageProps } from "next/image";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { isR2Image, variantKey, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
+import { isR2Image, isWebFormat, variantKey, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
 
 /**
  * Drop-in for next/image that serves the pre-generated R2 variants
@@ -54,7 +54,7 @@ export function R2Image(props: Props) {
   }
 
   // The original only when browsers can show it (an iPhone HEIC original cannot be).
-  const withOriginal = original && /\.(jpe?g|png|webp|avif|gif)$/i.test(src);
+  const withOriginal = original && isWebFormat(src);
   const srcSet = [...VARIANT_WIDTHS.map((w) => `${variantKey(src, w)} ${w}w`), ...(withOriginal ? [`${src} 4000w`] : [])].join(", ");
   const fillStyle: CSSProperties | undefined = fill
     ? { position: "absolute", inset: 0, width: "100%", height: "100%", ...style }

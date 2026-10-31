@@ -3,7 +3,7 @@ import { isAdminRequest } from "@/app/lib/adminAuth";
 import { revalidateContent } from "@/app/lib/revalidate";
 import { logChange } from "@/app/lib/changelog";
 import {
-  CHECKABLE_KINDS, CLEANUP_PEOPLE, creditTask, keepUndo, takeUndo, wasCredited, loadCleanup, reopenTask, setCaption, undoOps, writeSlot,
+  CHECKABLE_KINDS, CLEANUP_PEOPLE, creditTask, keepUndo, takeUndo, wasCredited, loadCleanup, readSlot, reopenTask, setCaption, undoOps, writeSlot,
   type CleanupData, type CleanupPerson, type CleanupTask, type UndoOp,
 } from "@/app/lib/cleanup";
 
@@ -67,13 +67,13 @@ export async function POST(req: NextRequest) {
     if (action === "undo") {
       const ops = body.token ? await takeUndo(body.token, person as CleanupPerson) : null;
       if (!ops) return NextResponse.json({ ok: false, error: "Too late to undo" }, { status: 409 });
-      const parkId = await undoOps(ops);
+      const { parkId, kept } = await undoOps(ops);
       if (ops.some((o) => o.t === "slot" || o.t === "caption")) {
         revalidateContent();
         logChange({ parkId, entityType: "image", entityId: null, label: null, action: "update", summary: "Undid a clean-up save", details: {} });
       }
       snapshot = null;
-      return NextResponse.json({ ok: true }, NO_STORE);
+      return NextResponse.json({ ok: true, kept }, NO_STORE);
     }
     if (!action || !key) return NextResponse.json({ error: "Missing action or key" }, { status: 400 });
 
@@ -114,14 +114,16 @@ export async function POST(req: NextRequest) {
         if (value !== null) {
           // Formats without zoom store 1.
           const v = s.maxZoom <= 1 ? value.replace(/ [\d.]+$/, " 1") : value;
-          const old = s.value;
+          // What is there now, from the database (the task list can be a couple of minutes old).
+          const there = await readSlot(s.photo, s.target);
+          const old = there === undefined ? s.value : there;
           const res = await writeSlot(s.photo, s.target, v);
           if (!res.ok) {
             await undoOps(ops); // nothing half-saved
             snapshot = null;
             return NextResponse.json({ ok: false, error: "That photo changed meanwhile. Reload." }, { status: 409 });
           }
-          ops.push({ t: "slot", photo: s.photo, target: s.target, old });
+          ops.push({ t: "slot", photo: s.photo, target: s.target, old, now: v });
           wrote = true;
           // A framing already checked can be adjusted again without a second credit.
           if (!s.done) { const c = await creditTask(`frame:${s.id}`, s.kind, person, "saved", s.photo); ops.push(...c.ops); if (c.credited) credited++; }

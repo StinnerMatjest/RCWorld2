@@ -223,10 +223,11 @@ export default function TaskRunner({ queue, startKey, title, person, data, onDon
     try {
       const t = await token;
       if (t) {
-        await api("undo", undefined, person, { token: t });
+        const u = await api("undo", undefined, person, { token: t });
         undos.current.delete(last.id!);
         await onReload();
-        setToast({ text: "Undone", at: Date.now() });
+        // A framing someone changed after this save is kept as they left it.
+        setToast({ text: u.kept ? `Undone · ${u.kept} framing changed since, kept` : "Undone", at: Date.now() });
       }
     } catch (e) {
       await onReload();

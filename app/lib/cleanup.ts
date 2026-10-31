@@ -664,7 +664,8 @@ export async function loadCleanup(): Promise<CleanupData> {
 
 /** What a write changed, so it can be undone for a few seconds after. */
 export type UndoOp =
-  | { t: "slot"; photo: string; target: SlotTarget; old: string | null }
+  /** now: what the save wrote; undo leaves the slot alone if it holds something else by then. */
+  | { t: "slot"; photo: string; target: SlotTarget; old: string | null; now?: string | null }
   | { t: "mark"; key: string; prev: { fingerprint: string; person: string; action: string; created_at: Date } | null }
   | { t: "log"; id: number }
   | { t: "caption"; path: string; from: string; to: string };
@@ -728,11 +729,16 @@ export async function takeUndo(token: string, person: CleanupPerson): Promise<Un
   return r.rowCount ? (r.rows[0].ops as UndoOp[]) : null;
 }
 
-/** Undo a write a moment after it was made: values, marks and credits go back to how they were. */
-export async function undoOps(ops: UndoOp[]): Promise<number | null> {
-  let parkId: number | null = null;
+/**
+ * Undo a write: values, marks and credits go back to how they were. A framing
+ * changed again since (someone else, or the page's own editor) is kept; those
+ * are counted in `kept`.
+ */
+export async function undoOps(ops: UndoOp[]): Promise<{ parkId: number | null; kept: number }> {
+  let parkId: number | null = null, kept = 0;
   for (const op of [...ops].reverse()) {
     if (op.t === "slot") {
+      if (op.now !== undefined && (await readSlot(op.photo, op.target)) !== op.now) { kept++; continue; }
       const r = await writeSlot(op.photo, op.target, op.old);
       if (r.parkId) parkId = r.parkId;
     } else if (op.t === "mark") {
@@ -751,7 +757,7 @@ export async function undoOps(ops: UndoOp[]): Promise<number | null> {
       await setCaption(op.path, op.to, op.from);
     }
   }
-  return parkId;
+  return { parkId, kept };
 }
 
 /** The value a slot's target holds now for this photo (undefined when the photo is no longer there). */

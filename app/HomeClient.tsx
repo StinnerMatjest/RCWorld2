@@ -13,7 +13,7 @@ import dynamic from "next/dynamic";
 const RatingModal = dynamic(() => import("./components/RatingModal"), { ssr: false });
 import { useSearch } from "./context/SearchContext";
 import { useAdminMode } from "@/app/context/AdminModeContext";
-import { isR2Image, variantKey, coverVariantUrl, sharperSource, exactCoverSrc, COVER_UPSCALE_TOLERANCE, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
+import { COVER_UPSCALE_TOLERANCE, coverVariantUrl, exactCoverSrc, isR2Image, isWebFormat, sharperSource, VARIANT_WIDTHS, variantKey } from "@/app/lib/imageVariants";
 import type { ImageSize, CardCut } from "@/app/types";
 import { cutSrcSet, cutSizes, CARD_FRAME_HEIGHT } from "@/app/lib/cardCutGeometry";
 
@@ -93,7 +93,7 @@ function entrySources(entry: CardEntry): { srcSet: string; sizes: string } | und
   const { w, h } = entry.size;
   const zoom = parseFocusStr(entry.focus).zoom;
   const parts = VARIANT_WIDTHS.filter((v) => v < w).map((v) => `${variantKey(entry.src, v)} ${v}w`);
-  parts.push(`${entry.src} ${w}w`);
+  if (isWebFormat(entry.src)) parts.push(`${entry.src} ${w}w`);
   const byHeight = (CARD_FRAME_HEIGHT * w / h * zoom).toFixed(1) + "px";
   const z = zoom.toFixed(4);
   return {
