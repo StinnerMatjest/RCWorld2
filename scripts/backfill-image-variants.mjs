@@ -1,4 +1,4 @@
-// Create the -w480 / -w1200 / -w1920 .webp variants for every image already in the
+// Create the -w480 / -w1200 / -w1920 / -w2560 / -w3840 .webp variants for every image already in the
 // public R2 bucket (see app/lib/imageVariants.ts). Safe to re-run: existing
 // variants are skipped. Reads R2 credentials from .env.local.
 //
@@ -17,8 +17,8 @@ if (fs.existsSync(envPath)) {
 }
 const DRY = process.argv.includes("--dry");
 const CONCURRENCY = Number((process.argv.find(a => a.startsWith("--concurrency=")) || "").split("=")[1] || 4);
-const WIDTHS = [480, 1200, 1920];
-const QUALITY = { 480: 82, 1200: 88, 1920: 90 };
+const WIDTHS = [480, 1200, 1920, 2560, 3840];
+const QUALITY = { 480: 82, 1200: 88, 1920: 90, 2560: 90, 3840: 90 };
 // --force=1200,1920 regenerates those widths even when they already exist (e.g. after a quality change).
 const FORCE = new Set(((process.argv.find(a => a.startsWith("--force=")) || "").split("=")[1] || "").split(",").filter(Boolean).map(Number));
 const IMAGE_EXT = /\.(jpe?g|png|webp|heic|heif|avif|gif|tiff?)$/i;

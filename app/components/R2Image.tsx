@@ -16,7 +16,7 @@ import { isR2Image, isWebFormat, variantKey, VARIANT_WIDTHS } from "@/app/lib/im
 type Props = ImageProps & {
   /** Browser fetch priority; "low" keeps a below-the-fold photo from racing the hero. */
   fetchPriority?: "high" | "low" | "auto";
-  /** Offer the original above the stored sizes (default): a photo drawn wider than 1920 device px needs it. */
+  /** Offer the original above the stored sizes (default): a photo drawn wider than 3840 device px needs it. */
   original?: boolean;
 };
 

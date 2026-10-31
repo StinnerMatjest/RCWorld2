@@ -2,7 +2,8 @@
  * Pre-generated image variants on R2.
  *
  * Every image uploaded to the public R2 bucket gets resized copies stored next
- * to the original: `<name>-w480.webp`, `-w1200.webp` and `-w1920.webp`. Pages load those
+ * to the original: `<name>-w480.webp`, `-w1200.webp`, `-w1920.webp`, `-w2560.webp` and
+ * `-w3840.webp` (big screens and zoomed framings, so they never need the original). Pages load those
  * straight from the CDN instead of asking the Next.js image optimiser to resize
  * the multi-megabyte original on the fly (whose cache is wiped on every deploy).
  *
@@ -10,11 +11,11 @@
  * upload API creates them for new ones.
  */
 
-export const VARIANT_WIDTHS = [480, 1200, 1920] as const;
+export const VARIANT_WIDTHS = [480, 1200, 1920, 2560, 3840] as const;
 export type VariantWidth = (typeof VARIANT_WIDTHS)[number];
 
 /** WebP quality per size: thumbnails can be lighter, the large sizes match the quality the pages used before (90). */
-export const VARIANT_QUALITY: Record<VariantWidth, number> = { 480: 82, 1200: 88, 1920: 90 };
+export const VARIANT_QUALITY: Record<VariantWidth, number> = { 480: 82, 1200: 88, 1920: 90, 2560: 90, 3840: 90 };
 
 const IMAGE_EXT = /\.(jpe?g|png|webp|heic|heif|avif|gif|tiff?)$/i;
 /** Formats every browser shows: an original in another format (an iPhone's HEIC) is never offered, only its stored sizes. */
