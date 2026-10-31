@@ -1,25 +1,56 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import type { Checklist, ChecklistSession } from "@/app/types";
+import type { Checklist, ChecklistItem, ChecklistQueue } from "@/app/types";
 import AuthenticationModal from "@/app/components/admin/AuthenticationModal";
+import { clockTime, coasterName, noteLines } from "@/app/lib/checklistOps";
+import { likeness } from "@/app/lib/parkLive";
 import { useChecklistSync, type SyncStatus } from "./useChecklistSync";
 
 // Note keys must match RatingModal's CATEGORIES so the review modal can show them
 const NOTE_CATEGORIES = [
-  { key: "parkAppearance",        label: "Park Appearance",   emoji: "🏞️" },
-  { key: "bestCoaster",           label: "Best Coaster",      emoji: "🎢" },
-  { key: "coasterDepth",          label: "Coaster Depth",     emoji: "🎠" },
-  { key: "waterRides",            label: "Water Rides",       emoji: "💦" },
-  { key: "flatridesAndDarkrides", label: "Flats & Darkrides", emoji: "🎡" },
-  { key: "food",                  label: "Food",              emoji: "🍔" },
-  { key: "snacksAndDrinks",       label: "Snacks & Drinks",   emoji: "🥨" },
-  { key: "parkPracticality",      label: "Park Practicality", emoji: "🧭" },
-  { key: "rideOperations",        label: "Ride Operations",   emoji: "⚙️" },
-  { key: "parkManagement",        label: "Park Management",   emoji: "📋" },
+  { key: "parkAppearance", label: "Park appearance" },
+  { key: "bestCoaster", label: "Best coaster" },
+  { key: "coasterDepth", label: "Coaster depth" },
+  { key: "waterRides", label: "Water rides" },
+  { key: "flatridesAndDarkrides", label: "Flats & darkrides" },
+  { key: "food", label: "Food" },
+  { key: "snacksAndDrinks", label: "Snacks & drinks" },
+  { key: "parkPracticality", label: "Park practicality" },
+  { key: "rideOperations", label: "Ride operations" },
+  { key: "parkManagement", label: "Park management" },
 ] as const;
+
+type Tab = "coasters" | "notes" | "queues" | "checklist";
+const TABS: { id: Tab; label: string }[] = [
+  { id: "coasters", label: "Coasters" },
+  { id: "notes", label: "Notes" },
+  { id: "queues", label: "Queues" },
+  { id: "checklist", label: "Checklist" },
+];
+
+type LiveRide = { name: string; wait: number | null; status: "open" | "down" | "closed" | "refurb" };
+type Live = {
+  waits: "queue-times" | "themeparks.wiki" | null;
+  status: "themeparks.wiki" | "queue-times" | null;
+  tz: string | null;
+  rides: LiveRide[];
+  coasters: Record<string, { ride: string | null; wait: number | null; status: LiveRide["status"] | null }>;
+};
+
+type Sheet =
+  | { kind: "join"; item: string; posted: number | null; board: number }
+  | { kind: "board"; qid: string; board: number }
+  | { kind: "log"; qid: string; item: string; timer: number; real: number; board: number | null }
+  | { kind: "link"; item: string }
+  | { kind: "complete" }
+  | { kind: "done" };
+
+const LIVE_EVERY_MS = 120000;
+const CHECK = (
+  <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+);
 
 function formatDuration(s: number): string {
   if (s <= 0) return "0m";
@@ -27,618 +58,481 @@ function formatDuration(s: number): string {
   const m = Math.floor((s % 3600) / 60);
   return h === 0 ? `${m}m` : `${h}h ${m}m`;
 }
-
-function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+function clock(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
-
-function fmtDay(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+/** "Take picture of park entrance" -> "Park entrance". */
+function taskLabel(label: string): string {
+  const s = label.replace(/^take (a )?picture of /i, "").replace(/!$/, "").trim();
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
+const isOpenQueue = (q: ChecklistQueue) => !q.cancelled && q.real == null;
 
-function sameDay(a: string, b: string) {
-  return new Date(a).toDateString() === new Date(b).toDateString();
+/** Live waits and ride status for the visit's park, refreshed every two minutes while the page is visible. */
+function useLive(slug: string) {
+  const [live, setLive] = useState<Live | null>(null);
+  const load = useCallback(() => {
+    fetch(`/api/checklists/${slug}/live`, { cache: "no-store" })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d) setLive(d); })
+      .catch(() => {});
+  }, [slug]);
+  useEffect(() => {
+    load();
+    const t = setInterval(() => { if (document.visibilityState === "visible") load(); }, LIVE_EVERY_MS);
+    const onVisible = () => { if (document.visibilityState === "visible") load(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", onVisible); };
+  }, [load]);
+  return { live, reload: load };
 }
 
 export default function ChecklistClient({ checklist }: { checklist: Checklist }) {
   const { view, status, pending, actions } = useChecklistSync(checklist);
-  const { items, notes, sessions } = view;
-  const visitFinished = view.is_finished;
-  // Only when the visit is completed in this session: reopening a finished
-  // checklist (to add notes during the review) should not celebrate again.
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
-  const [openNote, setOpenNote] = useState<string | null>(null);
+  const { items, notes, sessions, queues, downtime } = view;
+  const finished = view.is_finished;
+  const { live, reload } = useLive(checklist.slug);
+
+  const [tab, setTab] = useState<Tab>("coasters");
+  const [openCat, setOpenCat] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<{ key: string; line: string } | null>(null);
+  const [draft, setDraft] = useState("");
+  const [sheet, setSheet] = useState<Sheet | null>(null);
+  const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
   const [showLogin, setShowLogin] = useState(false);
 
-  const activeSession = sessions.length > 0 && !sessions[sessions.length - 1].end
-    ? sessions[sessions.length - 1] : null;
-  const isPaused = sessions.length > 0 && !activeSession && !visitFinished;
-  const visitStart = sessions[0]?.start ?? null;
-  const canEdit = !!activeSession && !visitFinished;
-
-  // Single clock for running timer + "paused for" display
+  // One clock for the time in the park and the queue timer.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (visitFinished || sessions.length === 0) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [visitFinished, sessions.length]);
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
-  const sessionSeconds = (s: ChecklistSession) =>
-    Math.max(0, Math.floor(((s.end ? new Date(s.end).getTime() : now) - new Date(s.start).getTime()) / 1000));
-
-  const elapsedSeconds = visitFinished
+  const running = sessions.length > 0 && !sessions[sessions.length - 1].end && !finished;
+  const paused = sessions.length > 0 && !running && !finished;
+  const elapsed = finished
     ? view.duration
-    : sessions.reduce((sum, s) => sum + sessionSeconds(s), 0);
+    : sessions.reduce((sum, s) => sum + Math.max(0, Math.floor(((s.end ? Date.parse(s.end) : now) - Date.parse(s.start)) / 1000)), 0);
+  const days = new Set(sessions.map(s => new Date(s.start).toDateString())).size;
+  const parkName = checklist.title.replace(/\s+\d{4}\s+visit$/i, "").trim();
 
-  const pausedForSeconds = isPaused
-    ? Math.max(0, Math.floor((now - new Date(sessions[sessions.length - 1].end!).getTime()) / 1000))
-    : 0;
+  const coasters = useMemo(() => items.filter(i => i.isCoaster && !i.isExtra), [items]);
+  const photoTasks = useMemo(() => items.filter(i => i.isPhotoTask && !i.isCoaster && !i.isExtra), [items]);
+  const otherTasks = useMemo(() => items.filter(i => !i.isPhotoTask && !i.isCoaster && !i.isExtra), [items]);
+  const openQueue = queues.find(isOpenQueue) ?? null;
+  const loggedQueues = queues.filter(q => !q.cancelled && q.real != null);
 
-  // Day numbering for multiday visits
-  const dayKeys = useMemo(() => {
-    const keys: string[] = [];
-    for (const s of sessions) {
-      const k = new Date(s.start).toDateString();
-      if (!keys.includes(k)) keys.push(k);
-    }
-    return keys;
-  }, [sessions]);
-  const isMultiday = dayKeys.length > 1;
-  const dayNumber = (iso: string) => dayKeys.indexOf(new Date(iso).toDateString()) + 1;
+  // What is still open before the visit is complete.
+  const missingPhotos = coasters.filter(c => !c.skipped).reduce((n, c) => n + (c.checked ? 0 : 1) + (c.photoV ? 0 : 1), 0);
+  const openTasks = [...photoTasks, ...otherTasks].filter(t => !t.checked && !t.skipped);
+  const allDone = missingPhotos === 0 && openTasks.length === 0;
 
-  function handleBeginVisit() {
-    actions.timer("start");
+  const nameOf = (id: string) => coasterName(items.find(i => i.id === id)?.label ?? "");
+  const rideLine = (c: ChecklistItem) => live?.coasters[c.id];
+  const time = (iso: string) => clockTime(iso, live?.tz ?? undefined);
+
+  // ─── actions ───
+  function plusRide(c: ChecklistItem) {
+    actions.ride(c.id, 1);
+    const n = (c.rideCount || 0) + 1;
+    setToast({ text: `${coasterName(c.label)} · ride ${n}`, undo: () => actions.ride(c.id, -1) });
   }
-
-  function handlePause() {
-    if (!activeSession) return;
-    actions.timer("pause");
+  function saveLine() {
+    if (!openCat) return;
+    if (editing) actions.editLine(editing.key, editing.line, draft);
+    else actions.addLine(openCat, draft);
+    setAdding(false); setEditing(null); setDraft("");
   }
-
-  function handleResume() {
-    if (!isPaused) return;
-    actions.timer("resume");
-  }
-
-  function handleComplete() {
-    if (!allCompleted || visitFinished) return;
+  function complete() {
     actions.timer("complete");
-    setShowCelebration(true);
+    setSheet({ kind: "done" });
   }
 
-  function toggleItem(id: string) {
-    const target = items.find(i => i.id === id);
-    if (!target) return;
-
-    if (!target.checked) {
-      // Play completion animation, then commit the state change
-      setCompletingIds(prev => new Set([...prev, id]));
-      setTimeout(() => {
-        setCompletingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
-        actions.setItem(id, { checked: true });
-      }, 420);
-    } else {
-      actions.setItem(id, { checked: false });
-    }
-  }
-
-  function toggleSkipItem(id: string) {
-    actions.toggleSkip(id);
-  }
-
-  function updateRideCount(id: string, delta: number) {
-    actions.changeRideCount(id, delta);
-  }
-
-  function updateNote(key: string, value: string) {
-    actions.setNote(key, value);
-  }
-
-  function timeAgo(iso: string | null | undefined): string | null {
-    if (!iso) return null;
-    const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-    if (s < 60) return "just now";
-    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-    return `${Math.floor(s / 3600)}h ago`;
-  }
-
-  const coasterItems = useMemo(() => items.filter(i => i.isCoaster && !i.isExtra), [items]);
-  const photoItems = useMemo(() => items.filter(i => i.isPhotoTask && !i.isCoaster && !i.isExtra), [items]);
-  const regularItems = useMemo(() => items.filter(i => !i.isCoaster && !i.isPhotoTask && !i.isExtra), [items]);
-
-  const remainingRegular = useMemo(() => regularItems.filter(i => !i.checked && !i.skipped), [regularItems]);
-  const remainingPhotos = useMemo(() => photoItems.filter(i => !i.checked && !i.skipped), [photoItems]);
-  const completedRegular = useMemo(() => (
-    [...regularItems, ...photoItems].filter(i => i.checked && !i.skipped)
-  ), [regularItems, photoItems]);
-  const skippedItems = useMemo(() => items.filter(i => i.skipped && !i.isExtra), [items]);
-
-  const allNonExtra = items.filter(i => !i.isExtra);
-  const validTotal = allNonExtra.length - skippedItems.length;
-  const completedCount = allNonExtra.filter(i => i.checked && !i.skipped).length;
-  const progressPercent = validTotal > 0 ? Math.round((completedCount / validTotal) * 100) : 0;
-  const allCompleted = completedCount === validTotal && validTotal > 0;
-
-  const notesWithContent = NOTE_CATEGORIES.filter(c => (notes[c.key] ?? "").trim().length > 0).length;
-
-  function cleanLabel(label: string): string {
-    return label.replace(/^take (a )?picture of /i, "").trim();
-  }
+  const meta = finished
+    ? `Completed · ${formatDuration(elapsed)} in the park`
+    : running
+      ? `Day ${Math.max(1, days)} · ${formatDuration(elapsed)} in the park`
+      : paused
+        ? `Paused · ${formatDuration(elapsed)} in the park`
+        : "Not started";
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-50">
-      <div className="mx-auto flex min-h-screen max-w-xl flex-col px-4 pb-32 pt-6">
-
-        <Link href="/checklists" className="mb-6 inline-flex w-fit items-center gap-2 py-2 text-sm font-medium text-slate-400 transition-colors hover:text-slate-200 cursor-pointer">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m15 18-6-6 6-6" />
-          </svg>
-          Back to Dashboard
-        </Link>
-
-        <header className="mb-6 text-center">
-          <h1 className="text-2xl font-bold sm:text-3xl">{checklist.title} 🎢</h1>
-          <p className="mt-1 text-sm text-slate-400">{checklist.description}</p>
+    <div className="min-h-screen bg-[#0f172a] text-slate-50">
+      <div className="mx-auto flex min-h-screen max-w-xl flex-col pb-28">
+        {/* ── Park and time ── */}
+        <header className="px-4 pt-5 pb-4">
+          <Link href="/checklists" className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 hover:text-slate-300">‹ Checklists</Link>
+          <div className="mt-3 flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="text-[30px] font-bold leading-[1.05] tracking-tight [text-wrap:balance]">{parkName}</h1>
+              <p className={`mt-2 text-[13px] ${paused ? "text-amber-400" : "text-slate-400"}`}>{meta}</p>
+            </div>
+            {!finished && sessions.length > 0 && (
+              <button type="button" onClick={() => actions.timer(running ? "pause" : "resume")}
+                className="shrink-0 py-2 pl-3 text-[11px] font-bold uppercase tracking-[0.14em] text-brand cursor-pointer">
+                {running ? "Pause" : "Resume"}
+              </button>
+            )}
+          </div>
+          {!finished && sessions.length === 0 && (
+            <button type="button" onClick={() => actions.timer("start")}
+              className="mt-4 h-12 w-full rounded-2xl bg-brand text-base font-bold text-slate-900 hover:bg-brand-light active:scale-[0.99] cursor-pointer">
+              Start the visit
+            </button>
+          )}
+          <div className="mt-3"><SyncNotice status={status} pending={pending} onLogin={() => setShowLogin(true)} /></div>
         </header>
 
-        {/* ── Progress ── */}
-        <div className="mb-6 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-sm">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-bold text-slate-100">
-              {completedCount} / {validTotal} tasks
-            </span>
-            <div className="flex items-center gap-2">
-              {isMultiday && (
-                <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-sky-400">
-                  {dayKeys.length}-day visit
-                </span>
-              )}
-              {isPaused && (
-                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-400">
-                  ⏸ Paused
-                </span>
-              )}
-              <span className="text-sm font-bold text-emerald-400">{progressPercent}%</span>
-            </div>
-          </div>
+        {/* ── Tabs ── */}
+        <nav className="sticky top-0 z-20 flex border-b border-slate-400/15 bg-[#0f172a]" role="tablist">
+          {TABS.map(t => (
+            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id}
+              onClick={() => { setTab(t.id); setAdding(false); setEditing(null); }}
+              className={`flex-1 border-b-2 py-3.5 text-[11.5px] font-bold uppercase tracking-[0.14em] cursor-pointer ${tab === t.id ? "border-brand text-slate-50" : "border-transparent text-slate-500"}`}>
+              {t.label}
+              {t.id === "queues" && openQueue && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-brand align-[2px]" aria-label="In a queue" />}
+            </button>
+          ))}
+        </nav>
 
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
-            <motion.div
-              className="h-full rounded-full bg-emerald-500"
-              initial={{ width: 0 }}
-              animate={{ width: `${progressPercent}%` }}
-              transition={{ type: "spring", stiffness: 80, damping: 20 }}
-            />
-          </div>
-
-          {visitStart ? (
-            <>
-              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-                <p className="text-xs text-slate-400">
-                  Time in park:{" "}
-                  <span className="font-semibold text-emerald-400">{formatDuration(elapsedSeconds)}</span>
-                </p>
-                {isPaused && (
-                  <>
-                    <span className="text-slate-600 text-xs">•</span>
-                    <p className="text-xs font-semibold text-amber-400">
-                      Paused for {formatDuration(pausedForSeconds)}
-                    </p>
-                  </>
-                )}
-              </div>
-
-              {/* Session log — every tracked segment with pauses in between */}
-              <div className="mt-3 space-y-1 border-t border-slate-800 pt-2.5">
-                {sessions.map((s, i) => {
-                  const prev = sessions[i - 1];
-                  const gapSec = prev?.end
-                    ? Math.max(0, Math.floor((new Date(s.start).getTime() - new Date(prev.end).getTime()) / 1000))
-                    : 0;
-                  return (
-                    <div key={i}>
-                      {i > 0 && gapSec > 0 && (
-                        <p className="py-0.5 text-[11px] font-medium text-amber-400/80">
-                          {gapSec >= 6 * 3600 ? "🌙 Break" : "⏸ Paused"} · {formatDuration(gapSec)}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        {isMultiday && (
-                          <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-slate-300">
-                            Day {dayNumber(s.start)}
-                          </span>
-                        )}
-                        {isMultiday && <span className="text-slate-600">{fmtDay(s.start)}</span>}
-                        <span className="font-semibold text-slate-300">
-                          {fmtTime(s.start)} – {s.end ? fmtTime(s.end) : "Now"}
-                        </span>
-                        <span>·</span>
-                        <span>{formatDuration(sessionSeconds(s))}</span>
-                        {!s.end && <span className="ml-auto h-2 w-2 animate-pulse rounded-full bg-emerald-400" />}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          ) : (
-            <p className="mt-2 text-xs text-slate-500">Press Start Visit to begin tracking.</p>
-          )}
-        </div>
-
-        {/* ── Coaster Rides ── */}
-        {coasterItems.length > 0 && (
-          <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-            <h2 className="mb-1 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-200">
-              🎢 Coaster Rides
-              <span className="text-xs font-normal normal-case tracking-normal text-slate-500">
-                {coasterItems.filter(i => (i.rideCount || 0) > 0 && !i.skipped).length}/{coasterItems.filter(i => !i.skipped).length} ridden
-              </span>
-            </h2>
-            {/* Covers need the pixels: a horizontal photo, or 50 MP when it is upright. */}
-            <p className="mb-4 text-xs text-slate-400">📸 Remember to take a horizontal or 50 MP photo of each coaster.</p>
-
-            <ul className="space-y-2">
-              {coasterItems.map((item) => {
-                const isDone = item.checked && !item.skipped;
-                const isSkipped = !!item.skipped;
-                const ago = timeAgo(item.rideCountLastModified);
-
+        <div className="px-4">
+          {tab === "coasters" && (
+            <div className="pt-1.5">
+              {coasters.map(c => {
+                const both = c.checked && c.photoV;
+                const name = coasterName(c.label);
+                const n = c.rideCount || 0;
                 return (
-                  <li
-                    key={item.id}
-                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all ${isSkipped ? "opacity-40" : isDone ? "bg-emerald-950/30 border border-emerald-900/30" : "bg-slate-950/60"
-                      }`}
-                  >
-                    {/* Photo checkmark — tap to mark photo taken */}
-                    <button
-                      onClick={() => toggleItem(item.id)}
-                      disabled={!canEdit || isSkipped}
-                      title={isDone ? "Horizontal or 50 MP photo taken ✓" : "Mark horizontal or 50 MP photo taken"}
-                      className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all disabled:opacity-30 ${isDone ? "border-emerald-500 bg-emerald-500" : "border-slate-600 hover:border-emerald-400"}`}
-                    >
-                      {isDone && (
-                        <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                          <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
-                    </button>
-
-                    {/* Name + timestamp */}
-                    <div className="min-w-0 flex-1">
-                      <p className={`truncate text-sm font-medium leading-tight ${isDone ? "text-emerald-300" : "text-slate-100"}`}>
-                        {cleanLabel(item.label)}
-                      </p>
-                      {ago && (
-                        <p className="mt-0.5 text-[10px] text-slate-500">Updated {ago}</p>
-                      )}
+                  <div key={c.id} className={`flex items-center gap-3 border-t border-slate-400/15 py-3 last:border-b ${c.skipped ? "opacity-40" : ""}`}>
+                    <div className="flex shrink-0 gap-1.5">
+                      <PhotoCheck letter="H" on={!!c.checked} label={`Horizontal photo of ${name}`} onClick={() => actions.setPhoto(c.id, "h", !c.checked)} />
+                      <PhotoCheck letter="V" on={!!c.photoV} label={`Vertical or 50 MP photo of ${name}`} onClick={() => actions.setPhoto(c.id, "v", !c.photoV)} />
                     </div>
-
-                    {/* Skip (only if not yet ridden) */}
-                    {!isDone && (
-                      <button
-                        onClick={() => toggleSkipItem(item.id)}
-                        disabled={!canEdit}
-                        className="text-xs font-bold text-slate-600 hover:text-rose-400 disabled:opacity-30 px-1"
-                        title={isSkipped ? "Undo skip" : "Skip"}
-                      >
-                        {isSkipped ? "Undo" : "×"}
+                    <p className="min-w-0 flex-1 text-[15px] font-semibold leading-tight [overflow-wrap:anywhere]">{name}</p>
+                    {!both && (
+                      <button type="button" onClick={() => actions.setItem(c.id, { skipped: !c.skipped })}
+                        aria-label={c.skipped ? `Undo skip of ${name}` : `Skip ${name}`}
+                        className="shrink-0 px-1 py-2 text-[13px] font-bold text-slate-700 hover:text-rose-400 cursor-pointer">
+                        {c.skipped ? "Undo" : "×"}
                       </button>
                     )}
-
-                    {/* Ride counter */}
-                    {!isSkipped && (
-                      <div className="flex items-center rounded-lg border border-slate-700 bg-slate-900 p-0.5">
-                        <button
-                          onClick={() => updateRideCount(item.id, -1)}
-                          disabled={!canEdit || (item.rideCount || 0) === 0}
-                          className="flex h-8 w-8 items-center justify-center rounded-md text-lg font-bold text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30"
-                        >−</button>
-                        <span className={`w-7 text-center text-sm font-bold ${(item.rideCount || 0) > 0 ? "text-emerald-400" : "text-slate-500"}`}>
-                          {item.rideCount || 0}
-                        </span>
-                        <button
-                          onClick={() => updateRideCount(item.id, 1)}
-                          disabled={!canEdit}
-                          className="flex h-8 w-8 items-center justify-center rounded-md text-lg font-bold text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30"
-                        >+</button>
+                    {!c.skipped && (
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <button type="button" onClick={() => actions.ride(c.id, -1)} disabled={n === 0} aria-label={`One ride less on ${name}`}
+                          className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-slate-800 text-[19px] font-bold leading-none text-slate-300 disabled:bg-transparent disabled:text-slate-700 cursor-pointer disabled:cursor-default">−</button>
+                        <span className={`w-[30px] text-center text-base font-bold tabular-nums ${n ? "text-slate-50" : "text-slate-600"}`}>{n}</span>
+                        <button type="button" onClick={() => plusRide(c)} aria-label={`One more ride on ${name}`}
+                          className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-brand text-[19px] font-bold leading-none text-slate-900 active:bg-brand-light cursor-pointer">+</button>
                       </div>
                     )}
-                  </li>
+                  </div>
                 );
               })}
-            </ul>
-          </section>
-        )}
+            </div>
+          )}
 
-        {/* ── Photo Reminders ── */}
-        {remainingPhotos.length > 0 && (
-          <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-            <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-200">
-              📸 Photo Reminders
-              <span className="text-xs font-normal normal-case tracking-normal text-slate-500">
-                {remainingPhotos.length} remaining
-              </span>
-            </h2>
-
-            <ul className="space-y-2">
-              <AnimatePresence mode="popLayout">
-                {remainingPhotos.map((item) => {
-                  const isSkipped = !!item.skipped;
-                  const isCompleting = completingIds.has(item.id);
-
-                  return (
-                    <motion.li
-                      key={item.id}
-                      layout
-                      initial={{ opacity: 1, scale: 1 }}
-                      animate={isCompleting
-                        ? { backgroundColor: "rgba(6,78,59,0.45)", scale: 1.015, borderColor: "rgba(16,185,129,0.35)" }
-                        : { backgroundColor: "rgba(2,6,23,0.6)", scale: 1, borderColor: "transparent" }
-                      }
-                      exit={{ opacity: 0, x: 16, scale: 0.97, transition: { duration: 0.22, ease: "easeOut" } }}
-                      transition={{ duration: 0.18 }}
-                      className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${isSkipped ? "opacity-40" : ""}`}
-                    >
-                      <span className="text-base">📸</span>
-                      <span className={`flex-1 text-sm font-medium transition-colors ${isCompleting ? "text-emerald-300" : "text-slate-100"}`}>
-                        {cleanLabel(item.label)}
-                      </span>
-
-                      {isSkipped ? (
-                        <button
-                          onClick={() => toggleSkipItem(item.id)}
-                          disabled={!canEdit}
-                          className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-700 disabled:opacity-50"
-                        >Undo</button>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          {!isCompleting && (
-                            <button
-                              onClick={() => toggleSkipItem(item.id)}
-                              disabled={!canEdit}
-                              className="px-2 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-rose-400 disabled:opacity-50"
-                            >Skip</button>
-                          )}
-                          <button
-                            onClick={() => !isCompleting && toggleItem(item.id)}
-                            disabled={!canEdit || isCompleting}
-                            className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border-2 transition-all disabled:opacity-50 ${isCompleting ? "border-emerald-500 bg-emerald-500/20" : "border-slate-600 bg-slate-900"
-                              }`}
-                          >
-                            {isCompleting ? (
-                              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                                <motion.path
-                                  d="M4 10.5l4.5 4.5 7.5-8"
-                                  stroke="#10b981"
-                                  strokeWidth="2.5"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  initial={{ pathLength: 0 }}
-                                  animate={{ pathLength: 1 }}
-                                  transition={{ duration: 0.25 }}
-                                />
-                              </svg>
-                            ) : null}
-                          </button>
-                        </div>
-                      )}
-                    </motion.li>
-                  );
-                })}
-              </AnimatePresence>
-            </ul>
-          </section>
-        )}
-
-        {/* ── Regular Tasks ── */}
-        {(remainingRegular.length > 0 || completedRegular.length > 0) && (
-          <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900/70 p-3 sm:p-4">
-            <h2 className="mb-3 px-1 text-sm font-bold uppercase tracking-wide text-slate-200">Tasks</h2>
-
-            <ul className="space-y-2">
-              <AnimatePresence mode="popLayout">
-                {remainingRegular.map((item) => {
-                  const isCompleting = completingIds.has(item.id);
-                  return (
-                    <motion.li
-                      key={item.id}
-                      layout
-                      initial={{ opacity: 1, scale: 1 }}
-                      animate={isCompleting
-                        ? { backgroundColor: "rgba(6,78,59,0.45)", scale: 1.015, borderColor: "rgba(16,185,129,0.35)" }
-                        : { backgroundColor: "rgba(2,6,23,0.6)", scale: 1, borderColor: "transparent" }
-                      }
-                      exit={{ opacity: 0, x: 16, scale: 0.97, transition: { duration: 0.22, ease: "easeOut" } }}
-                      transition={{ duration: 0.18 }}
-                      className="flex min-h-[52px] items-center justify-between gap-2 rounded-xl border px-3 py-2"
-                    >
-                      <div className={`flex-1 py-1 text-sm font-medium leading-snug transition-colors ${isCompleting ? "text-emerald-300" : "text-slate-100"}`}>
-                        {item.label}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {!isCompleting && (
-                          <button
-                            onClick={() => toggleSkipItem(item.id)}
-                            disabled={!canEdit}
-                            className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-rose-400 disabled:opacity-50"
-                          >Skip</button>
+          {tab === "notes" && (
+            <div className="pt-1.5">
+              {NOTE_CATEGORIES.map(cat => {
+                const lines = noteLines(notes[cat.key]);
+                const open = openCat === cat.key;
+                return (
+                  <div key={cat.key} className="border-t border-slate-400/15 last:border-b">
+                    <button type="button" aria-expanded={open}
+                      onClick={() => { setOpenCat(open ? null : cat.key); setAdding(false); setEditing(null); setDraft(""); }}
+                      className="flex w-full items-center gap-3 py-2.5 text-left cursor-pointer">
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[16.5px] font-bold">{cat.label}</span>
+                        {!open && (
+                          <span className={`mt-0.5 block truncate text-[12.5px] ${lines.length ? "text-slate-500" : "text-brand"}`}>
+                            {lines.length ? lines[lines.length - 1] : "Nothing yet"}
+                          </span>
                         )}
-                        <button
-                          onClick={() => !isCompleting && toggleItem(item.id)}
-                          disabled={!canEdit || isCompleting}
-                          className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border-2 transition-all ${isCompleting ? "border-emerald-500 bg-emerald-500/20" : "border-slate-600 bg-slate-900 disabled:opacity-50"
-                            }`}
-                        >
-                          {isCompleting ? (
-                            <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-                              <motion.path
-                                d="M4 10.5l4.5 4.5 7.5-8"
-                                stroke="#10b981"
-                                strokeWidth="2.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                initial={{ pathLength: 0 }}
-                                animate={{ pathLength: 1 }}
-                                transition={{ duration: 0.25 }}
-                              />
-                            </svg>
+                      </span>
+                      <svg className={`h-[18px] w-[18px] shrink-0 transition-transform ${open ? "rotate-90 text-brand" : "text-slate-500"}`} viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    </button>
+                    {open && (
+                      <div className="pb-3">
+                        {lines.map((line, i) =>
+                          editing?.line === line && editing.key === cat.key ? (
+                            <LineEditor key={i} value={draft} onChange={setDraft} label={`Edit a line of ${cat.label}`}
+                              onSave={saveLine} onCancel={() => { setEditing(null); setDraft(""); }}
+                              onDelete={() => { actions.editLine(cat.key, line, ""); setEditing(null); setDraft(""); }} />
                           ) : (
-                            <input type="checkbox" checked={false} readOnly className="pointer-events-none h-5 w-5 accent-emerald-500" />
-                          )}
-                        </button>
+                            <button key={i} type="button" onClick={() => { setEditing({ key: cat.key, line }); setAdding(false); setDraft(line); }}
+                              className="relative block w-full py-1.5 pl-4 text-left text-[14.5px] leading-snug text-slate-300 before:absolute before:left-[3px] before:top-[13px] before:h-[5px] before:w-[5px] before:rounded-full before:bg-slate-600 cursor-text">
+                              {line}
+                            </button>
+                          )
+                        )}
+                        {adding ? (
+                          <LineEditor value={draft} onChange={setDraft} label={`New line for ${cat.label}`}
+                            placeholder={`A line about ${cat.label.toLowerCase()}…`}
+                            onSave={saveLine} onCancel={() => { setAdding(false); setDraft(""); }} />
+                        ) : !editing && (
+                          <button type="button" onClick={() => { setAdding(true); setDraft(""); }}
+                            className="mt-2 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-brand cursor-pointer">+ Add a line</button>
+                        )}
                       </div>
-                    </motion.li>
-                  );
-                })}
-              </AnimatePresence>
-            </ul>
-
-            {completedRegular.length > 0 && (
-              <ul className={`space-y-1 ${remainingRegular.length > 0 ? "mt-3 border-t border-slate-800 pt-3" : ""}`}>
-                {completedRegular.map((item) => (
-                  <motion.li key={item.id} layout className="flex min-h-[40px] items-center gap-2 rounded-xl px-3 py-1.5 text-sm">
-                    <span className={item.isPhotoTask ? "text-base" : "text-emerald-400"}>{item.isPhotoTask ? "📸" : "✓"}</span>
-                    <span className="flex-1 line-through text-slate-500">{cleanLabel(item.label)}</span>
-                    {canEdit && (
-                      <button onClick={() => toggleItem(item.id)} className="px-2 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-300">
-                        Undo
-                      </button>
                     )}
-                  </motion.li>
-                ))}
-              </ul>
-            )}
-          </section>
-        )}
-
-        {/* ── Review Notes ── */}
-        <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-          <h2 className="mb-1 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-200">
-            📝 Review Notes
-            <span className="text-xs font-normal normal-case tracking-normal text-slate-500">
-              {notesWithContent}/{NOTE_CATEGORIES.length} categories
-            </span>
-          </h2>
-          <p className="mb-3 text-[11px] text-slate-500">
-            Jot down impressions per category — they&apos;ll be right there when you write the review.
-          </p>
-
-          <ul className="space-y-1.5">
-            {NOTE_CATEGORIES.map((cat) => {
-              const value = notes[cat.key] ?? "";
-              const hasNote = value.trim().length > 0;
-              const isOpen = openNote === cat.key;
-              return (
-                <li key={cat.key} className="overflow-hidden rounded-xl bg-slate-950/60">
-                  <button
-                    onClick={() => setOpenNote(isOpen ? null : cat.key)}
-                    className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left"
-                  >
-                    <span className="text-base">{cat.emoji}</span>
-                    <span className={`flex-1 text-sm font-medium ${hasNote ? "text-slate-100" : "text-slate-400"}`}>
-                      {cat.label}
-                    </span>
-                    {hasNote && !isOpen && (
-                      <span className="max-w-[40%] truncate text-[11px] text-slate-500">{value}</span>
-                    )}
-                    {hasNote && <span className="text-emerald-400 text-xs">●</span>}
-                    <span className={`text-slate-600 text-xs transition-transform ${isOpen ? "rotate-180" : ""}`}>▼</span>
-                  </button>
-                  <AnimatePresence initial={false}>
-                    {isOpen && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.18 }}
-                      >
-                        <div className="px-3 pb-3">
-                          <textarea
-                            value={value}
-                            onChange={(e) => updateNote(cat.key, e.target.value)}
-                            onBlur={() => actions.flushNow()}
-                            placeholder={`Notes on ${cat.label.toLowerCase()}…`}
-                            rows={3}
-                            className="w-full resize-y rounded-lg border border-slate-700 bg-slate-900 p-2.5 text-sm text-slate-100 placeholder-slate-600 focus:border-emerald-500 focus:outline-none"
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-
-        {/* ── Skipped ── */}
-        {skippedItems.length > 0 && (
-          <section className="mb-6 rounded-2xl border border-slate-800/60 bg-slate-900/40 p-3 sm:p-4">
-            <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-wide text-slate-500">Skipped</h2>
-            <ul className="space-y-2">
-              {skippedItems.map((item) => (
-                <motion.li key={item.id} layout className="flex min-h-[44px] items-center justify-between rounded-lg px-2 text-sm">
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <span className="text-slate-600">⏭</span>
-                    <span className="line-through opacity-80">{item.label}</span>
                   </div>
-                  <button
-                    onClick={() => toggleSkipItem(item.id)}
-                    disabled={!canEdit}
-                    className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-slate-700 disabled:opacity-50"
-                  >Undo</button>
-                </motion.li>
+                );
+              })}
+            </div>
+          )}
+
+          {tab === "queues" && (
+            <div>
+              {openQueue && (
+                <div className="mt-4 rounded-[18px] bg-[#16223a] p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">In the queue</p>
+                  <h2 className="mt-2 text-[28px] font-bold leading-tight">{nameOf(openQueue.item)}</h2>
+                  <p className="mt-3 flex items-baseline gap-2.5">
+                    <span className="text-[40px] font-bold tabular-nums leading-none">{clock(now - Date.parse(openQueue.start))}</span>
+                    <span className="text-[13px] text-slate-400">since {time(openQueue.start)}</span>
+                  </p>
+                  <div className="mt-3 flex items-center justify-between border-t border-slate-400/15 pt-3 text-sm text-slate-300">
+                    <span>Board said <b className="tabular-nums">{openQueue.board ?? 0} min</b></span>
+                    <button type="button" onClick={() => setSheet({ kind: "board", qid: openQueue.id, board: openQueue.board ?? 0 })}
+                      className="py-1.5 pl-3 text-[11px] font-bold uppercase tracking-[0.14em] text-brand cursor-pointer">Change</button>
+                  </div>
+                  <button type="button" onClick={() => {
+                    const m = Math.max(1, Math.round((now - Date.parse(openQueue.start)) / 60000));
+                    setSheet({ kind: "log", qid: openQueue.id, item: openQueue.item, timer: m, real: m, board: openQueue.board });
+                  }} className="mt-3.5 h-[52px] w-full rounded-[14px] bg-brand text-[16.5px] font-bold text-slate-900 hover:bg-brand-light cursor-pointer">We&apos;re on</button>
+                  <button type="button" onClick={() => {
+                    const q = openQueue;
+                    actions.queueCancel(q.id);
+                    setToast({ text: `Left the ${nameOf(q.item)} queue` });
+                  }} className="mt-2 h-[46px] w-full rounded-[13px] border border-[#2b3a57] text-sm font-bold text-slate-300 cursor-pointer">We left the queue</button>
+                </div>
+              )}
+
+              <h3 className="pt-5 pb-1 text-[22px] font-bold">Posted now</h3>
+              {coasters.filter(c => !c.skipped).map(c => {
+                const r = rideLine(c);
+                const mine = openQueue?.item === c.id;
+                const label = r?.status === "down" ? "Down" : r?.status === "closed" || r?.status === "refurb" ? "Closed" : r?.wait != null ? `${r.wait} min` : "–";
+                return (
+                  <div key={c.id} className="flex items-center gap-3 border-t border-slate-400/15 py-2">
+                    <button type="button" disabled={!live?.rides.length} onClick={() => setSheet({ kind: "link", item: c.id })}
+                      className="min-w-0 flex-1 py-1.5 text-left cursor-pointer disabled:cursor-default">
+                      <span className="block text-base font-bold leading-tight">{coasterName(c.label)}</span>
+                      {live?.rides.length && !r?.ride ? <span className="mt-0.5 block text-[11px] font-bold uppercase tracking-[0.14em] text-brand">Link to the live waits</span> : null}
+                    </button>
+                    <span className={`w-[70px] text-right text-[15px] tabular-nums ${r?.status === "down" ? "font-bold text-amber-400" : label === "Closed" || label === "–" ? "text-slate-500" : "font-bold text-slate-50"}`}>{label}</span>
+                    <button type="button" disabled={mine}
+                      onClick={() => setSheet({ kind: "join", item: c.id, posted: r?.wait ?? null, board: r?.wait ?? 0 })}
+                      className="h-9 w-[62px] shrink-0 rounded-[11px] border border-[#2b3a57] text-[13.5px] font-bold text-slate-300 disabled:border-slate-400/15 disabled:text-slate-600 cursor-pointer disabled:cursor-default">
+                      {mine ? "In it" : "Join"}
+                    </button>
+                  </div>
+                );
+              })}
+
+              {downtime.length > 0 && (
+                <>
+                  <h3 className="pt-6 pb-1 text-[22px] font-bold">Downtime</h3>
+                  {downtime.map(d => (
+                    <div key={d.id} className="grid grid-cols-[1fr_auto] items-center gap-3 border-t border-slate-400/15 py-2.5">
+                      <div>
+                        <p className="text-[15px] font-bold">{d.ride}</p>
+                        <p className={`text-[11.5px] ${d.to ? "text-slate-500" : "text-amber-400"}`}>{d.to ? `${time(d.from)}–${time(d.to)}` : `Down since ${time(d.from)}`}</p>
+                      </div>
+                      <span className="text-[15px] font-bold tabular-nums">{Math.max(1, Math.round(((d.to ? Date.parse(d.to) : now) - Date.parse(d.from)) / 60000))} min</span>
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {loggedQueues.length > 0 && (() => {
+                const timed = loggedQueues.filter(q => q.board != null && q.board > 0);
+                const P = timed.reduce((a, q) => a + (q.board ?? 0), 0), R = timed.reduce((a, q) => a + (q.real ?? 0), 0);
+                const pct = P ? Math.round((R / P - 1) * 100) : 0;
+                return (
+                  <>
+                    <h3 className="pt-6 pb-1 text-[22px] font-bold">Today</h3>
+                    {P > 0 && (
+                      <p className="pb-2 text-sm leading-snug text-slate-300">
+                        Real waits were <b className="text-slate-50">{Math.abs(pct)}% {pct > 0 ? "longer" : "shorter"}</b> than the boards said.
+                      </p>
+                    )}
+                    <div className="grid grid-cols-[1fr_58px_52px] py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                      <span>Ride</span><span className="text-right">Board</span><span className="text-right">Real</span>
+                    </div>
+                    {[...loggedQueues].reverse().map(q => (
+                      <div key={q.id} className="grid grid-cols-[1fr_58px_52px] items-center border-t border-slate-400/15 py-2">
+                        <div><p className="text-[15px] font-bold">{nameOf(q.item)}</p><p className="text-[11.5px] text-slate-500">{time(q.start)}</p></div>
+                        <span className="text-right text-[15px] tabular-nums text-slate-400">{q.board ?? "–"}</span>
+                        <span className="text-right text-[15px] font-bold tabular-nums">{q.real}</span>
+                      </div>
+                    ))}
+                  </>
+                );
+              })()}
+
+              {live && (live.waits || live.status) && (
+                <p className="mt-5 text-center text-xs text-slate-500">
+                  {live.waits === "queue-times" && <a href="https://queue-times.com/" target="_blank" rel="noopener" className="text-slate-300 underline">Powered by Queue-Times.com</a>}
+                  {live.waits === "queue-times" && live.status === "themeparks.wiki" && " · "}
+                  {(live.status === "themeparks.wiki" || live.waits === "themeparks.wiki") && <>ride status from <a href="https://themeparks.wiki/" target="_blank" rel="noopener" className="text-slate-300 underline">ThemeParks.wiki</a></>}
+                </p>
+              )}
+            </div>
+          )}
+
+          {tab === "checklist" && (
+            <div>
+              {[{ title: "Photos", list: photoTasks }, { title: "Before you leave", list: otherTasks }].filter(g => g.list.length).map(g => (
+                <div key={g.title}>
+                  <p className="flex items-center gap-2.5 pt-4 pb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 after:h-px after:flex-1 after:bg-slate-400/15">
+                    <span className="h-1.5 w-1.5 rounded-full bg-brand" />{g.title}
+                  </p>
+                  {g.list.map(t => {
+                    const done = !!t.checked || !!t.skipped;
+                    return (
+                      <button key={t.id} type="button" aria-pressed={done}
+                        onClick={() => actions.setItem(t.id, t.skipped ? { skipped: false, checked: true } : { checked: !t.checked })}
+                        className={`flex w-full items-center gap-3 border-t border-slate-400/15 py-2.5 text-left text-[15.5px] cursor-pointer ${done ? "text-slate-500" : "text-slate-300"}`}>
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] ${done ? "border-brand bg-brand text-slate-900" : "border-slate-700 text-transparent"}`}>{CHECK}</span>
+                        <span className="flex-1">{taskLabel(t.label)}</span>
+                        {t.skipped && <span className="text-[11px] uppercase tracking-[0.14em] text-slate-600">Skipped</span>}
+                      </button>
+                    );
+                  })}
+                </div>
               ))}
-            </ul>
-          </section>
-        )}
-
-        <div className="flex-1" />
-
-        {/* ── Fixed bottom CTA ── */}
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center pb-8 pt-4 sm:pb-6">
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent" />
-          <div className="pointer-events-auto relative w-full max-w-xl px-4">
-            <SyncNotice status={status} pending={pending} onLogin={() => setShowLogin(true)} />
-            {!visitStart ? (
-              <button onClick={handleBeginVisit} className="flex min-h-[56px] w-full items-center justify-center rounded-2xl bg-emerald-500 px-4 text-base font-bold text-slate-950 shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 active:scale-[0.98] cursor-pointer">
-                Start Visit ⏱️
-              </button>
-            ) : !visitFinished ? (
-              <div className="flex gap-2">
-                {isPaused ? (
-                  <button onClick={handleResume}
-                    className="flex min-h-[56px] flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 text-base font-bold text-slate-950 shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 active:scale-[0.98] cursor-pointer">
-                    Resume ▶
-                  </button>
+              <div className="mt-6">
+                {finished ? (
+                  <Link href={`/?modal=true&importChecklist=${checklist.slug}`}
+                    className="flex h-[52px] w-full items-center justify-center rounded-[14px] bg-brand text-[16.5px] font-bold text-slate-900 hover:bg-brand-light">Write the review</Link>
                 ) : (
-                  <button onClick={handlePause}
-                    className="flex min-h-[56px] items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-5 text-base font-bold text-slate-200 hover:bg-slate-800 active:scale-[0.98] cursor-pointer">
-                    ⏸<span className="hidden sm:inline"> Pause</span>
+                  <button type="button" onClick={() => (allDone ? complete() : setSheet({ kind: "complete" }))}
+                    className={`h-[52px] w-full rounded-[14px] text-[16.5px] font-bold cursor-pointer ${allDone ? "bg-brand text-slate-900 hover:bg-brand-light" : "bg-slate-800 text-slate-100"}`}>
+                    Complete visit
                   </button>
                 )}
-                <button
-                  onClick={handleComplete}
-                  disabled={!allCompleted}
-                  className={`flex min-h-[56px] flex-1 items-center justify-center rounded-2xl px-4 text-base font-bold shadow-xl transition-all cursor-pointer ${allCompleted
-                      ? "bg-emerald-500 text-slate-950 shadow-emerald-500/20 hover:bg-emerald-400 active:scale-[0.98]"
-                      : "bg-slate-800 text-slate-500 shadow-none"
-                    }`}
-                >
-                  {allCompleted ? "Complete Visit 🎉" : isPaused ? "Paused" : "Complete all tasks to finish"}
-                </button>
               </div>
-            ) : (
-              <Link href={`/?modal=true&importChecklist=${checklist.slug}`} className="flex min-h-[56px] w-full items-center justify-center rounded-2xl bg-blue-500 px-4 text-base font-bold text-white shadow-xl shadow-blue-500/20 hover:bg-blue-400 active:scale-[0.98] cursor-pointer">
-                Draft Review 📝
-              </Link>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Everything ticked off: complete from any tab. */}
+      {allDone && !finished && tab !== "checklist" && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#2b3a57] bg-[#16223a] px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))]">
+          <div className="mx-auto flex max-w-xl items-center gap-3">
+            <span className="flex-1 text-sm text-slate-300">Everything is ticked off</span>
+            <button type="button" onClick={complete} className="h-[42px] rounded-xl bg-brand px-4 text-[14.5px] font-bold text-slate-900 cursor-pointer">Complete visit</button>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed inset-x-3 bottom-[calc(14px+env(safe-area-inset-bottom,0px))] z-40 mx-auto flex max-w-xl items-center gap-3 rounded-[14px] bg-slate-800 px-4 py-3 text-sm shadow-2xl">
+          <span className="flex-1">{toast.text}</span>
+          {toast.undo && (
+            <button type="button" onClick={() => { toast.undo?.(); setToast(null); }}
+              className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand cursor-pointer">Undo</button>
+          )}
+        </div>
+      )}
+
+      {sheet && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70" onClick={(e) => { if (e.target === e.currentTarget && sheet.kind !== "done") setSheet(null); }}>
+          <div role="dialog" aria-modal="true" className="max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-t-[22px] border-t border-[#2b3a57] bg-[#0f172a] px-4 pt-2.5 pb-[calc(18px+env(safe-area-inset-bottom,0px))]">
+            <div className="mx-auto mb-3.5 h-1 w-10 rounded-full bg-slate-700" />
+            {sheet.kind === "join" && (
+              <>
+                <h4 className="text-[22px] font-bold">{nameOf(sheet.item)}</h4>
+                <p className="mt-1.5 text-[13.5px] leading-snug text-slate-400">
+                  {sheet.posted != null ? `The live wait is ${sheet.posted} min. Change it if the board says something else.` : "No live wait here. Enter what the board says, or leave it at 0."}
+                  {openQueue ? ` Your ${nameOf(openQueue.item)} queue ends without being logged.` : ""}
+                </p>
+                <Adjust label="The board says" value={sheet.board} step={5} onChange={(v) => setSheet({ ...sheet, board: v })} />
+                <SheetButtons primary="Start the queue timer" onPrimary={() => { actions.queueStart(sheet.item, sheet.board); setSheet(null); }} secondary="Cancel" onSecondary={() => setSheet(null)} />
+              </>
+            )}
+            {sheet.kind === "board" && (
+              <>
+                <h4 className="text-[22px] font-bold">Board time</h4>
+                <p className="mt-1.5 text-[13.5px] text-slate-400">What the board at the entrance said when you joined.</p>
+                <Adjust label="The board said" value={sheet.board} step={5} onChange={(v) => setSheet({ ...sheet, board: v })} />
+                <SheetButtons primary="Save" onPrimary={() => { actions.queueBoard(sheet.qid, sheet.board); setSheet(null); }} secondary="Cancel" onSecondary={() => setSheet(null)} />
+              </>
+            )}
+            {sheet.kind === "log" && (
+              <>
+                <h4 className="text-[22px] font-bold">{nameOf(sheet.item)}</h4>
+                <p className="mt-1.5 text-[13.5px] leading-snug text-slate-400">Forgot to stop the timer? Set your real wait before it&apos;s logged.</p>
+                <Adjust label="Your wait" sub={`Timer says ${sheet.timer} min`} value={sheet.real} step={1} onChange={(v) => setSheet({ ...sheet, real: v })} />
+                <SheetButtons primary="Log the queue and the ride" onPrimary={() => {
+                  actions.queueLog(sheet.qid, sheet.item, sheet.real, sheet.board);
+                  const c = items.find(i => i.id === sheet.item);
+                  setToast({ text: `${nameOf(sheet.item)} · ${sheet.real} min logged, ride ${(c?.rideCount || 0) + 1} counted` });
+                  setSheet(null);
+                }} secondary="Back to the queue" onSecondary={() => setSheet(null)} />
+              </>
+            )}
+            {sheet.kind === "link" && (() => {
+              const name = nameOf(sheet.item);
+              const current = live?.coasters[sheet.item]?.ride ?? null;
+              const rides = [...(live?.rides ?? [])].sort((a, b) => likeness(name, b.name) - likeness(name, a.name));
+              const pick = (ride: string) => { actions.link(sheet.item, ride); setSheet(null); setTimeout(reload, 800); };
+              return (
+                <>
+                  <h4 className="text-[22px] font-bold">{name}</h4>
+                  <p className="mt-1.5 text-[13.5px] text-slate-400">Which ride is it in the live waits?</p>
+                  <div className="mt-2">
+                    {rides.map(r => (
+                      <button key={r.name} type="button" onClick={() => pick(r.name)}
+                        className={`flex w-full items-center justify-between border-b border-slate-400/15 py-3 text-left text-[15px] cursor-pointer ${r.name === current ? "font-bold text-brand" : "text-slate-200"}`}>
+                        <span>{r.name}</span>
+                        <span className="text-[13px] tabular-nums text-slate-500">{r.status === "open" && r.wait != null ? `${r.wait} min` : r.status === "down" ? "Down" : "Closed"}</span>
+                      </button>
+                    ))}
+                    <button type="button" onClick={() => pick("")} className="w-full py-3 text-left text-[15px] text-slate-400 cursor-pointer">Not in the list</button>
+                  </div>
+                </>
+              );
+            })()}
+            {sheet.kind === "complete" && (
+              <>
+                <h4 className="text-[22px] font-bold">Complete the visit?</h4>
+                <p className="mt-1.5 text-[13.5px] text-slate-400">These are still open:</p>
+                <ul className="mt-3 space-y-1.5 text-sm text-slate-300">
+                  {missingPhotos > 0 && <li className="before:mr-2.5 before:inline-block before:h-1.5 before:w-1.5 before:rounded-full before:bg-brand before:align-[2px]">{missingPhotos} coaster photo{missingPhotos === 1 ? "" : "s"}</li>}
+                  {openTasks.map(t => <li key={t.id} className="before:mr-2.5 before:inline-block before:h-1.5 before:w-1.5 before:rounded-full before:bg-brand before:align-[2px]">{taskLabel(t.label)}</li>)}
+                </ul>
+                <SheetButtons primary="Complete anyway" onPrimary={complete} secondary="Not yet" onSecondary={() => setSheet(null)} />
+              </>
+            )}
+            {sheet.kind === "done" && (
+              <>
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">Visit complete</p>
+                <h4 className="mt-2 text-[30px] font-bold leading-tight">{parkName}</h4>
+                <div className="mt-3 h-1 w-12 bg-brand" />
+                <div className="mt-5 grid grid-cols-2 gap-x-3 gap-y-4">
+                  <Stat value={formatDuration(elapsed)} label="in the park" />
+                  <Stat value={String(coasters.reduce((a, c) => a + (c.rideCount || 0), 0))} label={`rides on ${coasters.filter(c => (c.rideCount || 0) > 0).length} coasters`} />
+                  <Stat value={String(NOTE_CATEGORIES.reduce((a, c) => a + noteLines(notes[c.key]).length, 0))} label="lines of notes" />
+                  <Stat value={String(loggedQueues.length)} label="queues timed" />
+                </div>
+                <Link href={`/?modal=true&importChecklist=${checklist.slug}`}
+                  className="mt-6 flex h-[52px] w-full items-center justify-center rounded-[14px] bg-brand text-[16.5px] font-bold text-slate-900 hover:bg-brand-light">Write the review</Link>
+                <button type="button" onClick={() => setSheet(null)} className="mt-2 h-[46px] w-full rounded-[13px] border border-[#2b3a57] text-sm font-bold text-slate-300 cursor-pointer">Back to the checklist</button>
+              </>
             )}
           </div>
         </div>
-      </div>
+      )}
 
       {showLogin && (
         <AuthenticationModal
@@ -649,63 +543,65 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
           }}
         />
       )}
+    </div>
+  );
+}
 
-      {/* ── Celebration modal ── */}
-      <AnimatePresence>
-        {showCelebration && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/80 p-4 backdrop-blur-sm sm:items-center">
-            <motion.div initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="relative w-full max-w-sm overflow-hidden rounded-3xl bg-slate-900 shadow-2xl sm:border sm:border-emerald-500/20">
-              <div className="relative px-6 py-8 text-center">
-                <div className="pointer-events-none absolute inset-0">
-                  {Array.from({ length: 12 }).map((_, i) => (
-                    <motion.span key={i} className="absolute text-2xl" initial={{ x: Math.random() * 320 - 160, y: 80, opacity: 0, scale: 0.4 }} animate={{ y: -120, opacity: [0, 1, 0], scale: [0.6, 1, 0.7] }} transition={{ duration: 2.2, delay: i * 0.08, repeat: Infinity, repeatType: "loop" }}>
-                      {i % 3 === 0 ? "🎢" : i % 3 === 1 ? "🎉" : "📸"}
-                    </motion.span>
-                  ))}
-                </div>
+function PhotoCheck({ letter, on, label, onClick }: { letter: string; on: boolean; label: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={on} aria-label={label}
+      className={`flex h-6 w-6 items-center justify-center rounded-full border-2 text-[10px] font-bold cursor-pointer ${on ? "border-brand bg-brand text-slate-900" : "border-slate-600 text-slate-500"}`}>
+      {on ? CHECK : letter}
+    </button>
+  );
+}
 
-                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="relative z-10">
-                  <div className="mb-2 text-5xl">🎉</div>
-                  <h2 className="mb-1 text-2xl font-bold text-slate-50 sm:text-3xl">Park complete!</h2>
-                  <p className="mx-auto mb-6 max-w-xs text-sm text-slate-300">
-                    All mandatory tasks done. Future-you writing the review says thank you. 💚
-                  </p>
+function LineEditor({ value, onChange, onSave, onCancel, onDelete, label, placeholder }: {
+  value: string; onChange: (v: string) => void; onSave: () => void; onCancel: () => void; onDelete?: () => void; label: string; placeholder?: string;
+}) {
+  return (
+    <div className="mt-2 flex flex-col gap-1.5">
+      <textarea autoFocus value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} placeholder={placeholder} rows={3}
+        className="w-full resize-y rounded-xl border-[1.5px] border-brand bg-[#16223a] px-3 py-2.5 text-[15px] leading-snug text-slate-50 placeholder-slate-500 focus:outline-none" />
+      <div className="flex justify-end gap-5">
+        {onDelete && <button type="button" onClick={onDelete} className="mr-auto py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-rose-400 cursor-pointer">Delete</button>}
+        <button type="button" onClick={onCancel} className="py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 cursor-pointer">Cancel</button>
+        <button type="button" onClick={onSave} disabled={!value.trim()} className="py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-brand disabled:text-slate-600 cursor-pointer">Save line</button>
+      </div>
+    </div>
+  );
+}
 
-                  <div className="mx-auto mb-6 flex w-full flex-col gap-2 rounded-xl border border-slate-800 bg-slate-900/50 p-4 text-left text-sm text-slate-300">
-                    {sessions.map((s, i) => (
-                      <div key={i} className="flex justify-between">
-                        <span className="font-medium text-slate-500">
-                          {isMultiday ? `Day ${dayNumber(s.start)} · ${fmtDay(s.start)}` : `Session ${sessions.length > 1 ? i + 1 : ""}`.trim() || "Session"}:
-                        </span>
-                        <span className="font-bold text-slate-200">
-                          {fmtTime(s.start)} – {s.end ? fmtTime(s.end) : "…"}
-                        </span>
-                      </div>
-                    ))}
-                    {sessions.length > 1 && (
-                      <div className="flex justify-between">
-                        <span className="font-medium text-slate-500">Pauses:</span>
-                        <span className="font-bold text-slate-200">{sessions.length - 1}</span>
-                      </div>
-                    )}
-                    {elapsedSeconds > 0 && (
-                      <div className="mt-1 flex justify-between border-t border-slate-800 pt-2">
-                        <span className="font-medium text-slate-500">Total Time:</span>
-                        <span className="font-bold text-emerald-400">{formatDuration(elapsedSeconds)}</span>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
+function Adjust({ label, sub, value, step, onChange }: { label: string; sub?: string; value: number; step: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex items-center justify-between border-b border-slate-400/15 py-3.5">
+      <span className="text-[15px] text-slate-300">{label}{sub && <span className="mt-0.5 block text-xs text-slate-500">{sub}</span>}</span>
+      <div className="flex items-center">
+        <button type="button" onClick={() => onChange(Math.max(0, value - step))} disabled={value <= 0} aria-label={`${step} min less`}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#2b3a57] text-[22px] text-slate-400 disabled:border-slate-400/15 disabled:text-slate-700 cursor-pointer">−</button>
+        <span className="w-[76px] text-center text-[19px] font-bold tabular-nums">{value} min</span>
+        <button type="button" onClick={() => onChange(Math.min(600, value + step))} aria-label={`${step} min more`}
+          className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800 text-[22px] text-slate-50 cursor-pointer">+</button>
+      </div>
+    </div>
+  );
+}
 
-                <button type="button" onClick={() => setShowCelebration(false)} className="relative z-10 min-h-[56px] w-full rounded-xl bg-emerald-500 px-4 text-base font-bold text-slate-950 hover:bg-emerald-400 active:scale-[0.98] cursor-pointer">
-                  Back to dashboard
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </main>
+function SheetButtons({ primary, onPrimary, secondary, onSecondary }: { primary: string; onPrimary: () => void; secondary: string; onSecondary: () => void }) {
+  return (
+    <>
+      <button type="button" onClick={onPrimary} className="mt-4 h-[52px] w-full rounded-[14px] bg-brand text-[16.5px] font-bold text-slate-900 hover:bg-brand-light cursor-pointer">{primary}</button>
+      <button type="button" onClick={onSecondary} className="mt-2 h-[46px] w-full rounded-[13px] border border-[#2b3a57] text-sm font-bold text-slate-300 cursor-pointer">{secondary}</button>
+    </>
+  );
+}
+
+function Stat({ value, label }: { value: string; label: string }) {
+  return (
+    <div>
+      <b className="block text-[28px] tabular-nums leading-tight">{value}</b>
+      <span className="text-[12.5px] text-slate-400">{label}</span>
+    </div>
   );
 }
 
