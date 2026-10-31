@@ -6,7 +6,7 @@
 //   data-framing-math="<how>"      how the page places the photo in it:
 //     focused  - FocusedImage: cover x zoom, focus point at the centre, edges clamped
 //     card     - the front page card: cover x zoom, focus point at the centre
-//     cover    - placeCover: object-position from the focus point, no zoom
+//     cover    - placeCover: object-position from the focus point, a zoom as a clipped transform
 //     position - object-position percentages
 //   class "framing-photo"          on the photo itself
 // Frames the tool only shows as the page draws them carry just the marker:

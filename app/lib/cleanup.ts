@@ -259,8 +259,8 @@ type SlotDraft = Omit<FrameSlot, "fresh" | "done"> & {
   /** The frames it is drawn in, for its zoom limit (covers and cards: by kind). */
   needs?: readonly Box[];
 };
-/** Frames of the covers and the card, for their zoom limit. */
-const NEEDS: Partial<Record<SlotKind, readonly Box[]>> = { "cover-phone": [SHARP.coverPhone], "cover-desktop": [SHARP.coverDesktop], card: [SHARP.card] };
+/** Frames of the covers, the card and the curated photos, for their zoom limit. */
+const NEEDS: Partial<Record<SlotKind, readonly Box[]>> = { "cover-phone": [SHARP.coverPhone], "cover-desktop": [SHARP.coverDesktop], card: [SHARP.card], "curated-phone": [SHARP.deck], "curated-desktop": [SHARP.strip] };
 type PlaceDraft = Omit<CleanupTask, "quick" | "place" | "fingerprint" | "size" | "points"> & { place: Omit<FramePlace, "slots"> & { slots: SlotDraft[] } };
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -391,12 +391,12 @@ export async function loadCleanup(): Promise<CleanupData> {
               change: { t: "curated", visitId: v.id, rowId: g.id },
               slots: [
                 {
-                  id: `curated:${g.id}`, kind: "curated-phone", label: "Phone", photo: g.path, value: g.focus, target: { t: "curated", rowId: g.id }, maxZoom: 1,
+                  id: `curated:${g.id}`, kind: "curated-phone", label: "Phone", photo: g.path, value: g.focus, target: { t: "curated", rowId: g.id }, maxZoom: 4,
                   views: [{ screen: "phone", page: `${parkPage(p.id, v.id)}&framing-deck=${g.id}`, target: `deck:${g.id}` }],
                 },
                 {
                   id: `strip:${g.path}`, kind: "curated-desktop", label: "Desktop", photo: g.path, value: pfGet("curated-desktop", g.path), fallback: g.focus, fallbackFrom: "phone",
-                  target: { t: "photo", format: "curated-desktop" }, maxZoom: 1,
+                  target: { t: "photo", format: "curated-desktop" }, maxZoom: 4,
                   views: [{ screen: "desktop", page: parkPage(p.id, v.id), target: `strip:${g.path}`, where: "Park page" }],
                 },
               ],
@@ -529,7 +529,7 @@ export async function loadCleanup(): Promise<CleanupData> {
             slots: [{
               id: `strip:${g.path}`, kind: "curated-desktop", label: "Phone and desktop", photo: g.path, value: pfGet("curated-desktop", g.path),
               ...(deck ? { fallback: deck, fallbackFrom: "park page phone" } : {}),
-              target: { t: "photo", format: "curated-desktop" }, maxZoom: 1, views,
+              target: { t: "photo", format: "curated-desktop" }, maxZoom: 4, views,
             }],
           },
         };

@@ -4,7 +4,8 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
 import { variantUrl } from "@/app/lib/imageVariants";
-import { DEFAULT_FOCUS, hasCustomFocus, placeCover } from "@/app/lib/coverPlacement";
+import { DEFAULT_FOCUS, focusZoom, hasCustomFocus, placeCover } from "@/app/lib/coverPlacement";
+import { SHARP } from "@/app/lib/zoomLimit";
 import type { CropEditorProps } from "@/app/components/parkpage/ParkHeaderModal";
 import type { CoasterGalleryImage } from "./coasterPageTypes";
 
@@ -33,26 +34,47 @@ interface Props {
 
 const isVideo = (src: string) => /\.(mp4|webm|ogg)$/i.test(src);
 
-/** A 4:5 thumbnail drawn with the photo's framing, as the deck card shows it. */
+/** A 4:5 thumbnail drawn with the photo's framing, as the deck card shows it (a zoomed one from a bigger file). */
 function FramedThumb({ src, focus, alt }: { src: string; focus: string | null | undefined; alt: string }) {
   const ref = useRef<HTMLImageElement>(null);
   useLayoutEffect(() => {
     const img = ref.current;
-    if (!img) return;
-    if (!hasCustomFocus(focus)) { img.style.objectPosition = ""; return; }
-    if (img.complete && img.naturalWidth) placeCover(img, focus);
+    if (img && img.complete && img.naturalWidth) placeCover(img, focus);
   }, [focus]);
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       ref={ref}
-      src={variantUrl(src, 480)}
+      src={variantUrl(src, focusZoom(focus) > 1.2 ? 1200 : 480)}
       alt={alt}
       draggable={false}
       loading="lazy"
       className="w-full h-full object-cover pointer-events-none select-none"
-      onLoad={(e) => { if (hasCustomFocus(focus)) placeCover(e.currentTarget, focus); }}
+      onLoad={(e) => placeCover(e.currentTarget, focus)}
     />
+  );
+}
+
+/** Width / height of a photo: its recorded size, else as measured once its thumbnail is in, else 4:3. */
+const shapeOf = (g: CoasterGalleryImage, measured: Record<number, number>) => (g.w && g.h ? g.w / g.h : measured[g.id] ?? 4 / 3);
+
+/**
+ * The photo whole and big, beside the grid: on the half of the screen away
+ * from the photo under the mouse. The small file shows at once, the sharp one
+ * over it once in.
+ */
+function Peek({ img, shape, right }: { img: CoasterGalleryImage; shape: number; right: boolean }) {
+  const boxW = window.innerWidth / 2 - 64, boxH = window.innerHeight - 96;
+  const w = Math.min(boxW, boxH * shape), h = w / shape;
+  return (
+    <div className={`pointer-events-none fixed inset-y-0 z-[110] hidden w-1/2 items-center justify-center md:flex ${right ? "right-0" : "left-0"}`}>
+      <div className="relative overflow-hidden rounded-2xl bg-slate-800 shadow-[0_20px_60px_rgba(0,0,0,0.6)]" style={{ width: w, height: h }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={variantUrl(img.path, 480)} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={variantUrl(img.path, w * (window.devicePixelRatio || 1))} alt="" className="absolute inset-0 h-full w-full object-cover" />
+      </div>
+    </div>
   );
 }
 
@@ -91,7 +113,7 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
   const [focusDraft, setFocusDraft] = useState<string>(DEFAULT_FOCUS);
   const focusEditRef = useRef<CoasterGalleryImage | null>(null);
   focusEditRef.current = focusEdit;
-  const openFocus = (img: CoasterGalleryImage) => { setFocusDraft(focusMap[img.id] || DEFAULT_FOCUS); setFocusEdit(img); };
+  const openFocus = (img: CoasterGalleryImage) => { setFocusDraft(focusMap[img.id] || DEFAULT_FOCUS); setFocusEdit(img); setPeek(null); };
   // A centred desktop framing is stored as such, so it does not fall back to the deck's.
   const doneFocus = () => { if (focusEdit) setFocusMap((m) => ({ ...m, [focusEdit.id]: hasCustomFocus(focusDraft) || desktopFraming ? focusDraft : null })); setFocusEdit(null); };
 
@@ -120,6 +142,38 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
       return n;
     });
   };
+
+  // Shapes of photos without a recorded size, from their thumbnails.
+  const [measured, setMeasured] = useState<Record<number, number>>({});
+  const measure = (g: CoasterGalleryImage) => (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+    if (!(g.w && g.h) && w && h && measured[g.id] === undefined) setMeasured((m) => ({ ...m, [g.id]: w / h }));
+  };
+
+  // Desktop: the mouse held still on a photo for a moment shows it big (Peek). Only the mouse's
+  // own moves count, so photos sliding under it while the list scrolls never open one, and a
+  // scroll closes it.
+  const [peek, setPeek] = useState<{ img: CoasterGalleryImage; right: boolean } | null>(null);
+  const peekTimer = useRef(0);
+  const peekRef = useRef(peek);
+  peekRef.current = peek;
+  const lastPointer = useRef({ x: -1, y: -1 });
+  const peekRest = (img: CoasterGalleryImage) => (e: React.PointerEvent<HTMLElement>) => {
+    if (e.pointerType !== "mouse" || dragId !== null) return;
+    // The browser's own move events after a scroll come without a move.
+    if (e.clientX === lastPointer.current.x && e.clientY === lastPointer.current.y) return;
+    lastPointer.current = { x: e.clientX, y: e.clientY };
+    // Small moves on the photo already shown keep it.
+    if (peekRef.current?.img.id === img.id) return;
+    const el = e.currentTarget;
+    clearTimeout(peekTimer.current);
+    peekTimer.current = window.setTimeout(() => {
+      const r = el.getBoundingClientRect();
+      setPeek({ img, right: r.left + r.width / 2 < window.innerWidth / 2 });
+    }, 350);
+  };
+  const peekOff = () => { clearTimeout(peekTimer.current); setPeek(null); };
+  useEffect(() => () => clearTimeout(peekTimer.current), []);
 
   const save = async () => {
     if (saving) return;
@@ -182,7 +236,7 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
         </div>
         {error && <div className="md:hidden px-4 py-1.5 text-xs text-red-400 border-b border-slate-800">{error}</div>}
 
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6" onScroll={peekOff}>
           {photos.length === 0 ? (
             <p className="text-sm text-slate-500">No photos yet. Upload some in the gallery first.</p>
           ) : (
@@ -205,7 +259,9 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
                         <div
                           key={id}
                           draggable={!saving}
-                          onDragStart={(e) => { setDragId(id); e.dataTransfer.effectAllowed = "move"; }}
+                          onPointerMove={peekRest(img)}
+                          onPointerLeave={peekOff}
+                          onDragStart={(e) => { setDragId(id); setPeek(null); e.dataTransfer.effectAllowed = "move"; }}
                           onDragOver={(e) => { e.preventDefault(); if (dragId !== null && overId !== id) setOverId(id); }}
                           onDragLeave={() => { if (overId === id) setOverId(null); }}
                           onDrop={(e) => { e.preventDefault(); dropOn(id); setDragId(null); setOverId(null); }}
@@ -237,22 +293,29 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
                   <h3 className="text-sm font-bold uppercase tracking-widest text-white">All photos <span className="text-slate-500">· {photos.length}</span></h3>
                   <span className="text-xs text-slate-500">Tap to add or remove</span>
                 </div>
-                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-3">
+                {/* Each photo in its own shape, in rows of one height: tall photos stand, wide ones lie. Very tall ones get a 3:4 tile and panoramas a 2:1 one, so none is a sliver (Peek shows the whole photo). */}
+                <div className="flex flex-wrap gap-2 md:gap-3 [--row:7rem] md:[--row:10rem]">
                   {photos.map((img) => {
                     const pos = order.indexOf(img.id);
                     const on = pos >= 0;
+                    const shape = Math.min(2, Math.max(0.75, shapeOf(img, measured)));
                     return (
                       <button
                         key={img.id}
                         type="button"
                         onClick={() => toggle(img.id)}
+                        onPointerMove={peekRest(img)}
+                        onPointerLeave={peekOff}
                         title={img.description || img.title}
                         aria-pressed={on}
-                        className={`relative aspect-[4/5] rounded-xl overflow-hidden border-2 transition-colors cursor-pointer select-none ${on ? "border-brand" : "border-slate-700 hover:border-slate-500"}`}
+                        style={{ aspectRatio: shape, flexGrow: shape, flexBasis: `calc(var(--row) * ${shape.toFixed(4)})` }}
+                        className={`relative min-w-0 rounded-xl overflow-hidden border-2 transition-colors cursor-pointer select-none ${on ? "border-brand" : "border-slate-700 hover:border-slate-500"}`}
                       >
-                        {/* A stored small size, not the multi-megabyte original, for a grid of thumbnails. */}
+                        {/* Stored small sizes, not the multi-megabyte original, for a grid of thumbnails. */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={variantUrl(img.path, 480)} alt={img.title || "Gallery photo"} loading="lazy" draggable={false}
+                        <img src={variantUrl(img.path, 480)} srcSet={`${variantUrl(img.path, 480)} 480w, ${variantUrl(img.path, 1200)} 1200w`}
+                          sizes={`(min-width: 768px) ${Math.ceil(200 * shape)}px, ${Math.ceil(140 * shape)}px`}
+                          alt={img.title || "Gallery photo"} loading="lazy" draggable={false} onLoad={measure(img)}
                           className={`w-full h-full object-cover pointer-events-none transition-opacity ${on ? "opacity-60" : ""}`} />
                         {on && (
                           <span className="absolute top-1.5 right-1.5 min-w-6 h-6 px-1.5 rounded-full bg-brand text-white text-xs font-bold flex items-center justify-center shadow pointer-events-none">{pos + 1}</span>
@@ -265,6 +328,8 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
                       </button>
                     );
                   })}
+                  {/* Keeps the last row at the row height. */}
+                  <span aria-hidden className="grow-[999] basis-0" />
                 </div>
               </section>
             </>
@@ -290,16 +355,17 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
                   focusStr={focusDraft}
                   onCommit={setFocusDraft}
                   onChange={setFocusDraft}
-                  maxZoom={1}
+                  // Zoom stops where the card on the sharpest screens would enlarge the photo.
+                  sharp={desktopFraming ? SHARP.strip : SHARP.deck}
                   className="w-full rounded-2xl shadow-[0_10px_24px_rgba(0,0,0,0.4)]"
                 >
-                  <div className="absolute top-3 right-3 text-white/40 text-[9px] font-bold uppercase tracking-widest pointer-events-none">Drag to frame</div>
+                  <div className="absolute top-3 right-3 text-white/40 text-[9px] font-bold uppercase tracking-widest pointer-events-none">Drag · scroll to zoom</div>
                 </CropEditor>
               </div>
               <p className="text-xs text-slate-500 text-center">
                 {desktopFraming
-                  ? "The card in the desktop strip (the coaster page shows the same). Phones have their own framing. Drag only, no zoom."
-                  : "The card in the phone deck. The desktop strip has its own framing. Drag only, no zoom."}
+                  ? "The card in the desktop strip (the coaster page shows the same). Phones have their own framing. Scroll or pinch to zoom, up to where the photo stays sharp."
+                  : "The card in the phone deck. The desktop strip has its own framing. Scroll or pinch to zoom, up to where the photo stays sharp."}
               </p>
             </div>
             <div className="flex items-center gap-3 p-4 border-t border-slate-800 flex-shrink-0">
@@ -325,6 +391,7 @@ export default function CoasterStripEditor({ coasterId, coasterName, gallery, on
           </button>
         </div>
       </div>
+      {peek && !focusEdit && <Peek key={peek.img.id} img={peek.img} shape={shapeOf(peek.img, measured)} right={peek.right} />}
     </div>
   );
 }

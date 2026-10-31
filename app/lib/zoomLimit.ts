@@ -13,6 +13,10 @@ export const SHARP = {
   coverDesktop: [3024, 1296],
   /** Front page card: the phone strip card, about 310 x 500 px (desktop cards need less). */
   card: [930, 1500],
+  /** Curated photo in the park page's phone deck: the 4:5 card, 78vw up to 340 px. */
+  deck: [1020, 1275],
+  /** Curated photo in the photo strip: the 4:5 card, 62vw up to 260 px on phones (coaster page), 256 px on desktop. */
+  strip: [780, 975],
 } as const satisfies Record<string, Box>;
 
 const ratio = (s: string) => { const [a, b] = s.split("/").map((n) => parseFloat(n)); return a / (b || 1); };

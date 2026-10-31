@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { parseFocusStr } from "@/app/components/FocusedImage";
-import { coverPosition, hasCustomFocus } from "@/app/lib/coverPlacement";
+import { applyCover } from "@/app/lib/coverPlacement";
 import { exactCoverSrc, isR2Image, sharperSource, variantKey, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
 import { FRAMING_PREVIEW } from "@/app/lib/framingPreview";
 
@@ -66,8 +66,7 @@ function geometry(f: Found, value: string, nw = f.img.naturalWidth || 1, nh = f.
   const parent = img.parentElement?.tagName === "PICTURE" ? img.parentElement.parentElement : img.parentElement;
   const box = math === "position" ? img : parent ?? img;
   const W = box.clientWidth, H = box.clientHeight;
-  const { cx, cy, zoom } = parseFocusStr(value);
-  const z = math === "cover" ? 1 : zoom; // placeCover (deck, strip) has no zoom
+  const { cx, cy, zoom: z } = parseFocusStr(value);
   const cs = Math.max(W / nw, H / nh);
   return { W, H, dw: nw * cs * z, dh: nh * cs * z, cx, cy, z };
 }
@@ -104,7 +103,8 @@ function pickSrc(photo: string, size: { w: number; h: number } | undefined, f: F
  * Put the photo where the page would for this value. focused and card =
  * FocusedImage's applyStyle and the front page card (cover x zoom, focus
  * point at the centre, stopping at the frame's edges), cover = placeCover
- * (only for a custom focus, as the deck and strip do), position = object-position.
+ * (the deck and strip: object-position, and a zoom as a clipped transform),
+ * position = object-position.
  * Writes nothing when the photo is still as it was last left here, so the
  * watcher that calls this on every change of the photo cannot loop.
  */
@@ -153,7 +153,7 @@ function applyPlacement(f: Found, photo: string, size: { w: number; h: number } 
   if (f.last && f.last.key === key && f.last.css === s.cssText) return;
   if (math === "cover") {
     if (frame.dataset.focus !== value) frame.dataset.focus = value;
-    s.objectPosition = hasCustomFocus(value) ? coverPosition(g.W, g.H, img.naturalWidth, img.naturalHeight, value) : "";
+    applyCover(img, g.W, g.H, value);
   } else if (math === "position") {
     // object-position, and a zoom scaled from that same point (SectionImage).
     const at = `${g.cx * 100}% ${g.cy * 100}%`;

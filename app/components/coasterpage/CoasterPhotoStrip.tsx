@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import { R2Image } from "../R2Image";
-import { hasCustomFocus, placeCover, replaceCovers } from "@/app/lib/coverPlacement";
+import { focusZoom, hasCustomFocus, placeCover, replaceCovers } from "@/app/lib/coverPlacement";
 import type { CoasterGalleryImage } from "./coasterPageTypes";
 
 interface Props {
@@ -23,6 +23,7 @@ interface Props {
 const isVideo = (src: string) => /\.(mp4|webm|ogg)$/i.test(src);
 /** The strip card's framing: the curated image's desktop framing, else its phone-deck one. */
 const stripFocus = (img: CoasterGalleryImage) => img.strip_focus || img.focus;
+const stripSizes = (z: number) => `(min-width: 1024px) ${Math.ceil(570 * z)}px, (min-width: 640px) ${Math.ceil(500 * z)}px, ${Math.ceil(138 * z)}vw`;
 
 /**
  * A swipeable film strip of photos right under the hero, so the pictures come
@@ -118,9 +119,11 @@ export default function CoasterPhotoStrip({ images, coasterName, onOpen, isAdmin
                   // The tile is 4:5 and most photos are landscape, so they are
                   // scaled by height: a 16:9 photo needs 2.2x the tile width in
                   // source pixels to fill it. The hint asks for that, so the
-                  // browser never picks a variant it would have to enlarge.
-                  sizes="(min-width: 1024px) 570px, (min-width: 640px) 500px, 138vw"
-                  className="object-cover transition-transform duration-500 group-hover/item:scale-[1.03] framing-photo"
+                  // browser never picks a variant it would have to enlarge. A zoomed
+                  // framing needs that many times more.
+                  sizes={stripSizes(focusZoom(stripFocus(img)))}
+                  // Only the hover scale eases: a zoom placed on load shows at once.
+                  className="object-cover transition-[scale] duration-500 group-hover/item:scale-[1.03] framing-photo"
                   onLoad={(e) => { const f = stripFocus(img); if (hasCustomFocus(f)) placeCover(e.currentTarget, f); }}
                 />
               )}

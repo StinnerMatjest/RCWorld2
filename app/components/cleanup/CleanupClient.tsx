@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import Link from "next/link";
 import Image from "next/image";
 import { getParkFlag, getRatingHex } from "@/app/utils/design";
-import { coverPosition, hasCustomFocus } from "@/app/lib/coverPlacement";
+import { applyCover } from "@/app/lib/coverPlacement";
 import { stepUp } from "@/app/components/R2Image";
 import TaskRunner, { type SavedItem } from "./TaskRunner";
 import {
@@ -33,7 +33,8 @@ function Bar({ value, className = "", hex }: { value: number; className?: string
  * box as measured on this screen (a landscape photo filling a portrait box is
  * drawn wider than the box), and once in, a photo drawn wider still steps up to
  * the stored size or original that covers it. With a focus point it sits where
- * the page frames it (the front page card's framing), stopping at the box's edges.
+ * the page frames it (the front page card's framing), zoom included, stopping
+ * at the box's edges.
  */
 function Photo({ src, className = "", focus }: { src: string | null | undefined; className?: string; focus?: string | null }) {
   const ref = useRef<HTMLImageElement>(null);
@@ -51,8 +52,9 @@ function Photo({ src, className = "", focus }: { src: string | null | undefined;
     const img = ref.current;
     if (!img) return;
     const done = () => {
+      // Placed first, so a zoom is in the transform stepUp reads.
+      if (focus && img.naturalWidth && img.clientWidth) applyCover(img, img.clientWidth, img.clientHeight, focus);
       stepUp(img);
-      if (focus && hasCustomFocus(focus) && img.naturalWidth && img.clientWidth) img.style.objectPosition = coverPosition(img.clientWidth, img.clientHeight, img.naturalWidth, img.naturalHeight, focus);
     };
     if (img.complete) done();
     img.addEventListener("load", done);

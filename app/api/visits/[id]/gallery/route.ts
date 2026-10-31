@@ -5,6 +5,7 @@ import { getImageSizes } from "@/app/lib/imageDims";
 import { getParkName, logChange } from "@/app/lib/changelog";
 import { photoFramings, setPhotoFramings } from "@/app/lib/visitHeader";
 import { reviewPositions } from "@/app/lib/framing";
+import { capZoom, SHARP, zoomLimit, type Box } from "@/app/lib/zoomLimit";
 
 // The photo deck / strip at the top of the park page shows the photos flagged
 // here (none flagged = every photo), each framed by its focus ("cx cy zoom",
@@ -155,6 +156,16 @@ export async function PATCH(
             return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
         }
         await ensureFeaturedColumn();
+        // The photos framed here, and their sizes: a zoom is kept to where the card stays sharp.
+        const framed = [...Object.keys(hasFocus ? focus : {}), ...Object.keys(hasStrip ? stripFocus : {})].map(Number).filter((n) => Number.isFinite(n));
+        const rows = framed.length ? (await pool.query(`SELECT id, path FROM visitgallery WHERE visit_id = $1 AND id = ANY($2::int[])`, [visitId, framed])).rows : [];
+        const pathOf = new Map<number, string>(rows.map((r) => [r.id, r.path]));
+        const sizes = await getImageSizes([...pathOf.values()]);
+        const capped = (id: number, v: unknown, box: Box) => {
+            if (v == null) return null;
+            const size = sizes[pathOf.get(id) ?? ""];
+            return size ? capZoom(String(v).slice(0, 64), zoomLimit(size, [box])) : String(v).slice(0, 64);
+        };
         if (hasIds) {
             const ids = (featuredIds as unknown[]).map(Number).filter((n) => Number.isFinite(n));
             await pool.query(
@@ -164,7 +175,7 @@ export async function PATCH(
         }
         if (hasFocus) {
             const entries = Object.entries(focus as Record<string, unknown>)
-                .map(([k, v]) => [Number(k), v == null ? null : String(v).slice(0, 64)] as const)
+                .map(([k, v]) => [Number(k), capped(Number(k), v, SHARP.deck)] as const)
                 .filter(([k]) => Number.isFinite(k));
             if (entries.length) {
                 await pool.query(
@@ -177,11 +188,9 @@ export async function PATCH(
         }
         if (hasStrip) {
             const entries = Object.entries(stripFocus as Record<string, unknown>)
-                .map(([k, v]) => [Number(k), v == null ? null : String(v).slice(0, 64)] as const)
+                .map(([k, v]) => [Number(k), capped(Number(k), v, SHARP.strip)] as const)
                 .filter(([k]) => Number.isFinite(k));
             if (entries.length) {
-                const rows = await pool.query(`SELECT id, path FROM visitgallery WHERE visit_id = $1 AND id = ANY($2::int[])`, [visitId, entries.map(([k]) => k)]);
-                const pathOf = new Map<number, string>(rows.rows.map((r) => [r.id, r.path]));
                 await setPhotoFramings("curated-desktop", entries.filter(([k]) => pathOf.has(k)).map(([k, v]) => [pathOf.get(k)!, v]));
             }
         }

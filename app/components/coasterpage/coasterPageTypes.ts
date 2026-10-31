@@ -34,6 +34,9 @@ export interface CoasterGalleryImage {
   tile_focus?: string | null;
   /** Where the photo sits in the coaster's review (a tile without its own position uses it). */
   review_pos?: string | null;
+  /** The original's pixel size, when recorded. */
+  w?: number | null;
+  h?: number | null;
 }
 
 /** A neighbour in a ranking list or a sibling coaster at the same park. */

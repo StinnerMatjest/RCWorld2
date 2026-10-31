@@ -5,7 +5,7 @@ import { flushSync } from "react-dom";
 import { motion, motionValue, animate, type MotionValue } from "framer-motion";
 import { R2Image } from "../R2Image";
 import { isR2Image, variantKey } from "@/app/lib/imageVariants";
-import { hasCustomFocus, placeCover, replaceCovers } from "@/app/lib/coverPlacement";
+import { focusZoom, hasCustomFocus, placeCover, replaceCovers } from "@/app/lib/coverPlacement";
 import type { VisitGalleryImage } from "./VisitGallery";
 
 const isVideo = (src: string) => /\.(mp4|webm|ogg)$/i.test(src);
@@ -63,10 +63,11 @@ const goToGallery = (e: React.MouseEvent) => {
   if (g) { e.preventDefault(); g.scrollIntoView({ behavior: "smooth", block: "start" }); }
 };
 
-/** The size hint for a deck card's photo (see the R2Image below). */
+/** The size hint for a deck card's photo (see the R2Image below), its framing's zoom included. */
 function deckSizes(g: VisitGalleryImage): string {
-  const k = g.w && g.h ? Math.max(1, 1.25 * (g.w / g.h)) : 2.23;
-  return `(min-width: 640px) 760px, min(${Math.ceil(78 * k)}vw, ${Math.ceil(340 * k)}px)`;
+  const z = focusZoom(g.focus);
+  const k = (g.w && g.h ? Math.max(1, 1.25 * (g.w / g.h)) : 2.23) * z;
+  return `(min-width: 640px) ${Math.ceil(760 * z)}px, min(${Math.ceil(78 * k)}vw, ${Math.ceil(340 * k)}px)`;
 }
 
 export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = false, onEdit, startAt }: Props) {

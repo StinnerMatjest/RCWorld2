@@ -67,7 +67,7 @@ export async function GET(
       [coasterId]
     );
     const paths = galleryRes.rows.map((r) => r.path);
-    const [tiles, strip, curated, review] = await Promise.all([
+    const [tiles, strip, curated, review, dims] = await Promise.all([
       photoFramings("gallery-tile", paths),
       photoFramings("curated-desktop", paths),
       // The same photo curated on its park page: its phone-deck framing, newest visit first.
@@ -75,10 +75,12 @@ export async function GET(
         .then((r) => Object.fromEntries(r.rows.map((x) => [x.path, x.focus as string]))),
       // Where each photo sits in the coaster's review (a gallery tile falls back to it).
       pool.query(`SELECT image_url FROM coastertext WHERE coaster_id = $1`, [coasterId]).then((r) => reviewPositions(r.rows.map((x) => x.image_url))),
+      getImageSizes(paths),
     ]);
     // The photo strip's 4:5 card (CoasterPhotoStrip) uses strip_focus, the curated image's
     // desktop framing shared with the park page, else focus (that photo's park-deck framing).
-    const gallery = galleryRes.rows.map((r) => ({ ...r, focus: curated[r.path] ?? null, strip_focus: strip[r.path] ?? null, tile_focus: tiles[r.path] ?? null, review_pos: review[r.path] ?? null }));
+    // w/h: the original's size (the strip editor shows each photo in its own shape).
+    const gallery = galleryRes.rows.map((r) => ({ ...r, focus: curated[r.path] ?? null, strip_focus: strip[r.path] ?? null, tile_focus: tiles[r.path] ?? null, review_pos: review[r.path] ?? null, w: dims[r.path]?.w ?? null, h: dims[r.path]?.h ?? null }));
     const headerImage = activeHeader?.path || null;
     // The cover's own phone photo (newest flagged row); its focus_mobile is the phone framing.
     const phoneRow = galleryRes.rows.filter((r) => r.is_header_mobile && r.path !== headerImage).sort((x, y) => y.id - x.id)[0] ?? null;
@@ -86,7 +88,7 @@ export async function GET(
       mobile: (phoneRow ? phoneRow.focus_mobile : activeHeader?.focus_mobile) ?? null,
       desktop: activeHeader?.focus_desktop ?? null,
     };
-    const headerPhone = phoneRow ? { id: phoneRow.id, path: phoneRow.path, size: (await getImageSizes([phoneRow.path]))[phoneRow.path] ?? null } : null;
+    const headerPhone = phoneRow ? { id: phoneRow.id, path: phoneRow.path, size: dims[phoneRow.path] ?? null } : null;
 
     return NextResponse.json({ headerImage, headerFocus, headerPhone, activeHeader, allActiveHeaders, gallery });
   } catch (error) {
