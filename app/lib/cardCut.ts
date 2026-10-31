@@ -79,8 +79,10 @@ type ParkRow = {
 
 /**
  * Bring a park's cuts in line with its current card framing: generate what is
- * missing or stale, delete what is no longer used, and record the result.
- * Safe to run repeatedly; a cut whose `for` matches is left alone.
+ * missing or stale and record the result. Safe to run repeatedly; a cut whose
+ * `for` matches is left alone. A replaced cut's files stay on R2: a cached page
+ * (the live site's, when the clean-up tool runs elsewhere against the same data,
+ * or a visitor's browser) may still show them, and a deleted one is a broken card.
  */
 export async function regenerateParkCuts(park: ParkRow): Promise<{ made: number; deleted: number }> {
   const cardSrc = park.card_imagepath || park.imagepath;
@@ -110,15 +112,13 @@ export async function regenerateParkCuts(park: ParkRow): Promise<{ made: number;
       );
       if (r.rowCount) {
         if (cut) made++;
-        const old = r.rows[0].old_cut as CardCut | null;
-        if (old && old.url !== cut?.url) { await deleteCardCut(old); deleted++; }
       } else if (cut) {
-        await deleteCardCut(cut);
+        // Never recorded, so nothing shows it.
+        await deleteCardCut(cut); deleted++;
       }
     }
   } else if (park.card_cut) {
     await pool.query("UPDATE parks SET card_cut = NULL WHERE id = $1", [park.id]);
-    await deleteCardCut(park.card_cut); deleted++;
   }
 
   // Category images, one at a time so a concurrent admin save of card_images
@@ -136,7 +136,6 @@ export async function regenerateParkCuts(park: ParkRow): Promise<{ made: number;
        WHERE id = $3 AND card_images->$4->>'src' = $5`,
       [[cat, "cut"], JSON.stringify(cut), park.id, cat, e.src]
     );
-    if (e.cut && e.cut.url !== cut?.url) { await deleteCardCut(e.cut); deleted++; }
   }
 
   return { made, deleted };
