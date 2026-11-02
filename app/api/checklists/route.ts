@@ -1,6 +1,8 @@
 import { pool } from "@/app/lib/db";
 import { NextResponse } from "next/server";
 import { Checklist } from "@/app/types";
+import { PARK_PICK } from "@/app/lib/checklistOps";
+import { ensureChecklistSchema } from "@/app/lib/checklistStore";
 
 
 export async function GET() {
@@ -61,14 +63,18 @@ export async function POST(request: Request) {
       );
     }
 
+    // The park in the live feeds, picked when the checklist is made ("" = none).
+    await ensureChecklistSchema();
+    const livePark = typeof body.livePark === "string" && body.livePark.length <= 160 ? body.livePark : null;
+
     const query = `
-      INSERT INTO checklists (title, slug, description, items, park_id)
-      VALUES ($1, $2, $3, $4::jsonb, $5)
+      INSERT INTO checklists (title, slug, description, items, park_id, live_links)
+      VALUES ($1, $2, $3, $4::jsonb, $5, $6::jsonb)
       ON CONFLICT (slug) DO NOTHING
       RETURNING id, slug
     `;
 
-    const values = [title, slug, description, JSON.stringify(items), body.parkId];
+    const values = [title, slug, description, JSON.stringify(items), body.parkId, livePark === null ? null : JSON.stringify({ [PARK_PICK]: livePark })];
     const result = await pool.query(query, values);
 
     // If result.rows.length is 0, it means the conflict triggered (checklist already exists)

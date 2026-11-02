@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/app/lib/db";
 import { isAdminRequest } from "@/app/lib/adminAuth";
-import { applyChecklistOps, coasterName, stateFromChecklist, type ChecklistOp, type ChecklistState } from "@/app/lib/checklistOps";
+import { applyChecklistOps, coasterName, PARK_PICK, stateFromChecklist, type ChecklistOp, type ChecklistState } from "@/app/lib/checklistOps";
 import { CHECKLIST_COLS, ensureChecklistSchema, normalizeChecklistRow, saveChecklist, type ChecklistRow } from "@/app/lib/checklistStore";
 import { matchCoasters, parkFeed, type FeedRide, type ParkFeed } from "@/app/lib/parkLive";
 import type { ChecklistItem } from "@/app/types";
@@ -67,7 +67,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ slug: s
       if (p.rows[0]?.name) parkName = p.rows[0].name;
     }
 
-    const feed = await parkFeed(parkName);
+    // The park picked for the checklist (PARK_PICK in the links); older checklists go by name.
+    const feed = await parkFeed(parkName, PARK_PICK in state.links ? state.links[PARK_PICK] : undefined);
     const coasters = (state.items as ChecklistItem[]).filter(i => i.isCoaster && !i.isExtra).map(i => ({ item: i.id, name: coasterName(i.label) }));
     const matched = matchCoasters(coasters, feed.rides.map(r => r.name), state.links);
     const feedByName = new Map(feed.rides.map(r => [r.name, r]));
@@ -93,9 +94,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ slug: s
       }
     }
 
-    return NextResponse.json({ waits: feed.waits, status: feed.status, tz: feed.tz, rides: feed.rides, coasters: out }, NO_STORE);
+    return NextResponse.json({ waits: feed.waits, status: feed.status, tz: feed.tz, park: feed.park, rides: feed.rides, coasters: out }, NO_STORE);
   } catch (error) {
     console.error("Live ride data failed:", error);
-    return NextResponse.json({ waits: null, status: null, tz: null, rides: [], coasters: {} }, NO_STORE);
+    return NextResponse.json({ waits: null, status: null, tz: null, park: null, rides: [], coasters: {} }, NO_STORE);
   }
 }

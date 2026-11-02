@@ -22,9 +22,15 @@ export type ChecklistState = {
   queues: ChecklistQueue[];
   downtime: ChecklistDown[];
   ride_seen: Record<string, ChecklistRideSeen>;
-  /** Coaster item -> ride name in the live feeds, set by hand where the names differ ("" = not in the feeds). */
+  /**
+   * Coaster item -> ride name in the live feeds, set by hand where the names differ
+   * ("" = not in the feeds). Under PARK_PICK: the park in the feeds ("" = none).
+   */
   links: Record<string, string>;
 };
+
+/** The links key that holds the checklist's park in the live feeds (app/lib/parkLive.ts). */
+export const PARK_PICK = "@park";
 
 export type ChecklistItemPatch = { checked?: boolean; skipped?: boolean; rideCount?: number; photoV?: boolean };
 

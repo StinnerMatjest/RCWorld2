@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import Link from "next/link";
 import type { Checklist, ChecklistItem, ChecklistQueue } from "@/app/types";
 import AuthenticationModal from "@/app/components/admin/AuthenticationModal";
-import { clockTime, coasterName, noteLines } from "@/app/lib/checklistOps";
+import { clockTime, coasterName, noteLines, PARK_PICK } from "@/app/lib/checklistOps";
 import { likeness } from "@/app/lib/parkLive";
 import { useChecklistSync, type SyncStatus } from "./useChecklistSync";
 
@@ -35,6 +35,8 @@ type Live = {
   waits: "queue-times" | "themeparks.wiki" | null;
   status: "themeparks.wiki" | "queue-times" | null;
   tz: string | null;
+  /** The park in the live feeds (null: none). */
+  park: string | null;
   rides: LiveRide[];
   coasters: Record<string, { ride: string | null; wait: number | null; status: LiveRide["status"] | null }>;
 };
@@ -44,6 +46,7 @@ type Sheet =
   | { kind: "board"; qid: string; board: number }
   | { kind: "log"; qid: string; item: string; timer: number; real: number; board: number | null }
   | { kind: "link"; item: string }
+  | { kind: "park" }
   | { kind: "complete" }
   | { kind: "done" };
 
@@ -320,6 +323,13 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
 
           {tab === "queues" && (
             <div>
+              {live && !live.park && (
+                <button type="button" onClick={() => setSheet({ kind: "park" })}
+                  className="flex w-full items-center gap-3 border-b border-slate-400/15 py-3.5 text-left cursor-pointer">
+                  <span className="min-w-0 flex-1 text-[15px] text-slate-400">No queue times for this park yet</span>
+                  <span className="shrink-0 text-[11px] font-bold uppercase tracking-[0.14em] text-brand">Pick the park</span>
+                </button>
+              )}
               {openQueue && (
                 <div className="mt-4 rounded-[18px] bg-[#16223a] p-4">
                   <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">In the queue</p>
@@ -408,8 +418,14 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                 );
               })()}
 
-              {live && (live.waits || live.status) && (
+              {live?.park && (
                 <p className="mt-5 text-center text-xs text-slate-500">
+                  Queue times for {live.park}
+                  <button type="button" onClick={() => setSheet({ kind: "park" })} className="ml-2 py-1 font-bold uppercase tracking-[0.14em] text-brand cursor-pointer">Change</button>
+                </p>
+              )}
+              {live && (live.waits || live.status) && (
+                <p className="mt-2 text-center text-xs text-slate-500">
                   {live.waits === "queue-times" && <a href="https://queue-times.com/" target="_blank" rel="noopener" className="text-slate-300 underline">Powered by Queue-Times.com</a>}
                   {live.waits === "queue-times" && live.status === "themeparks.wiki" && " · "}
                   {(live.status === "themeparks.wiki" || live.waits === "themeparks.wiki") && <>ride status from <a href="https://themeparks.wiki/" target="_blank" rel="noopener" className="text-slate-300 underline">ThemeParks.wiki</a></>}
@@ -531,6 +547,10 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                 </>
               );
             })()}
+            {sheet.kind === "park" && (
+              <ParkPick parkName={parkName} current={PARK_PICK in view.links ? view.links[PARK_PICK] : null}
+                onPick={(key) => { actions.link(PARK_PICK, key); setSheet(null); setTimeout(reload, 800); }} />
+            )}
             {sheet.kind === "complete" && (
               <>
                 <h4 className="text-[22px] font-bold">Complete the visit?</h4>
@@ -573,6 +593,55 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
       )}
     </div>
   );
+}
+
+/** The park in the live waits: every park the feeds have, searchable, the likeliest first. */
+function ParkPick({ parkName, current, onPick }: { parkName: string; current: string | null; onPick: (key: string) => void }) {
+  const [parks, setParks] = useState<{ key: string; name: string; where: string }[] | null>(null);
+  const [guess, setGuess] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  useEffect(() => {
+    fetch(`/api/live-parks?name=${encodeURIComponent(parkName)}`, { cache: "no-store" })
+      .then(r => (r.ok ? r.json() : { parks: [], guess: null }))
+      .then(d => { setParks(d.parks ?? []); setGuess(d.guess ?? null); })
+      .catch(() => setParks([]));
+  }, [parkName]);
+  const norm = (s: string) => s.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const list = (parks ?? []).filter(p => !q || norm(`${p.name} ${p.where}`).includes(norm(q)));
+  const top = guess && !q ? list.find(p => p.key === guess) : undefined;
+  const rows = top ? [top, ...list.filter(p => p !== top)] : list;
+  const picked = current ?? guess;
+  return (
+    <>
+      <h4 className="text-[22px] font-bold">Queue times</h4>
+      <p className="mt-1.5 text-[13.5px] text-slate-400">Which park is {parkName}?</p>
+      <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search parks" aria-label="Search the queue-time parks"
+        className="mt-3 w-full rounded-xl border-[1.5px] border-[#2b3a57] bg-[#16223a] px-4 py-2.5 text-[15px] text-slate-50 placeholder-slate-500 focus:border-brand focus:outline-none" />
+      <div className="mt-2">
+        {parks === null ? <p className="py-3 text-sm text-slate-500">Getting the parks…</p> : (
+          <>
+            <button type="button" onClick={() => onPick("")} className="flex w-full items-center gap-3 border-b border-slate-400/15 py-3 text-left cursor-pointer">
+              <span className="min-w-0 flex-1 text-[15px] text-slate-400">No queue times</span>
+              <PickTick on={current === ""} />
+            </button>
+            {rows.slice(0, 80).map(p => (
+              <button key={p.key} type="button" onClick={() => onPick(p.key)} className="flex w-full items-center gap-3 border-b border-slate-400/15 py-3 text-left cursor-pointer">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] font-semibold leading-tight">{p.name}</span>
+                  <span className="block text-[12.5px] text-slate-400">{p.where}</span>
+                </span>
+                <PickTick on={picked === p.key} />
+              </button>
+            ))}
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+function PickTick({ on }: { on: boolean }) {
+  return <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 ${on ? "border-brand bg-brand text-slate-900" : "border-slate-600 text-transparent"}`}>{CHECK}</span>;
 }
 
 function PhotoCheck({ letter, on, label, onClick }: { letter: string; on: boolean; label: string; onClick: () => void }) {

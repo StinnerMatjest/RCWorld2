@@ -7,8 +7,10 @@
  *   that tells a breakdown (DOWN) from a ride that is closed or in refurbishment.
  *
  * Waits come from Queue-Times where it has the park, status from ThemeParks.wiki
- * where it has the park; each fills in for the other. A park is found by name,
- * once a day per feed; live data is cached for a minute per park.
+ * where it has the park; each fills in for the other. A checklist names its park
+ * in the feeds once (picked from liveParks(), stored as a key like
+ * "qt:4|tpw:dae968d5-..."); older checklists find it by the park's name. Park
+ * lists are fetched once a day per feed; live data is cached for a minute per park.
  */
 
 export type RideStatus = "open" | "down" | "closed" | "refurb";
@@ -19,6 +21,8 @@ export type ParkFeed = {
   status: "themeparks.wiki" | "queue-times" | null;
   /** The park's time zone, for clock times written into notes. */
   tz: string | null;
+  /** The park's name in the feeds (null: no park). */
+  park: string | null;
   rides: FeedRide[];
 };
 
@@ -44,21 +48,22 @@ export function normName(s: string): string {
 }
 const compact = (s: string) => normName(s).replace(/ /g, "");
 
-type ParkRef = { id: string; name: string; tz?: string | null };
+/** A park in one feed; `where` is its country (Queue-Times) or its resort (ThemeParks.wiki, also `resort`). */
+type ParkRef = { id: string; name: string; tz?: string | null; where?: string | null; resort?: string | null };
 let tpwParks: { at: number; list: ParkRef[] } | null = null;
 let qtParks: { at: number; list: ParkRef[] } | null = null;
 
 async function themeparksWikiParks(): Promise<ParkRef[]> {
   if (tpwParks && Date.now() - tpwParks.at < DAY) return tpwParks.list;
-  const d = await getJson<{ destinations: { parks: { id: string; name: string }[] }[] }>("https://api.themeparks.wiki/v1/destinations");
-  tpwParks = { at: Date.now(), list: d.destinations.flatMap(x => x.parks.map(p => ({ id: p.id, name: p.name }))) };
+  const d = await getJson<{ destinations: { name: string; parks: { id: string; name: string }[] }[] }>("https://api.themeparks.wiki/v1/destinations");
+  tpwParks = { at: Date.now(), list: d.destinations.flatMap(x => x.parks.map(p => ({ id: p.id, name: p.name, where: x.name, resort: x.name }))) };
   return tpwParks.list;
 }
 
 async function queueTimesParks(): Promise<ParkRef[]> {
   if (qtParks && Date.now() - qtParks.at < DAY) return qtParks.list;
-  const d = await getJson<{ parks: { id: number; name: string; timezone?: string }[] }[]>("https://queue-times.com/parks.json");
-  qtParks = { at: Date.now(), list: d.flatMap(g => g.parks.map(p => ({ id: String(p.id), name: p.name, tz: p.timezone ?? null }))) };
+  const d = await getJson<{ parks: { id: number; name: string; country?: string; timezone?: string }[] }[]>("https://queue-times.com/parks.json");
+  qtParks = { at: Date.now(), list: d.flatMap(g => g.parks.map(p => ({ id: String(p.id), name: p.name, tz: p.timezone ?? null, where: p.country ?? null }))) };
   return qtParks.list;
 }
 
@@ -76,19 +81,98 @@ export function findPark(name: string, list: ParkRef[]): ParkRef | null {
   return around.length === 1 ? around[0] : null;
 }
 
+/**
+ * "Disneyland Paris - Disneyland Park" (the resort, a dash, the park): the feeds say
+ * "Disneyland Park Paris", or "Disneyland Park" in the resort "Disneyland Paris". A
+ * feed park counts when it has every word of the park and no word that is in
+ * neither the resort nor the park (its resort's words included).
+ */
+function findResortPark(name: string, list: ParkRef[]): ParkRef | null {
+  const [resort, park, ...rest] = name.split(/\s+[-–]\s+/);
+  if (!resort || !park || rest.length) return null;
+  const pw = words(park), all = new Set([...words(resort), ...pw]);
+  const hits = list.filter(p => {
+    const fw = words(p.name);
+    return pw.every(w => fw.includes(w)) && [...fw, ...words(p.resort ?? "")].every(w => all.has(w));
+  });
+  return hits.length === 1 ? hits[0] : null;
+}
+
+/** The feed's park for one of our park names, by name alone. */
+function guessPark(parkName: string, list: ParkRef[]): ParkRef | null {
+  // "Legoland Korea Resort" is "LEGOLAND Korea" in the feeds: try without the generic words too.
+  const plain = parkName.replace(/\b(resort|theme park|amusement park|adventure park)\b/gi, " ").replace(/\s+/g, " ").trim();
+  return findPark(parkName, list) ?? (plain !== parkName ? findPark(plain, list) : null) ?? findResortPark(parkName, list);
+}
+
+/** "qt:4|tpw:dae968d5-..."; "" is a park the feeds don't have. */
+export function pickKey(qt: string | null, tpw: string | null): string {
+  return [qt ? `qt:${qt}` : "", tpw ? `tpw:${tpw}` : ""].filter(Boolean).join("|");
+}
+function parsePick(key: string): { qt: string | null; tpw: string | null } {
+  const part = (p: string) => key.split("|").find(x => x.startsWith(`${p}:`))?.slice(p.length + 1) || null;
+  return { qt: part("qt"), tpw: part("tpw") };
+}
+
+/** The same park in ThemeParks.wiki: the same words, or one name inside the other, and only when there is exactly one. */
+function pairTpw(q: ParkRef, tpw: ParkRef[]): ParkRef | null {
+  const set = (s: string) => [...new Set(words(s))].sort().join(" ");
+  const qs = set(q.name), qc = compact(q.name);
+  const same = tpw.filter(t => set(t.name) === qs || set(`${t.resort ?? ""} ${t.name}`) === qs);
+  if (same.length) return same.length === 1 ? same[0] : null;
+  const around = tpw.filter(t => { const tc = compact(t.name); return tc.length >= 5 && qc.length >= 5 && (tc.includes(qc) || qc.includes(tc)); });
+  return around.length === 1 ? around[0] : null;
+}
+
+export type LivePark = { key: string; name: string; where: string };
+
+/**
+ * Every park the feeds have, for picking a checklist's park: the Queue-Times parks
+ * (with the same park in ThemeParks.wiki where it is clear which), then the
+ * ThemeParks.wiki parks Queue-Times doesn't have. `guess` is the park for `name`.
+ */
+export async function liveParks(name?: string): Promise<{ parks: LivePark[]; guess: string | null }> {
+  const [tpwList, qtList] = await Promise.all([themeparksWikiParks().catch(() => []), queueTimesParks().catch(() => [])]);
+  const paired = new Set<string>();
+  const parks: LivePark[] = [];
+  for (const q of qtList) {
+    const t = pairTpw(q, tpwList);
+    if (t) paired.add(t.id);
+    parks.push({ key: pickKey(q.id, t?.id ?? null), name: q.name, where: q.where ?? "" });
+  }
+  for (const t of tpwList) if (!paired.has(t.id)) parks.push({ key: pickKey(null, t.id), name: t.name, where: t.where ?? "" });
+  parks.sort((a, b) => a.name.localeCompare(b.name));
+  let guess: string | null = null;
+  if (name) {
+    const q = guessPark(name, qtList), t = guessPark(name, tpwList);
+    guess = parks.find(p => q && parsePick(p.key).qt === q.id)?.key ?? parks.find(p => t && parsePick(p.key).tpw === t.id)?.key ?? null;
+  }
+  return { parks, guess };
+}
+
 const liveCache = new Map<string, { at: number; feed: ParkFeed }>();
 
-/** Live waits and status for a park, or an empty feed when neither source has it (or both are down). */
-export async function parkFeed(parkName: string): Promise<ParkFeed> {
-  const key = compact(parkName);
+/**
+ * Live waits and status for a park, or an empty feed when neither source has it
+ * (or both are down). `pick` is the checklist's picked park ("" = none); without
+ * one the park is found by name.
+ */
+export async function parkFeed(parkName: string, pick?: string): Promise<ParkFeed> {
+  const key = pick !== undefined ? `pick:${pick}` : compact(parkName);
   const hit = liveCache.get(key);
   if (hit && Date.now() - hit.at < LIVE_TTL) return hit.feed;
 
   const [tpwList, qtList] = await Promise.all([themeparksWikiParks().catch(() => []), queueTimesParks().catch(() => [])]);
-  // "Legoland Korea Resort" is "LEGOLAND Korea" in the feeds: try without the generic words too.
-  const plain = parkName.replace(/\b(resort|theme park|amusement park|adventure park)\b/gi, " ").replace(/\s+/g, " ").trim();
-  const find = (list: ParkRef[]) => findPark(parkName, list) ?? (plain !== parkName ? findPark(plain, list) : null);
-  const tpw = find(tpwList), qt = find(qtList);
+  let tpw: ParkRef | null, qt: ParkRef | null;
+  if (pick !== undefined) {
+    // By id: a feed whose park list is down still answers for the park.
+    const ids = parsePick(pick);
+    qt = ids.qt ? qtList.find(p => p.id === ids.qt) ?? { id: ids.qt, name: "" } : null;
+    tpw = ids.tpw ? tpwList.find(p => p.id === ids.tpw) ?? { id: ids.tpw, name: "" } : null;
+  } else {
+    tpw = guessPark(parkName, tpwList);
+    qt = guessPark(parkName, qtList);
+  }
 
   type TpwLive = { timezone?: string; liveData?: { name: string; entityType: string; status?: string; queue?: { STANDBY?: { waitTime?: number | null } } }[] };
   type QtLive = { lands?: { rides: { name: string; is_open: boolean; wait_time: number }[] }[]; rides?: { name: string; is_open: boolean; wait_time: number }[] };
@@ -115,6 +199,7 @@ export async function parkFeed(parkName: string): Promise<ParkFeed> {
     waits: qtLive ? "queue-times" : tpwLive ? "themeparks.wiki" : null,
     status: tpwLive ? "themeparks.wiki" : qtLive ? "queue-times" : null,
     tz: tpwLive?.timezone ?? qt?.tz ?? null,
+    park: qt?.name || tpw?.name || null,
     rides: [...rides.values()].sort((a, b) => a.name.localeCompare(b.name)),
   };
   liveCache.set(key, { at: Date.now(), feed });
@@ -123,7 +208,7 @@ export async function parkFeed(parkName: string): Promise<ParkFeed> {
 
 // ─── coaster names to feed names ─────────────────────────────────────────────
 
-const STOP = new Set(["the", "by", "de", "du", "la", "le", "les", "of", "d", "l", "der", "die", "das"]);
+const STOP = new Set(["the", "by", "de", "du", "la", "le", "les", "of", "d", "l", "der", "die", "das", "and", "et", "en", "og", "und"]);
 const words = (s: string) => normName(s).split(" ").filter(w => w && !STOP.has(w));
 
 function lev(a: string, b: string): number {
@@ -155,7 +240,8 @@ export function nameScore(coaster: string, ride: string): number {
   const total = wa.reduce((n, w) => n + w.length, 0);
   let covered = 0;
   for (const w of wa) if (wb.some(x => wordSim(w, x) >= 0.7)) covered += w.length;
-  return covered === total ? 0.8 : 0;
+  // Every word found; the fewer extra words in the ride's name ("Single Rider"), the surer.
+  return covered === total ? 0.8 + 0.05 * Math.min(1, wa.length / wb.length) : 0;
 }
 
 /** Rough likeness for ordering a picker (letter pairs in common), 0 to 1. */
