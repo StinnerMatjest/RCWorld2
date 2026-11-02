@@ -349,6 +349,8 @@ export type ChecklistItem = {
   isExtra?: boolean;
   /** Coasters: the vertical or 50 MP photo is taken (`checked` is the horizontal one). */
   photoV?: boolean;
+  /** Coasters: each ride counted with + (or a logged queue), with its time. */
+  rideLog?: { id: string; at: string }[];
 };
 
 /** A queue timed in the park: the board's posted wait when we joined, and the real wait once logged. */

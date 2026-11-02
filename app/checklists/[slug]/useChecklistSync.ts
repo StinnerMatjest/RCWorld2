@@ -273,6 +273,16 @@ export function useChecklistSync(checklist: Checklist) {
     ride(item: string, delta: 1 | -1) {
       enqueue({ t: "ride", item, delta });
     },
+    /** One more ride, as an entry in the ride log; returns the entry's id. `back` puts a removed entry back. */
+    rideAdd(item: string, back?: { rid: string; when: string }) {
+      const rid = back?.rid ?? randomId();
+      enqueue({ t: "ride", item, delta: 1, rid, ...(back ? { when: back.when } : {}) });
+      return rid;
+    },
+    /** Takes one entry out of the ride log, and the ride off the count. */
+    rideRemove(item: string, rid: string) {
+      enqueue({ t: "ride", item, delta: -1, rid });
+    },
     /** The horizontal (`checked`) or the vertical / 50 MP photo of a coaster. */
     setPhoto(item: string, which: "h" | "v", value: boolean) {
       enqueue({ t: "item", item, set: which === "h" ? { checked: value } : { photoV: value } });
@@ -295,7 +305,7 @@ export function useChecklistSync(checklist: Checklist) {
     /** Logs the queue with the real wait, and counts the ride. */
     queueLog(qid: string, item: string, real: number, board: number | null) {
       enqueue({ t: "qlog", qid, real, board });
-      enqueue({ t: "ride", item, delta: 1 });
+      enqueue({ t: "ride", item, delta: 1, rid: randomId() });
     },
     queueCancel(qid: string) {
       enqueue({ t: "qcancel", qid });

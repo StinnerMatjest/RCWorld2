@@ -30,8 +30,13 @@ export type ChecklistItemPatch = { checked?: boolean; skipped?: boolean; rideCou
 
 export type ChecklistOp =
   | { id: string; t: "item"; item: string; set: ChecklistItemPatch; at: string }
-  /** One ride more or less: adds to whatever the count is when it lands. */
-  | { id: string; t: "ride"; item: string; delta: 1 | -1; at: string }
+  /**
+   * One ride more or less: adds to whatever the count is when it lands. With `rid`
+   * the ride is also an entry in the coaster's ride log (+1 adds it, -1 removes
+   * that entry); the same entry is never added or removed twice. `when` puts a ride
+   * back at its own time (undoing a removal).
+   */
+  | { id: string; t: "ride"; item: string; delta: 1 | -1; rid?: string; when?: string; at: string }
   /** A whole note (the review modal's editor). */
   | { id: string; t: "note"; key: string; value: string; at: string }
   /** One line added to the end of a note. */
@@ -53,6 +58,7 @@ export type ChecklistOp =
 const TIMER_OPS = new Set(["start", "pause", "resume"]);
 export const MAX_NOTE_LENGTH = 20000;
 const MAX_LINE_LENGTH = 2000;
+const MAX_RIDE_LOG = 300;
 
 /** The review categories the visit writes into on its own (keys as in RatingModal). */
 export const RIDE_OPERATIONS = "rideOperations";
@@ -170,6 +176,12 @@ export function applyChecklistOps(state: ChecklistState, ops: readonly Checklist
         break;
       case "ride":
         editItem(op.item, (next) => {
+          if (op.rid) {
+            const log = Array.isArray(next.rideLog) ? next.rideLog : [];
+            const has = log.some(r => r.id === op.rid);
+            if (op.delta === 1 ? has : !has) return next;
+            next.rideLog = op.delta === 1 ? [...log, { id: op.rid, at: op.when ?? op.at }].slice(-MAX_RIDE_LOG) : log.filter(r => r.id !== op.rid);
+          }
           next.rideCount = Math.max(0, (Number(next.rideCount) || 0) + op.delta);
           next.rideCountLastModified = op.at;
           return next;
@@ -331,7 +343,9 @@ export function parseChecklistOp(raw: unknown): ChecklistOp | null {
     }
     case "ride":
       if (!str(o.item, 120) || (o.delta !== 1 && o.delta !== -1)) return null;
-      return { id, t: "ride", item: o.item, delta: o.delta, at };
+      if (o.rid !== undefined && !str(o.rid, 80)) return null;
+      if (o.when !== undefined && !isIso(o.when)) return null;
+      return { id, t: "ride", item: o.item, delta: o.delta, ...(o.rid ? { rid: o.rid as string } : {}), ...(o.rid && o.when ? { when: o.when as string } : {}), at };
     case "note":
       if (typeof o.key !== "string" || !NOTE_KEY.test(o.key) || typeof o.value !== "string") return null;
       return { id, t: "note", key: o.key, value: o.value.slice(0, MAX_NOTE_LENGTH), at };

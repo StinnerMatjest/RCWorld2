@@ -126,6 +126,13 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
   const coasters = useMemo(() => items.filter(i => i.isCoaster && !i.isExtra), [items]);
   const photoTasks = useMemo(() => items.filter(i => i.isPhotoTask && !i.isCoaster && !i.isExtra), [items]);
   const otherTasks = useMemo(() => items.filter(i => !i.isPhotoTask && !i.isCoaster && !i.isExtra), [items]);
+  // Every ride counted with + or a logged queue, newest first.
+  const rideLog = useMemo(
+    () => coasters
+      .flatMap(c => (c.rideLog ?? []).map(r => ({ item: c.id, id: r.id, at: r.at, name: coasterName(c.label) })))
+      .sort((a, b) => Date.parse(b.at) - Date.parse(a.at)),
+    [coasters]
+  );
   const openQueue = queues.find(isOpenQueue) ?? null;
   const loggedQueues = queues.filter(q => !q.cancelled && q.real != null);
 
@@ -140,9 +147,19 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
 
   // ─── actions ───
   function plusRide(c: ChecklistItem) {
-    actions.ride(c.id, 1);
+    const rid = actions.rideAdd(c.id);
     const n = (c.rideCount || 0) + 1;
-    setToast({ text: `${coasterName(c.label)} · ride ${n}`, undo: () => actions.ride(c.id, -1) });
+    setToast({ text: `${coasterName(c.label)} · ride ${n}`, undo: () => actions.rideRemove(c.id, rid) });
+  }
+  /** − takes the coaster's latest ride out of the log; a count from before the log just goes down. */
+  function minusRide(c: ChecklistItem) {
+    const last = c.rideLog?.[c.rideLog.length - 1];
+    if (last) actions.rideRemove(c.id, last.id);
+    else actions.ride(c.id, -1);
+  }
+  function removeRide(r: { item: string; id: string; at: string; name: string }) {
+    actions.rideRemove(r.item, r.id);
+    setToast({ text: `${r.name} at ${time(r.at)} removed`, undo: () => actions.rideAdd(r.item, { rid: r.id, when: r.at }) });
   }
   function saveLine() {
     if (!openCat) return;
@@ -216,16 +233,15 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                       <PhotoCheck letter="V" on={!!c.photoV} label={`Vertical or 50 MP photo of ${name}`} onClick={() => actions.setPhoto(c.id, "v", !c.photoV)} />
                     </div>
                     <p className="min-w-0 flex-1 text-[15px] font-semibold leading-tight [overflow-wrap:anywhere]">{name}</p>
-                    {!both && (
-                      <button type="button" onClick={() => actions.setItem(c.id, { skipped: !c.skipped })}
-                        aria-label={c.skipped ? `Undo skip of ${name}` : `Skip ${name}`}
-                        className="shrink-0 px-1 py-2 text-[13px] font-bold text-slate-700 hover:text-rose-400 cursor-pointer">
-                        {c.skipped ? "Undo" : "×"}
-                      </button>
-                    )}
+                    {/* Hidden, not removed, once both photos are taken: the name keeps its room. */}
+                    <button type="button" onClick={() => actions.setItem(c.id, { skipped: !c.skipped })} disabled={both} aria-hidden={both}
+                      aria-label={c.skipped ? `Undo skip of ${name}` : `Skip ${name}`}
+                      className={`shrink-0 px-1 py-2 text-[13px] font-bold text-slate-700 hover:text-rose-400 cursor-pointer ${both ? "invisible" : ""}`}>
+                      {c.skipped ? "Undo" : "×"}
+                    </button>
                     {!c.skipped && (
                       <div className="flex shrink-0 items-center gap-0.5">
-                        <button type="button" onClick={() => actions.ride(c.id, -1)} disabled={n === 0} aria-label={`One ride less on ${name}`}
+                        <button type="button" onClick={() => minusRide(c)} disabled={n === 0} aria-label={`One ride less on ${name}`}
                           className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-slate-800 text-[19px] font-bold leading-none text-slate-300 disabled:bg-transparent disabled:text-slate-700 cursor-pointer disabled:cursor-default">−</button>
                         <span className={`w-[30px] text-center text-base font-bold tabular-nums ${n ? "text-slate-50" : "text-slate-600"}`}>{n}</span>
                         <button type="button" onClick={() => plusRide(c)} aria-label={`One more ride on ${name}`}
@@ -235,6 +251,20 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                   </div>
                 );
               })}
+
+              {rideLog.length > 0 && (
+                <>
+                  <h3 className="pt-6 pb-1 text-[22px] font-bold">Our rides</h3>
+                  {rideLog.map(r => (
+                    <div key={r.id} className="flex items-center gap-3 border-t border-slate-400/15 py-1.5 last:border-b">
+                      <span className="w-[46px] shrink-0 text-[14px] tabular-nums text-slate-400">{time(r.at)}</span>
+                      <p className="min-w-0 flex-1 text-[15px] font-semibold leading-tight [overflow-wrap:anywhere]">{r.name}</p>
+                      <button type="button" onClick={() => removeRide(r)} aria-label={`Remove the ${r.name} ride at ${time(r.at)}`}
+                        className="flex h-[34px] w-[34px] shrink-0 items-center justify-center text-[15px] font-bold text-slate-600 hover:text-rose-400 cursor-pointer">×</button>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           )}
 
@@ -392,18 +422,16 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
             <div>
               {[{ title: "Photos", list: photoTasks }, { title: "Before you leave", list: otherTasks }].filter(g => g.list.length).map(g => (
                 <div key={g.title}>
-                  <p className="flex items-center gap-2.5 pt-4 pb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 after:h-px after:flex-1 after:bg-slate-400/15">
-                    <span className="h-1.5 w-1.5 rounded-full bg-brand" />{g.title}
-                  </p>
+                  <h3 className="pt-5 pb-1 text-[22px] font-bold">{g.title}</h3>
                   {g.list.map(t => {
                     const done = !!t.checked || !!t.skipped;
                     return (
                       <button key={t.id} type="button" aria-pressed={done}
                         onClick={() => actions.setItem(t.id, t.skipped ? { skipped: false, checked: true } : { checked: !t.checked })}
-                        className={`flex w-full items-center gap-3 border-t border-slate-400/15 py-2.5 text-left text-[15.5px] cursor-pointer ${done ? "text-slate-500" : "text-slate-300"}`}>
-                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] ${done ? "border-brand bg-brand text-slate-900" : "border-slate-700 text-transparent"}`}>{CHECK}</span>
-                        <span className="flex-1">{taskLabel(t.label)}</span>
-                        {t.skipped && <span className="text-[11px] uppercase tracking-[0.14em] text-slate-600">Skipped</span>}
+                        className="flex w-full items-center gap-3 border-t border-slate-400/15 py-3 text-left last:border-b cursor-pointer">
+                        <span className={`min-w-0 flex-1 text-[15px] font-semibold leading-tight ${done ? "text-slate-500" : "text-slate-50"}`}>{taskLabel(t.label)}</span>
+                        {t.skipped && <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-600">Skipped</span>}
+                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 ${done ? "border-brand bg-brand text-slate-900" : "border-slate-600 text-transparent"}`}>{CHECK}</span>
                       </button>
                     );
                   })}
