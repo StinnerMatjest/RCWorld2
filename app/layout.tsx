@@ -8,6 +8,7 @@ import AdminToggle from "./components/admin/AdminToggle";
 import Footer from "./components/Footer";
 import Script from "next/script";
 import Analytics from "./components/Analytics";
+import ScrollRestoration from "./components/ScrollRestoration";
 
 export const metadata = {
   metadataBase: new URL("https://parkrating.com"),
@@ -105,7 +106,7 @@ export default async function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd) }}
         />
-        {/* Umami Cloud analytics (not inside the clean-up tool's previews) */}
+        <ScrollRestoration />
         <Analytics />
         <AdminModeProvider>
           <ParksProvider>

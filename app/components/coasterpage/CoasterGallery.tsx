@@ -254,9 +254,9 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
     const gridRef = useRef<HTMLDivElement>(null);
     useEffect(() => { if (gridRef.current) replaceCovers(gridRef.current); });
     useEffect(() => {
-      const again = () => { if (gridRef.current) replaceCovers(gridRef.current); };
-      window.addEventListener("resize", again);
-      return () => window.removeEventListener("resize", again);
+        const again = () => { if (gridRef.current) replaceCovers(gridRef.current); };
+        window.addEventListener("resize", again);
+        return () => window.removeEventListener("resize", again);
     }, []);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
@@ -453,29 +453,25 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
 
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
+            // Ignore key events if the user is typing in an input or textarea
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+                return;
+            }
+
             if (e.key === "Escape") {
                 if (document.fullscreenElement) document.exitFullscreen();
                 setSelectedIndex(null);
             }
-            if (e.key === "ArrowLeft") { e.preventDefault(); goPrev(); }
-            if (e.key === "ArrowRight") { e.preventDefault(); goNext(); }
+
+            // Only trigger gallery navigation if an image is actually open
+            if (selectedIndex !== null) {
+                if (e.key === "ArrowLeft") { e.preventDefault(); goPrev(); }
+                if (e.key === "ArrowRight") { e.preventDefault(); goNext(); }
+            }
         };
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
     }, [selectedIndex, images]);
-
-    const recalcScale = () => {
-        if (!dotsContainerRef.current) return;
-        const len = images?.length ?? 0;
-        const required = len * 8 + Math.max(0, len - 1) * 6 + 20;
-        setScale(Math.min(1, dotsContainerRef.current.clientWidth / Math.max(required, 1)));
-    };
-
-    useEffect(() => {
-        recalcScale();
-        window.addEventListener("resize", recalcScale);
-        return () => window.removeEventListener("resize", recalcScale);
-    }, [images]);
 
     const animClass = direction === "right" ? "animate-slide-in-right" : direction === "left" ? "animate-slide-in-left" : "";
 

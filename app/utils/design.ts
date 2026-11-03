@@ -3,20 +3,20 @@
 // bottom half (0.5–7.5) is a traffic-light heat scale.
 // See docs/rating-palette.html for swatches on the site background.
 
-export type RatingTier = { min: number; hex: string; label: string };
+export type RatingTier = { min: number; hex: string; label: string; familyLabel?: string };
 
 export const RATING_TIERS: RatingTier[] = [
   { min: 11,  hex: "#FCD34D", label: "Legendary" },
   { min: 10,  hex: "#F472B6", label: "World Class" },
   { min: 9,   hex: "#C4B5FD", label: "Elite" },
-  { min: 8,   hex: "#60A5FA", label: "Fantastic" },
-  { min: 7,   hex: "#4ADE80", label: "Great" },
-  { min: 6,   hex: "#BEF264", label: "Solid" },
-  { min: 5,   hex: "#FDE047", label: "Okay" },
-  { min: 4,   hex: "#FB923C", label: "Mediocre" },
-  { min: 3,   hex: "#F87171", label: "Poor" },
-  { min: 1.5, hex: "#E64558", label: "Terrible" },
-  { min: 0,   hex: "#9B7E83", label: "Worthless" },
+  { min: 8,   hex: "#60A5FA", label: "Fantastic", familyLabel: "Extraordinary Family" },
+  { min: 7,   hex: "#4ADE80", label: "Great", familyLabel: "Elite Family" },
+  { min: 6,   hex: "#BEF264", label: "Solid", familyLabel: "Great Family" },
+  { min: 5,   hex: "#FDE047", label: "Okay", familyLabel: "Good Family" },
+  { min: 4,   hex: "#FB923C", label: "Mediocre", familyLabel: "Decent Family" },
+  { min: 3,   hex: "#F87171", label: "Poor", familyLabel: "Average Family" },
+  { min: 1.5, hex: "#E64558", label: "Terrible", familyLabel: "very small or bad family" },
+  { min: 0,   hex: "#9B7E83", label: "Completely worthless" },
 ];
 
 export const getRatingHex = (rating: number): string =>

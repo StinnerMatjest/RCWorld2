@@ -20,6 +20,7 @@ interface Props {
 const rating = (c: RollerCoaster) => { const n = Number(c.rating); return Number.isFinite(n) ? n : 0; };
 const ridden = (c: RollerCoaster) => rating(c) > 0;
 const isOptional = (c: RollerCoaster) => /junior|kiddie/i.test(c.scale || "");
+const isFamily = (c: RollerCoaster) => /family/i.test(c.scale || "");
 const tieRank = (c: RollerCoaster) => { const t = c.tieRank ?? (c as { tie_rank?: number }).tie_rank; return t == null ? Number.POSITIVE_INFINITY : Number(t); };
 
 type Tier = { label: string; hex: string; items: RollerCoaster[]; muted?: boolean };
@@ -36,15 +37,40 @@ function buildTiers(coasters: RollerCoaster[]): Tier[] {
     if (!!a.isbestcoaster !== !!b.isbestcoaster) return a.isbestcoaster ? -1 : 1;
     return String(a.name).localeCompare(String(b.name));
   });
-  const tiers: Tier[] = [];
+
+  // 1. Group strictly by the tier threshold to prevent duplicate groups
+  const groups: { baseTier: typeof RATING_TIERS[0] | null; items: RollerCoaster[] }[] = [];
+
   for (const c of sorted) {
     const t = ridden(c) ? RATING_TIERS.find((x) => rating(c) >= x.min) : null;
-    const label = t ? t.label : "Not ridden";
-    const hex = t ? t.hex : "#64748b";
-    let g = tiers.find((x) => x.label === label);
-    if (!g) { g = { label, hex, items: [], muted: !t }; tiers.push(g); }
+    let g = groups.find((x) => x.baseTier === t);
+    if (!g) {
+      g = { baseTier: t || null, items: [] };
+      groups.push(g);
+    }
     g.items.push(c);
   }
+
+  // 2. Resolve the tier label dynamically based on the group's contents
+  const tiers: Tier[] = groups.map(g => {
+    if (!g.baseTier) return { label: "Not ridden", hex: "#64748b", items: g.items, muted: true };
+
+    const hasThrill = g.items.some(c => !isFamily(c));
+    const hasFamily = g.items.some(c => isFamily(c));
+
+    let label = g.baseTier.label;
+    if (hasFamily && g.baseTier.familyLabel) {
+      if (hasThrill) {
+        // Appended " thrill" to the base label for mixed groups
+        label = `${g.baseTier.label} thrill / ${g.baseTier.familyLabel}`;
+      } else {
+        label = g.baseTier.familyLabel;
+      }
+    }
+
+    return { label, hex: g.baseTier.hex, items: g.items };
+  });
+
   if (optional.length) {
     const opt = [...optional].sort((a, b) => rating(b) - rating(a) || String(a.name).localeCompare(String(b.name)));
     tiers.push({ label: "Optional", hex: "#64748b", items: opt, muted: true });

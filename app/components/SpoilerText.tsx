@@ -70,7 +70,7 @@ export default function SpoilerText({
     // Inline ||spoiler||
     if (revealed) {
         return (
-            <span className={`rounded-sm px-1 ${isAdminMode ? "bg-red-900/40 text-red-300" : "bg-slate-800/70 text-slate-100"}`}>
+            <span className={`rounded-sm px-1 ${isAdminMode ? "bg-red-900/40 text-red-300" : "bg-slate-800/70 text-inherit"}`}>
                 {children}
             </span>
         );
