@@ -1006,14 +1006,10 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
         ) : dirtyCount > 0 ? (
           <span className="hidden md:inline text-xs text-slate-500">Kept in this browser until saved</span>
         ) : null}
-        <div className="hidden lg:flex items-center bg-slate-800 rounded-lg p-0.5 text-xs font-bold">
-          {(["desktop", "phone"] as const).map(v => (
-            <button key={v} onClick={() => setView(v)}
-              className={`px-2.5 py-0.5 rounded-md cursor-pointer transition-colors ${view === v ? "bg-slate-700 text-white" : "text-slate-500 hover:text-slate-300"}`}>
-              {v === "desktop" ? "Desktop" : "Phone"}
-            </button>
-          ))}
-        </div>
+        <button type="button" onClick={() => setView(v => (v === "phone" ? "desktop" : "phone"))}
+          className={`hidden lg:inline-flex px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors cursor-pointer ${view === "phone" ? "border-slate-500 text-white bg-slate-800" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
+          {view === "phone" ? "Hide mobile preview" : "Show mobile preview"}
+        </button>
         {rating.published && (
           <button onClick={handleUnpublish}
             className="hidden sm:inline-flex px-3 py-1.5 rounded-lg border border-red-900/50 text-red-400 text-sm font-medium hover:bg-red-900/20 transition-colors cursor-pointer">
