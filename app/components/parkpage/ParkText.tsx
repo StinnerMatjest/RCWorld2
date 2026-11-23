@@ -123,7 +123,7 @@ const ParkText: React.FC<ParkTextProps> = ({
   });
 
   return (
-    <div className="space-y-10">
+    <div id="review" className="space-y-10">
       {(isAdminMode || !rating.published) && (
       <div className="flex items-center justify-between gap-4 w-full">
         <div className="flex items-center flex-wrap gap-3">

@@ -102,9 +102,15 @@ type Draft = {
   isSpoiler: boolean;
 };
 
-const mediaEntries = (d: Draft) => d.images.map((u, i) => `${u}|${d.focuses[i] ?? FOCUS_DEFAULT}`);
+// While editing, `images` may hold "" where a slot was left open (an image dragged
+// to slot 3 with slot 2 still to fill); the stored form only has the photos.
+const mediaEntries = (d: Draft) => d.images.map((u, i) => (u ? `${u}|${d.focuses[i] ?? FOCUS_DEFAULT}` : "")).filter(Boolean);
 const fingerprint = (d: Draft) => JSON.stringify([d.text, mediaEntries(d), d.layout ?? null, d.isSpoiler]);
-const isEmptyDraft = (d: Draft) => !d.text.trim() && d.images.length === 0;
+const isEmptyDraft = (d: Draft) => !d.text.trim() && mediaEntries(d).length === 0;
+/** Open slots at the end are not slots: a photo always ends the list. */
+function trimOpen(images: string[], focuses: string[]) {
+  while (images.length && !images[images.length - 1]) { images.pop(); focuses.pop(); }
+}
 
 function buildDrafts(
   explanations: Record<string, string>,
@@ -136,7 +142,7 @@ function legacySides(drafts: Record<Category, Draft>): Record<Category, boolean>
   for (const cat of CATEGORIES) {
     if (cat === "description") { out[cat] = false; continue; }
     const d = drafts[cat];
-    out[cat] = usesLegacyRow(d.layout, d.images.length) ? i++ % 2 !== 0 : false;
+    out[cat] = usesLegacyRow(d.layout, mediaEntries(d).length) ? i++ % 2 !== 0 : false;
   }
   return out;
 }
@@ -322,7 +328,32 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   const [picker, setPicker] = useState<{ slot: number } | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
-  const [previewAsVisitor, setPreviewAsVisitor] = useState(false);
+  // Phone: the saved review beside the page, as a phone renders it (the park page itself in a phone-wide frame).
+  const [view, setView] = useState<"desktop" | "phone">("desktop");
+  const [phoneReload, setPhoneReload] = useState(0);
+  const phoneRef = useRef<HTMLIFrameElement>(null);
+  const phoneScroll = useCallback((cat: Category) => {
+    // The page renders its review after it loads and settles its own scroll while
+    // hydrating; keep putting the section at the top until it stays there. Only the
+    // review shows: everything beside it, up to the body, is hidden.
+    let found = 0;
+    const attempt = (left: number) => {
+      const doc = phoneRef.current?.contentDocument;
+      const review = doc?.getElementById("review");
+      if (review) {
+        for (let node: HTMLElement | null = review; node && node !== doc!.body; node = node.parentElement) {
+          for (const sib of Array.from(node.parentElement?.children ?? [])) {
+            if (sib !== node && sib instanceof HTMLElement && !["SCRIPT", "STYLE", "LINK"].includes(sib.tagName)) sib.style.display = "none";
+          }
+        }
+        const el = cat === "description" ? review : doc!.getElementById(`section-${cat}`);
+        (el ?? review).scrollIntoView({ block: "start" });
+        found++;
+      }
+      if (left > 0 && found < 4) setTimeout(() => attempt(left - 1), found ? 700 : 400);
+    };
+    attempt(14);
+  }, []);
   const rootRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement | null>(null);
 
@@ -409,7 +440,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
     const map: Record<string, string[]> = {};
     for (const cat of CATEGORIES) {
       if (cat === selectedCat) continue;
-      for (const url of drafts[cat].images) (map[url] ??= []).push(LABELS[cat]);
+      for (const url of drafts[cat].images) if (url) (map[url] ??= []).push(LABELS[cat]);
     }
     return map;
   }, [drafts, selectedCat]);
@@ -435,34 +466,43 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   })), []);
 
   const setImageMode = useCallback((n: number) => {
-    patch(c => ({
-      ...c,
-      imageCount: n,
-      images: c.images.slice(0, n),
-      focuses: c.focuses.slice(0, n),
-      layout: n !== 2 && c.layout === "double" ? "above" : c.layout,
-    }));
+    patch(c => {
+      const images = c.images.slice(0, n), focuses = c.focuses.slice(0, n);
+      trimOpen(images, focuses);
+      return { ...c, imageCount: n, images, focuses, layout: n !== 2 && c.layout === "double" ? "above" : c.layout };
+    });
     setPosIndex(null);
   }, [patch]);
 
   const removeImageAt = useCallback((index: number) => {
-    patch(c => ({
-      ...c,
-      images: c.images.filter((_, i) => i !== index),
-      focuses: c.focuses.filter((_, i) => i !== index),
-    }));
+    patch(c => {
+      const images = c.images.filter((_, i) => i !== index), focuses = c.focuses.filter((_, i) => i !== index);
+      trimOpen(images, focuses);
+      return { ...c, images, focuses };
+    });
     setPosIndex(null);
   }, [patch]);
 
-  /** Drop image `from` into position `to`, shifting the others along (crops travel with images). */
+  /**
+   * Drop image `from` on slot `to`. Onto a photo: it takes that place and the
+   * others shift along. Onto an open slot: it moves there and leaves its own
+   * slot open for the next photo (crops travel with images).
+   */
   const reorderImage = useCallback((from: number, to: number) => patch(c => {
-    if (from === to || from < 0 || to < 0 || from >= c.images.length || to >= c.images.length) return c;
+    if (from === to || from < 0 || to < 0 || from >= c.images.length || to >= c.imageCount || !c.images[from]) return c;
     const images = [...c.images];
     const focuses = c.images.map((_, i) => c.focuses[i] ?? FOCUS_DEFAULT);
-    const [img] = images.splice(from, 1);
-    const [foc] = focuses.splice(from, 1);
-    images.splice(to, 0, img);
-    focuses.splice(to, 0, foc);
+    if (to >= images.length || !images[to]) {
+      while (images.length <= to) { images.push(""); focuses.push(FOCUS_DEFAULT); }
+      images[to] = images[from]; focuses[to] = focuses[from];
+      images[from] = ""; focuses[from] = FOCUS_DEFAULT;
+    } else {
+      const [img] = images.splice(from, 1);
+      const [foc] = focuses.splice(from, 1);
+      images.splice(to, 0, img);
+      focuses.splice(to, 0, foc);
+    }
+    trimOpen(images, focuses);
     return { ...c, images, focuses };
   }), [patch]);
 
@@ -476,12 +516,13 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
     const c = draftsRef.current[selectedCat];
     const target = Math.min(slot, c.images.length);
     const existing = c.images.indexOf(path);
-    if (existing !== -1 && existing !== target && target < c.images.length) {
+    if (existing !== -1 && existing !== target) {
       reorderImage(existing, target);
     } else if (existing === -1) {
       patch(d => {
         const images = [...d.images];
         const focuses = d.images.map((_, i) => d.focuses[i] ?? FOCUS_DEFAULT);
+        while (images.length < target) { images.push(""); focuses.push(FOCUS_DEFAULT); }
         images[target] = path;
         focuses[target] = FOCUS_DEFAULT;
         return { ...d, images, focuses };
@@ -498,14 +539,14 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
     setPicker(null);
   }, []);
 
-  // Keep the section being written in view.
+  // Keep the section being written in view, on the page and on the phone.
   const sectionRefs = useRef<Partial<Record<Category, HTMLDivElement | null>>>({});
   useEffect(() => {
     const el = sectionRefs.current[selectedCat];
     if (!el) return;
-    const id = requestAnimationFrame(() => el.scrollIntoView({ behavior: "smooth", block: "start" }));
+    const id = requestAnimationFrame(() => { el.scrollIntoView({ behavior: "smooth", block: "start" }); phoneScroll(selectedCat); });
     return () => cancelAnimationFrame(id);
-  }, [selectedCat]);
+  }, [selectedCat, phoneScroll]);
 
   // ── Kept in this browser ────────────────────────────────────────────────────
   const restoredRef = useRef(false);
@@ -582,8 +623,9 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
     const results = await Promise.all(cats.map(async cat => {
       const d = draftsRef.current[cat];
-      const layout = d.layout === "double" && d.images.length !== 2 ? "above" : d.layout;
-      const imgString = d.images.length > 0 ? mediaEntries(d).join(",") : null;
+      const entries = mediaEntries(d);
+      const layout = d.layout === "double" && entries.length !== 2 ? "above" : d.layout;
+      const imgString = entries.length > 0 ? entries.join(",") : null;
       const method = persistedRef.current.has(cat) ? "PUT" : "POST";
       try {
         const res = await fetch(`/api/park/${parkId}/parkTexts`, {
@@ -629,7 +671,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
     onSave?.(
       Object.fromEntries(CATEGORIES.filter(c => newSaved[c].text).map(c => [c, newSaved[c].text])),
-      Object.fromEntries(CATEGORIES.filter(c => newSaved[c].images.length > 0).map(c => [c, mediaEntries(newSaved[c]).join(",")])),
+      Object.fromEntries(CATEGORIES.filter(c => mediaEntries(newSaved[c]).length > 0).map(c => [c, mediaEntries(newSaved[c]).join(",")])),
       Object.fromEntries(CATEGORIES.filter(c => newSaved[c].layout).map(c => [c, newSaved[c].layout!])),
       Object.fromEntries(CATEGORIES.map(c => [c, newSaved[c].isSpoiler])),
     );
@@ -647,6 +689,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
       const n = cats.length + (scoreCats.length ? 1 : 0);
       setSaveMsg({ kind: "ok", text: `Saved ${cats.length === 1 && !scoreCats.length ? LABELS[cats[0]] : `${n} change${n === 1 ? "" : "s"}`}` });
       setKept(null);
+      setPhoneReload(n => n + 1);
       setTimeout(() => setSaveMsg(m => (m?.kind === "ok" ? null : m)), 2500);
     }
     setIsSaving(false);
@@ -732,18 +775,17 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
     const media = mediaEntries(d);
     const layoutOptions: SectionLayout[] = layoutOptionsFor(d.imageCount);
     const imageModes = Array.from({ length: MAX_SECTION_IMAGES }, (_, i) => i + 1);
-    const resolved = resolveSectionLayout(d.layout, media.length === 0 ? 0 : Math.min(d.imageCount, media.length + 1), {
+    const resolved = resolveSectionLayout(d.layout, media.length === 0 ? 0 : d.imageCount, {
       defaultLayout: cat === "description" ? DESCRIPTION_DEFAULT_LAYOUT : null,
       fallbackRight: legacy[cat],
     });
     const isRow = resolved.mode === "row";
     const isDouble = resolved.mode === "double";
-    // A section with photos shows one empty frame for the next; one without none (the bar offers "Add image").
-    const slotsShown = d.images.length === 0 ? 0 : Math.min(d.imageCount, d.images.length + 1);
+    // A section with photos shows every slot it was given (open ones take a drop); one without none (the bar offers "Add image").
+    const slotsShown = media.length === 0 ? 0 : d.imageCount;
     const sideBySide = resolved.mode === "stack" && slotsShown >= 2;
     const aspect = isRow && resolved.tall ? SECTION_IMAGE_ASPECT.tall : (isRow || sideBySide) ? SECTION_IMAGE_ASPECT.row : SECTION_IMAGE_ASPECT.full;
     const stats = countTextStats(d.text);
-    const nextCat = CATEGORIES[CATEGORIES.indexOf(cat) + 1];
     const value = cat === "description" ? null : scores[cat];
 
     const slot = (i: number) => {
@@ -751,12 +793,15 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
       const isHalf = sideBySide;
       const wrap = `${isHalf ? "flex-1 min-w-0" : "w-full flex-shrink-0"} ${isDouble ? "mt-4 mb-4" : ""}`;
       if (!url) {
+        const over = dragFrom !== null;
         return (
-          <div key={`empty-${i}`} className={wrap}>
+          <div key={`empty-${i}`} className={wrap}
+            onDragOver={(e) => { if (over) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } }}
+            onDrop={(e) => { e.preventDefault(); if (dragFrom !== null) reorderImage(dragFrom, i); setDragFrom(null); }}>
             <button type="button" onClick={() => { setPicker({ slot: i }); setPosIndex(null); }}
-              className="w-full rounded-2xl border-2 border-dashed border-slate-700 text-slate-400 hover:border-blue-400 hover:text-white text-sm font-bold transition-colors cursor-pointer"
+              className={`w-full rounded-2xl border-2 border-dashed text-sm font-bold transition-colors cursor-pointer ${over ? "border-blue-400 text-blue-300 bg-blue-500/10" : "border-slate-700 text-slate-400 hover:border-blue-400 hover:text-white"}`}
               style={{ aspectRatio: aspect.desktop }}>
-              + Add {isVideoUrl(url ?? "") ? "clip" : "image"}{d.imageCount > 1 ? ` ${i + 1}` : ""}
+              {over ? "Drop here" : `+ Add image${d.imageCount > 1 ? ` ${i + 1}` : ""}`}
             </button>
           </div>
         );
@@ -817,7 +862,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
     const slots = Array.from({ length: slotsShown }, (_, i) => slot(i));
     const textClass = cat === "description" ? "text-slate-300 text-base leading-relaxed" : "text-slate-200 leading-relaxed md:text-lg";
     const text = (
-      <div className={`${d.isSpoiler && !previewAsVisitor ? "rounded-xl bg-red-900/10 ring-1 ring-red-900/30 p-4 -m-4" : ""} flex-1 min-w-0`}>
+      <div className={`${d.isSpoiler ? "rounded-xl bg-red-900/10 ring-1 ring-red-900/30 p-4 -m-4" : ""} flex-1 min-w-0`}>
         <EditableText cat={cat} version={textVersion} value={d.text} onChange={updateText} className={textClass}
           placeholder={`Write about ${LABELS[cat].toLowerCase()}…`} editorRef={editorRef} />
       </div>
@@ -869,13 +914,13 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
               <button key={n} type="button" onClick={() => setImageMode(n)} className={segBtn(d.imageCount === n)}>{n === 1 ? "1 image" : `${n} images`}</button>
             ))}
           </div>
-          {d.images.length === 0 && (
+          {media.length === 0 && (
             <button type="button" onClick={() => { setPicker({ slot: 0 }); setPosIndex(null); }}
               className="px-2.5 py-1 rounded-lg border border-dashed border-slate-600 text-xs font-bold text-slate-300 hover:border-blue-400 hover:text-white cursor-pointer">
               + Add image
             </button>
           )}
-          {d.images.length > 0 && (
+          {media.length > 0 && (
             <div className={seg}>
               {layoutOptions.map(opt => (
                 <button key={opt} type="button" onClick={() => updateLayout(opt)} title={opt === "double" ? "Image, text, image" : undefined} className={segBtn(activeLayout === opt)}>
@@ -890,11 +935,6 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
           </button>
         </div>
         <div className="mt-4">{body}</div>
-        {nextCat && (
-          <button type="button" onClick={() => select(nextCat)} className="mt-4 text-xs font-bold text-blue-400 hover:text-blue-300 cursor-pointer">
-            Next: {LABELS[nextCat]} ›
-          </button>
-        )}
       </div>
     );
   };
@@ -903,7 +943,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   const renderInactive = (cat: Category) => {
     const d = drafts[cat];
     const media = mediaEntries(d);
-    const isAdminMode = !previewAsVisitor;
+    const isAdminMode = true;
     const value = cat === "description" ? null : scores[cat];
     if (isEmptyDraft(d)) {
       return (
@@ -941,6 +981,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
 
   const pickerImages = pickerScope === "this" ? galleryImages : otherVisitImages;
   const pickerSlot = picker ? Math.min(picker.slot, cur.images.length) : 0;
+  const pickerReplaces = !!cur.images[pickerSlot];
 
   return (
     <div ref={rootRef} className="fixed inset-0 z-[1000] bg-slate-950 flex flex-col text-slate-200">
@@ -958,11 +999,11 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
         ) : dirtyCount > 0 ? (
           <span className="hidden md:inline text-xs text-slate-500">Kept in this browser until saved</span>
         ) : null}
-        <div className="hidden sm:flex items-center bg-slate-800 rounded-lg p-0.5 text-xs font-bold">
-          {([false, true] as const).map(v => (
-            <button key={String(v)} onClick={() => setPreviewAsVisitor(v)}
-              className={`px-2.5 py-0.5 rounded-md cursor-pointer transition-colors ${previewAsVisitor === v ? "bg-slate-700 text-white" : "text-slate-500 hover:text-slate-300"}`}>
-              {v ? "As visitor" : "As admin"}
+        <div className="hidden lg:flex items-center bg-slate-800 rounded-lg p-0.5 text-xs font-bold">
+          {(["desktop", "phone"] as const).map(v => (
+            <button key={v} onClick={() => setView(v)}
+              className={`px-2.5 py-0.5 rounded-md cursor-pointer transition-colors ${view === v ? "bg-slate-700 text-white" : "text-slate-500 hover:text-slate-300"}`}>
+              {v === "desktop" ? "Desktop" : "Phone"}
             </button>
           ))}
         </div>
@@ -1027,6 +1068,23 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
             </div>
           </div>
         </div>
+
+        {/* The phone: the park page itself, phone-wide, at the section being written. Shows what is saved. */}
+        {view === "phone" && (
+          <aside className="hidden lg:flex flex-col w-[440px] flex-shrink-0 border-l border-slate-800 bg-slate-900/40 items-center py-4 gap-2">
+            <div className="rounded-[28px] border-[6px] border-slate-800 bg-black overflow-hidden shadow-2xl" style={{ width: 402, height: "min(844px, calc(100% - 28px))" }}>
+              <iframe
+                key={phoneReload}
+                ref={phoneRef}
+                src={typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : undefined}
+                title="The review on a phone"
+                className="w-[390px] h-full bg-[#0f172a]"
+                onLoad={() => phoneScroll(selectedCat)}
+              />
+            </div>
+            <p className="text-[11px] text-slate-500">The saved review, as a phone shows it</p>
+          </aside>
+        )}
       </div>
 
       {!picker && !showUpload && (
@@ -1039,7 +1097,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
           <div className="w-full max-w-5xl max-h-[88vh] flex flex-col rounded-2xl border border-blue-800/60 bg-slate-900 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 px-4 h-12 border-b border-slate-800 flex-shrink-0">
               <p className="text-sm font-bold text-white">
-                {pickerSlot < cur.images.length ? `Replace ${cur.imageCount > 1 ? `image ${pickerSlot + 1}` : "the image"}` : `Add ${cur.imageCount > 1 ? `image ${pickerSlot + 1}` : "an image"}`}
+                {pickerReplaces ? `Replace ${cur.imageCount > 1 ? `image ${pickerSlot + 1}` : "the image"}` : `Add ${cur.imageCount > 1 ? `image ${pickerSlot + 1}` : "an image"}`}
                 <span className="text-slate-500 font-normal"> · {LABELS[selectedCat]}</span>
               </p>
               {otherVisitImages.length > 0 && (
@@ -1063,7 +1121,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
             <div className="flex-1 min-h-0 overflow-y-auto p-4">
               <ImagePickerGrid
                 galleryImages={pickerImages}
-                selected={cur.images}
+                selected={cur.images.filter(Boolean)}
                 onSelect={handlePick}
                 maxSelection={cur.imageCount}
                 usedIn={usedIn}

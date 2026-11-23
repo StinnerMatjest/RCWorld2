@@ -109,8 +109,8 @@ export const PickerTile = React.memo(function PickerTile({ img, selIndex, disabl
         <R2Image src={img.path} alt="" fill loading="eager" sizes="(max-width: 640px) 25vw, 160px" quality={55} className={`object-cover ${dim}`} />
       )}
       {elsewhere && !sel && (
-        <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-slate-950/80 text-[10px] font-bold uppercase tracking-wider text-amber-300 border border-amber-500/30">
-          Used
+        <span className="absolute bottom-1 left-1 right-1 truncate px-1.5 py-0.5 rounded bg-slate-950/80 text-[10px] font-bold tracking-wide text-amber-300 border border-amber-500/30">
+          {elsewhere.join(", ")}
         </span>
       )}
       {sel && (
