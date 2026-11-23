@@ -80,6 +80,33 @@ export async function PATCH(
       return NextResponse.json({ message: "Rating updated successfully" }, { status: 200 });
     }
 
+    // SCENARIO C: some category scores only (the review editor changes them in place).
+    else if (body.scores && typeof body.scores === "object") {
+      const COLS: Record<string, string> = {
+        parkAppearance: "parkappearance", parkPracticality: "parkpracticality", bestCoaster: "bestcoaster",
+        coasterDepth: "coasterdepth", waterRides: "waterrides", flatridesAndDarkrides: "flatridesanddarkrides",
+        food: "food", snacksAndDrinks: "snacksanddrinks", rideOperations: "rideoperations", parkManagement: "parkmanagement",
+      };
+      const sets: string[] = [], values: unknown[] = [], diffIn: Record<string, unknown> = {};
+      for (const [key, col] of Object.entries(COLS)) {
+        const v = (body.scores as Record<string, unknown>)[key];
+        if (typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > 11) continue;
+        values.push(v); sets.push(`${col} = $${values.length}`); diffIn[key] = v;
+      }
+      if (!sets.length) return NextResponse.json({ error: "No valid scores" }, { status: 400 });
+      values.push(ratingId);
+      const result = await pool.query(`UPDATE visits SET ${sets.join(", ")} WHERE id = $${values.length} RETURNING id`, values);
+      if (result.rowCount === 0) return NextResponse.json({ error: "Rating not found" }, { status: 404 });
+      if (oldRow) {
+        const diff = diffFields(oldRow, diffIn);
+        if (Object.keys(diff).length > 0) {
+          logChange({ parkId: oldRow.park_id, entityType: "rating", entityId: Number(ratingId), label: oldRow.park_name, action: "update", summary: `Updated rating: ${describeDiff(diff)}`, details: diff });
+        }
+      }
+      revalidateTag("parks-leaderboard");
+      return NextResponse.json({ message: "Scores updated" }, { status: 200 });
+    }
+
     // SCENARIO B: Quick Publish Toggle
     else if (typeof body.published === "boolean") {
       const query = `UPDATE visits SET published = $1 WHERE id = $2 RETURNING id`;
