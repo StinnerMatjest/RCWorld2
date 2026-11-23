@@ -90,7 +90,7 @@ const FOCUS_DEFAULT = "0.5 0.5 1";
 // The description used to render its images full width under the text; keep that
 // as its default so existing reviews look the same until someone picks a layout.
 const DESCRIPTION_DEFAULT_LAYOUT: SectionLayout = "below";
-const SCORE_STEP = 0.25;
+const SCORE_STEP = 0.5;
 
 type Draft = {
   text: string;
