@@ -328,31 +328,11 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
   const [picker, setPicker] = useState<{ slot: number } | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
-  // Phone: the saved review beside the page, as a phone renders it (the park page itself in a phone-wide frame).
+  // Phone: the review beside the page as a phone draws it, from the drafts, so unsaved work shows too.
   const [view, setView] = useState<"desktop" | "phone">("desktop");
-  const [phoneReload, setPhoneReload] = useState(0);
-  const phoneRef = useRef<HTMLIFrameElement>(null);
+  const phoneRefs = useRef<Partial<Record<Category, HTMLDivElement | null>>>({});
   const phoneScroll = useCallback((cat: Category) => {
-    // The page renders its review after it loads and settles its own scroll while
-    // hydrating; keep putting the section at the top until it stays there. Only the
-    // review shows: everything beside it, up to the body, is hidden.
-    let found = 0;
-    const attempt = (left: number) => {
-      const doc = phoneRef.current?.contentDocument;
-      const review = doc?.getElementById("review");
-      if (review) {
-        for (let node: HTMLElement | null = review; node && node !== doc!.body; node = node.parentElement) {
-          for (const sib of Array.from(node.parentElement?.children ?? [])) {
-            if (sib !== node && sib instanceof HTMLElement && !["SCRIPT", "STYLE", "LINK"].includes(sib.tagName)) sib.style.display = "none";
-          }
-        }
-        const el = cat === "description" ? review : doc!.getElementById(`section-${cat}`);
-        (el ?? review).scrollIntoView({ block: "start" });
-        found++;
-      }
-      if (left > 0 && found < 4) setTimeout(() => attempt(left - 1), found ? 700 : 400);
-    };
-    attempt(14);
+    phoneRefs.current[cat]?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
   const rootRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement | null>(null);
@@ -546,7 +526,7 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
     if (!el) return;
     const id = requestAnimationFrame(() => { el.scrollIntoView({ behavior: "smooth", block: "start" }); phoneScroll(selectedCat); });
     return () => cancelAnimationFrame(id);
-  }, [selectedCat, phoneScroll]);
+  }, [selectedCat, phoneScroll, view]);
 
   // ── Kept in this browser ────────────────────────────────────────────────────
   const restoredRef = useRef(false);
@@ -689,7 +669,6 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
       const n = cats.length + (scoreCats.length ? 1 : 0);
       setSaveMsg({ kind: "ok", text: `Saved ${cats.length === 1 && !scoreCats.length ? LABELS[cats[0]] : `${n} change${n === 1 ? "" : "s"}`}` });
       setKept(null);
-      setPhoneReload(n => n + 1);
       setTimeout(() => setSaveMsg(m => (m?.kind === "ok" ? null : m)), 2500);
     }
     setIsSaving(false);
@@ -979,6 +958,34 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
     );
   };
 
+  // ── The phone ───────────────────────────────────────────────────────────────
+  const renderPhone = (cat: Category) => {
+    const d = drafts[cat];
+    const media = mediaEntries(d);
+    const value = cat === "description" ? null : scores[cat];
+    if (isEmptyDraft(d)) return null;
+    if (cat === "description") {
+      return (
+        <div>
+          <h2 className="text-3xl font-bold text-white tracking-tight">Introduction</h2>
+          <div className="w-12 h-1 bg-brand rounded-full mt-3 mb-4" />
+          <SectionBody text={d.text} media={media} layout={d.layout} defaultLayout={DESCRIPTION_DEFAULT_LAYOUT} isSpoiler={d.isSpoiler} isAdminMode
+            altLabel="Introduction" textClassName="text-slate-400 text-base leading-relaxed" captions={captions} phone />
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-3">
+        <div className="flex items-baseline gap-3 border-l-4 border-brand pl-3">
+          <h3 className="text-xl font-semibold text-white">{humanizeLabel(cat)}</h3>
+          <span className={`text-2xl font-bold ${getRatingColor(value ?? 0)}`}>{value}</span>
+        </div>
+        <SectionBody text={d.text} media={media} layout={d.layout} fallbackRight={legacy[cat]} isSpoiler={d.isSpoiler} isAdminMode
+          altLabel={humanizeLabel(cat)} captions={captions} phone />
+      </div>
+    );
+  };
+
   const pickerImages = pickerScope === "this" ? galleryImages : otherVisitImages;
   const pickerSlot = picker ? Math.min(picker.slot, cur.images.length) : 0;
   const pickerReplaces = !!cur.images[pickerSlot];
@@ -1069,20 +1076,25 @@ const ParkTextModal: React.FC<ParkTextsModalProps> = ({
           </div>
         </div>
 
-        {/* The phone: the park page itself, phone-wide, at the section being written. Shows what is saved. */}
+        {/* The phone: the review as a phone draws it, from the drafts, at the section being written. */}
         {view === "phone" && (
           <aside className="hidden lg:flex flex-col w-[440px] flex-shrink-0 border-l border-slate-800 bg-slate-900/40 items-center py-4 gap-2">
-            <div className="rounded-[28px] border-[6px] border-slate-800 bg-black overflow-hidden shadow-2xl" style={{ width: 402, height: "min(844px, calc(100% - 28px))" }}>
-              <iframe
-                key={phoneReload}
-                ref={phoneRef}
-                src={typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : undefined}
-                title="The review on a phone"
-                className="w-[390px] h-full bg-[#0f172a]"
-                onLoad={() => phoneScroll(selectedCat)}
-              />
+            <div className="rounded-[28px] border-[6px] border-slate-800 bg-[#0f172a] overflow-hidden shadow-2xl" style={{ width: 402, height: "min(844px, calc(100% - 28px))" }}>
+              <div className="h-full w-[390px] overflow-y-auto no-scrollbar" title="The review on a phone">
+                <div className="px-4 py-6 space-y-10">
+                  {CATEGORIES.map(cat => {
+                    const body = renderPhone(cat);
+                    if (!body) return null;
+                    return (
+                      <div key={cat} ref={el => { phoneRefs.current[cat] = el; }} className={`scroll-mt-4 rounded-xl -mx-2 px-2 py-1 ${cat === selectedCat ? "ring-1 ring-blue-500/40" : ""}`}>
+                        {body}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-            <p className="text-[11px] text-slate-500">The saved review, as a phone shows it</p>
+            <p className="text-[11px] text-slate-500">As a phone shows it, unsaved changes included</p>
           </aside>
         )}
       </div>

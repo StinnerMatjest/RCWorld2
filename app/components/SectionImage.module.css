@@ -28,3 +28,16 @@
     transform-origin: var(--pos-d);
   }
 }
+
+/* The phone frame at any width (the editor's phone preview): these outrank the
+   desktop rules above by specificity, so the media query does not matter. */
+.phone.frame {
+  aspect-ratio: var(--aspect-m);
+}
+.phone .pos {
+  object-position: var(--pos-m);
+}
+.phone .zoom {
+  transform: scale(var(--z-m));
+  transform-origin: var(--pos-m);
+}

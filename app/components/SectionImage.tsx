@@ -14,7 +14,7 @@ function scaleSizes(sizes: string, z: number): string {
 // driven by the --aspect-m / --aspect-d custom properties. A zoomed-in photo is
 // scaled from that same point, so it still never shows past its own edges.
 export function SectionImage({
-  src, alt, cx, cy, mcx, mcy, zoom = 1, mzoom, mobileAspect, desktopAspect, sizes, framing,
+  src, alt, cx, cy, mcx, mcy, zoom = 1, mzoom, mobileAspect, desktopAspect, sizes, framing, phone = false,
 }: {
   src: string;
   alt: string;
@@ -32,6 +32,8 @@ export function SectionImage({
   sizes: string;
   /** Marker for the clean-up tool's preview (framingPreview.ts). */
   framing?: string;
+  /** The phone frame and position, whatever the screen width (the editor's phone preview). */
+  phone?: boolean;
 }) {
   const zd = Math.max(1, zoom), zm = Math.max(1, mzoom ?? zoom);
   // Only a zoomed photo gets the scale (an unzoomed one renders exactly as before),
@@ -43,7 +45,7 @@ export function SectionImage({
   return (
     <div
       ref={frameRef}
-      className={`${styles.frame} relative w-full overflow-hidden rounded-2xl`}
+      className={`${styles.frame} ${phone ? styles.phone : ""} relative w-full overflow-hidden rounded-2xl`}
       data-framing={framing}
       data-framing-math="position"
       style={{ "--aspect-m": mobileAspect, "--aspect-d": desktopAspect, "--pos-d": `${cx * 100}% ${cy * 100}%`, "--pos-m": `${(mcx ?? cx) * 100}% ${(mcy ?? cy) * 100}%`, ...(zoomed ? { "--z-d": zd, "--z-m": zm } : {}) } as CSSProperties}

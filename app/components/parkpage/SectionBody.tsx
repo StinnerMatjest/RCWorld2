@@ -45,6 +45,8 @@ export interface SectionBodyProps {
   onMediaClick?: (url: string, index: number) => void;
   /** Caption text per media URL (see mediaCaptions); shown under the media when present. */
   captions?: Record<string, string>;
+  /** Draw as a phone does, whatever the screen width (the editor's phone preview). */
+  phone?: boolean;
 }
 
 /**
@@ -61,10 +63,12 @@ export function SectionBody({
   isSpoiler = false,
   isAdminMode = false,
   altLabel,
-  textClassName = "text-slate-400 leading-relaxed md:text-lg",
+  textClassName,
   onMediaClick,
   captions,
+  phone = false,
 }: SectionBodyProps) {
+  textClassName ??= phone ? "text-slate-400 leading-relaxed" : "text-slate-400 leading-relaxed md:text-lg";
   const resolved = resolveSectionLayout(layout, media.length, { defaultLayout, fallbackRight });
   const isRow = resolved.mode === "row";
   const isDouble = resolved.mode === "double";
@@ -88,7 +92,7 @@ export function SectionBody({
         onClick={clickable ? () => onMediaClick(url, index) : undefined}
       >
         {isVideoUrl(url) ? (
-          <div className="relative w-full overflow-hidden rounded-2xl" style={{ aspectRatio: a.desktop }}>
+          <div className="relative w-full overflow-hidden rounded-2xl" style={{ aspectRatio: phone ? a.mobile : a.desktop }}>
             <SectionVideo src={url} cx={pan.cx} cy={pan.cy} />
             <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/55 text-white text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm pointer-events-none">
               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
@@ -108,6 +112,7 @@ export function SectionBody({
             mzoom={panPhone?.zoom}
             mobileAspect={a.mobile}
             desktopAspect={a.desktop}
+            phone={phone}
             // The frame's width as measured on the park page (review column 47-49vw from 1024px,
             // ~82vw on tablets, ~93vw on phones; beside the text ~21vw / ~36vw); a wider-drawn
             // photo (cover, zoom) steps up after load.
@@ -129,7 +134,7 @@ export function SectionBody({
         )}
       </div>
       {caption && (
-        <figcaption className="mt-1.5 px-1 text-center text-xs sm:text-sm text-slate-500 leading-snug">{caption}</figcaption>
+        <figcaption className={`mt-1.5 px-1 text-center text-xs ${phone ? "" : "sm:text-sm"} text-slate-500 leading-snug`}>{caption}</figcaption>
       )}
       </figure>
     );
@@ -166,8 +171,8 @@ export function SectionBody({
   if (resolved.mode === "row") {
     return (
       <div>
-        <div className={`flex flex-col gap-6 items-start ${resolved.isRight ? "md:flex-row-reverse" : "md:flex-row"}`}>
-          <div className="w-full md:w-[44%] flex-shrink-0 flex flex-col gap-4 mt-1.5">
+        <div className={`flex flex-col gap-6 items-start ${phone ? "" : resolved.isRight ? "md:flex-row-reverse" : "md:flex-row"}`}>
+          <div className={`w-full ${phone ? "" : "md:w-[44%]"} flex-shrink-0 flex flex-col gap-4 mt-1.5`}>
             {media.map((entry, i) => renderMedia(entry, i))}
           </div>
           {textContent}
@@ -181,7 +186,7 @@ export function SectionBody({
   return (
     <div>
       <div className={`flex gap-4 ${resolved.isAbove ? "flex-col" : "flex-col-reverse"}`}>
-        <div className={`flex mt-1.5 ${sideBySide ? "flex-row gap-2 md:gap-3" : "flex-col gap-4"}`}>
+        <div className={`flex mt-1.5 ${sideBySide ? `flex-row gap-2 ${phone ? "" : "md:gap-3"}` : "flex-col gap-4"}`}>
           {media.map((entry, i) => renderMedia(entry, i, sideBySide))}
         </div>
         {textContent}
