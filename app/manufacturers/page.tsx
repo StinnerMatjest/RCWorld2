@@ -66,7 +66,10 @@ export default async function Page() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <ManufacturersClient initialCoasters={coasters} />
+      <ManufacturersClient initialCoasters={coasters.map((c: any) => ({
+        id: c.id, name: c.name, slug: c.slug, manufacturerName: c.manufacturerName, rating: c.rating, tieRank: c.tieRank,
+        isBestCoaster: c.isBestCoaster, parkId: c.parkId, parkName: c.parkName, year: c.year, rideCount: c.rideCount,
+      }))} />
     </>
   );
 }

@@ -44,6 +44,12 @@ async function getInitialData(): Promise<{ ratings?: Visit[]; parks?: Park[] }> 
   }
 }
 
+/** The fields the home cards read; the park page's own photo sets stay out of this HTML. */
+function forCards(p: Park): Park {
+  const { id, name, slug, continent, country, city, imagepath, imageSize, imageFocus, cardImagepath, cardImageSize, cardCut } = p;
+  return { id, name, slug, continent, country, city, imagepath, imageSize, imageFocus, cardImagepath, cardImageSize, cardCut };
+}
+
 export default async function Page() {
   // The admin cookie is readable server-side, so admins get the admin grid
   // (pending parks, drafts) in the SSR HTML — no post-hydration reshuffle.
@@ -61,7 +67,7 @@ export default async function Page() {
   return (
     <>
       <h1 className="sr-only">ParkRating: Theme Park Reviews &amp; Roller Coaster Rankings</h1>
-      <HomeClient initialRatings={ratings} initialParks={parks} initialAdminMode={initialAdminMode} initialIsMobile={initialIsMobile} />
+      <HomeClient initialRatings={ratings} initialParks={parks?.map(forCards)} initialAdminMode={initialAdminMode} initialIsMobile={initialIsMobile} />
     </>
   );
 }

@@ -59,7 +59,12 @@ export default async function Page() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <CoasterLibraryClient initialCoasters={coasters} />
+      <CoasterLibraryClient initialCoasters={coasters.map((c: any) => ({
+        id: c.id, name: c.name, slug: c.slug, manufacturerName: c.manufacturerName, model: c.model, scale: c.scale,
+        haveRidden: c.haveRidden, isBestCoaster: c.isBestCoaster, rideCount: c.rideCount, visitCount: c.visitCount,
+        rating: c.rating, tieRank: c.tieRank, parkId: c.parkId, parkName: c.parkName, country: c.country, year: c.year,
+        lastVisitDate: c.lastVisitDate, specs: c.specs ?? null,
+      }))} />
     </>
   );
 }
