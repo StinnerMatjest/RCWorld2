@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ApiCoaster } from "./RankleClient";
 import { FocusedImage } from "@/app/components/FocusedImage";
+import { variantUrl } from "@/app/lib/imageVariants";
 
 /**
  * The Rankle bonus round: after surviving all five duels the player can cash
@@ -194,25 +195,16 @@ export function AllInRound({
       );
       decoysRef.current = fetched.filter((d): d is { c: ApiCoaster; img: string } => !!d.img).slice(0, 12);
 
-      // downscale reel thumbnails — decoding dozens of full-res photos into a
-      // transform-animated strip stutters on phones
+      // Reel thumbnails: the stored small variant of each photo (a few dozen KB),
+      // fetched now so the strip spins without a stall. Decoding dozens of
+      // full-size photos used to make the reel stutter and take ages to load.
       const thumb = (id: number, url: string) =>
         new Promise<void>((res) => {
+          const small = variantUrl(url, 480);
           const i = new Image();
-          i.crossOrigin = "anonymous";
-          i.onload = () => {
-            try {
-              const w = 400;
-              const h = Math.max(1, Math.round(i.naturalHeight * (w / i.naturalWidth)));
-              const cv = document.createElement("canvas");
-              cv.width = w; cv.height = h;
-              cv.getContext("2d")?.drawImage(i, 0, 0, w, h);
-              thumbsRef.current[id] = cv.toDataURL("image/jpeg", 0.72);
-            } catch {} // CORS taint: tiles fall back to the original URL
-            res();
-          };
-          i.onerror = () => res();
-          i.src = url;
+          i.onload = () => { thumbsRef.current[id] = small; res(); };
+          i.onerror = () => res(); // no variant stored: the tile falls back to the original
+          i.src = small;
         });
       await Promise.all([
         thumb(target.c.id, target.img),
@@ -655,7 +647,7 @@ export function AllInRound({
         >
           <div className="relative w-full max-w-[340px] md:max-w-[480px] h-[195px] md:h-[300px] rounded-2xl overflow-hidden bg-gray-900 shadow-[0_10px_34px_rgba(0,0,0,0.45)]">
             {/* The coaster page's desktop cover framing: the question photo is wide like it. */}
-            <FocusedImage src={t.img} alt={t.c.name} focusStr={t.c.imageFocusDesktop} className="absolute inset-0" priority />
+            <FocusedImage src={t.img} alt={t.c.name} focusStr={t.c.imageFocusDesktop} className="absolute inset-0" variants />
             <div className="absolute top-0 inset-x-0 px-3.5 pt-2.5 pb-10 bg-gradient-to-b from-black/70 to-transparent">
               <span className="text-[12.5px] font-bold text-white/90 drop-shadow">{t.c.parkName}{t.c.country ? ` · ${t.c.country}` : ""}</span>
             </div>

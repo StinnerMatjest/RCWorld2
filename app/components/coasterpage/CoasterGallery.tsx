@@ -1,6 +1,9 @@
 "use client";
 
 import LazyVideo from "@/app/components/LazyVideo";
+import { VideoThumb } from "@/app/components/VideoThumb";
+import { R2Image } from "@/app/components/R2Image";
+import { variantUrl } from "@/app/lib/imageVariants";
 import React, { useState, useEffect, useRef } from "react";
 import { placeCover, replaceCovers, tileFraming } from "@/app/lib/coverPlacement";
 import Image from "next/image";
@@ -174,8 +177,13 @@ const CoasterImageManagerModal = ({
                                                     onClick={() => setSelectedParkImageUrl(img.path)}
                                                     className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${selectedParkImageUrl === img.path ? "border-brand scale-95 shadow-[0_0_15px_rgba(var(--brand-rgb),0.3)]" : "border-transparent hover:border-slate-600"}`}
                                                 >
-                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img src={img.path} alt="Park Image" className="w-full h-full object-cover" />
+                                                    {/\.(mp4|webm|ogg)$/i.test(img.path) ? (
+                                                        <VideoThumb src={img.path} className="w-full h-full" />
+                                                    ) : (
+                                                        // The small stored variant: the full photos made this list crawl.
+                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                        <img src={variantUrl(img.path, 480)} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                                                    )}
                                                     {selectedParkImageUrl === img.path && (
                                                         <div className="absolute top-2 right-2 bg-brand text-white p-1 rounded-full"><svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg></div>
                                                     )}
@@ -559,12 +567,11 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
                                     className="rounded-xl object-cover h-40 md:h-48 w-full transition-transform duration-500 group-hover:scale-105 pointer-events-none"
                                 />
                             ) : (
-                                <Image
+                                <R2Image
                                     src={img.path}
                                     alt={img.title || "Gallery"}
                                     width={400} height={300}
                                     sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
-                                    quality={85}
                                     style={{ objectPosition: tileFraming(img).position }}
                                     onLoad={tileFraming(img).focus ? (e) => placeCover(e.currentTarget, tileFraming(img).focus) : undefined}
                                     className="rounded-xl object-cover h-40 md:h-48 w-full transition-transform duration-500 group-hover:scale-105 pointer-events-none"

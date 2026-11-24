@@ -1375,7 +1375,7 @@ export default function RankleClient() {
                       {filled && c && (
                         <>
                           {/* The coaster page's phone cover framing: the cards are tall like it. */}
-                          <FocusedImage src={img ?? ""} alt={c.name} focusStr={c.imageFocusMobile} className="absolute inset-0" priority />
+                          <FocusedImage src={img ?? ""} alt={c.name} focusStr={c.imageFocusMobile} className="absolute inset-0" variants />
                           <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent px-4 pt-3 pb-12 pointer-events-none">
                             <div className="flex items-center gap-2">
                               {c.country && (
