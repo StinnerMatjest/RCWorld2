@@ -232,7 +232,8 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_5.5fr_3.5fr] [@media(min-width:2560px)]:grid-cols-[1.8fr_6fr_3.5fr] gap-10 lg:gap-6">
+        {/* The right column is as wide as its content (24rem); on very wide screens the review takes the rest instead of leaving a gap. */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_5.5fr_minmax(0,24rem)] [@media(min-width:2560px)]:grid-cols-[1.8fr_6fr_minmax(0,24rem)] gap-10 lg:gap-6">
 
           {/* Desktop: rank rail + detailed standings button underneath */}
           <div className="hidden lg:block min-w-0">
@@ -289,7 +290,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
             )}
           </div>
 
-          <aside className="min-w-0 space-y-8 lg:max-w-[24rem]">
+          <aside className="min-w-0 space-y-8">
             <div className="hidden lg:block">{verdict}</div>
             <div
               className="space-y-8 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto pb-8"
