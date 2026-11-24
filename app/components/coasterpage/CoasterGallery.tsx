@@ -1,6 +1,5 @@
 "use client";
 
-import LazyVideo from "@/app/components/LazyVideo";
 import { VideoThumb } from "@/app/components/VideoThumb";
 import { R2Image } from "@/app/components/R2Image";
 import { variantUrl } from "@/app/lib/imageVariants";
@@ -562,10 +561,15 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
                                 </div>
                             )}
                             {img.path.match(/\.(mp4|webm|ogg)$/i) ? (
-                                <LazyVideo
-                                    src={img.path}
-                                    className="rounded-xl object-cover h-40 md:h-48 w-full transition-transform duration-500 group-hover:scale-105 pointer-events-none"
-                                />
+                                // A still, not a playing clip: the clip plays in the viewer when opened.
+                                <div className="relative rounded-xl overflow-hidden h-40 md:h-48 w-full bg-black pointer-events-none">
+                                    <VideoThumb src={img.path} className="w-full h-full transition-transform duration-500 group-hover:scale-105" />
+                                    <span className="absolute inset-0 flex items-center justify-center">
+                                        <span className="w-11 h-11 rounded-full bg-black/55 flex items-center justify-center">
+                                            <svg className="w-5 h-5 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                                        </span>
+                                    </span>
+                                </div>
                             ) : (
                                 <R2Image
                                     src={img.path}

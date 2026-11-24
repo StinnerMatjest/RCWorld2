@@ -57,13 +57,18 @@ export async function fetchConnectionsData(): Promise<ConnectionsCoaster[]> {
 
 export function toConnectionsCoasters(coasters: ApiCoaster[], parks: Park[]): ConnectionsCoaster[] {
   const parksById = new Map<number, Park>(parks.map((park) => [park.id, park]))
+  // Two coasters with the same name (Rutschebanen at Tivoli and at Bakken) are
+  // told apart by their park, so a tile never leaves the player guessing which one.
+  const nameCount = new Map<string, number>()
+  for (const c of coasters) { const k = c.name.trim().toLowerCase(); nameCount.set(k, (nameCount.get(k) ?? 0) + 1) }
 
   return coasters.map((coaster) => {
     const park = parksById.get(coaster.parkId)
+    const shared = (nameCount.get(coaster.name.trim().toLowerCase()) ?? 0) > 1
 
     return {
       id: coaster.id,
-      name: coaster.name,
+      name: shared && coaster.parkName ? `${coaster.name} (${coaster.parkName})` : coaster.name,
       manufacturer: coaster.manufacturerName ?? null,
       model: coaster.model ?? null,
       scale: coaster.scale ?? null,

@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import { R2Image } from "../R2Image";
+import { VideoThumb } from "../VideoThumb";
 import { focusZoom, hasCustomFocus, placeCover, replaceCovers } from "@/app/lib/coverPlacement";
 import type { CoasterGalleryImage } from "./coasterPageTypes";
 
@@ -110,7 +111,14 @@ export default function CoasterPhotoStrip({ images, coasterName, onOpen, isAdmin
               data-framing-math="cover"
             >
               {isVideo(img.path) ? (
-                <video src={img.path} className="absolute inset-0 w-full h-full object-cover" muted playsInline preload="metadata" />
+                <>
+                  <VideoThumb src={img.path} className="absolute inset-0 w-full h-full" />
+                  <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <span className="w-12 h-12 rounded-full bg-black/55 flex items-center justify-center">
+                      <svg className="w-6 h-6 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                    </span>
+                  </span>
+                </>
               ) : (
                 <R2Image
                   src={img.path}

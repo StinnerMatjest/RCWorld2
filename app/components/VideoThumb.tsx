@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { posterUrl } from "@/app/lib/videoFiles";
 
 /**
  * Still-frame thumbnail for a video URL.
@@ -110,8 +111,21 @@ function snapshot(src: string): Promise<HTMLCanvasElement> {
 export function VideoThumb({ src, className = "", fit = "cover" }: { src: string; className?: string; fit?: "cover" | "contain" }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
+  // The poster frame stored next to the clip, when there is one: a small image
+  // instead of pulling the clip down to draw a frame.
+  const [poster, setPoster] = useState<"trying" | "yes" | "no">("trying");
+  useEffect(() => {
+    let alive = true;
+    setPoster("trying");
+    const img = new window.Image();
+    img.onload = () => { if (alive) setPoster("yes"); };
+    img.onerror = () => { if (alive) setPoster("no"); };
+    img.src = posterUrl(src);
+    return () => { alive = false; };
+  }, [src]);
 
   useEffect(() => {
+    if (poster !== "no") return;
     let alive = true;
     setState("loading");
     snapshot(src)
@@ -126,8 +140,16 @@ export function VideoThumb({ src, className = "", fit = "cover" }: { src: string
       })
       .catch(() => { if (alive) setState("failed"); });
     return () => { alive = false; };
-  }, [src]);
+  }, [src, poster]);
 
+  if (poster === "yes") {
+    return (
+      <div className={`relative overflow-hidden bg-slate-950 ${className}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={posterUrl(src)} alt="" decoding="async" className={`absolute inset-0 w-full h-full ${fit === "contain" ? "object-contain" : "object-cover"}`} />
+      </div>
+    );
+  }
   return (
     <div className={`relative overflow-hidden bg-slate-950 ${className}`}>
       <canvas
