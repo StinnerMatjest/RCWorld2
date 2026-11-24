@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { positionCss } from "@/app/lib/framing";
+import { R2Image } from "@/app/components/R2Image";
 import Link from "next/link";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import { useAdminMode } from "@/app/context/AdminModeContext";
@@ -158,12 +159,14 @@ const RankingsPage = ({ initialLists }: { initialLists?: RankingListSummary[] })
                                 {/* Image Header */}
                                 {list.imageUrl ? (
                                     <div className="relative h-48 w-full shrink-0 overflow-hidden bg-slate-800">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img
+                                        <R2Image
                                             src={list.imageUrl}
                                             alt={list.title}
+                                            fill
+                                            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                                            loading="lazy"
                                             style={{ objectPosition: positionCss(list.coverFocus) }}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                            className="object-cover group-hover:scale-105 transition-transform duration-500"
                                         />
                                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-80" />
                                     </div>

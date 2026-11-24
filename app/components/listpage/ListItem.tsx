@@ -2,6 +2,7 @@
 
 import React from "react";
 import { positionCss } from "@/app/lib/framing";
+import { R2Image } from "@/app/components/R2Image";
 import type { RankingListItem } from "@/app/types";
 
 interface Props {
@@ -38,12 +39,14 @@ const ListItem: React.FC<Props> = ({ item }) => {
             )}
             {item.image1 && (
               <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-xl border border-slate-700/50 order-1 lg:order-2 group-hover:shadow-brand/5 transition-shadow duration-500">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                {/* The stored size that fits the frame, not the 4000 px original. */}
+                <R2Image
                   src={item.image1}
                   alt={`${item.title} - view 1`}
+                  fill
+                  sizes="(min-width: 1024px) 40vw, 92vw"
                   style={{ objectPosition: positionCss(item.image1Focus) }}
-                  className="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out"
+                  className="object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out"
                   loading="lazy"
                 />
               </div>
@@ -56,11 +59,13 @@ const ListItem: React.FC<Props> = ({ item }) => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             {item.image2 && (
               <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-xl border border-slate-700/50 order-1 group-hover:shadow-brand/5 transition-shadow duration-500">
-                <img
+                <R2Image
                   src={item.image2}
                   alt={`${item.title} - view 2`}
+                  fill
+                  sizes="(min-width: 1024px) 40vw, 92vw"
                   style={{ objectPosition: positionCss(item.image2Focus) }}
-                  className="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out"
+                  className="object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out"
                   loading="lazy"
                 />
               </div>
