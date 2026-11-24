@@ -45,6 +45,8 @@ export default function PracticeClient() {
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({ dragging: false, startX: 0, scrollLeft: 0 });
+  // The catalogue and the disabled categories, fetched on the first board set and kept.
+  const dataRef = useRef<Promise<[Awaited<ReturnType<typeof fetchConnectionsData>>, { disabledCategories?: string[] }]> | null>(null);
 
   async function generate(count = genCount) {
     setLoading(true);
@@ -53,11 +55,13 @@ export default function PracticeClient() {
     base.setDate(base.getDate() + count);
     const seed = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}-${String(base.getDate()).padStart(2, "0")}`;
     try {
-      const [coasters, disabledRes] = await Promise.all([
-        fetchConnectionsData(),
-        fetch("/api/connections/categories"),
-      ]);
-      const { disabledCategories = [] } = await disabledRes.json();
+      if (!dataRef.current) {
+        dataRef.current = Promise.all([
+          fetchConnectionsData(),
+          fetch("/api/connections/categories").then((r) => r.json()),
+        ]).catch((e) => { dataRef.current = null; throw e; });
+      }
+      const [coasters, { disabledCategories = [] }] = await dataRef.current;
       const usable = getUsableCategories(coasters, new Set(disabledCategories), true);
       const result = buildDailyPuzzleGroups(usable, seed);
 

@@ -21,15 +21,16 @@ export type SearchIndex = { parks: SPark[]; coasters: SCoaster[]; manufacturers:
 const EMPTY: SearchIndex = { parks: [], coasters: [], manufacturers: [], loaded: false };
 let indexPromise: Promise<Partial<SearchIndex>> | null = null;   // one download per page, shared by every search box
 
-/** The site's search index (parks, coasters, manufacturers), fetched once. */
-export function useSearchIndex(): SearchIndex {
+/** The site's search index (parks, coasters, manufacturers), fetched once, the first time a box is opened. */
+export function useSearchIndex(wanted = true): SearchIndex {
   const [idx, setIdx] = useState<SearchIndex>(EMPTY);
   useEffect(() => {
+    if (!wanted) return;
     if (!indexPromise) indexPromise = fetch("/api/search-index").then(r => (r.ok ? r.json() : {})).catch(err => { console.error("Failed to load search index", err); return {}; });
     let alive = true;
     indexPromise.then(d => { if (alive) setIdx({ parks: d.parks || [], coasters: d.coasters || [], manufacturers: d.manufacturers || [], loaded: true }); });
     return () => { alive = false; };
-  }, []);
+  }, [wanted]);
   return idx;
 }
 
@@ -67,7 +68,7 @@ const SearchBar = ({ collapsible = false }: { collapsible?: boolean }) => {
   const [expanded, setExpanded] = useState(!collapsible);
   const [val, setVal] = useState("");
 
-  const idx = useSearchIndex();
+  const idx = useSearchIndex(open || (expanded && val !== ""));
   const loaded = idx.loaded;
   const [activeIdx, setActiveIdx] = useState(-1);
   const router = useRouter();

@@ -37,7 +37,7 @@ export default function CoasterPhotoStrip({ images, coasterName, onOpen, isAdmin
   const scrollRef = useRef<HTMLDivElement>(null);
   // Place framed photos on mount and after every change (server-drawn photos
   // are complete before hydration, so their onLoad never fires), and on resize.
-  useEffect(() => { if (scrollRef.current) replaceCovers(scrollRef.current); });
+  useEffect(() => { if (scrollRef.current) replaceCovers(scrollRef.current); }, [images, fallbackCount, isAdminMode]);
   useEffect(() => {
     const onResize = () => { if (scrollRef.current) replaceCovers(scrollRef.current); };
     window.addEventListener("resize", onResize);

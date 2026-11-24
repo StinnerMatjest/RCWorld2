@@ -205,7 +205,7 @@ function markFirstPhoto() {
   const w = firstPhotoWaiters; firstPhotoWaiters = []; w.forEach((f) => f());
 }
 
-const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager = false, first = false, defer = false, assumedScreen = "desktop", onImgReady }: { rating: Visit; park: Park; eager?: boolean; first?: boolean; /** Phone strip: wait for the first card's photo before asking for this one. */ defer?: boolean; assumedScreen?: keyof typeof ASSUMED_SCREEN; onImgReady?: () => void }) {
+const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager = false, first = false, defer = false, assumedScreen = "desktop", readyId = "", onImgReady }: { rating: Visit; park: Park; eager?: boolean; first?: boolean; /** Phone strip: wait for the first card's photo before asking for this one. */ defer?: boolean; assumedScreen?: keyof typeof ASSUMED_SCREEN; /** The card tells the reveal gate which card is ready. */ readyId?: string; onImgReady?: (id: string) => void }) {
   const [imgReady, setImgReady] = useState(false);
   const [wanted, setWanted] = useState(eager || !defer);
   useEffect(() => { if (!wanted) return afterFirstPhoto(() => setWanted(true)); }, [wanted]);
@@ -236,11 +236,11 @@ const TeaserParkCard = React.memo(function TeaserParkCard({ rating, park, eager 
           assumedScreen={ASSUMED_SCREEN[assumedScreen]}
           className="absolute inset-0"
           imgClassName="opacity-85 framing-photo"
-          priority={eager}
+          priority={first}
           variants={!park.cardCut}
           onLoad={() => {
             if (first) markFirstPhoto();
-            onImgReady?.();
+            onImgReady?.(readyId);
             // Keep the shimmer under the image until its 500ms fade finishes
             setTimeout(() => setImgReady(true), 550);
           }}
@@ -298,7 +298,7 @@ const FULL_BLEED_GROUPS = [
 ];
 
 
-const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0, eager = false, first = false, defer = false, preloadAll = false, assumedScreen = "desktop", onImgReady }: { rating: Visit; park: Park; isActive?: boolean; delayIndex?: number; eager?: boolean; first?: boolean; /** Off-screen cards get their image address only when near view (phone strip). */ defer?: boolean; /** After the first interaction: load every deferred card in the background. */ preloadAll?: boolean; assumedScreen?: keyof typeof ASSUMED_SCREEN; onImgReady?: () => void }) {
+const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, park, isActive = false, delayIndex = 0, eager = false, first = false, defer = false, preloadAll = false, assumedScreen = "desktop", readyId = "", onImgReady }: { rating: Visit; park: Park; isActive?: boolean; delayIndex?: number; eager?: boolean; first?: boolean; /** Off-screen cards get their image address only when near view (phone strip). */ defer?: boolean; /** After the first interaction: load every deferred card in the background. */ preloadAll?: boolean; assumedScreen?: keyof typeof ASSUMED_SCREEN; /** The card tells the reveal gate which card is ready. */ readyId?: string; onImgReady?: (id: string) => void }) {
   const headerSrc = park.imagepath || "/images/error.PNG";
   // The card photo as framed in the editor, or its cut when one is ready.
   // Memoised so the mount effect below sees one stable entry.
@@ -389,7 +389,7 @@ const FullBleedRatingCard = React.memo(function FullBleedRatingCard({ rating, pa
       // responsive on its own; px values are only needed for cross-fades.
       const scale = showFromStart ? 0 : applyFocusToImg(a, cardFocusStr);
       if (!showFromStart && upgradeIfSoft(a, cardSrc, scale, !!cardSize || cardDirect)) { a.onload = () => reveal(fade); return; }
-      onImgReadyRef.current?.();
+      onImgReadyRef.current?.(readyId);
       if (showFromStart) {
         a.style.opacity = "0.95";
         setImgReady(true);
@@ -741,9 +741,6 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
         closestIdx = idx;
       }
 
-      const ratio = dist / el.clientWidth;
-      const px = Math.max(-14, Math.min(14, -ratio * 28));
-      child.style.setProperty("--px", `${Math.round(px)}px`);
     });
 
     setCurrentIndex(closestIdx);
@@ -810,9 +807,9 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
                 {item.type === "pending" ? (
                   <PendingParkCard park={item.park} />
                 ) : item.type === "teaser" ? (
-                  <TeaserParkCard rating={item.rating} park={item.park} eager={index < EAGER_MOBILE} first={index === 0} defer assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
+                  <TeaserParkCard rating={item.rating} park={item.park} eager={index < EAGER_MOBILE} first={index === 0} defer assumedScreen="mobile" readyId={item.id} onImgReady={markImgReady} />
                 ) : item.type === "rating" ? (
-                  <FullBleedRatingCard rating={item.rating} park={item.park} isActive={active} delayIndex={index} eager={index < EAGER_MOBILE} first={index === 0} defer preloadAll={engaged} assumedScreen="mobile" onImgReady={() => markImgReady(item.id)} />
+                  <FullBleedRatingCard rating={item.rating} park={item.park} isActive={active} delayIndex={index} eager={index < EAGER_MOBILE} first={index === 0} defer preloadAll={engaged} assumedScreen="mobile" readyId={item.id} onImgReady={markImgReady} />
                 ) : null}
               </div>
             );
@@ -838,9 +835,9 @@ const Home = ({ initialRatings, initialParks, initialAdminMode, initialIsMobile 
             return <PendingParkCard key={item.id} park={item.park} />;
           }
           if (item.type === "teaser") {
-            return <TeaserParkCard key={item.id} rating={item.rating} park={item.park} eager={index < EAGER_DESKTOP} assumedScreen="desktop" onImgReady={() => markImgReady(item.id)} />;
+            return <TeaserParkCard key={item.id} rating={item.rating} park={item.park} eager={index < EAGER_DESKTOP} assumedScreen="desktop" readyId={item.id} onImgReady={markImgReady} />;
           }
-          return <FullBleedRatingCard key={item.id} rating={item.rating} park={item.park} delayIndex={index} eager={index < EAGER_DESKTOP} first={index === 0} assumedScreen="desktop" onImgReady={() => markImgReady(item.id)} />;
+          return <FullBleedRatingCard key={item.id} rating={item.rating} park={item.park} delayIndex={index} eager={index < EAGER_DESKTOP} first={index === 0} assumedScreen="desktop" readyId={item.id} onImgReady={markImgReady} />;
         })}
       </div>
       )}

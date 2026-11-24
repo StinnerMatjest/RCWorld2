@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { FocusedImage, parseFocusStr } from "../FocusedImage";
-import { phoneSource } from "@/app/lib/heroSources";
+import { heroSources, phoneSource } from "@/app/lib/heroSources";
 import { getRatingColor } from "@/app/utils/design";
 import type { RollerCoaster } from "@/app/types";
 
@@ -19,6 +19,8 @@ interface Props {
   /** Separate crops for the portrait phone hero and the wide desktop hero. */
   headerFocus?: HeaderFocus;
   headerPhone?: HeaderPhone;
+  /** The header photo's pixel size, when stored: lets the hero pick the right file once. */
+  headerSize?: { w: number; h: number } | null;
   isAdminMode: boolean;
   onPickHeader?: () => void;
   onOpenPhoto?: (url: string) => void;
@@ -54,7 +56,7 @@ function useDesktop() {
  * as the frame allows, the model, where it is, and the score the way the
  * home cards wear theirs: huge, in its rating colour, on the photo.
  */
-export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, headerFocus, headerPhone = null, isAdminMode, onPickHeader, onOpenPhoto }: Props) {
+export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, headerFocus, headerPhone = null, headerSize = null, isAdminMode, onPickHeader, onOpenPhoto }: Props) {
   // Phones show the cover's own phone photo when it has one (a <picture> source).
   const phone = headerPhone && headerPhone.path !== headerImage ? headerPhone : null;
   const desktop = useDesktop();
@@ -85,6 +87,9 @@ export default function CoasterHero({ coaster, parkName, parkSlug, headerImage, 
             focusStr={focus}
             priority
             variants
+            // With the size known, the srcset says exactly which stored file this screen needs
+            // (no second download after the first file lands); without it, the safe size is used.
+            {...(headerSize ? heroSources(headerImage, headerSize, { phone: parseFocusStr(headerFocus?.mobile).zoom, wide: parseFocusStr(headerFocus?.desktop).zoom }) : {})}
             {...(phone ? { pictureSources: [phoneSource(phone.path, phone.size ?? undefined, parseFocusStr(headerFocus?.mobile).zoom)] } : {})}
             className="absolute inset-0"
             imgClassName="framing-photo"

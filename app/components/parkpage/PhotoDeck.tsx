@@ -138,14 +138,16 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
   // photos are already loaded, so onLoad never fires), when the pile changes,
   // and when the card's size changes.
   const sectionRef = useRef<HTMLElement>(null);
-  useEffect(() => { if (sectionRef.current) replaceCovers(sectionRef.current); });
+  useEffect(() => { if (sectionRef.current) replaceCovers(sectionRef.current); }, [pile, shown]);
   useEffect(() => {
     const onResize = () => { if (sectionRef.current) replaceCovers(sectionRef.current); };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-  // Warm the cards just below the mounted pile.
+  // Warm the cards just below the mounted pile (phones only: on desktop the deck is hidden
+  // and the strip shows these photos instead).
   useEffect(() => {
+    if (window.matchMedia("(min-width: 1024px)").matches) return;
     for (const i of pile.slice(VISIBLE + 1, VISIBLE + 3)) {
       const src = shown[i]?.path;
       if (src && isR2Image(src)) { const img = new Image(); img.src = variantKey(src, 1200); }
@@ -370,10 +372,10 @@ export default function PhotoDeck({ images, parkName, onOpen, isAdminMode = fals
                 // aspect a is drawn max(1, 1.25a) card widths wide: exact when its size is
                 // known; otherwise as for a wide photo (and it steps up after load if wider).
                 sizes={deckSizes(img)}
-                // The front card is eager so the pile is ready to swipe; the cards
-                // beneath wait for layout (lazy), so none of them is discovered by
-                // the preload scanner alongside the hero. All sit behind it in the queue.
-                loading={isTop ? "eager" : "lazy"}
+                // All cards are lazy: on a phone the pile sits just under the hero, so the
+                // front card is fetched as soon as layout runs; on desktop the deck is
+                // hidden and a lazy image in a hidden box is never fetched at all.
+                loading="lazy"
                 fetchPriority="low"
                 draggable={false}
                 className="object-cover rounded-2xl pointer-events-none framing-photo"

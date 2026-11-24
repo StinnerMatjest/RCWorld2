@@ -144,6 +144,7 @@ export function mapApiToCoastle(c: ApiCoaster): CoastleCoaster | null {
     parkId: c.parkId,
     slug: c.slug,
     countryName,
+    image: (c as { image?: string | null }).image ?? null,
 
     height: toNumOrNull(specs.height),       // ft
     length: toNumOrNull(specs.length),       // ft

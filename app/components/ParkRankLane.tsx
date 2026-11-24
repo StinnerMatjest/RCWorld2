@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, Reorder, AnimatePresence } from "framer-motion";
-import Image from "next/image";
 import { getRatingColor } from "@/app/utils/design";
 import { MarkdownText } from "./MarkdownText";
 import { R2Image } from "./R2Image";
@@ -796,11 +795,12 @@ const ParkRankLane: React.FC<Props> = ({
                 />
               )}
               {p.id !== NEW_PARK_ID && p.imagePath && !p.coaster && (
-                <Image
+                <R2Image
                   src={p.imagePath}
                   alt={p.name}
                   width={32}
                   height={32}
+                  sizes="64px"
                   className="w-8 h-8 object-cover rounded-md border border-slate-700 flex-shrink-0"
                   draggable={false}
                 />

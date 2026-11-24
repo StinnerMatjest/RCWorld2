@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -18,10 +19,10 @@ import CoasterGallery from "@/app/components/coasterpage/CoasterGallery";
 import CoasterInfo from "@/app/components/coasterpage/CoasterInfo";
 import CoasterNeighbours from "@/app/components/coasterpage/CoasterNeighbours";
 import CoasterLightbox from "@/app/components/coasterpage/CoasterLightbox";
-import CoasterHeaderModal from "@/app/components/coasterpage/CoasterHeaderModal";
-import CoasterStripEditor from "@/app/components/coasterpage/CoasterStripEditor";
 import { mediaCaptions } from "@/app/components/parkpage/SectionBody";
 import type { CoasterTextEntry, CoasterGalleryImage, CoasterMini } from "@/app/components/coasterpage/coasterPageTypes";
+const CoasterStripEditor = dynamic(() => import("@/app/components/coasterpage/CoasterStripEditor"), { ssr: false });
+const CoasterHeaderModal = dynamic(() => import("@/app/components/coasterpage/CoasterHeaderModal"), { ssr: false });
 
 interface CoasterPageClientProps {
   initialId: string;
@@ -212,6 +213,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
         headerImage={headerImage}
         headerFocus={headerFocus}
         headerPhone={headerPhone}
+        headerSize={headerRow?.w && headerRow?.h ? { w: headerRow.w, h: headerRow.h } : null}
         isAdminMode={isAdminMode}
         onPickHeader={() => setIsHeaderModalOpen(true)}
         onOpenPhoto={openPhoto}
@@ -285,7 +287,7 @@ const CoasterPage: React.FC<CoasterPageClientProps> = ({
 
             {(gallery.length > 0 || isAdminMode) && (
               <section id="gallery" className="scroll-mt-20">
-                <CoasterGallery coasterId={coaster.id} coasterName={coaster.name} parkId={coaster.parkId} />
+                <CoasterGallery coasterId={coaster.id} coasterName={coaster.name} parkId={coaster.parkId} initialImages={gallery.map((g) => ({ ...g, is_header: !!g.is_header, description: g.description ?? "" }))} />
               </section>
             )}
           </div>

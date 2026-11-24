@@ -361,7 +361,7 @@ const editorUi=`
       if(!dirty){if(!typing&&!dragging){status.textContent='updated by someone else, reloading';location.reload();}return;}
       if(!remoteChanged){remoteChanged=true;status.textContent='someone else saved a newer version. Save to overwrite it, or';
         const rb=document.createElement('button');rb.id='ed-reload-btn';rb.className='sec';rb.textContent='Reload theirs (drops your edits)';rb.onclick=()=>{setDirty(false);location.reload();};status.after(rb);}
-    }).catch(()=>{});},3000);
+    }).catch(()=>{});},15000);
   }
   window.edRestore=function(){try{const d=JSON.parse(localStorage.getItem(KEY));if(!d)return;const track=document.querySelector('.carousel-track');track.innerHTML=d.html;
     const tpl=document.getElementById('pr-logo');track.querySelectorAll('.logo-slot').forEach(s=>{s.innerHTML='';s.appendChild(tpl.content.firstElementChild.cloneNode(true));});

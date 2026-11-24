@@ -86,11 +86,6 @@ function zoomTransform(scale: number, focus: { x: number; y: number }) {
   return `scale(${scale}) translate(${(50 - focus.x) * k}%, ${(50 - focus.y) * k}%)`;
 }
 
-function pickRandom<T>(arr: T[], n: number): T[] {
-  const c = [...arr];
-  for (let i = c.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[c[i], c[j]] = [c[j], c[i]]; }
-  return c.slice(0, n);
-}
 
 function getPoints(p: number) { for (const b of POINT_BRACKETS) if (p <= b.threshold) return b.points; return 1; }
 function getLabel(p: number) { for (const b of POINT_BRACKETS) if (p <= b.threshold) return b.label; return "Close enough!"; }
@@ -166,10 +161,9 @@ function FlagButton({ image, focalIndex, dark }: { image: string; focalIndex: nu
 
 // ─── Zoomle ───────────────────────────────────────────────────────────────────
 
-function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImages = 0, isMobile = true }: {
+function PhotoGame({ dailyRounds, dailyDate, poolTotal = 0, poolImages = 0, isMobile = true }: {
   dailyRounds: PhotoRound[];
   dailyDate: string;
-  zoomlePool: { image: string; focus: string; coaster_id: number }[];
   poolTotal?: number;
   poolImages?: number;
   isMobile?: boolean;
@@ -202,13 +196,15 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
   const introTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [paused, setPaused] = useState(false);
 
-  // Preload every round image up front so changing rounds never shows a
-  // stale frame or swaps the picture mid-zoom while the new one loads.
+  // Each round's photo is fetched one round ahead (the current and the next), from
+  // the moment the game starts, so a round never waits for its picture and a visitor
+  // who only looks at the start screen, or has played today, downloads nothing.
   useEffect(() => {
-    dailyRounds.forEach(r => {
+    if (!started || done) return;
+    for (const r of dailyRounds.slice(round, round + 2)) {
       if (!isVideo(r.image)) { const im = new window.Image(); im.src = r.image; }
-    });
-  }, [dailyRounds]);
+    }
+  }, [dailyRounds, started, done, round]);
 
   const buildRounds = useCallback(() => {
     // Restore from local storage if done so clicking "Results" from launcher jumps right to results
@@ -382,7 +378,7 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
     }, 3200);
   }
 
-  if (zoomlePool.length === 0) return <p className="text-slate-400 text-center py-8 text-sm">No images in the Zoomle pool yet. <a href="/games/zoomle/config" className="underline">Set them up here.</a></p>;
+  if (dailyRounds.length === 0) return <p className="text-slate-400 text-center py-8 text-sm">No images in the Zoomle pool yet. <a href="/games/zoomle/config" className="underline">Set them up here.</a></p>;
 
   // ── Nav helpers ─────────────────────────────────────────────────────────────
   function showNav() { /* nav always visible — nothing to restore */ }
@@ -558,9 +554,6 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
 
   // ── Desktop start screen ────────────────────────────────────────────────────
   if (!isMobile && !started) {
-    // Background must not be any of today's round images
-    const todayImages = new Set(dailyRounds.map(r => r.image));
-    const bgImg = zoomlePool.find(p => !todayImages.has(p.image))?.image;
     return (
       <div className="w-full flex flex-col items-center gap-6 pt-4 pb-12">
         <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }}
@@ -583,8 +576,6 @@ function PhotoGame({ dailyRounds, dailyDate, zoomlePool, poolTotal = 0, poolImag
 
   // ── Countdown — fullscreen on mobile, inline on desktop ──────────────────────
   if (countdown !== null) {
-    const todayImgSet = new Set(dailyRounds.map(r => r.image));
-    const countdownBg = zoomlePool.find(p => !todayImgSet.has(p.image))?.image;
     return isMobile ? (
       <div className="bg-[#0f172a] flex items-center justify-center overflow-hidden" style={{ minHeight: "calc(100dvh - 56px)" }}>
         <AnimatePresence mode="wait">
@@ -898,7 +889,6 @@ export default function TestGames() {
   const [dailyDate, setDailyDate] = useState("");
   const [poolTotal, setPoolTotal] = useState(0);
   const [poolImages, setPoolImages] = useState(0);
-  const [zoomlePool, setZoomlePool] = useState<{ image: string; focus: string; coaster_id: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -911,16 +901,11 @@ export default function TestGames() {
 
   useEffect(() => {
     const today = getTodayStr();
-    Promise.all([
-      fetch(`/api/zoomle?date=${today}`).then(r => r.json()),
-      fetch("/api/zoomle/images").then(r => r.json()),
-    ]).then(([daily, pool]) => {
+    // The day's rounds carry everything the game needs; the full image list is not fetched.
+    fetch(`/api/zoomle?date=${today}`).then(r => r.json()).then((daily) => {
       setDailyDate(daily.date ?? today);
       setPoolTotal(daily.total ?? 0);
       setPoolImages(daily.uniqueImages ?? 0);
-      setZoomlePool((pool.images ?? []).map((i: any) => ({
-        image: i.image_path, focus: i.focus ?? "50% 50%", coaster_id: i.coaster_id,
-      })));
       // Map API rounds → PhotoRound[]
       setDailyRounds((daily.rounds ?? []).map((r: any) => ({
         image: r.image,
@@ -958,7 +943,7 @@ export default function TestGames() {
       </header>
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
         className="w-full max-w-5xl">
-        <PhotoGame dailyRounds={dailyRounds} dailyDate={dailyDate} zoomlePool={zoomlePool} poolTotal={poolTotal} poolImages={poolImages} isMobile={false} />
+        <PhotoGame dailyRounds={dailyRounds} dailyDate={dailyDate} poolTotal={poolTotal} poolImages={poolImages} isMobile={false} />
       </motion.div>
     </div>
   );
@@ -966,7 +951,7 @@ export default function TestGames() {
   // Mobile: fullscreen with start screen + countdown
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} className="contents">
-      <PhotoGame dailyRounds={dailyRounds} dailyDate={dailyDate} zoomlePool={zoomlePool} poolTotal={poolTotal} poolImages={poolImages} isMobile={true} />
+      <PhotoGame dailyRounds={dailyRounds} dailyDate={dailyDate} poolTotal={poolTotal} poolImages={poolImages} isMobile={true} />
     </motion.div>
   );
 }

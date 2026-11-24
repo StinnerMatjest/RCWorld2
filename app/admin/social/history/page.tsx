@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAdminMode } from "@/app/context/AdminModeContext";
+import { variantUrl } from "@/app/lib/imageVariants";
 
 type HistoryPost = {
   id: number;
@@ -101,7 +102,7 @@ export default function SocialHistoryPage() {
                   onClick={() => setExpanded(expanded === post.id ? null : post.id)}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={post.image_url} alt="" className="w-16 h-12 object-cover rounded-lg flex-shrink-0" />
+                  <img src={variantUrl(post.image_url, 480)} alt="" className="w-16 h-12 object-cover rounded-lg flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-orange-400 truncate">
                       {post.park_name}{post.category ? ` · ${post.category}` : ""}
@@ -120,7 +121,7 @@ export default function SocialHistoryPage() {
                 {expanded === post.id && (
                   <div className="px-5 pb-5 border-t border-slate-700 pt-4 grid sm:grid-cols-2 gap-4">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={post.image_url} alt="" className="w-full rounded-xl object-cover max-h-48" />
+                    <img src={variantUrl(post.image_url, 1200)} alt="" className="w-full rounded-xl object-cover max-h-48" />
                     <div>
                       <p className="text-sm text-white whitespace-pre-line leading-relaxed">{post.caption}</p>
                       <p className="text-xs text-blue-400 mt-2">{post.hashtags}</p>

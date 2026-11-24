@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 export type RankedPark = {
@@ -81,7 +81,22 @@ function SortTh({ label, short, sortKey, activeKey, dir, onSort, className = "" 
   );
 }
 
+/** Wide screens get the table, narrow ones the cards. The server sends both (CSS shows one);
+ *  once mounted, only the layout in use stays in the page. */
+function useWide() {
+  const [wide, setWide] = useState<boolean | null>(null);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setWide(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  return wide;
+}
+
 export default function ParksClient({ parks }: { parks: RankedPark[] }) {
+  const wide = useWide();
   const [sortKey, setSortKey] = useState<SortKey>("overall");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
 
@@ -114,7 +129,7 @@ export default function ParksClient({ parks }: { parks: RankedPark[] }) {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
 
       {/* Desktop table */}
-      <div className="hidden lg:block overflow-x-auto rounded-2xl border border-slate-800">
+      {wide !== false && <div className="hidden lg:block overflow-x-auto rounded-2xl border border-slate-800">
         {/* ADDED: table-fixed and min-w-[1000px] */}
         <table className="w-full text-sm border-collapse table-fixed min-w-[1000px]">
           <thead>
@@ -178,10 +193,10 @@ export default function ParksClient({ parks }: { parks: RankedPark[] }) {
             })}
           </tbody>
         </table>
-      </div>
+      </div>}
 
       {/* Mobile cards */}
-      <div className="lg:hidden flex flex-col gap-3">
+      {wide !== true && <div className="lg:hidden flex flex-col gap-3">
         {sorted.map((park, i) => {
           const pos = overallRank[park.id];
           const medal = MEDALS[pos];
@@ -214,7 +229,7 @@ export default function ParksClient({ parks }: { parks: RankedPark[] }) {
             </Link>
           );
         })}
-      </div>
+      </div>}
 
       <p className="hidden lg:block text-center text-slate-500 text-xs mt-8 pb-2">
         Click any column header to sort · Scores from most recent visit

@@ -106,12 +106,6 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
   const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
   const [showLogin, setShowLogin] = useState(false);
 
-  // One clock for the time in the park and the queue timer.
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3500);
@@ -120,7 +114,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
 
   const running = sessions.length > 0 && !sessions[sessions.length - 1].end && !finished;
   const paused = sessions.length > 0 && !running && !finished;
-  const elapsed = finished
+  const elapsedAt = (now: number) => finished
     ? view.duration
     : sessions.reduce((sum, s) => sum + Math.max(0, Math.floor(((s.end ? Date.parse(s.end) : now) - Date.parse(s.start)) / 1000)), 0);
   const days = new Set(sessions.map(s => new Date(s.start).toDateString())).size;
@@ -175,12 +169,12 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
     setSheet({ kind: "done" });
   }
 
-  const meta = finished
-    ? `Completed · ${formatDuration(elapsed)} in the park`
+  const metaAt = (now: number) => finished
+    ? `Completed · ${formatDuration(elapsedAt(now))} in the park`
     : running
-      ? `Day ${Math.max(1, days)} · ${formatDuration(elapsed)} in the park`
+      ? `Day ${Math.max(1, days)} · ${formatDuration(elapsedAt(now))} in the park`
       : paused
-        ? `Paused · ${formatDuration(elapsed)} in the park`
+        ? `Paused · ${formatDuration(elapsedAt(now))} in the park`
         : "Not started";
 
   return (
@@ -192,7 +186,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
           <div className="mt-3 flex items-start justify-between gap-4">
             <div className="min-w-0">
               <h1 className="text-[30px] font-bold leading-[1.05] tracking-tight [text-wrap:balance]">{parkName}</h1>
-              <p className={`mt-2 text-[13px] ${paused ? "text-amber-400" : "text-slate-400"}`}>{meta}</p>
+              <p className={`mt-2 text-[13px] ${paused ? "text-amber-400" : "text-slate-400"}`}><Live active={running}>{metaAt}</Live></p>
             </div>
             {!finished && sessions.length > 0 && (
               <button type="button" onClick={() => actions.timer(running ? "pause" : "resume")}
@@ -335,7 +329,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                   <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">In the queue</p>
                   <h2 className="mt-2 text-[28px] font-bold leading-tight">{nameOf(openQueue.item)}</h2>
                   <p className="mt-3 flex items-baseline gap-2.5">
-                    <span className="text-[40px] font-bold tabular-nums leading-none">{clock(now - Date.parse(openQueue.start))}</span>
+                    <span className="text-[40px] font-bold tabular-nums leading-none"><Live>{(now) => clock(now - Date.parse(openQueue.start))}</Live></span>
                     <span className="text-[13px] text-slate-400">since {time(openQueue.start)}</span>
                   </p>
                   <div className="mt-3 flex items-center justify-between border-t border-slate-400/15 pt-3 text-sm text-slate-300">
@@ -344,7 +338,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                       className="py-1.5 pl-3 text-[11px] font-bold uppercase tracking-[0.14em] text-brand cursor-pointer">Change</button>
                   </div>
                   <button type="button" onClick={() => {
-                    const m = Math.max(1, Math.round((now - Date.parse(openQueue.start)) / 60000));
+                    const m = Math.max(1, Math.round((Date.now() - Date.parse(openQueue.start)) / 60000));
                     setSheet({ kind: "log", qid: openQueue.id, item: openQueue.item, timer: m, real: m, board: openQueue.board });
                   }} className="mt-3.5 h-[52px] w-full rounded-[14px] bg-brand text-[16.5px] font-bold text-slate-900 hover:bg-brand-light cursor-pointer">We&apos;re on</button>
                   <button type="button" onClick={() => {
@@ -386,7 +380,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                         <p className="text-[15px] font-bold">{d.ride}</p>
                         <p className={`text-[11.5px] ${d.to ? "text-slate-500" : "text-amber-400"}`}>{d.to ? `${time(d.from)}–${time(d.to)}` : `Down since ${time(d.from)}`}</p>
                       </div>
-                      <span className="text-[15px] font-bold tabular-nums">{Math.max(1, Math.round(((d.to ? Date.parse(d.to) : now) - Date.parse(d.from)) / 60000))} min</span>
+                      <span className="text-[15px] font-bold tabular-nums"><Live active={!d.to}>{(now) => Math.max(1, Math.round(((d.to ? Date.parse(d.to) : now) - Date.parse(d.from)) / 60000))}</Live> min</span>
                     </div>
                   ))}
                 </>
@@ -568,7 +562,7 @@ export default function ChecklistClient({ checklist }: { checklist: Checklist })
                 <h4 className="mt-2 text-[30px] font-bold leading-tight">{parkName}</h4>
                 <div className="mt-3 h-1 w-12 bg-brand" />
                 <div className="mt-5 grid grid-cols-2 gap-x-3 gap-y-4">
-                  <Stat value={formatDuration(elapsed)} label="in the park" />
+                  <Stat value={formatDuration(elapsedAt(Date.now()))} label="in the park" />
                   <Stat value={String(coasters.reduce((a, c) => a + (c.rideCount || 0), 0))} label={`rides on ${coasters.filter(c => (c.rideCount || 0) > 0).length} coasters`} />
                   <Stat value={String(NOTE_CATEGORIES.reduce((a, c) => a + noteLines(notes[c.key]).length, 0))} label="lines of notes" />
                   <Stat value={String(loggedQueues.length)} label="queues timed" />
@@ -691,6 +685,18 @@ function SheetButtons({ primary, onPrimary, secondary, onSecondary }: { primary:
       <button type="button" onClick={onSecondary} className="mt-2 h-[46px] w-full rounded-[13px] border border-[#2b3a57] text-sm font-bold text-slate-300 cursor-pointer">{secondary}</button>
     </>
   );
+}
+
+/** A value drawn from a one-second clock; only this span redraws on each tick. */
+function Live({ active = true, children }: { active?: boolean; children: (now: number) => ReactNode }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [active]);
+  return <>{children(now)}</>;
 }
 
 function Stat({ value, label }: { value: string; label: string }) {

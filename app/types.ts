@@ -254,6 +254,8 @@ export type CoastleCoaster = {
   parkId: number;
   slug: string;
   countryName?: string;
+  /** The coaster's header photo, from the catalogue (null: none). */
+  image?: string | null;
   length?: number | null;      // ft
   height?: number | null;      // ft
   speed?: number | null;       // mph

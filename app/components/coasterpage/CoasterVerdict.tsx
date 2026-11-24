@@ -1,8 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import React, { useEffect, useState } from "react";
 import type { RollerCoasterHighlights } from "@/app/types";
-import CoasterHighlightsModal from "./CoasterHighlightsModal";
+const CoasterHighlightsModal = dynamic(() => import("./CoasterHighlightsModal"), { ssr: false });
 
 interface Props {
   highlights: RollerCoasterHighlights[];

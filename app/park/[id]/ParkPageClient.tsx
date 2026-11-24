@@ -1,14 +1,12 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { SectionBody, mediaCaptions } from "@/app/components/parkpage/SectionBody";
-import RatingModal from "@/app/components/RatingModal";
 import MainPageButton from "@/app/components/buttons/MainPageButton";
-import CoasterCreatorModal from "@/app/components/coasterpage/CoasterCreatorModal";
 import CoasterPhotoStrip from "@/app/components/coasterpage/CoasterPhotoStrip";
-import CoasterStripEditor from "@/app/components/coasterpage/CoasterStripEditor";
 import ParkText from "@/app/components/parkpage/ParkText";
 import ParkHero from "@/app/components/parkpage/ParkHero";
 import VisitSwitcher from "@/app/components/parkpage/VisitSwitcher";
@@ -22,6 +20,9 @@ import type { ParkRanks } from "@/app/utils/parkRanks";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import { isFramingPreview } from "@/app/lib/framingPreview";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
+const CoasterStripEditor = dynamic(() => import("@/app/components/coasterpage/CoasterStripEditor"), { ssr: false });
+const CoasterCreatorModal = dynamic(() => import("@/app/components/coasterpage/CoasterCreatorModal"), { ssr: false });
+const RatingModal = dynamic(() => import("@/app/components/RatingModal"), { ssr: false });
 
 type ParkPageClientProps = {
   initialId: string;

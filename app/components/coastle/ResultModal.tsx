@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
+import { R2Image } from "@/app/components/R2Image";
 import Link from "next/link";
 import { XMarkIcon, ShareIcon } from "./Icons";
 import { CoastleCoaster, Guess } from "@/app/types";
@@ -175,6 +175,8 @@ export function ResultModal({
 
   useEffect(() => {
     if (!isOpen || !answerId || !answer?.name) return;
+    // The catalogue already carries the coaster's photo: no two requests to find it.
+    if (answer.image) { setHeaderImage(answer.image); setImageLoaded(false); return; }
 
     const name: string = answer.name;
     let cancelled = false;
@@ -209,7 +211,7 @@ export function ResultModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, answerId, answerSlug, answer?.name]);
+  }, [isOpen, answerId, answerSlug, answer?.name, answer?.image]);
 
   useEffect(() => {
     if (!isOpen || gameMode !== "daily") return;
@@ -327,11 +329,11 @@ export function ResultModal({
               className="relative w-full h-32 sm:h-52 rounded-2xl overflow-hidden bg-neutral-800 shadow-sm cursor-zoom-in mt-4 sm:mt-5 md:mt-6"
               title="Open image"
             >
-              <Image
+              <R2Image
                 src={headerImage}
                 alt={coasterName}
                 fill
-                priority
+                sizes="(min-width: 640px) 512px, 100vw"
                 className={`object-cover transition-all duration-700 ${imageLoaded ? "opacity-100 blur-0" : "opacity-0 blur-md"}`}
                 onLoad={() => setImageLoaded(true)}
               />

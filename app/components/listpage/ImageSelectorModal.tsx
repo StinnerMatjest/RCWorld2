@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
+import { variantUrl } from "@/app/lib/imageVariants";
 
 interface GalleryImage {
   id: number;
@@ -101,7 +102,7 @@ const ImageSelectorModal: React.FC<Props> = ({ onClose, onSelect }) => {
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={img.path}
+                      src={variantUrl(img.path, 480)}
                       alt={img.title || "Gallery image"}
                       className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                       loading="lazy"

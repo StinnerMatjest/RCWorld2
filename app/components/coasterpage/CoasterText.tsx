@@ -1,11 +1,12 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import React, { useEffect, useMemo, useState } from "react";
 import { useAdminMode } from "../../context/AdminModeContext";
-import CoasterReviewEditor from "./CoasterReviewEditor";
 import { SectionBody, mediaCaptions } from "../parkpage/SectionBody";
 import { usesLegacyRow } from "@/app/utils/sectionImageAspect";
 import type { CoasterTextEntry, CoasterGalleryImage } from "./coasterPageTypes";
+const CoasterReviewEditor = dynamic(() => import("./CoasterReviewEditor"), { ssr: false });
 
 export type { CoasterTextEntry } from "./coasterPageTypes";
 

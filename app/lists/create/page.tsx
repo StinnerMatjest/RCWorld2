@@ -5,6 +5,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import ImageSelectorModal from "@/app/components/listpage/ImageSelectorModal";
+import { variantUrl } from "@/app/lib/imageVariants";
 
 function ListEditorForm() {
     const router = useRouter();
@@ -212,7 +213,7 @@ function ListEditorForm() {
                             <div className="min-h-[160px] border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center p-4 bg-gray-700 relative overflow-hidden group">
                                 {imageUrl ? (
                                     <>
-                                        <img src={imageUrl} alt="Header Preview" className="absolute inset-0 w-full h-full object-cover" />
+                                        <img src={variantUrl(imageUrl, 1200)} alt="Header Preview" className="absolute inset-0 w-full h-full object-cover" />
                                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                             <button type="button" onClick={() => setActiveImageTarget({ index: null, field: "header" })} className="px-3 py-1 bg-white text-black text-sm font-bold rounded shadow cursor-pointer">Change</button>
                                             <button type="button" onClick={() => setImageUrl("")} className="px-3 py-1 bg-red-600 text-white text-sm font-bold rounded shadow cursor-pointer">Clear</button>
@@ -263,7 +264,7 @@ function ListEditorForm() {
                                         <div className="flex-grow min-h-[160px] border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center p-4 bg-gray-800 relative overflow-hidden group">
                                             {item.image1 ? (
                                                 <>
-                                                    <img src={item.image1} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
+                                                    <img src={variantUrl(item.image1, 1200)} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
                                                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                                         <button type="button" onClick={() => setActiveImageTarget({ index, field: "image1" })} className="px-3 py-1 bg-white text-black text-sm font-bold rounded shadow cursor-pointer">Change</button>
                                                         <button type="button" onClick={() => updateItem(index, "image1", "")} className="px-3 py-1 bg-red-600 text-white text-sm font-bold rounded shadow cursor-pointer">Clear</button>
@@ -285,7 +286,7 @@ function ListEditorForm() {
                                         <div className="flex-grow min-h-[160px] border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center p-4 bg-gray-800 relative overflow-hidden group">
                                             {item.image2 ? (
                                                 <>
-                                                    <img src={item.image2} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
+                                                    <img src={variantUrl(item.image2, 1200)} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
                                                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                                         <button type="button" onClick={() => setActiveImageTarget({ index, field: "image2" })} className="px-3 py-1 bg-white text-black text-sm font-bold rounded shadow cursor-pointer">Change</button>
                                                         <button type="button" onClick={() => updateItem(index, "image2", "")} className="px-3 py-1 bg-red-600 text-white text-sm font-bold rounded shadow cursor-pointer">Clear</button>

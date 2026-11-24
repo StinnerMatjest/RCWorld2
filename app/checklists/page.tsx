@@ -41,8 +41,9 @@ async function getParks(): Promise<Park[]> {
 }
 
 export default async function ChecklistsIndexPage() {
-  const checklists = await getChecklists();
-  const parks = await getParks();
+  const [checklists, allParks] = await Promise.all([getChecklists(), getParks()]);
+  // The picker shows name and country and links by id and slug; the photo fields stay on the server.
+  const parks = allParks.map(({ id, name, slug, country, city, continent }) => ({ id, name, slug, country, city, continent, imagepath: "" }));
 
   // Group checklists by status
   const inProgress = checklists.filter(c => c.visit_start && !c.is_finished);

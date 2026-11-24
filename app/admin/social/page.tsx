@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useAdminMode } from "@/app/context/AdminModeContext";
+import { variantUrl } from "@/app/lib/imageVariants";
+import { R2Image } from "@/app/components/R2Image";
 
 type Post = {
   id: number;
@@ -28,7 +29,7 @@ function GalleryImageButton({ img, onClick }: { img: GalleryImage; onClick: () =
   const [ok, setOk] = useState<boolean | null>(null);
   return (
     <button className="relative aspect-video overflow-hidden rounded-lg group cursor-pointer" onClick={onClick}>
-      <Image
+      <R2Image
         src={img.path}
         alt={img.title}
         fill
@@ -551,7 +552,7 @@ export default function SocialAdminPage() {
                     <div className={`relative ${CROP_STYLES[crop]} w-full group/img cursor-pointer overflow-hidden max-h-64 sm:max-h-none`} onClick={() => openGallery(post)}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={imageUrl}
+                        src={variantUrl(imageUrl, 1200)}
                         alt={post.park_name}
                         className="w-full h-full object-cover"
                         onLoad={e => {
@@ -830,7 +831,7 @@ export default function SocialAdminPage() {
                         className={`relative aspect-video overflow-hidden rounded-lg cursor-pointer ring-2 transition-all ${createForm.image_url === img.path ? "ring-orange-500" : "ring-transparent hover:ring-slate-400"}`}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={img.path} alt={img.title} className="w-full h-full object-cover" />
+                        <img src={variantUrl(img.path, 480)} alt={img.title} className="w-full h-full object-cover" />
                       </button>
                     ))}
                   </div>

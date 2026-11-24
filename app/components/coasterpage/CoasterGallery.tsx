@@ -2,10 +2,13 @@
 
 import { VideoThumb } from "@/app/components/VideoThumb";
 import { R2Image } from "@/app/components/R2Image";
-import { variantUrl } from "@/app/lib/imageVariants";
+import { isR2Image, variantKey, variantUrl, VARIANT_WIDTHS } from "@/app/lib/imageVariants";
+
+/** The viewer offers every stored size and the original; the browser takes the smallest that fills the screen. */
+const viewerSrcSet = (path: string) => (isR2Image(path) ? [...VARIANT_WIDTHS.map((w) => `${variantKey(path, w)} ${w}w`), `${path} 4000w`].join(", ") : undefined);
+const viewerSrc = (path: string) => (isR2Image(path) ? variantKey(path, 1920) : path);
 import React, { useState, useEffect, useRef } from "react";
 import { placeCover, replaceCovers, tileFraming } from "@/app/lib/coverPlacement";
-import Image from "next/image";
 import { useAdminMode } from "../../context/AdminModeContext";
 import { useScrollLock } from "@/app/hooks/useScrollLock";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
@@ -14,6 +17,8 @@ interface CoasterGalleryProps {
     coasterId: number;
     coasterName: string;
     parkId: number;
+    /** The photos the page already has: the grid shows them at once and only refetches after an edit. */
+    initialImages?: GalleryImage[];
 }
 
 type GalleryImage = {
@@ -253,9 +258,9 @@ const CoasterImageManagerModal = ({
     );
 }
 
-const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName, parkId }) => {
+const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName, parkId, initialImages }) => {
     const { isAdminMode } = useAdminMode();
-    const [images, setImages] = useState<GalleryImage[]>([]);
+    const [images, setImages] = useState<GalleryImage[]>(initialImages ?? []);
     // Tiles framed by a focus point are placed for their size: after each render
     // (photos that were already in) and when the window changes size.
     const gridRef = useRef<HTMLDivElement>(null);
@@ -363,9 +368,11 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
         }
     };
 
+    // Photos given by the page need no fetch on open.
     useEffect(() => {
+        if (initialImages) { setImages(initialImages); setLoading(false); return; }
         fetchImages();
-    }, [coasterName]);
+    }, [coasterName, initialImages]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleDeleteImage = async () => {
         if (!selected) return;
@@ -667,21 +674,24 @@ const CoasterGallery: React.FC<CoasterGalleryProps> = ({ coasterId, coasterName,
 
                         {/* Image Viewer */}
                         <div className="flex-1 flex items-center justify-center w-full h-full overflow-hidden">
+                            {/* The neighbours are fetched ahead as the same files the viewer will show:
+                                the stored size this screen needs, the original where it needs more. */}
                             <div className="absolute opacity-0 pointer-events-none w-0 h-0 overflow-hidden">
-                                {selectedIndex !== null && selectedIndex > 0 && !images[selectedIndex - 1].path.match(/\.(mp4|webm|ogg)$/i) && (
-                                    <Image src={images[selectedIndex - 1].path} alt="prev" width={1920} height={1080} unoptimized priority />
-                                )}
-                                {selectedIndex !== null && selectedIndex < (images?.length ?? 0) - 1 && !images[selectedIndex + 1].path.match(/\.(mp4|webm|ogg)$/i) && (
-                                    <Image src={images[selectedIndex + 1].path} alt="next" width={1920} height={1080} unoptimized priority />
-                                )}
+                                {[selectedIndex !== null ? selectedIndex - 1 : -1, selectedIndex !== null ? selectedIndex + 1 : -1]
+                                    .filter((i) => i >= 0 && i < images.length && !images[i].path.match(/\.(mp4|webm|ogg)$/i))
+                                    .map((i) => (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img key={images[i].id} src={viewerSrc(images[i].path)} srcSet={viewerSrcSet(images[i].path)} sizes="100vw" alt="" decoding="async" />
+                                    ))}
                             </div>
                             <div className={`relative ${animClass} w-full h-full flex items-center justify-center p-4 md:p-12`}>
                                 {selected.path.match(/\.(mp4|webm|ogg)$/i) ? (
                                     <video src={selected.path} controls autoPlay loop className="w-auto h-auto max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl" />
                                 ) : (
-                                    <Image
-                                        src={selected.path} alt={selected.title || "Full Image"}
-                                        width={1920} height={1080} unoptimized priority draggable={false}
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        src={viewerSrc(selected.path)} srcSet={viewerSrcSet(selected.path)} sizes="100vw"
+                                        alt={selected.title || "Full Image"} fetchPriority="high" decoding="async" draggable={false}
                                         onClick={handleImageClick}
                                         className="w-auto h-auto max-w-full max-h-[85vh] object-contain cursor-pointer shadow-2xl rounded-lg"
                                     />

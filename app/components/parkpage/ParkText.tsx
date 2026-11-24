@@ -1,16 +1,17 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { SectionBody, mediaCaptions } from "./SectionBody";
 import { usesLegacyRow } from "@/app/utils/sectionImageAspect";
 import type { Visit, RatingWarningType } from "@/app/types";
-import ParkRatingsModal from "./ParkTextModal";
 import { getRatingColor } from "@/app/utils/design";
 import { ratingCategories } from "@/app/utils/ratings";
 import RatingWarning from "../warnings/RatingWarning";
-import WarningCreatorModal from "../warnings/WarningCreatorModal";
 import { useAdminMode } from "../../context/AdminModeContext";
 import type { VisitGalleryImage } from "./VisitGallery";
+const WarningCreatorModal = dynamic(() => import("../warnings/WarningCreatorModal"), { ssr: false });
+const ParkRatingsModal = dynamic(() => import("./ParkTextModal"), { ssr: false });
 
 interface ParkTextProps {
   rating: Visit;

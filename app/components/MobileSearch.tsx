@@ -16,7 +16,7 @@ export default function MobileSearch({ open, onClose }: { open: boolean; onClose
   const [val, setVal] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const idx = useSearchIndex();
+  const idx = useSearchIndex(open);
   const q = val.trim();
   const r = matchSearch(q, idx);
   const total = r.parks.length + r.coasters.length + r.manufacturers.length;

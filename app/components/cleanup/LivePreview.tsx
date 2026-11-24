@@ -327,8 +327,22 @@ export default function LivePreview({ page, target, viewport, photo, size, value
       setRect((old) => (old && Math.abs(old.x - r.left) < 0.5 && Math.abs(old.y - r.top) < 0.5 && Math.abs(old.w - r.width) < 0.5 && Math.abs(old.h - r.height) < 0.5 ? old : { x: r.left, y: r.top, w: r.width, h: r.height }));
     };
     void run();
-    const tick = setInterval(measure, 500);
-    return () => { cancelled = true; clearInterval(tick); observer?.disconnect(); detachLoad?.(); foundRef.current = null; };
+    // Re-measured when the frame or the page changes size or scrolls (fonts, a strip that
+    // snaps, the page scrolling itself), plus a slow tick for anything that moves silently.
+    let sizeObs: ResizeObserver | null = null;
+    let detachScroll: (() => void) | null = null;
+    const watch = () => {
+      const f = foundRef.current; if (!f || sizeObs) return;
+      const RO = (f.win as Window & { ResizeObserver?: typeof ResizeObserver }).ResizeObserver ?? ResizeObserver;
+      sizeObs = new RO(() => measure());
+      sizeObs.observe(f.frame); sizeObs.observe(f.doc.documentElement);
+      const onMove = () => measure();
+      f.win.addEventListener("scroll", onMove, { capture: true, passive: true });
+      f.win.addEventListener("resize", onMove);
+      detachScroll = () => { f.win.removeEventListener("scroll", onMove, { capture: true }); f.win.removeEventListener("resize", onMove); };
+    };
+    const tick = setInterval(() => { watch(); measure(); }, 2000);
+    return () => { cancelled = true; clearInterval(tick); sizeObs?.disconnect(); detachScroll?.(); observer?.disconnect(); detachLoad?.(); foundRef.current = null; };
   }, [docReady, target]); // eslint-disable-line react-hooks/exhaustive-deps -- the viewport only changes with the page (it reloads)
 
   // A new value (a drag here, a drag in another view of the same framing, an undo) is applied at once.

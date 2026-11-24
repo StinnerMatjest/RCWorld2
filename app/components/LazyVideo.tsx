@@ -21,6 +21,11 @@ export default function LazyVideo({ src, className = "", style, ...rest }: { src
         poster={posterUrl(src)}
         muted loop autoPlay playsInline controls preload="auto"
         onError={() => { if (file !== src) setFile(src); }}
+        // Fullscreen is the whole screen: play the clip at its full size there (a 4K clip stays 4K).
+        onPlay={(e) => {
+          const v = e.currentTarget;
+          v.onfullscreenchange = () => { if (document.fullscreenElement === v && file !== src) { const t = v.currentTime; setFile(src); v.currentTime = t; } };
+        }}
         className={className}
         style={style}
         {...rest}

@@ -1,13 +1,14 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { VideoThumb } from "@/app/components/VideoThumb";
 import React, { useState, useEffect, useRef } from "react";
 import { placeCover, replaceCovers, tileFraming } from "@/app/lib/coverPlacement";
 import { R2Image } from "../R2Image";
-import ImageUploaderModal from "@/app/components/ImageUploaderModal";
 import { useAdminMode } from "../../context/AdminModeContext";
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
 import { isR2Image, variantKey } from "@/app/lib/imageVariants";
+const ImageUploaderModal = dynamic(() => import("@/app/components/ImageUploaderModal"), { ssr: false });
 
 /**
  * The viewer's photo: the largest stored size shows at once (it is usually
@@ -179,7 +180,7 @@ const VisitGallery: React.FC<GalleryProps> = ({ visitId, parkName, initialImages
   // Tiles framed by a focus point are placed for their size: after each render
   // (photos that were already in) and when the window changes size.
   const gridRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (gridRef.current) replaceCovers(gridRef.current); });
+  useEffect(() => { if (gridRef.current) replaceCovers(gridRef.current); }, [images, isAdminMode, loading]);
   useEffect(() => {
     const again = () => { if (gridRef.current) replaceCovers(gridRef.current); };
     window.addEventListener("resize", again);

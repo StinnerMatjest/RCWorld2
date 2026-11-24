@@ -139,7 +139,7 @@ function VisitTile({ visit }: { visit: Visit }) {
               alt={visit.name}
               focusStr={visit.headerFocus}
               className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-[1.04]"
-              optimizeWidth={1080}
+              variants
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-800 text-4xl">🎢</div>

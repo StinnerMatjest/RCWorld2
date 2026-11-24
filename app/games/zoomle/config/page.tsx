@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { R2Image } from "@/app/components/R2Image";
 
 type CoasterImage = {
   gallery_id: number;
@@ -126,7 +126,7 @@ function ImageFocalEditor({ img, flags, onSaved }: {
       <button onClick={() => setOpen(o => !o)}
         className="flex items-center gap-3 px-3 py-2 w-full text-left hover:bg-slate-800/50 transition-colors cursor-pointer">
         <div className="relative w-16 h-11 rounded-lg overflow-hidden flex-shrink-0 bg-slate-700">
-          <Image src={img.image_path} alt="" fill className="object-cover" />
+          <R2Image src={img.image_path} alt="" fill sizes="64px" className="object-cover" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-bold truncate">

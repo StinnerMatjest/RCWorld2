@@ -1,12 +1,13 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Park, Visit } from "@/app/types";
 import type { ParkRanks } from "@/app/utils/parkRanks";
-import ParkHeaderModal from "./ParkHeaderModal";
 import { HeroStats } from "./HeroStats";
 import { FocusedImage, parseFocusStr } from "../FocusedImage";
 import { heroSources, phoneSource } from "@/app/lib/heroSources";
+const ParkHeaderModal = dynamic(() => import("./ParkHeaderModal"), { ssr: false });
 
 // Server-side placement of the photo (cover the frame, focus point at the
 // FocusedImage replaces this with px values after hydration. The frame
@@ -141,6 +142,8 @@ export default function ParkHero({ park, visit, visitCount, cardRating, ranks, i
               {...(phoneSrc ? { pictureSources: [phoneSource(phoneSrc, phoneSize, parseFocusStr(headerFocusMobile).zoom)] } : {})}
               className="absolute inset-0"
               imgClassName={`park-hero-img hero-reveal framing-photo ${phoneSrc ? "hero-art " : ""}${imageLoaded ? "is-loaded" : ""}`}
+              // A photo without a stored size still picks from the stored sizes (ignored when heroSources gave a srcSet).
+              variants
               priority
               // The inline script below may add is-loaded before React hydrates.
               suppressHydrationWarning
