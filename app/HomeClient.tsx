@@ -15,7 +15,7 @@ import { useSearch } from "./context/SearchContext";
 import { useAdminMode } from "@/app/context/AdminModeContext";
 import { COVER_UPSCALE_TOLERANCE, coverVariantUrl, exactCoverSrc, isR2Image, isWebFormat, sharperSource, VARIANT_WIDTHS, variantKey } from "@/app/lib/imageVariants";
 import type { ImageSize, CardCut } from "@/app/types";
-import { cutSrcSet, cutSizes, CARD_FRAME_HEIGHT } from "@/app/lib/cardCutGeometry";
+import { cutSrcSet, CARD_FRAME_HEIGHT } from "@/app/lib/cardCutGeometry";
 
 // Server-side placement for a photo of known size, so it is visible as soon
 // as it downloads without waiting for hydration. Pure CSS version of
@@ -88,16 +88,21 @@ const FRAME_W_DESKTOP = "400px";
 // 500px x aspect), times the crop zoom. The browser then picks the smallest
 // file whose pixels cover that on its own screen; nothing is enlarged.
 function entrySources(entry: CardEntry): { srcSet: string; sizes: string } | undefined {
-  if (entry.cut) return { srcSet: cutSrcSet(entry.cut), sizes: cutSizes(entry.cut) };
-  if (!entry.size || !isR2Image(entry.src)) return undefined;
+  if (!entry.size || !(entry.cut || isR2Image(entry.src))) return undefined;
   const { w, h } = entry.size;
   const zoom = parseFocusStr(entry.focus).zoom;
-  const parts = VARIANT_WIDTHS.filter((v) => v < w).map((v) => `${variantKey(entry.src, v)} ${v}w`);
-  if (isWebFormat(entry.src)) parts.push(`${entry.src} ${w}w`);
+  let srcSet: string;
+  if (entry.cut) {
+    srcSet = cutSrcSet(entry.cut);
+  } else {
+    const parts = VARIANT_WIDTHS.filter((v) => v < w).map((v) => `${variantKey(entry.src, v)} ${v}w`);
+    if (isWebFormat(entry.src)) parts.push(`${entry.src} ${w}w`);
+    srcSet = parts.join(", ");
+  }
   const byHeight = (CARD_FRAME_HEIGHT * w / h * zoom).toFixed(1) + "px";
   const z = zoom.toFixed(4);
   return {
-    srcSet: parts.join(", "),
+    srcSet,
     sizes: `(min-width: 768px) max(calc(${FRAME_W_DESKTOP} * ${z}), ${byHeight}), max(calc(${FRAME_W_MOBILE} * ${z}), ${byHeight})`,
   };
 }

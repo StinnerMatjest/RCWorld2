@@ -14,8 +14,11 @@
  * frame stays height-limited on the cut too, so the existing focus math
  * renders it identically with zoom 1 and a re-centred focus point.
  *
- * Photos narrower than 0.8 are served from the resized copies, which already
- * carry enough pixels for any frame.
+ * Photos narrower than 0.8 are width-limited in the frame and show most of
+ * their height, so their "cut" is the whole photo: what it adds is the set of
+ * copies at the widths the cards actually draw (640–1200), which the site-wide
+ * 480/1200/1920 ladder skips over. The card's own srcset then lands on the
+ * copy that matches the screen's pixels instead of a file twice as wide.
  */
 
 export const CARD_CUT = {
@@ -25,17 +28,21 @@ export const CARD_CUT = {
   frameMaxAspect: 0.85,
   /** Densest phone measured needs 2250 device px of height; native pixels above this are downscaled. */
   maxHeight: 2400,
+  /** Whole-photo cuts (narrow photos) are capped at the widest stored size; nothing draws wider. */
+  maxWidth: 3840,
   /** WebP quality. The 1920 tier uses 90; the cut is the product, so a notch higher. */
   quality: 92,
   /** Bump when the geometry changes so every cut is regenerated. */
-  version: "v1",
+  version: "v2",
   /**
    * Smaller copies saved beside each cut (same slice, fewer pixels) so a
    * screen that needs fewer pixels than the full cut can fetch a matching
    * file. The browser picks via srcset from its own device pixel ratio, so a
-   * dense phone still gets the full cut and nothing is ever enlarged.
+   * dense phone still gets the full cut and nothing is ever enlarged. 1200
+   * is the densest phone's pick (426 CSS px × 2.8125); the larger widths only
+   * exist for cuts wider than them.
    */
-  copyWidths: [640, 800, 1000],
+  copyWidths: [640, 800, 1000, 1200, 1920, 2560, 3840],
   copyQuality: 90,
 } as const;
 
@@ -54,16 +61,6 @@ export function cutSrcSet(cut: CardCutRef): string {
   const parts = (cut.copies ?? []).filter((w) => w < cut.w).map((w) => `${cutCopyKey(cut.url, w)} ${w}w`);
   parts.push(`${cut.url} ${cut.w}w`);
   return parts.join(", ");
-}
-
-/**
- * sizes for a cut: the cut is wider than any card frame, so the frame is
- * height-limited and the cut is drawn at frameHeight × (w/h) CSS px wide,
- * whatever the screen. Giving the browser that width lets it pick the copy
- * whose pixels match its density exactly.
- */
-export function cutSizes(cut: CardCutRef): string {
-  return `${Math.ceil(CARD_FRAME_HEIGHT * cut.w / cut.h)}px`;
 }
 
 export type ImageSize = { w: number; h: number };
@@ -98,11 +95,20 @@ export function cardCutKey(originalKey: string, plan: CardCutPlan): string {
   return `${base}-card-${fnv1a(`${plan.x},${plan.y},${plan.cw},${plan.ch},${plan.outW},${plan.outH},${CARD_CUT.version}`)}.webp`;
 }
 
-/** null when the photo is not wide enough to need a cut. */
+/** null when the photo has no size. Narrow photos get a whole-photo plan (see the top of this file). */
 export function planCardCut(size: ImageSize, focusStr?: string | null): CardCutPlan | null {
   const W = size.w, H = size.h;
-  if (!W || !H || W / H < CARD_CUT.minAspect) return null;
+  if (!W || !H) return null;
   const { cx, cy, zoom } = parseFocus(focusStr);
+  if (W / H < CARD_CUT.minAspect) {
+    const scale = W > CARD_CUT.maxWidth ? CARD_CUT.maxWidth / W : 1;
+    return {
+      x: 0, y: 0, cw: W, ch: H,
+      outW: Math.max(1, Math.round(W * scale)),
+      outH: Math.max(1, Math.round(H * scale)),
+      focus: `${cx.toFixed(4)} ${cy.toFixed(4)} ${zoom.toFixed(5)}`,
+    };
+  }
 
   // Visible band: full height at this zoom, widest frame plus margin. The
   // band is rounded UP to whole pixels and the cut's own zoom (>= 1) trims the
