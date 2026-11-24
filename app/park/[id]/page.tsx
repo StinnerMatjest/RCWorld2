@@ -225,9 +225,11 @@ export default async function Page({ params, searchParams }: PageProps) {
     ? await Promise.all([getParkTexts(data.id, activeRatingId), getVisitGallery(activeRatingId)])
     : [{ explanations: {}, sectionImages: {}, sectionLayouts: {}, sectionSpoilers: {} }, [] as any[]];
 
+  // AmusementPark (a LocalBusiness) is a type Google accepts review snippets for;
+  // TouristAttraction is not, and Search Console flagged it.
   const jsonLd = scores ? {
     "@context": "https://schema.org",
-    "@type": "TouristAttraction",
+    "@type": "AmusementPark",
     "name": data.name,
     "description": `ParkRating review of ${data.name} in ${data.country}. Overall score: ${scores.overall}/10.`,
     "url": `https://parkrating.com/park/${data.slug}`,

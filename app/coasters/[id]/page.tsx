@@ -182,42 +182,28 @@ export default async function Page({ params }: PageProps) {
   const highs = highlights.filter((h) => /positive/i.test(h.severity)).map((h) => h.category);
   const lows = highlights.filter((h) => /negative/i.test(h.severity)).map((h) => h.category);
 
+  // A ride is none of the types Google accepts a review snippet for (businesses,
+  // products, books…), so Search Console flagged the old Review markup as invalid.
+  // The page describes the coaster as an attraction instead: no rating markup,
+  // the score and the highs and lows in the description.
+  const parts = [
+    !isNaN(ratingNumber) ? `ParkRating score ${ratingNumber}/10.` : "",
+    highs.length > 0 ? `Highs: ${highs.join(", ")}.` : "",
+    lows.length > 0 ? `Lows: ${lows.join(", ")}.` : "",
+    ...coasterTexts.map(t => (t.headline ? `${t.headline}: ${t.text}` : t.text)),
+  ].filter(Boolean);
   const structuredData = {
     "@context": "https://schema.org",
-    "@type": "Review",
+    "@type": "TouristAttraction",
+    name: coaster.name,
     url: `https://parkrating.com/coasters/${coaster.slug}`,
-    itemReviewed: {
-      "@type": "TouristAttraction",
-      name: coaster.name,
-      url: `https://parkrating.com/coasters/${coaster.slug}`,
-      ...(headerImage ? { image: headerImage } : {}),
-      containedInPlace: {
-        "@type": "Place",
-        name: parkName,
-      },
-    },
-    reviewRating: !isNaN(ratingNumber)
-      ? {
-          "@type": "Rating",
-          ratingValue: ratingNumber,
-        bestRating: 11,
-        worstRating: 0,
-        }
-      : undefined,
-    author: {
-      "@type": "Organization",
-      name: "Parkrating",
-      url: "https://parkrating.com",
-    },
-    ...(coasterTexts.length > 0 ? {
-      reviewBody: coasterTexts
-        .map(t => t.headline ? `${t.headline}: ${t.text}` : t.text)
-        .join("\n\n"),
-    } : {}),
-    // The highs and lows, in schema.org's own review vocabulary.
-    ...(highs.length > 0 ? { positiveNotes: { "@type": "ItemList", itemListElement: highs.map((h: string, i: number) => ({ "@type": "ListItem", position: i + 1, name: h })) } } : {}),
-    ...(lows.length > 0 ? { negativeNotes: { "@type": "ItemList", itemListElement: lows.map((h: string, i: number) => ({ "@type": "ListItem", position: i + 1, name: h })) } } : {}),
     ...(headerImage ? { image: headerImage } : {}),
+    ...(parts.length > 0 ? { description: parts.join("\n\n") } : {}),
+    containedInPlace: {
+      "@type": "AmusementPark",
+      name: parkName,
+      ...(coaster.parkSlug ? { url: `https://parkrating.com/park/${coaster.parkSlug}` } : {}),
+    },
   };
 
   const breadcrumbs = {
